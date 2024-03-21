@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define USE_VULKAN
 
 #include "../qcommon/q_shared.h"
-#include "../renderercommon/tr_public.h"
+#include "../renderervk/tr_public.h"
 
 #define MAX_TEXTURE_UNITS 8
 
@@ -89,8 +89,8 @@ extern cvar_t *r_ext_texture_env_add;
 extern cvar_t *r_ext_texture_filter_anisotropic;
 extern cvar_t *r_ext_max_anisotropy;
 
-float R_NoiseGet4f( float x, float y, float z, double t );
-void  R_NoiseInit( void );
+// float R_NoiseGet4f( float x, float y, float z, double t );
+// void  R_NoiseInit( void );
 
 image_t *R_FindImageFile( const char *name, imgFlags_t flags );
 image_t *R_CreateImage( const char *name, const char *name2, byte *pic, int width, int height, imgFlags_t flags );

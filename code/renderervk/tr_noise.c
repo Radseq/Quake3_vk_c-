@@ -21,9 +21,24 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "../qcommon/q_shared.h"
-#include "../renderercommon/tr_public.h"
+#include "tr_public.h"
+#include "../renderervk_cplus/tr_noise_cplus.hpp"
 
-void R_LoadJPG( const char *filename, unsigned char **pic, int *width, int *height )
+#define NOISE_SIZE 256
+#define NOISE_MASK (NOISE_SIZE - 1)
+
+#define VAL(a) s_noise_perm[(a) & (NOISE_MASK)]
+#define INDEX(x, y, z, t) VAL(x + VAL(y + VAL(z + VAL(t))))
+
+static float s_noise_table[NOISE_SIZE];
+static int s_noise_perm[NOISE_SIZE];
+
+void R_NoiseInit(void)
 {
-	ri.CL_LoadJPG( filename, pic, width, height );
+	NoiseInit_plus();
+}
+
+float R_NoiseGet4f(float x, float y, float z, double t)
+{
+	return NoiseGet4f_plus(x, y, z, t);
 }
