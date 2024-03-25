@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // tr_image.c
 #include "tr_local.h"
+#include "../renderervk_cplus/tr_image.hpp"
 
 static byte			 s_intensitytable[256];
 static unsigned char s_gammatable[256];
@@ -110,17 +111,9 @@ R_SumOfUsedImages
 ===============
 */
 int R_SumOfUsedImages( void ) {
-	const image_t *img;
-	int i, total = 0;
 
-	for ( i = 0; i < tr.numImages; i++ ) {
-		img = tr.images[ i ];
-		if ( img->frameUsed == tr.frameCount ) {
-			total += img->uploadWidth * img->uploadHeight;
-		}
-	}
 
-	return total;
+	return R_SumOfUsedImages_plus();
 }
 
 
@@ -1011,17 +1004,7 @@ R_InitFogTable
 =================
 */
 void R_InitFogTable( void ) {
-	int		i;
-	float	d;
-	float	exp;
-
-	exp = 0.5;
-
-	for ( i = 0 ; i < FOG_TABLE_SIZE ; i++ ) {
-		d = powf( (float)i/(FOG_TABLE_SIZE-1), exp );
-
-		tr.fogTable[i] = d;
-	}
+	R_InitFogTable_plus();
 }
 
 
@@ -1035,29 +1018,8 @@ and for each vertex of transparent shaders in fog dynamically
 ================
 */
 float R_FogFactor( float s, float t ) {
-	float	d;
-
-	s -= 1.0/512;
-	if ( s < 0 ) {
-		return 0;
-	}
-	if ( t < 1.0/32 ) {
-		return 0;
-	}
-	if ( t < 31.0/32 ) {
-		s *= (t - 1.0f/32.0f) / (30.0f/32.0f);
-	}
-
-	// we need to leave a lot of clamp range
-	s *= 8;
-
-	if ( s > 1.0 ) {
-		s = 1.0;
-	}
-
-	d = tr.fogTable[ (uint32_t)(s * (FOG_TABLE_SIZE-1)) ];
-
-	return d;
+	
+	return R_FogFactor_plus(s,t);
 }
 
 
@@ -1678,19 +1640,5 @@ R_SkinList_f
 ===============
 */
 void	R_SkinList_f( void ) {
-	int			i, j;
-	skin_t		*skin;
-
-	ri.Printf (PRINT_ALL, "------------------\n");
-
-	for ( i = 0 ; i < tr.numSkins ; i++ ) {
-		skin = tr.skins[i];
-
-		ri.Printf( PRINT_ALL, "%3i:%s (%d surfaces)\n", i, skin->name, skin->numSurfaces );
-		for ( j = 0 ; j < skin->numSurfaces ; j++ ) {
-			ri.Printf( PRINT_ALL, "       %s = %s\n", 
-				skin->surfaces[j].name, skin->surfaces[j].shader->name );
-		}
-	}
-	ri.Printf (PRINT_ALL, "------------------\n");
+	R_SkinList_f_plus();
 }

@@ -19,7 +19,27 @@ along with Quake III Arena source code; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
-//
-// q_shared.c -- stateless support routines that are included in each code dll
-#include "q_shared.hpp"
+#include "tr_shader.hpp"
 
+/*
+====================
+R_GetShaderByHandle
+
+When a handle is passed in by another module, this range checks
+it and returns a valid (possibly default) shader_t to be used internally.
+====================
+*/
+shader_t *R_GetShaderByHandle_plus(qhandle_t hShader)
+{
+	if (hShader < 0)
+	{
+		ri.Printf(PRINT_WARNING, "R_GetShaderByHandle: out of range hShader '%d'\n", hShader);
+		return tr.defaultShader;
+	}
+	if (hShader >= tr.numShaders)
+	{
+		ri.Printf(PRINT_WARNING, "R_GetShaderByHandle: out of range hShader '%d'\n", hShader);
+		return tr.defaultShader;
+	}
+	return tr.shaders[hShader];
+}
