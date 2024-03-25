@@ -91,19 +91,7 @@ R_ClearFlares
 ==================
 */
 void R_ClearFlares( void ) {
-	int		i;
-
-	if ( !vk.fragmentStores )
-		return;
-
-	Com_Memset( r_flareStructs, 0, sizeof( r_flareStructs ) );
-	r_activeFlares = NULL;
-	r_inactiveFlares = NULL;
-
-	for ( i = 0 ; i < MAX_FLARES ; i++ ) {
-		r_flareStructs[i].next = r_inactiveFlares;
-		r_inactiveFlares = &r_flareStructs[i];
-	}
+	R_ClearFlares_plus();
 }
 
 
@@ -130,88 +118,8 @@ This is called at surface tesselation time
 ==================
 */
 void RB_AddFlare( void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t normal ) {
-	int				i;
-	flare_t			*f;
-	vec3_t			local;
-	float			d = 1;
-	vec4_t			eye, clip, normalized, window;
-
-	backEnd.pc.c_flareAdds++;
-
-	if ( normal && (normal[0] || normal[1] || normal[2] ) )	{
-		VectorSubtract( backEnd.viewParms.ort.origin, point, local );
-		VectorNormalizeFast( local );
-		d = DotProduct( local, normal );
-		// If the viewer is behind the flare don't add it.
-		if ( d < 0 ) {
-			return;
-		}
-	}
-
-	// if the point is off the screen, don't bother adding it
-	// calculate screen coordinates and depth
-	R_TransformModelToClip( point, backEnd.ort.modelMatrix, backEnd.viewParms.projectionMatrix, eye, clip );
-
-	// check to see if the point is completely off screen
-	for ( i = 0 ; i < 3 ; i++ ) {
-		if ( clip[i] >= clip[3] || clip[i] <= -clip[3] ) {
-			return;
-		}
-	}
-
-	R_TransformClipToWindow( clip, &backEnd.viewParms, normalized, window );
-
-	if ( window[0] < 0 || window[0] >= backEnd.viewParms.viewportWidth || window[1] < 0 || window[1] >= backEnd.viewParms.viewportHeight ) {
-		return;	// shouldn't happen, since we check the clip[] above, except for FP rounding
-	}
-
-	f = R_SearchFlare( surface );
-
-	// allocate a new one
-	if ( !f ) {
-		if ( !r_inactiveFlares ) {
-			// the list is completely full
-			return;
-		}
-		f = r_inactiveFlares;
-		r_inactiveFlares = r_inactiveFlares->next;
-		f->next = r_activeFlares;
-		r_activeFlares = f;
-
-		f->surface = surface;
-		f->frameSceneNum = backEnd.viewParms.frameSceneNum;
-		f->portalView = backEnd.viewParms.portalView;
-		f->visible = false;
-		f->fadeTime = backEnd.refdef.time - 2000;
-		f->testCount = 0;
-	} else {
-		++f->testCount;
-	}
-
-	f->addedFrame = backEnd.viewParms.frameCount;
-	f->fogNum = fogNum;
-
-	VectorCopy( point, f->origin );
-	VectorCopy( color, f->color );
-
-	// fade the intensity of the flare down as the
-	// light surface turns away from the viewer
-	VectorScale( f->color, d, f->color );
-
-	// save info needed to test
-	f->windowX = backEnd.viewParms.viewportX + window[0];
-	f->windowY = backEnd.viewParms.viewportY + window[1];
-
-	f->eyeZ = eye[2];
-
-#ifdef USE_REVERSED_DEPTH
-	f->drawZ = (clip[2]+0.20) / clip[3];
-#else
-	f->drawZ = (clip[2]-0.20) / clip[3];
-#endif
-
+	RB_AddFlare_plus(surface, fogNum, point, color, normal);
 }
-
 
 /*
 ==================
@@ -219,46 +127,8 @@ RB_AddDlightFlares
 ==================
 */
 void RB_AddDlightFlares( void ) {
-	dlight_t		*l;
-	int				i, j, k;
-	fog_t			*fog = NULL;
-
-	if ( !r_flares->integer ) {
-		return;
-	}
-
-	l = backEnd.refdef.dlights;
-
-	if ( tr.world )
-		fog = tr.world->fogs;
-
-	for ( i = 0 ; i < backEnd.refdef.num_dlights; i++, l++ ) {
-
-		if ( fog )
-		{
-			// find which fog volume the light is in
-			for ( j = 1 ; j < tr.world->numfogs ; j++ ) {
-				fog = &tr.world->fogs[j];
-				for ( k = 0 ; k < 3 ; k++ ) {
-					if ( l->origin[k] < fog->bounds[0][k] || l->origin[k] > fog->bounds[1][k] ) {
-						break;
-					}
-				}
-				if ( k == 3 ) {
-					break;
-				}
-			}
-			if ( j == tr.world->numfogs ) {
-				j = 0;
-			}
-		}
-		else
-			j = 0;
-
-		RB_AddFlare( (void *)l, j, l->origin, l->color, NULL );
-	}
+	RB_AddDlightFlares_plus();
 }
-
 /*
 ===============================================================================
 

@@ -23,6 +23,8 @@ extern "C"
     void ProjectPointOnPlane_plus(vec3_t dst, const vec3_t p, const vec3_t normal);
     void AxisCopy_plus(vec3_t in[3], vec3_t out[3]);
     float Q_fabs_plus(float f);
+    float Q_rsqrt_plus(float number);
+    vec_t VectorNormalize2_plus(const vec3_t v, vec3_t out);
 
 #ifdef __cplusplus
 }

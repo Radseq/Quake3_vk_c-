@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // tr_surf.c
 #include "tr_local.h"
+#include "../renderervk_cplus/tr_surface.hpp"
 
 /*
 
@@ -990,71 +991,9 @@ static float LodErrorForVolume( vec3_t local, float radius ) {
 }
 
 
-void RB_SurfaceGridEstimate( srfGridMesh_t *cv, int *numVertexes, int *numIndexes )
-{
-	int		lodWidth, lodHeight;
-	float	lodError;
-	int		i, used, rows;
-	int		nVertexes = 0;
-	int		nIndexes = 0;
-	int		irows, vrows;
-
-	lodError = r_lodCurveError->value; // fixed quality for VBO
-
-	lodWidth = 1;
-	for ( i = 1 ; i < cv->width-1 ; i++ ) {
-		if ( cv->widthLodError[i] <= lodError ) {
-			lodWidth++;
-		}
-	}
-	lodWidth++;
-
-	lodHeight = 1;
-	for ( i = 1 ; i < cv->height-1 ; i++ ) {
-		if ( cv->heightLodError[i] <= lodError ) {
-			lodHeight++;
-		}
-	}
-	lodHeight++;
-
-	used = 0;
-	while ( used < lodHeight - 1 ) {
-		// see how many rows of both verts and indexes we can add without overflowing
-		do {
-			vrows = ( SHADER_MAX_VERTEXES - tess.numVertexes ) / lodWidth;
-			irows = ( SHADER_MAX_INDEXES - tess.numIndexes ) / ( lodWidth * 6 );
-
-			// if we don't have enough space for at least one strip, flush the buffer
-			if ( vrows < 2 || irows < 1 ) {
-				nVertexes += tess.numVertexes;
-				nIndexes += tess.numIndexes;
-				tess.numIndexes = 0;
-				tess.numVertexes = 0;
-			} else {
-				break;
-			}
-		} while ( 1 );
-		
-		rows = irows;
-		if ( vrows < irows + 1 ) {
-			rows = vrows - 1;
-		}
-		if ( used + rows > lodHeight ) {
-			rows = lodHeight - used;
-		}
-
-		tess.numIndexes += (rows-1)*(lodWidth-1)*6;
-		tess.numVertexes += rows * lodWidth;
-		used += rows - 1;
-	}
-
-	*numVertexes = nVertexes + tess.numVertexes;
-	*numIndexes = nIndexes + tess.numIndexes;
-	tess.numVertexes = 0;
-	tess.numIndexes = 0;
+void RB_SurfaceGridEstimate( srfGridMesh_t *cv, int *numVertexes, int *numIndexes ){
+	RB_SurfaceGridEstimate_plus(cv, numVertexes, numIndexes);
 }
-
-
 /*
 =============
 RB_SurfaceGrid

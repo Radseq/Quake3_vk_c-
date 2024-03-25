@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // tr_init.c -- functions that are not called every frame
 
 #include "tr_local.h"
+#include "../renderervk_cplus/tr_world.hpp"
 
 glconfig_t	glConfig;
 
@@ -1519,7 +1520,7 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 	re.RegisterFont = RE_RegisterFont;
 	re.RemapShader = RE_RemapShader;
 	re.GetEntityToken = RE_GetEntityToken;
-	re.inPVS = R_inPVS;
+	re.inPVS = R_inPVS_plus;
 
 	re.TakeVideoFrame = RE_TakeVideoFrame;
 	re.SetColorMappings = R_SetColorMappings;

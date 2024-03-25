@@ -264,3 +264,52 @@ float Q_fabs_plus(float f)
 	fi.i &= 0x7FFFFFFF;
 	return fi.f;
 }
+
+float Q_rsqrt_plus(float number)
+{
+#if defined(_MSC_SSE2)
+	float ret;
+	_mm_store_ss(&ret, _mm_rsqrt_ss(_mm_load_ss(&number)));
+	return ret;
+#elif defined(_GCC_SSE2)
+	/* writing it this way allows gcc to recognize that rsqrt can be used with -ffast-math */
+	return 1.0f / sqrtf(number);
+#else
+	floatint_t t;
+	float x2, y;
+	const float threehalfs = 1.5F;
+
+	x2 = number * 0.5F;
+	t.f = number;
+	t.i = 0x5f3759df - (t.i >> 1); // what the fuck?
+	y = t.f;
+	y = y * (threehalfs - (x2 * y * y)); // 1st iteration
+										 //	y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
+
+	return y;
+#endif
+}
+
+vec_t VectorNormalize2_plus(const vec3_t v, vec3_t out)
+{
+	float length, ilength;
+
+	length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+
+	if (length)
+	{
+		/* writing it this way allows gcc to recognize that rsqrt can be used */
+		ilength = 1 / (float)sqrt(length);
+		/* sqrt(length) = length * (1 / sqrt(length)) */
+		length *= ilength;
+		out[0] = v[0] * ilength;
+		out[1] = v[1] * ilength;
+		out[2] = v[2] * ilength;
+	}
+	else
+	{
+		VectorClear(out);
+	}
+
+	return length;
+}

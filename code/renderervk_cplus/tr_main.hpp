@@ -21,8 +21,8 @@ extern "C"
                             int fogIndex, int dlightMap);
     int R_CullDlight_plus(const dlight_t *dl);
     int R_CullLocalBox_plus(const vec3_t bounds[2]);
-    // todo nie działa
-    //= int R_CullLocalPointAndRadius_plus(const vec3_t pt, float radius);
+
+    int R_CullLocalPointAndRadius_plus(const vec3_t pt, float radius);
 
     void R_TransformModelToClip_plus(const vec3_t src, const float *modelMatrix, const float *projectionMatrix,
                                      vec4_t eye, vec4_t dst);

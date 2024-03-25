@@ -726,7 +726,10 @@ Q3RENDV_PLUS_OBJ = \
   $(B)/rendv_cplus/tr_main.o \
   $(B)/rendv_cplus/vk_flares.o \
   $(B)/rendv_cplus/tr_shade.o \
-    # $(B)/rendv_cplus/tr_surface.o \
+  $(B)/rendv_cplus/tr_shade_calc.o \
+  $(B)/rendv_cplus/q_shared.o \
+  $(B)/rendv_cplus/tr_surface.o \
+  $(B)/rendv_cplus/tr_model.o \
 
 Q3RENDVOBJ = \
   $(B)/rendv/tr_animation.o \

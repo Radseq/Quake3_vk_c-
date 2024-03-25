@@ -967,13 +967,7 @@ R_ModelInit
 ===============
 */
 void R_ModelInit( void ) {
-	model_t		*mod;
-
-	// leave a space for NULL model
-	tr.numModels = 0;
-
-	mod = R_AllocModel();
-	mod->type = MOD_BAD;
+R_ModelInit_plus();
 }
 
 
@@ -983,30 +977,7 @@ R_Modellist_f
 ================
 */
 void R_Modellist_f( void ) {
-	int		i, j;
-	model_t	*mod;
-	int		total;
-	int		lods;
-
-	total = 0;
-	for ( i = 1 ; i < tr.numModels; i++ ) {
-		mod = tr.models[i];
-		lods = 1;
-		for ( j = 1 ; j < MD3_MAX_LODS ; j++ ) {
-			if ( mod->md3[j] && mod->md3[j] != mod->md3[j-1] ) {
-				lods++;
-			}
-		}
-		ri.Printf( PRINT_ALL, "%8i : (%i) %s\n",mod->dataSize, lods, mod->name );
-		total += mod->dataSize;
-	}
-	ri.Printf( PRINT_ALL, "%8i : Total models\n", total );
-
-#if	0		// not working right with new hunk
-	if ( tr.world ) {
-		ri.Printf( PRINT_ALL, "\n%8i : %s\n", tr.world->dataSize, tr.world->name );
-	}
-#endif
+R_Modellist_f_plus();
 }
 
 
@@ -1142,50 +1113,5 @@ R_ModelBounds
 ====================
 */
 void R_ModelBounds( qhandle_t handle, vec3_t mins, vec3_t maxs ) {
-	model_t		*model;
-
-	model = R_GetModelByHandle( handle );
-
-	if(model->type == MOD_BRUSH) {
-		VectorCopy( model->bmodel->bounds[0], mins );
-		VectorCopy( model->bmodel->bounds[1], maxs );
-		
-		return;
-	} else if (model->type == MOD_MESH) {
-		md3Header_t	*header;
-		md3Frame_t	*frame;
-
-		header = model->md3[0];
-		frame = (md3Frame_t *) ((byte *)header + header->ofsFrames);
-
-		VectorCopy( frame->bounds[0], mins );
-		VectorCopy( frame->bounds[1], maxs );
-		
-		return;
-	} else if (model->type == MOD_MDR) {
-		mdrHeader_t	*header;
-		mdrFrame_t	*frame;
-
-		header = (mdrHeader_t *)model->modelData;
-		frame = (mdrFrame_t *) ((byte *)header + header->ofsFrames);
-
-		VectorCopy( frame->bounds[0], mins );
-		VectorCopy( frame->bounds[1], maxs );
-		
-		return;
-	} else if(model->type == MOD_IQM) {
-		iqmData_t *iqmData;
-		
-		iqmData = model->modelData;
-
-		if(iqmData->bounds)
-		{
-			VectorCopy(iqmData->bounds, mins);
-			VectorCopy(iqmData->bounds + 3, maxs);
-			return;
-		}
-	}
-
-	VectorClear( mins );
-	VectorClear( maxs );
+	R_ModelBounds_plus(handle, mins, maxs);
 }

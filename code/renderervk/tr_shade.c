@@ -556,126 +556,8 @@ R_ComputeTexCoords
 ===============
 */
 void R_ComputeTexCoords( const int b, const textureBundle_t *bundle ) {
-	int	i;
-	int tm;
-	vec2_t *src, *dst;
-
-	if ( !tess.numVertexes )
-		return;
-
-	src = dst = tess.svars.texcoords[b];
-
-	//
-	// generate the texture coordinates
-	//
-	switch ( bundle->tcGen )
-	{
-	case TCGEN_IDENTITY:
-		src = tess.texCoords00;
-		break;
-	case TCGEN_TEXTURE:
-		src = tess.texCoords[0];
-		break;
-	case TCGEN_LIGHTMAP:
-		src = tess.texCoords[1];
-		break;
-	case TCGEN_VECTOR:
-		for ( i = 0 ; i < tess.numVertexes ; i++ ) {
-			dst[i][0] = DotProduct( tess.xyz[i], bundle->tcGenVectors[0] );
-			dst[i][1] = DotProduct( tess.xyz[i], bundle->tcGenVectors[1] );
-		}
-		break;
-	case TCGEN_FOG:
-		RB_CalcFogTexCoords( ( float * ) dst );
-		break;
-	case TCGEN_ENVIRONMENT_MAPPED:
-		RB_CalcEnvironmentTexCoords( ( float * ) dst );
-		break;
-	case TCGEN_ENVIRONMENT_MAPPED_FP:
-		RB_CalcEnvironmentTexCoordsFP( ( float * ) dst, bundle->isScreenMap );
-		break;
-	case TCGEN_BAD:
-		return;
-	}
-
-	//
-	// alter texture coordinates
-	//
-	for ( tm = 0; tm < bundle->numTexMods ; tm++ ) {
-		switch ( bundle->texMods[tm].type )
-		{
-		case TMOD_NONE:
-			tm = TR_MAX_TEXMODS; // break out of for loop
-			break;
-
-		case TMOD_TURBULENT:
-			RB_CalcTurbulentTexCoords( &bundle->texMods[tm].wave, (float *)src, (float *) dst );
-			src = dst;
-			break;
-
-		case TMOD_ENTITY_TRANSLATE:
-			RB_CalcScrollTexCoords( backEnd.currentEntity->e.shaderTexCoord, (float *)src, (float *) dst );
-			src = dst;
-			break;
-
-		case TMOD_SCROLL:
-			RB_CalcScrollTexCoords( bundle->texMods[tm].scroll, (float *)src, (float *) dst );
-			src = dst;
-			break;
-
-		case TMOD_SCALE:
-			RB_CalcScaleTexCoords( bundle->texMods[tm].scale, (float *) src, (float *) dst );
-			src = dst;
-			break;
-
-		case TMOD_OFFSET:
-			for ( i = 0; i < tess.numVertexes; i++ ) {
-				dst[i][0] = src[i][0] + bundle->texMods[tm].offset[0];
-				dst[i][1] = src[i][1] + bundle->texMods[tm].offset[1];
-			}
-			src = dst;
-			break;
-
-		case TMOD_SCALE_OFFSET:
-			for ( i = 0; i < tess.numVertexes; i++ ) {
-				dst[i][0] = (src[i][0] * bundle->texMods[tm].scale[0] ) + bundle->texMods[tm].offset[0];
-				dst[i][1] = (src[i][1] * bundle->texMods[tm].scale[1] ) + bundle->texMods[tm].offset[1];
-			}
-			src = dst;
-			break;
-
-		case TMOD_OFFSET_SCALE:
-			for ( i = 0; i < tess.numVertexes; i++ ) {
-				dst[i][0] = (src[i][0] + bundle->texMods[tm].offset[0]) * bundle->texMods[tm].scale[0];
-				dst[i][1] = (src[i][1] + bundle->texMods[tm].offset[1]) * bundle->texMods[tm].scale[1];
-			}
-			src = dst;
-			break;
-
-		case TMOD_STRETCH:
-			RB_CalcStretchTexCoords( &bundle->texMods[tm].wave, (float *)src, (float *) dst );
-			src = dst;
-			break;
-
-		case TMOD_TRANSFORM:
-			RB_CalcTransformTexCoords( &bundle->texMods[tm], (float *)src, (float *) dst );
-			src = dst;
-			break;
-
-		case TMOD_ROTATE:
-			RB_CalcRotateTexCoords( bundle->texMods[tm].rotateSpeed, (float *) src, (float *) dst );
-			src = dst;
-			break;
-
-		default:
-			ri.Error( ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'", bundle->texMods[tm].type, tess.shader->name );
-			break;
-		}
-	}
-
-	tess.svars.texcoordPtr[ b ] = src;
+	R_ComputeTexCoords_plus(b,bundle);
 }
-
 
 /*
 ** RB_IterateStagesGeneric
@@ -790,23 +672,7 @@ static void RB_IterateStagesGeneric( const shaderCommands_t *input, bool fogColl
 
 void VK_SetFogParams( vkUniform_t *uniform, int *fogStage )
 {
-	if ( tess.fogNum && tess.shader->fogPass ) {
-		const fogProgramParms_t *fp = RB_CalcFogProgramParms();
-		// vertex data
-		Vector4Copy( fp->fogDistanceVector, uniform->fogDistanceVector );
-		Vector4Copy( fp->fogDepthVector, uniform->fogDepthVector );
-		uniform->fogEyeT[0] = fp->eyeT;
-		if ( fp->eyeOutside ) {
-			uniform->fogEyeT[1] = 0.0; // fog eye out
-		} else {
-			uniform->fogEyeT[1] = 1.0; // fog eye in
-		}
-		// fragment data
-		Vector4Copy( fp->fogColor, uniform->fogColor );
-		*fogStage = 1;
-	} else {
-		*fogStage = 0;
-	}
+	VK_SetFogParams_plus(uniform, fogStage);
 }
 
 

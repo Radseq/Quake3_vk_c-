@@ -93,7 +93,7 @@ static flare_t *R_SearchFlare( void *surface )
 
 /*
 ==================
-RB_AddFlare
+RB_AddFlare_plus
 
 This is called at surface tesselation time
 ==================
@@ -109,7 +109,7 @@ void RB_AddFlare_plus( void *surface, int fogNum, vec3_t point, vec3_t color, ve
 
 	if ( normal && (normal[0] || normal[1] || normal[2] ) )	{
 		VectorSubtract( backEnd.viewParms.ort.origin, point, local );
-		VectorNormalizeFast( local );
+		VectorNormalizeFast_plus( local );
 		d = DotProduct( local, normal );
 		// If the viewer is behind the flare don't add it.
 		if ( d < 0 ) {
@@ -119,7 +119,7 @@ void RB_AddFlare_plus( void *surface, int fogNum, vec3_t point, vec3_t color, ve
 
 	// if the point is off the screen, don't bother adding it
 	// calculate screen coordinates and depth
-	R_TransformModelToClip( point, backEnd.ort.modelMatrix, backEnd.viewParms.projectionMatrix, eye, clip );
+	R_TransformModelToClip_plus( point, backEnd.ort.modelMatrix, backEnd.viewParms.projectionMatrix, eye, clip );
 
 	// check to see if the point is completely off screen
 	for ( i = 0 ; i < 3 ; i++ ) {
@@ -128,7 +128,7 @@ void RB_AddFlare_plus( void *surface, int fogNum, vec3_t point, vec3_t color, ve
 		}
 	}
 
-	R_TransformClipToWindow( clip, &backEnd.viewParms, normalized, window );
+	R_TransformClipToWindow_plus( clip, &backEnd.viewParms, normalized, window );
 
 	if ( window[0] < 0 || window[0] >= backEnd.viewParms.viewportWidth || window[1] < 0 || window[1] >= backEnd.viewParms.viewportHeight ) {
 		return;	// shouldn't happen, since we check the clip[] above, except for FP rounding
@@ -224,7 +224,7 @@ void RB_AddDlightFlares_plus( void ) {
 		else
 			j = 0;
 
-		RB_AddFlare( (void *)l, j, l->origin, l->color, NULL );
+		RB_AddFlare_plus( (void *)l, j, l->origin, l->color, NULL );
 	}
 }
 
@@ -252,99 +252,6 @@ static float *vk_ortho( float x1, float x2,
 	m[15] = 1.0f;
 
 	return m;
-}
-
-
-/*
-==================
-RB_TestFlare
-==================
-*/
-static void RB_TestFlare( flare_t *f ) {
-	bool		visible;
-	float			fade;
-	float			*m;
-	uint32_t		offset;
-
-	backEnd.pc.c_flareTests++;
-
-/*
-	We don't have equivalent of glReadPixels() in vulkan
-	and explicit depth buffer reading may be very slow and require surface conversion.
-
-	So we will use storage buffer and exploit early depth tests by
-	rendering test dot in orthographic projection at projected flare coordinates
-	window-x, window-y and world-z: if test dot is not covered by
-	any world geometry - it will invoke fragment shader which will
-	fill storage buffer at desired location, then we discard fragment.
-	In next frame we read storage buffer: if there is a non-zero value
-	then our flare WAS visible (as we're working with 1-frame delay),
-	multisampled image will cause multiple fragment shader invocations.
-*/
-
-	// we neeed only single uint32_t but take care of alignment
-	offset = (f - r_flareStructs) * vk.storage_alignment;
-
-	if ( f->testCount ) {
-		uint32_t *cnt = (uint32_t*)(vk.storage.buffer_ptr + offset);
-		if ( *cnt )
-			visible = true;
-		else
-			visible = false;
-
-		f->testCount = 1;
-	} else {
-		visible = false;
-	}
-
-	// reset test result in storage buffer
-	// *((uint32_t*)(vk.storage.buffer_ptr + offset)) = 0x00;
-
-	m = vk_ortho( backEnd.viewParms.viewportX, backEnd.viewParms.viewportX + backEnd.viewParms.viewportWidth,
-		backEnd.viewParms.viewportY, backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight, 0, 1 );
-	vk_update_mvp( m );
-
-	tess.xyz[0][0] = f->windowX;
-	tess.xyz[0][1] = f->windowY;
-	tess.xyz[0][2] = -f->drawZ;
-	tess.numVertexes = 1;
-
-#ifdef USE_VBO
-	tess.vboIndex = 0;
-#endif
-	// render test dot
-	vk_reset_descriptor( VK_DESC_STORAGE );
-	vk_update_descriptor( VK_DESC_STORAGE, vk.storage.descriptor );
-	vk_update_descriptor_offset( VK_DESC_STORAGE, offset );
-
-	vk_bind_pipeline( vk.dot_pipeline );
-	vk_bind_geometry( TESS_XYZ );
-	vk_draw_geometry( DEPTH_RANGE_NORMAL, false );
-
-	//Com_Memcpy( vk_world.modelview_transform, modelMatrix_original, sizeof( modelMatrix_original ) );
-	//vk_update_mvp( NULL );
-
-	if ( visible ) {
-		if ( !f->visible ) {
-			f->visible = true;
-			f->fadeTime = backEnd.refdef.time - 1;
-		}
-		fade = ( ( backEnd.refdef.time - f->fadeTime ) /1000.0f ) * r_flareFade->value;
-	} else {
-		if ( f->visible ) {
-			f->visible = false;
-			f->fadeTime = backEnd.refdef.time - 1;
-		}
-		fade = 1.0f - ( ( backEnd.refdef.time - f->fadeTime ) / 1000.0f ) * r_flareFade->value;
-	}
-
-	if ( fade < 0 ) {
-		fade = 0;
-	} else if ( fade > 1 ) {
-		fade = 1;
-	}
-
-	f->drawIntensity = fade;
 }
 
 
@@ -425,102 +332,4 @@ static void RB_RenderFlare( flare_t *f ) {
 	RB_AddQuadStamp2( f->windowX - size, f->windowY - size, size * 2, size * 2, 0, 0, 1, 1, c );
 
 	RB_EndSurface();
-}
-
-
-/*
-==================
-RB_RenderFlares
-
-Because flares are simulating an occular effect, they should be drawn after
-everything (all views) in the entire frame has been drawn.
-
-Because of the way portals use the depth buffer to mark off areas, the
-needed information would be lost after each view, so we are forced to draw
-flares after each view.
-
-The resulting artifact is that flares in mirrors or portals don't dim properly
-when occluded by something in the main view, and portal flares that should
-extend past the portal edge will be overwritten.
-==================
-*/
-void RB_RenderFlares_plus( void ) {
-	flare_t		*f;
-	flare_t		**prev;
-	bool	draw;
-	float		*m;
-
-	if ( !r_flares->integer ) {
-		return;
-	}
-
-	if ( vk.renderPassIndex == RENDER_PASS_SCREENMAP ) {
-		return;
-	}
-
-	if ( backEnd.isHyperspace ) {
-		return;
-	}
-
-	// Reset currentEntity to world so that any previously referenced entities
-	// don't have influence on the rendering of these flares (i.e. RF_ renderer flags).
-	backEnd.currentEntity = &tr.worldEntity;
-	backEnd.ort = backEnd.viewParms.world;
-
-	//RB_AddDlightFlares();
-
-	// perform z buffer readback on each flare in this view
-	draw = false;
-	prev = &r_activeFlares;
-	while ( ( f = *prev ) != NULL ) {
-		// throw out any flares that weren't added last frame
-		if ( backEnd.viewParms.frameCount - f->addedFrame > 0 && f->portalView == backEnd.viewParms.portalView ) {
-			*prev = f->next;
-			f->next = r_inactiveFlares;
-			r_inactiveFlares = f;
-			continue;
-		}
-
-		// don't draw any here that aren't from this scene / portal
-		f->drawIntensity = 0;
-		if ( f->frameSceneNum == backEnd.viewParms.frameSceneNum && f->portalView == backEnd.viewParms.portalView ) {
-			RB_TestFlare( f );
-			if ( f->testCount == 0 ) {
-				// recently added, wait 1 frame for test result
-			} else if ( f->drawIntensity ) {
-				draw = true;
-			} else {
-				// this flare has completely faded out, so remove it from the chain
-				*prev = f->next;
-				f->next = r_inactiveFlares;
-				r_inactiveFlares = f;
-				continue;
-			}
-		}
-
-		prev = &f->next;
-	}
-
-	if ( !draw ) {
-		return;		// none visible
-	}
-
-#ifdef USE_REVERSED_DEPTH
-	m = vk_ortho( backEnd.viewParms.viewportX, backEnd.viewParms.viewportX + backEnd.viewParms.viewportWidth,
-		backEnd.viewParms.viewportY, backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight, 1.0, 0.0 );
-#else
-	m = vk_ortho( backEnd.viewParms.viewportX, backEnd.viewParms.viewportX + backEnd.viewParms.viewportWidth,
-		backEnd.viewParms.viewportY, backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight, 0.0, 1.0 );
-#endif
-
-	vk_update_mvp( m );
-
-	for ( f = r_activeFlares ; f ; f = f->next ) {
-		if ( f->frameSceneNum == backEnd.viewParms.frameSceneNum && f->portalView == backEnd.viewParms.portalView && f->drawIntensity ) {
-			RB_RenderFlare( f );
-		}
-	}
-
-	//Com_Memcpy( vk_world.modelview_transform, modelMatrix_original, sizeof( modelMatrix_original ) );
-	//vk_update_mvp( NULL );
 }

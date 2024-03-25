@@ -518,62 +518,9 @@ static void R_RecursiveLightNode( const mnode_t* node )
 R_AddBrushModelSurfaces
 =================
 */
-void R_AddBrushModelSurfaces ( trRefEntity_t *ent ) {
-	bmodel_t	*bmodel;
-	int			clip;
-	const model_t		*pModel;
-	int			i;
-
-	pModel = R_GetModelByHandle( ent->e.hModel );
-
-	bmodel = pModel->bmodel;
-
-	clip = R_CullLocalBox( bmodel->bounds );
-	if ( clip == CULL_OUT ) {
-		return;
-	}
-
-#ifdef USE_PMLIGHT
-#ifdef USE_LEGACY_DLIGHTS
-	if ( r_dlightMode->integer ) 
-#endif
-	{
-		dlight_t *dl;
-		int s;
-
-		for ( s = 0; s < bmodel->numSurfaces; s++ ) {
-			R_AddWorldSurface( bmodel->firstSurface + s, 0 );
-		}
-
-		R_SetupEntityLighting( &tr.refdef, ent );
-		
-		R_TransformDlights( tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.ort );
-
-		for ( i = 0; i < tr.viewParms.num_dlights; i++ ) {
-			dl = &tr.viewParms.dlights[i];
-			if ( !R_LightCullBounds( dl, bmodel->bounds[0], bmodel->bounds[1] ) ) {
-				tr.lightCount++;
-				tr.light = dl;
-				for ( s = 0; s < bmodel->numSurfaces; s++ ) {
-					R_AddLitSurface( bmodel->firstSurface + s, dl );
-				}
-			}
-		}
-		return;
-	}
-#endif // USE_PMLIGHT
-
-#ifdef USE_LEGACY_DLIGHTS
-	R_SetupEntityLighting( &tr.refdef, ent );
-	R_DlightBmodel( bmodel );
-
-	for ( i = 0 ; i < bmodel->numSurfaces ; i++ ) {
-		R_AddWorldSurface( bmodel->firstSurface + i, tr.currentEntity->needDlights );
-	}
-#endif
+void R_AddBrushModelSurfaces ( trRefEntity_t *ent ){
+	R_AddBrushModelSurfaces_plus(ent);
 }
-
-
 /*
 =============================================================
 
@@ -784,17 +731,7 @@ R_inPVS
 =================
 */
 bool R_inPVS( const vec3_t p1, const vec3_t p2 ) {
-	const mnode_t *leaf;
-	const byte	*vis;
-
-	leaf = R_PointInLeaf( p1 );
-	vis = ri.CM_ClusterPVS( leaf->cluster );
-	leaf = R_PointInLeaf( p2 );
-
-	if ( !(vis[leaf->cluster>>3] & (1<<(leaf->cluster&7))) ) {
-		return false;
-	}
-	return true;
+	return R_inPVS_plus(p1, p2);
 }
 
 /*
@@ -884,58 +821,5 @@ R_AddWorldSurfaces
 =============
 */
 void R_AddWorldSurfaces( void ) {
-#ifdef USE_PMLIGHT
-	dlight_t* dl;
-	int i;
-#endif
-
-	if ( !r_drawworld->integer ) {
-		return;
-	}
-
-	if ( tr.refdef.rdflags & RDF_NOWORLDMODEL ) {
-		return;
-	}
-
-	tr.currentEntityNum = REFENTITYNUM_WORLD;
-	tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
-
-	// determine which leaves are in the PVS / areamask
-	R_MarkLeaves ();
-
-	// clear out the visible min/max
-	ClearBounds( tr.viewParms.visBounds[0], tr.viewParms.visBounds[1] );
-
-	// perform frustum culling and add all the potentially visible surfaces
-	if ( tr.refdef.num_dlights > MAX_DLIGHTS ) {
-		tr.refdef.num_dlights = MAX_DLIGHTS;
-	}
-
-	R_RecursiveWorldNode( tr.world->nodes, 15, ( 1ULL << tr.refdef.num_dlights ) - 1 );
-
-#ifdef USE_PMLIGHT
-#ifdef USE_LEGACY_DLIGHTS
-	if ( !r_dlightMode->integer )
-		return;
-#endif // USE_LEGACY_DLIGHTS
-
-	// "transform" all the dlights so that dl->transformed is actually populated
-	// (even though HERE it's == dl->origin) so we can always use R_LightCullBounds
-	// instead of having copypasted versions for both world and local cases
-
-	R_TransformDlights( tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.viewParms.world );
-	for ( i = 0; i < tr.viewParms.num_dlights; i++ ) 
-	{
-		dl = &tr.viewParms.dlights[i];	
-		dl->head = dl->tail = NULL;
-		if ( R_CullDlight( dl ) == CULL_OUT ) {
-			tr.pc.c_light_cull_out++;
-			continue;
-		}
-		tr.pc.c_light_cull_in++;
-		tr.lightCount++;
-		tr.light = dl;
-		R_RecursiveLightNode( tr.world->nodes );
-	}
-#endif // USE_PMLIGHT
+	R_AddWorldSurfaces_plus();
 }
