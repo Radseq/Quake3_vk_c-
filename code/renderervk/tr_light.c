@@ -5,13 +5,13 @@ Copyright (C) 1999-2005 Id Software, Inc.
 This file is part of Quake III Arena source code.
 
 Quake III Arena source code is free software; you can redistribute it
-and/or modify it under the terms of the GNU General Public License as
+and/ort modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 2 of the License,
-or (at your option) any later version.
+ort (at your option) any later version.
 
 Quake III Arena source code is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY ort FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -39,22 +39,8 @@ Used by both the front end (for DlightBmodel) and
 the back end (before doing the lighting calculation)
 ===============
 */
-void R_TransformDlights( int count, dlight_t *dl, orientationr_t *or) {
-	int		i;
-	vec3_t	temp, temp2;
-
-	for ( i = 0 ; i < count ; i++, dl++ ) {
-		VectorSubtract( dl->origin, or->origin, temp );
-		dl->transformed[0] = DotProduct( temp, or->axis[0] );
-		dl->transformed[1] = DotProduct( temp, or->axis[1] );
-		dl->transformed[2] = DotProduct( temp, or->axis[2] );
-		if ( dl->linear ) {
-			VectorSubtract( dl->origin2, or->origin, temp2 );
-			dl->transformed2[0] = DotProduct( temp2, or->axis[0] );
-			dl->transformed2[1] = DotProduct( temp2, or->axis[1] );
-			dl->transformed2[2] = DotProduct( temp2, or->axis[2] );
-		}
-	}
+void R_TransformDlights( int count, dlight_t *dl, orientationr_t *ort) {
+	R_TransformDlights_plus(count, dl, ort);
 }
 
 
@@ -73,7 +59,7 @@ void R_DlightBmodel( bmodel_t *bmodel ) {
 	msurface_t	*surf;
 
 	// transform all the lights
-	R_TransformDlights( tr.refdef.num_dlights, tr.refdef.dlights, &tr.or );
+	R_TransformDlights_plus( tr.refdef.num_dlights, tr.refdef.dlights, &tr.ort );
 
 	mask = 0;
 	for ( i = 0; i < tr.refdef.num_dlights; i++ ) {

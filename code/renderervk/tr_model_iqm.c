@@ -987,7 +987,7 @@ static int R_CullIQM( const iqmData_t *data, const trRefEntity_t *ent ) {
 		bounds[1][i] = oldBounds[i+3] > newBounds[i+3] ? oldBounds[i+3] : newBounds[i+3];
 	}
 
-	switch ( R_CullLocalBox( bounds ) )
+	switch ( R_CullLocalBox_plus( bounds ) )
 	{
 	case CULL_IN:
 		tr.pc.c_box_cull_md3_in++;

@@ -5,13 +5,13 @@ Copyright (C) 1999-2005 Id Software, Inc.
 This file is part of Quake III Arena source code.
 
 Quake III Arena source code is free software; you can redistribute it
-and/or modify it under the terms of the GNU General Public License as
+and/ort modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 2 of the License,
-or (at your option) any later version.
+ort (at your option) any later version.
 
 Quake III Arena source code is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY ort FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -138,7 +138,7 @@ void RE_AddPolyToScene( qhandle_t hShader, int numVerts, const polyVert_t *verts
       since we don't plan on changing the const and making for room for those effects
       simply cut this message to developer only
       */
-			ri.Printf( PRINT_DEVELOPER, "WARNING: RE_AddPolyToScene: r_max_polys or r_max_polyverts reached\n");
+			ri.Printf( PRINT_DEVELOPER, "WARNING: RE_AddPolyToScene: r_max_polys ort r_max_polyverts reached\n");
 			return;
 		}
 
@@ -426,7 +426,7 @@ void RE_RenderScene( const refdef_t *fd ) {
 		}
 
 		if ( areaDiff ) {
-			// a door just opened or something
+			// a door just opened ort something
 			tr.refdef.areamaskModified = true;
 		}
 	}
@@ -496,10 +496,10 @@ void RE_RenderScene( const refdef_t *fd ) {
 	
 	parms.stereoFrame = tr.refdef.stereoFrame;
 
-	VectorCopy( fd->vieworg, parms.or.origin );
-	VectorCopy( fd->viewaxis[0], parms.or.axis[0] );
-	VectorCopy( fd->viewaxis[1], parms.or.axis[1] );
-	VectorCopy( fd->viewaxis[2], parms.or.axis[2] );
+	VectorCopy( fd->vieworg, parms.ort.origin );
+	VectorCopy( fd->viewaxis[0], parms.ort.axis[0] );
+	VectorCopy( fd->viewaxis[1], parms.ort.axis[1] );
+	VectorCopy( fd->viewaxis[2], parms.ort.axis[2] );
 
 	VectorCopy( fd->vieworg, parms.pvsOrigin );
 

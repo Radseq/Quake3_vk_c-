@@ -5,13 +5,13 @@ Copyright (C) 1999-2005 Id Software, Inc.
 This file is part of Quake III Arena source code.
 
 Quake III Arena source code is free software; you can redistribute it
-and/or modify it under the terms of the GNU General Public License as
+and/ort modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 2 of the License,
-or (at your option) any later version.
+ort (at your option) any later version.
 
 Quake III Arena source code is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY ort FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -269,7 +269,7 @@ static void RB_ClipSkyPolygons( const shaderCommands_t *input )
 		for (j = 0 ; j < 3 ; j++) 
 		{
 			VectorSubtract( input->xyz[input->indexes[i+j]],
-							backEnd.viewParms.or.origin, 
+							backEnd.viewParms.ort.origin, 
 							p[j] );
 		}
 		ClipSkyPolygon( 3, p[0], 0 );
@@ -372,19 +372,19 @@ static bool CullSkySide( const int mins[2], const int maxs[2] )
 
 	s = mins[0] + HALF_SKY_SUBDIVISIONS;
 	t = mins[1] + HALF_SKY_SUBDIVISIONS;
-	VectorAdd( s_skyPoints[t][s], backEnd.viewParms.or.origin, v[0] );
+	VectorAdd( s_skyPoints[t][s], backEnd.viewParms.ort.origin, v[0] );
 
 	s = mins[0] + HALF_SKY_SUBDIVISIONS;
 	t = maxs[1] + HALF_SKY_SUBDIVISIONS;
-	VectorAdd( s_skyPoints[t][s], backEnd.viewParms.or.origin, v[1] );
+	VectorAdd( s_skyPoints[t][s], backEnd.viewParms.ort.origin, v[1] );
 
 	s = maxs[0] + HALF_SKY_SUBDIVISIONS;
 	t = mins[1] + HALF_SKY_SUBDIVISIONS;
-	VectorAdd( s_skyPoints[t][s], backEnd.viewParms.or.origin, v[2] );
+	VectorAdd( s_skyPoints[t][s], backEnd.viewParms.ort.origin, v[2] );
 
 	s = maxs[0] + HALF_SKY_SUBDIVISIONS;
 	t = maxs[1] + HALF_SKY_SUBDIVISIONS;
-	VectorAdd( s_skyPoints[t][s], backEnd.viewParms.or.origin, v[3] );
+	VectorAdd( s_skyPoints[t][s], backEnd.viewParms.ort.origin, v[3] );
 
 	if ( CullPoints( v, 4 ) )
 		return true;
@@ -417,7 +417,7 @@ static void FillSkySide( const int mins[2], const int maxs[2], float skyTexCoord
 	{
 		for ( s = mins[0]+HALF_SKY_SUBDIVISIONS; s <= maxs[0]+HALF_SKY_SUBDIVISIONS; s++ )
 		{
-			VectorAdd( s_skyPoints[t][s], backEnd.viewParms.or.origin, tess.xyz[ tess.numVertexes ] );
+			VectorAdd( s_skyPoints[t][s], backEnd.viewParms.ort.origin, tess.xyz[ tess.numVertexes ] );
 			tess.texCoords[0][tess.numVertexes][0] = skyTexCoords[t][s][0];
 			tess.texCoords[0][tess.numVertexes][1] = skyTexCoords[t][s][1];
 			tess.numVertexes++;
@@ -775,7 +775,7 @@ void RB_DrawSun( float scale, shader_t *shader ) {
 	dist = backEnd.viewParms.zFar / 1.75;		// div sqrt(3)
 	size = dist * scale;
 
-	VectorMA( backEnd.viewParms.or.origin, dist, tr.sunDirection, origin );
+	VectorMA( backEnd.viewParms.ort.origin, dist, tr.sunDirection, origin );
 	PerpendicularVector( vec1, tr.sunDirection );
 	CrossProduct( tr.sunDirection, vec1, vec2 );
 

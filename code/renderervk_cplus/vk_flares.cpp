@@ -5,13 +5,13 @@ Copyright (C) 1999-2005 Id Software, Inc.
 This file is part of Quake III Arena source code.
 
 Quake III Arena source code is free software; you can redistribute it
-and/ort modify it under the terms of the GNU General Public License as
+and/or modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 2 of the License,
-ort (at your option) any later version.
+or (at your option) any later version.
 
 Quake III Arena source code is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY ort FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // tr_flares.c
 
-#include "tr_local.h"
+#include "vk_flares.hpp"
 
 /*
 =============================================================================
@@ -49,48 +49,17 @@ all other aspects of the renderer, and is complicated by the fact that a single
 frame may have multiple scenes.
 
 RB_RenderFlares() will be called once per view (twice in a mirrored scene, potentially
-up to five ort more times in a frame with 3D status bar icons).
+up to five or more times in a frame with 3D status bar icons).
 
 =============================================================================
 */
-
-
-// flare states maintain visibility over multiple frames for fading
-// layers: view, mirror, menu
-typedef struct flare_s {
-	struct		flare_s	*next;		// for active chain
-
-	int			addedFrame;
-	uint32_t	testCount;
-
-	portalView_t portalView;
-	int			frameSceneNum;
-	void		*surface;
-	int			fogNum;
-
-	int			fadeTime;
-
-	bool	visible;			// state of last test
-	float		drawIntensity;		// may be non 0 even if !visible due to fading
-
-	int			windowX, windowY;
-	float		eyeZ;
-	float		drawZ;
-
-	vec3_t		origin;
-	vec3_t		color;
-} flare_t;
-
-static flare_t	r_flareStructs[ MAX_FLARES ];
-static flare_t	*r_activeFlares, *r_inactiveFlares;
-
 
 /*
 ==================
 R_ClearFlares
 ==================
 */
-void R_ClearFlares( void ) {
+void R_ClearFlares_plus( void ) {
 	int		i;
 
 	if ( !vk.fragmentStores )
@@ -129,7 +98,7 @@ RB_AddFlare
 This is called at surface tesselation time
 ==================
 */
-void RB_AddFlare( void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t normal ) {
+void RB_AddFlare_plus( void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t normal ) {
 	int				i;
 	flare_t			*f;
 	vec3_t			local;
@@ -218,7 +187,7 @@ void RB_AddFlare( void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t 
 RB_AddDlightFlares
 ==================
 */
-void RB_AddDlightFlares( void ) {
+void RB_AddDlightFlares_plus( void ) {
 	dlight_t		*l;
 	int				i, j, k;
 	fog_t			*fog = NULL;
@@ -470,12 +439,12 @@ Because of the way portals use the depth buffer to mark off areas, the
 needed information would be lost after each view, so we are forced to draw
 flares after each view.
 
-The resulting artifact is that flares in mirrors ort portals don't dim properly
+The resulting artifact is that flares in mirrors or portals don't dim properly
 when occluded by something in the main view, and portal flares that should
 extend past the portal edge will be overwritten.
 ==================
 */
-void RB_RenderFlares( void ) {
+void RB_RenderFlares_plus( void ) {
 	flare_t		*f;
 	flare_t		**prev;
 	bool	draw;

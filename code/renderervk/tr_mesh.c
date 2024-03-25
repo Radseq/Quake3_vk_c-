@@ -5,13 +5,13 @@ Copyright (C) 1999-2005 Id Software, Inc.
 This file is part of Quake III Arena source code.
 
 Quake III Arena source code is free software; you can redistribute it
-and/or modify it under the terms of the GNU General Public License as
+and/ort modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 2 of the License,
-or (at your option) any later version.
+ort (at your option) any later version.
 
 Quake III Arena source code is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY ort FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -31,8 +31,8 @@ static float ProjectRadius( float r, vec3_t location )
 	vec3_t	p;
 	float	projected[4];
 
-	c = DotProduct( tr.viewParms.or.axis[0], tr.viewParms.or.origin );
-	dist = DotProduct( tr.viewParms.or.axis[0], location ) - c;
+	c = DotProduct( tr.viewParms.ort.axis[0], tr.viewParms.ort.origin );
+	dist = DotProduct( tr.viewParms.ort.axis[0], location ) - c;
 
 	if ( dist <= 0 )
 		return 0;
@@ -142,7 +142,7 @@ static int R_CullModel( md3Header_t *header, const trRefEntity_t *ent, vec3_t bo
 		}
 	}
 
-	switch ( R_CullLocalBox( bounds ) )
+	switch ( R_CullLocalBox_plus( bounds ) )
 	{
 	case CULL_IN:
 		tr.pc.c_box_cull_md3_in++;
@@ -348,7 +348,7 @@ void R_AddMD3Surfaces( trRefEntity_t *ent ) {
 #ifdef USE_PMLIGHT
 	numDlights = 0;
 	if ( r_dlightMode->integer >= 2 && ( !personalModel || tr.viewParms.portalView != PV_NONE ) ) {
-		R_TransformDlights( tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.or );
+		R_TransformDlights( tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.ort );
 		for ( n = 0; n < tr.viewParms.num_dlights; n++ ) {
 			dl = &tr.viewParms.dlights[ n ];
 			if ( !R_LightCullBounds( dl, bounds[0], bounds[1] ) ) 
@@ -430,7 +430,7 @@ void R_AddMD3Surfaces( trRefEntity_t *ent ) {
 			for ( n = 0; n < numDlights; n++ ) {
 				dl = dlights[ n ];
 				tr.light = dl;
-				R_AddLitSurf( (void *)surface, shader, fogNum );
+				R_AddLitSurf_plus( (void *)surface, shader, fogNum );
 			}
 		}
 #endif

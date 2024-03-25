@@ -47,7 +47,7 @@ DNAME            = quake3e.ded
 RENDERER_PREFIX  = $(CNAME)
 
 CXX = g++
-CXXFLAGS = -Wall -Wextra
+CXXFLAGS = -Wall -Wextra -O3 -DNDEBUG
 
 ifeq ($(V),1)
 echo_cmd=@:
@@ -720,6 +720,13 @@ endif
 
 Q3RENDV_PLUS_OBJ = \
   $(B)/rendv_cplus/tr_noise_cplus.o \
+  $(B)/rendv_cplus/q_math.o \
+  $(B)/rendv_cplus/tr_world.o \
+  $(B)/rendv_cplus/tr_light.o \
+  $(B)/rendv_cplus/tr_main.o \
+  $(B)/rendv_cplus/vk_flares.o \
+  $(B)/rendv_cplus/tr_shade.o \
+    # $(B)/rendv_cplus/tr_surface.o \
 
 Q3RENDVOBJ = \
   $(B)/rendv/tr_animation.o \

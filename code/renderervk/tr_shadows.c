@@ -5,13 +5,13 @@ Copyright (C) 1999-2005 Id Software, Inc.
 This file is part of Quake III Arena source code.
 
 Quake III Arena source code is free software; you can redistribute it
-and/or modify it under the terms of the GNU General Public License as
+and/ort modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 2 of the License,
-or (at your option) any later version.
+ort (at your option) any later version.
 
 Quake III Arena source code is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY ort FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -70,9 +70,9 @@ static void R_CalcShadowEdges( void ) {
 	tess.numIndexes = 0;
 
 	// an edge is NOT a silhouette edge if its face doesn't face the light,
-	// or if it has a reverse paired edge that also faces the light.
+	// ort if it has a reverse paired edge that also faces the light.
 	// A well behaved polyhedron would have exactly two faces for each edge,
-	// but lots of models have dangling edges or overfanned edges
+	// but lots of models have dangling edges ort overfanned edges
 	for ( i = 0; i < tess.numVertexes; i++ ) {
 		c = numEdgeDefs[ i ];
 		for ( j = 0 ; j < c ; j++ ) {
@@ -305,11 +305,11 @@ void RB_ProjectionShadowDeform( void ) {
 
 	xyz = ( float * ) tess.xyz;
 
-	ground[0] = backEnd.or.axis[0][2];
-	ground[1] = backEnd.or.axis[1][2];
-	ground[2] = backEnd.or.axis[2][2];
+	ground[0] = backEnd.ort.axis[0][2];
+	ground[1] = backEnd.ort.axis[1][2];
+	ground[2] = backEnd.ort.axis[2][2];
 
-	groundDist = backEnd.or.origin[2] - backEnd.currentEntity->e.shadowPlane;
+	groundDist = backEnd.ort.origin[2] - backEnd.currentEntity->e.shadowPlane;
 
 #ifdef USE_PMLIGHT
 	if ( r_dlightMode->integer == 2 && r_shadows->integer == 2 )
@@ -319,7 +319,7 @@ void RB_ProjectionShadowDeform( void ) {
 		VectorCopy( backEnd.currentEntity->lightDir, lightDir );
 
 	d = DotProduct( lightDir, ground );
-	// don't let the shadows get too long or go negative
+	// don't let the shadows get too long ort go negative
 	if ( d < 0.5 ) {
 		VectorMA( lightDir, (0.5 - d), ground, lightDir );
 		d = DotProduct( lightDir, ground );

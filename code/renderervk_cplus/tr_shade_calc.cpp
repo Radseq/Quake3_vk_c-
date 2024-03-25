@@ -5,13 +5,13 @@ Copyright (C) 1999-2005 Id Software, Inc.
 This file is part of Quake III Arena source code.
 
 Quake III Arena source code is free software; you can redistribute it
-and/ort modify it under the terms of the GNU General Public License as
+and/or modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 2 of the License,
-ort (at your option) any later version.
+or (at your option) any later version.
 
 Quake III Arena source code is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY ort FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -21,9 +21,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // tr_shade_calc.c
 
-#include "tr_local.h"
+#include "tr_shade_calc.hpp"
+#include "tr_noise_cplus.hpp"
+
 // -EC-: avoid using ri.ftol
-#define	WAVEVALUE( table, base, amplitude, phase, freq )  ((base) + table[ (int64_t)( ( ( (phase) + tess.shaderTime * (freq) ) * FUNCTABLE_SIZE ) ) & FUNCTABLE_MASK ] * (amplitude))
+#define WAVEVALUE(table, base, amplitude, phase, freq) ((base) + table[(int64_t)((((phase) + tess.shaderTime * (freq)) * FUNCTABLE_SIZE)) & FUNCTABLE_MASK] * (amplitude))
+    vec3_t lightOrigin = {-960, 1980, 96}; // FIXME: track dynamically
 
 static float *TableForFunc( genFunc_t func )
 {
@@ -84,7 +87,7 @@ static float EvalWaveFormClamped( const waveForm_t *wf )
 /*
 ** RB_CalcStretchTexCoords
 */
-void RB_CalcStretchTexCoords( const waveForm_t *wf, float *src, float *dst )
+void RB_CalcStretchTexCoords_plus( const waveForm_t *wf, float *src, float *dst )
 {
 	float p;
 	texModInfo_t tmi;
@@ -177,17 +180,17 @@ static void RB_CalcDeformNormals( deformStage_t *ds ) {
 
 	for ( i = 0; i < tess.numVertexes; i++, xyz += 4, normal += 4 ) {
 		scale = 0.98f;
-		scale = R_NoiseGet4f( xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
+		scale = R_NoiseGet4f_plus( xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
 			tess.shaderTime * ds->deformationWave.frequency );
 		normal[ 0 ] += ds->deformationWave.amplitude * scale;
 
 		scale = 0.98f;
-		scale = R_NoiseGet4f( 100 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
+		scale = R_NoiseGet4f_plus( 100 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
 			tess.shaderTime * ds->deformationWave.frequency );
 		normal[ 1 ] += ds->deformationWave.amplitude * scale;
 
 		scale = 0.98f;
-		scale = R_NoiseGet4f( 200 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
+		scale = R_NoiseGet4f_plus( 200 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
 			tess.shaderTime * ds->deformationWave.frequency );
 		normal[ 2 ] += ds->deformationWave.amplitude * scale;
 
@@ -687,7 +690,7 @@ void RB_CalcWaveColor( const waveForm_t *wf, unsigned char *dstColors )
 	color4ub_t color;
 
 	if ( wf->func == GF_NOISE ) {
-		glow = wf->base + R_NoiseGet4f( 0, 0, 0, ( tess.shaderTime + wf->phase ) * wf->frequency ) * wf->amplitude;
+		glow = wf->base + R_NoiseGet4f_plus( 0, 0, 0, ( tess.shaderTime + wf->phase ) * wf->frequency ) * wf->amplitude;
 	} else {
 		glow = EvalWaveForm( wf ) * tr.identityLight;
 	}
@@ -1003,7 +1006,7 @@ void RB_CalcEnvironmentTexCoordsFP( float *st, int screenMap ) {
 
 	for ( i = 0 ; i < tess.numVertexes ; i++, v += 4, normal += 4, st += 2 ) 
 	{
-		//VectorSubtract( backEnd.ort.axis[0], v, what );
+		//VectorSubtract( backEnd.or.axis[0], v, what );
 		VectorSubtract( backEnd.ort.axis[1], v, why );
 		VectorSubtract( backEnd.ort.axis[2], v, who );
 
@@ -1061,7 +1064,7 @@ void RB_CalcEnvironmentTexCoords( float *st )
 /*
 ** RB_CalcTurbulentTexCoords
 */
-void RB_CalcTurbulentTexCoords( const waveForm_t *wf, float *src, float *dst )
+void RB_CalcTurbulentTexCoords_plus( const waveForm_t *wf, float *src, float *dst )
 {
 	int i;
 	double now; // -EC- set to double
@@ -1079,7 +1082,7 @@ void RB_CalcTurbulentTexCoords( const waveForm_t *wf, float *src, float *dst )
 /*
 ** RB_CalcScaleTexCoords
 */
-void RB_CalcScaleTexCoords( const float scale[2], float *src, float *dst )
+void RB_CalcScaleTexCoords_plus( const float scale[2], float *src, float *dst )
 {
 	int i;
 
@@ -1094,7 +1097,7 @@ void RB_CalcScaleTexCoords( const float scale[2], float *src, float *dst )
 /*
 ** RB_CalcScrollTexCoords
 */
-void RB_CalcScrollTexCoords( const float scrollSpeed[2], float *src, float *dst )
+void RB_CalcScrollTexCoords_plus( const float scrollSpeed[2], float *src, float *dst )
 {
 	int i;
 	double	timeScale; // -EC-: set to double
@@ -1121,7 +1124,7 @@ void RB_CalcScrollTexCoords( const float scrollSpeed[2], float *src, float *dst 
 /*
 ** RB_CalcTransformTexCoords
 */
-void RB_CalcTransformTexCoords( const texModInfo_t *tmi, float *src, float *dst )
+void RB_CalcTransformTexCoords_plus( const texModInfo_t *tmi, float *src, float *dst )
 {
 	int i;
 
@@ -1139,7 +1142,7 @@ void RB_CalcTransformTexCoords( const texModInfo_t *tmi, float *src, float *dst 
 /*
 ** RB_CalcRotateTexCoords
 */
-void RB_CalcRotateTexCoords( float degsPerSecond, float *src, float *dst )
+void RB_CalcRotateTexCoords_plus( float degsPerSecond, float *src, float *dst )
 {
 	double timeScale = tess.shaderTime; // -EC- set to double
 	double degs; // -EC- set to double
@@ -1170,7 +1173,6 @@ void RB_CalcRotateTexCoords( float degsPerSecond, float *src, float *dst )
 **
 ** Calculates specular coefficient and places it in the alpha channel
 */
-vec3_t lightOrigin = { -960, 1980, 96 };		// FIXME: track dynamically
 
 void RB_CalcSpecularAlpha( unsigned char *alphas ) {
 	int			i;

@@ -5,13 +5,13 @@ Copyright (C) 1999-2005 Id Software, Inc.
 This file is part of Quake III Arena source code.
 
 Quake III Arena source code is free software; you can redistribute it
-and/or modify it under the terms of the GNU General Public License as
+and/ort modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 2 of the License,
-or (at your option) any later version.
+ort (at your option) any later version.
 
 Quake III Arena source code is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY ort FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -172,64 +172,14 @@ to overflow.
 ==============
 */
 void RB_BeginSurface( shader_t *shader, int fogNum ) {
-
-	shader_t *state;
-
-#ifdef USE_VBO
-	if ( shader->isStaticShader && !shader->remappedShader ) {
-		tess.allowVBO = true;
-	} else {
-		tess.allowVBO = false;
-	}
-#endif
-
-	if ( shader->remappedShader ) {
-		state = shader->remappedShader;
-	} else {
-		state = shader;
-	}
-
-#ifdef USE_PMLIGHT
-	if ( tess.fogNum != fogNum ) {
-		tess.dlightUpdateParams = true;
-	}
-#endif
-
-#ifdef USE_TESS_NEEDS_NORMAL
-#ifdef USE_PMLIGHT
-	tess.needsNormal = state->needsNormal || tess.dlightPass || r_shownormals->integer;
-#else
-	tess.needsNormal = state->needsNormal || r_shownormals->integer;
-#endif
-#endif
-
-#ifdef USE_TESS_NEEDS_ST2
-	tess.needsST2 = state->needsST2;
-#endif
-
-	tess.numIndexes = 0;
-	tess.numVertexes = 0;
-	tess.shader = state;
-	tess.fogNum = fogNum;
-
-#ifdef USE_LEGACY_DLIGHTS
-	tess.dlightBits = 0;		// will be OR'd in by surface functions
-#endif
-	tess.xstages = state->stages;
-	tess.numPasses = state->numUnfoggedPasses;
-
-	tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
-	if ( tess.shader->clampTime && tess.shaderTime >= tess.shader->clampTime ) {
-		tess.shaderTime = tess.shader->clampTime;
-	}
+	RB_BeginSurface_plus(shader, fogNum);
 }
-
 
 /*
 ===================
 DrawMultitextured
 
-output = t0 * t1 or t0 + t1
+output = t0 * t1 ort t0 + t1
 
 t0 = most upstream according to spec
 t1 = most downstream according to spec
@@ -559,7 +509,7 @@ void R_ComputeColors( const int b, color4ub_t *dest, const shaderStage_t *pStage
 				float len;
 				vec3_t v;
 
-				VectorSubtract( tess.xyz[i], backEnd.viewParms.or.origin, v );
+				VectorSubtract( tess.xyz[i], backEnd.viewParms.ort.origin, v );
 				len = VectorLength( v ) * tess.shader->portalRangeR;
 
 				if ( len > 1 )
@@ -748,7 +698,7 @@ static void RB_IterateStagesGeneric( const shaderCommands_t *input, bool fogColl
 #ifdef USE_FOG_COLLAPSE
 	if ( fogCollapse ) {
 		VK_SetFogParams( &uniform, &fog_stage );
-		VectorCopy( backEnd.or.viewOrigin, uniform.eyePos );
+		VectorCopy( backEnd.ort.viewOrigin, uniform.eyePos );
 		vk_update_descriptor( VK_DESC_FOG_COLLAPSE, tr.fogImage->descriptor );
 		pushUniform = true;
 	} else
@@ -756,7 +706,7 @@ static void RB_IterateStagesGeneric( const shaderCommands_t *input, bool fogColl
 	{
 		fog_stage = 0;
 		if ( tess_flags & TESS_VPOS ) {
-			VectorCopy( backEnd.or.viewOrigin, uniform.eyePos );
+			VectorCopy( backEnd.ort.viewOrigin, uniform.eyePos );
 			tess_flags &= ~TESS_VPOS;
 			pushUniform = true;
 		}
@@ -871,7 +821,7 @@ static void VK_SetLightParams( vkUniform_t *uniform, const dlight_t *dl ) {
 	radius = dl->radius;
 
 	// vertex data
-	VectorCopy( backEnd.or.viewOrigin, uniform->eyePos ); uniform->eyePos[3] = 0.0f;
+	VectorCopy( backEnd.ort.viewOrigin, uniform->eyePos ); uniform->eyePos[3] = 0.0f;
 	VectorCopy( dl->transformed, uniform->light.pos ); uniform->light.pos[3] = 0.0f;
 
 	// fragment data

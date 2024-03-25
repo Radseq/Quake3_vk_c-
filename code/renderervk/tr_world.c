@@ -5,13 +5,13 @@ Copyright (C) 1999-2005 Id Software, Inc.
 This file is part of Quake III Arena source code.
 
 Quake III Arena source code is free software; you can redistribute it
-and/or modify it under the terms of the GNU General Public License as
+and/ort modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 2 of the License,
-or (at your option) any later version.
+ort (at your option) any later version.
 
 Quake III Arena source code is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY ort FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -103,7 +103,7 @@ static bool	R_CullGrid( srfGridMesh_t *cv ) {
 ================
 R_CullSurface
 
-Tries to back face cull surfaces before they are lighted or
+Tries to back face cull surfaces before they are lighted ort
 added to the sorting list.
 
 This will also allow mirrors on both sides of a model without recursion.
@@ -139,7 +139,7 @@ static bool	R_CullSurface( const surfaceType_t *surface, shader_t *shader ) {
 	}
 
 	sface = ( srfSurfaceFace_t * ) surface;
-	d = DotProduct (tr.or.viewOrigin, sface->plane.normal);
+	d = DotProduct (tr.ort.viewOrigin, sface->plane.normal);
 
 	// don't cull exactly on the plane, because there are levels of rounding
 	// through the BSP, ICD, and hardware that may cause pixel gaps if an
@@ -335,7 +335,7 @@ static int R_DlightTrisurf( srfTriangles_t *surf, int dlightBits ) {
 R_DlightSurface
 
 The given surface is going to be drawn, and it touches a leaf
-that is touched by one or more dlights, so try to throw out
+that is touched by one ort more dlights, so try to throw out
 more dlights if possible.
 ====================
 */
@@ -372,7 +372,7 @@ static void R_AddWorldSurface( msurface_t *surf, int dlightBits ) {
 	surf->viewCount = tr.viewCount;
 	// FIXME: bmodel fog?
 
-	// try to cull before dlighting or adding
+	// try to cull before dlighting ort adding
 	if ( R_CullSurface( surf->data, surf->shader ) ) {
 		return;
 	}
@@ -415,7 +415,7 @@ static void R_AddLitSurface( msurface_t *surf, const dlight_t *light )
 
 	// surfaces that were faceculled will still have the current viewCount in vcBSP
 	// because that's set to indicate that it's BEEN vis tested at all, to avoid
-	// repeated vis tests, not whether it actually PASSED the vis test or not
+	// repeated vis tests, not whether it actually PASSED the vis test ort not
 	// only light surfaces that are GENUINELY visible, as opposed to merely in a visible LEAF
 	if ( surf->vcVisible != tr.viewCount ) {
 		return;
@@ -547,7 +547,7 @@ void R_AddBrushModelSurfaces ( trRefEntity_t *ent ) {
 
 		R_SetupEntityLighting( &tr.refdef, ent );
 		
-		R_TransformDlights( tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.or );
+		R_TransformDlights( tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.ort );
 
 		for ( i = 0; i < tr.viewParms.num_dlights; i++ ) {
 			dl = &tr.viewParms.dlights[i];

@@ -5,13 +5,13 @@ Copyright (C) 1999-2005 Id Software, Inc.
 This file is part of Quake III Arena source code.
 
 Quake III Arena source code is free software; you can redistribute it
-and/or modify it under the terms of the GNU General Public License as
+and/ort modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 2 of the License,
-or (at your option) any later version.
+ort (at your option) any later version.
 
 Quake III Arena source code is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY ort FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -112,7 +112,7 @@ static void RB_Hyperspace( void ) {
 
 
 static void SetViewportAndScissor( void ) {
-	//Com_Memcpy( vk_world.modelview_transform, backEnd.or.modelMatrix, 64 );
+	//Com_Memcpy( vk_world.modelview_transform, backEnd.ort.modelMatrix, 64 );
 	//vk_update_mvp();
 	// force depth range and viewport/scissor updates
 	vk.cmd->depth_range = DEPTH_RANGE_COUNT;
@@ -123,7 +123,7 @@ static void SetViewportAndScissor( void ) {
 =================
 RB_BeginDrawingView
 
-Any mirrored or portaled views have already been drawn, so prepare
+Any mirrored ort portaled views have already been drawn, so prepare
 to actually render the visible surfaces for this view
 =================
 */
@@ -239,14 +239,14 @@ static void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
 				// set up the transformation matrix
-				R_RotateForEntity( backEnd.currentEntity, &backEnd.viewParms, &backEnd.or );
+				R_RotateForEntity( backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort );
 				// set up the dynamic lighting if needed
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
 				if ( !r_dlightMode->integer )
 #endif
 				if ( backEnd.currentEntity->needDlights ) {
-					R_TransformDlights( backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.or );
+					R_TransformDlights( backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.ort );
 				}
 #endif // USE_LEGACY_DLIGHTS
 				if ( backEnd.currentEntity->e.renderfx & RF_DEPTHHACK ) {
@@ -259,12 +259,12 @@ static void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 			} else {
 				backEnd.currentEntity = &tr.worldEntity;
 				backEnd.refdef.floatTime = originalTime;
-				backEnd.or = backEnd.viewParms.world;
+				backEnd.ort = backEnd.viewParms.world;
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
 				if ( !r_dlightMode->integer )
 #endif
-				R_TransformDlights( backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.or );
+				R_TransformDlights( backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.ort );
 #endif // USE_LEGACY_DLIGHTS
 			}
 
@@ -272,7 +272,7 @@ static void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 			// the world (like water) continue with the wrong frame
 			tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
 
-			Com_Memcpy( vk_world.modelview_transform, backEnd.or.modelMatrix, 64 );
+			Com_Memcpy( vk_world.modelview_transform, backEnd.ort.modelMatrix, 64 );
 			tess.depthRange = depthRange ? DEPTH_RANGE_WEAPON : DEPTH_RANGE_NORMAL;
 			vk_update_mvp( NULL );
 
@@ -401,7 +401,7 @@ static void RB_RenderLitSurfList( dlight_t* dl ) {
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
 				// set up the transformation matrix
-				R_RotateForEntity( backEnd.currentEntity, &backEnd.viewParms, &backEnd.or );
+				R_RotateForEntity( backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort );
 
 				if ( backEnd.currentEntity->e.renderfx & RF_DEPTHHACK ) {
 					// hack the depth range to prevent view model from poking into walls
@@ -413,7 +413,7 @@ static void RB_RenderLitSurfList( dlight_t* dl ) {
 			} else {
 				backEnd.currentEntity = &tr.worldEntity;
 				backEnd.refdef.floatTime = originalTime;
-				backEnd.or = backEnd.viewParms.world;
+				backEnd.ort = backEnd.viewParms.world;
 			}
 
 			// we have to reset the shaderTime as well otherwise image animations on
@@ -421,11 +421,11 @@ static void RB_RenderLitSurfList( dlight_t* dl ) {
 			tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
 
 			// set up the dynamic lighting
-			R_TransformDlights( 1, dl, &backEnd.or );
+			R_TransformDlights( 1, dl, &backEnd.ort );
 			tess.dlightUpdateParams = true;
 
 			tess.depthRange = depthRange ? DEPTH_RANGE_WEAPON : DEPTH_RANGE_NORMAL;
-			Com_Memcpy( vk_world.modelview_transform, backEnd.or.modelMatrix, 64 );
+			Com_Memcpy( vk_world.modelview_transform, backEnd.ort.modelMatrix, 64 );
 			vk_update_mvp( NULL );
 
 			oldEntityNum = entityNum;
