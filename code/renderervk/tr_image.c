@@ -81,7 +81,7 @@ void TextureMode( const char *string ) {
 	
 	mode = NULL;
 	for ( i = 0 ; i < ARRAY_LEN( modes ) ; i++ ) {
-		if ( !Q_stricmp( modes[i].name, string ) ) {
+		if ( !Q_stricmp_plus( modes[i].name, string ) ) {
 			mode = &modes[i];
 			break;
 		}
@@ -188,7 +188,7 @@ void R_ImageList_f( void ) {
 			sizeSuffix = "Gb";
 		}
 
-		if ( Q_stricmp( image->imgName, image->imgName2 ) == 0 ) {
+		if ( Q_stricmp_plus( image->imgName, image->imgName2 ) == 0 ) {
 			name = image->imgName;
 		} else {
 			Com_sprintf( buf, sizeof( buf ), "%s => " S_COLOR_YELLOW "%s",
@@ -723,7 +723,7 @@ image_t *R_CreateImage( const char *name, const char *name2, byte *pic, int widt
 		ri.Error( ERR_DROP, "R_CreateImage: \"%s\" is too long", name );
 	}
 
-	if ( name2 && Q_stricmp( name, name2 ) != 0 ) {
+	if ( name2 && Q_stricmp_plus( name, name2 ) != 0 ) {
 		// leave only file name
 		name2 = ( slash = strrchr( name2, '/' ) ) != NULL ? slash + 1 : name2;
 		namelen2 = (int)strlen( name2 ) + 1;
@@ -822,7 +822,7 @@ static const char *R_LoadImage( const char *name, byte **pic, int *width, int *h
 		// Look for the correct loader and use it
 		for ( i = 0; i < numImageLoaders; i++ )
 		{
-			if ( !Q_stricmp( ext, imageLoaders[ i ].ext ) )
+			if ( !Q_stricmp_plus( ext, imageLoaders[ i ].ext ) )
 			{
 				// Load
 				imageLoaders[ i ].ImageLoader( localName, pic, width, height );
@@ -906,7 +906,7 @@ image_t	*R_FindImageFile( const char *name, imgFlags_t flags )
 	// see if the image is already loaded
 	//
 	for ( image = hashTable[ hash ]; image; image = image->next ) {
-		if ( !Q_stricmp( name, image->imgName ) ) {
+		if ( !Q_stricmp_plus( name, image->imgName ) ) {
 			// the white image can be used with any set of parms, but other mismatches are errors
 			if ( strcmp( name, "*white" ) ) {
 				if ( image->flags != flags ) {
@@ -921,7 +921,7 @@ image_t	*R_FindImageFile( const char *name, imgFlags_t flags )
 		// try with stripped extension
 		COM_StripExtension( name, strippedName, sizeof( strippedName ) );
 		for ( image = hashTable[ hash ]; image; image = image->next ) {
-			if ( !Q_stricmp( strippedName, image->imgName ) ) {
+			if ( !Q_stricmp_plus( strippedName, image->imgName ) ) {
 				//if ( strcmp( strippedName, "*white" ) ) {
 					if ( image->flags != flags ) {
 						ri.Printf( PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", strippedName, image->flags, flags );
@@ -1515,7 +1515,7 @@ qhandle_t RE_RegisterSkin( const char *name ) {
 	// see if the skin is already loaded
 	for ( hSkin = 1; hSkin < tr.numSkins ; hSkin++ ) {
 		skin = tr.skins[hSkin];
-		if ( !Q_stricmp( skin->name, name ) ) {
+		if ( !Q_stricmp_plus( skin->name, name ) ) {
 			if( skin->numSurfaces == 0 ) {
 				return 0;		// default skin
 			}

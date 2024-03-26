@@ -369,7 +369,7 @@ void RE_RegisterFont(const char *fontName, int pointSize, fontInfo_t *font) {
 
 	Com_sprintf(name, sizeof(name), "fonts/fontImage_%i.dat",pointSize);
 	for (i = 0; i < registeredFontCount; i++) {
-		if (Q_stricmp(name, registeredFont[i].name) == 0) {
+		if (Q_stricmp_plus(name, registeredFont[i].name) == 0) {
 			Com_Memcpy(font, &registeredFont[i], sizeof(fontInfo_t));
 			return;
 		}
@@ -544,22 +544,11 @@ void RE_RegisterFont(const char *fontName, int pointSize, fontInfo_t *font) {
 
 
 void R_InitFreeType(void) {
-#ifdef BUILD_FREETYPE
-	if (FT_Init_FreeType( &ftLibrary )) {
-		ri.Printf(PRINT_WARNING, "R_InitFreeType: Unable to initialize FreeType.\n");
-	}
-#endif
-	registeredFontCount = 0;
+	R_InitFreeType_plus();
 }
 
 
 void R_DoneFreeType(void) {
-#ifdef BUILD_FREETYPE
-	if (ftLibrary) {
-		FT_Done_FreeType( ftLibrary );
-		ftLibrary = NULL;
-	}
-#endif
-	registeredFontCount = 0;
+	R_DoneFreeType_plus();
 }
 

@@ -19,28 +19,28 @@ along with Quake III Arena source code; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
-#include "tr_shader.hpp"
+#include "tr_backend.hpp"
 
-/*
-====================
-R_GetShaderByHandle
-
-When a handle is passed in by another module, this range checks
-it and returns a valid (possibly default) shader_t to be used internally.
-====================
-*/
-shader_t *R_GetShaderByHandle_plus(qhandle_t hShader)
+void SelectTexture_plus(int unit)
 {
-	if (hShader < 0)
+	if (unit >= glConfig.numTextureUnits)
 	{
-		ri.Printf(PRINT_WARNING, "R_GetShaderByHandle: out of range hShader '%d'\n", hShader);
-		return tr.defaultShader;
+		ri.Error(ERR_DROP, "GL_SelectTexture: unit = %i", unit);
 	}
-	if (hShader >= tr.numShaders)
-	{
-		ri.Printf(PRINT_WARNING, "R_GetShaderByHandle: out of range hShader '%d'\n", hShader);
-		return tr.defaultShader;
-	}
-	return tr.shaders[hShader];
+
+	glState.currenttmu = unit;
 }
 
+// todo delete
+void GL_Cull_plus(cullType_t cullType)
+{
+	if (glState.faceCulling == cullType)
+	{
+		return;
+	}
+
+	glState.faceCulling = cullType;
+}
+
+// todo wtf?, to delete
+static void RB_SetGL2D(void);

@@ -319,7 +319,7 @@ qhandle_t RE_RegisterModel( const char *name ) {
 		// Look for the correct loader and use it
 		for( i = 0; i < numModelLoaders; i++ )
 		{
-			if( !Q_stricmp( ext, modelLoaders[ i ].ext ) )
+			if( !Q_stricmp_plus( ext, modelLoaders[ i ].ext ) )
 			{
 				// Load
 				hModel = modelLoaders[ i ].ModelLoader( localName, mod );

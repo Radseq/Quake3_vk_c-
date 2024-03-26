@@ -14,7 +14,6 @@ extern "C"
     void R_InitFogTable_plus();
     float R_FogFactor_plus(float s, float t);
 
-    void R_SetColorMappings_plus();
     void R_SkinList_f_plus();
 
 #ifdef __cplusplus

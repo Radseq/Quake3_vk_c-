@@ -1820,7 +1820,7 @@ replaces some buggy map shaders
 */
 static void R_ReplaceMapShaders( dshader_t *out, int count ) 
 {
-	if ( Q_stricmp( s_worldData.baseName, "mapel4b" ) == 0 && count == 86 ) {
+	if ( Q_stricmp_plus( s_worldData.baseName, "mapel4b" ) == 0 && count == 86 ) {
 		if ( crc32_buffer( (const byte*)out, count*sizeof(*out) ) == 0x1593623C ) {
 			if ( strcmp( out[72].shader, "textures/mapel4/crate1_top3" ) == 0 ) {
 				strcpy( out[72].shader, "textures/mapel4/crate1_top2" );
@@ -2192,7 +2192,7 @@ static void R_LoadEntities( const lump_t *l ) {
 			continue;
 		}
 		// check for a different grid size
-		if (!Q_stricmp(keyname, "gridsize")) {
+		if (!Q_stricmp_plus(keyname, "gridsize")) {
 			//sscanf(value, "%f %f %f", &w->lightGridSize[0], &w->lightGridSize[1], &w->lightGridSize[2] );
 			Com_Split( value, v, 3, ' ' );
 			w->lightGridSize[0] = Q_atof( v[0] );

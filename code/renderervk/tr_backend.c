@@ -50,23 +50,14 @@ void Bind( image_t *image ) {
 */
 void SelectTexture( int unit )
 {
-	if ( unit >= glConfig.numTextureUnits )
-	{
-		ri.Error( ERR_DROP, "GL_SelectTexture: unit = %i", unit );
-	}
-
-	glState.currenttmu = unit;
+	SelectTexture_plus(unit);
 }
 
 /*
 ** GL_Cull
 */
 void GL_Cull( cullType_t cullType ) {
-	if ( glState.faceCulling == cullType ) {
-		return;
-	}
-
-	glState.faceCulling = cullType;
+	GL_Cull_plus(cullType);
 }
 
 static void RB_SetGL2D( void );

@@ -313,3 +313,80 @@ vec_t VectorNormalize2_plus(const vec3_t v, vec3_t out)
 
 	return length;
 }
+
+float RadiusFromBounds_plus(const vec3_t mins, const vec3_t maxs)
+{
+	int i;
+	vec3_t corner;
+	float a, b;
+
+	for (i = 0; i < 3; i++)
+	{
+		a = fabs(mins[i]);
+		b = fabs(maxs[i]);
+		corner[i] = a > b ? a : b;
+	}
+
+	return VectorLength(corner);
+}
+
+void AddPointToBounds_plus(const vec3_t v, vec3_t mins, vec3_t maxs)
+{
+	if (v[0] < mins[0])
+	{
+		mins[0] = v[0];
+	}
+	if (v[0] > maxs[0])
+	{
+		maxs[0] = v[0];
+	}
+
+	if (v[1] < mins[1])
+	{
+		mins[1] = v[1];
+	}
+	if (v[1] > maxs[1])
+	{
+		maxs[1] = v[1];
+	}
+
+	if (v[2] < mins[2])
+	{
+		mins[2] = v[2];
+	}
+	if (v[2] > maxs[2])
+	{
+		maxs[2] = v[2];
+	}
+}
+
+#ifndef Q3_VM
+/*
+=====================
+Q_acos
+
+the msvc acos doesn't always return a value between -PI and PI:
+
+int i;
+i = 1065353246;
+acos(*(float*) &i) == -1.#IND0
+
+=====================
+*/
+float Q_acos_plus(float c)
+{
+	float angle;
+
+	angle = acos(c);
+
+	if (angle > M_PI)
+	{
+		return (float)M_PI;
+	}
+	if (angle < -M_PI)
+	{
+		return (float)M_PI;
+	}
+	return angle;
+}
+#endif

@@ -95,17 +95,7 @@ Adds all the scene's polys into this view's drawsurf list
 =====================
 */
 void R_AddPolygonSurfaces( void ) {
-	int			i;
-	shader_t	*sh;
-	const srfPoly_t	*poly;
-
-	tr.currentEntityNum = REFENTITYNUM_WORLD;
-	tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
-
-	for ( i = 0, poly = tr.refdef.polys; i < tr.refdef.numPolys ; i++, poly++ ) {
-		sh = R_GetShaderByHandle( poly->hShader );
-		R_AddDrawSurf( ( void * )poly, sh, poly->fogIndex, 0 );
-	}
+R_AddPolygonSurfaces_plus();
 }
 
 /*
@@ -115,6 +105,7 @@ RE_AddPolyToScene
 =====================
 */
 void RE_AddPolyToScene( qhandle_t hShader, int numVerts, const polyVert_t *verts, int numPolys ) {
+	//RE_AddPolyToScene_plus(hShader, numVerts, verts, numPolys); // todo not working
 	srfPoly_t	*poly;
 	int			i, j;
 	int			fogIndex;
@@ -293,49 +284,7 @@ RE_AddLinearLightToScene
 =====================
 */
 void RE_AddLinearLightToScene( const vec3_t start, const vec3_t end, float intensity, float r, float g, float b  ) {
-	dlight_t	*dl;
-	if ( VectorCompare( start, end ) ) {
-		RE_AddDynamicLightToScene( start, intensity, r, g, b, 0 );
-		return;
-	}
-	if ( !tr.registered ) {
-		return;
-	}
-	if ( r_numdlights >= ARRAY_LEN( backEndData->dlights ) ) {
-		return;
-	}
-	if ( intensity <= 0 ) {
-		return;
-	}
-#ifdef USE_PMLIGHT
-#ifdef USE_LEGACY_DLIGHTS
-	if ( r_dlightMode->integer )
-#endif
-	{
-		r *= r_dlightIntensity->value;
-		g *= r_dlightIntensity->value;
-		b *= r_dlightIntensity->value;
-		intensity *= r_dlightScale->value;
-	}
-#endif
-
-	if ( r_dlightSaturation->value != 1.0 )
-	{
-		float luminance = LUMA( r, g, b );
-		r = LERP( luminance, r, r_dlightSaturation->value );
-		g = LERP( luminance, g, r_dlightSaturation->value );
-		b = LERP( luminance, b, r_dlightSaturation->value );
-	}
-
-	dl = &backEndData->dlights[ r_numdlights++ ];
-	VectorCopy( start, dl->origin );
-	VectorCopy( end, dl->origin2 );
-	dl->radius = intensity;
-	dl->color[0] = r;
-	dl->color[1] = g;
-	dl->color[2] = b;
-	dl->additive = 0;
-	dl->linear = true;
+	RE_AddLinearLightToScene_plus(start, end, intensity, r,g,b);
 }
 
 

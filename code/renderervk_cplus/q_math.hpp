@@ -26,6 +26,10 @@ extern "C"
     float Q_rsqrt_plus(float number);
     vec_t VectorNormalize2_plus(const vec3_t v, vec3_t out);
 
+    float RadiusFromBounds_plus(const vec3_t mins, const vec3_t maxs);
+    void AddPointToBounds_plus(const vec3_t v, vec3_t mins, vec3_t maxs);
+    float Q_acos_plus(float c);
+
 #ifdef __cplusplus
 }
 #endif
