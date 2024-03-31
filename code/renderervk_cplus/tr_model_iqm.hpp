@@ -21,6 +21,11 @@ extern "C"
         0, 0, 1, 0};
 
     void R_AddIQMSurfaces_plus(trRefEntity_t *ent);
+    int R_IQMLerpTag_plus(orientation_t *tag, iqmData_t *data,
+                          int startFrame, int endFrame,
+                          float frac, const char *tagName);
+
+    void RB_IQMSurfaceAnim_plus(const surfaceType_t *surface);
 
 #ifdef __cplusplus
 }

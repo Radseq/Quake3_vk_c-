@@ -152,24 +152,7 @@ R_AddDrawSurfCmd
 =============
 */
 void R_AddDrawSurfCmd( drawSurf_t *drawSurfs, int numDrawSurfs ) {
-	drawSurfsCommand_t	*cmd;
-
-	cmd = R_GetCommandBuffer( sizeof( *cmd ) );
-	if ( !cmd ) {
-		return;
-	}
-	cmd->commandId = RC_DRAW_SURFS;
-
-	cmd->drawSurfs = drawSurfs;
-	cmd->numDrawSurfs = numDrawSurfs;
-
-	cmd->refdef = tr.refdef;
-	cmd->viewParms = tr.viewParms;
-
-	tr.numDrawSurfCmds++;
-	if ( tr.drawSurfCmd == NULL ) {
-		tr.drawSurfCmd = cmd;
-	}
+	R_AddDrawSurfCmd_plus(drawSurfs, numDrawSurfs);
 }
 
 
@@ -360,29 +343,13 @@ RE_TakeVideoFrame
 void RE_TakeVideoFrame( int width, int height,
 		byte *captureBuffer, byte *encodeBuffer, bool motionJpeg )
 {
-	videoFrameCommand_t	*cmd;
-
-	if( !tr.registered ) {
-		return;
-	}
-
-	backEnd.screenshotMask |= SCREENSHOT_AVI;
-
-	cmd = &backEnd.vcmd;
-
-	//cmd->commandId = RC_VIDEOFRAME;
-
-	cmd->width = width;
-	cmd->height = height;
-	cmd->captureBuffer = captureBuffer;
-	cmd->encodeBuffer = encodeBuffer;
-	cmd->motionJpeg = motionJpeg;
+RE_TakeVideoFrame_plus(width, height,captureBuffer,  encodeBuffer,motionJpeg );
 }
 
 
 void RE_ThrottleBackend( void )
 {
-	backEnd.throttle = true;
+	RE_ThrottleBackend_plus();
 }
 
 
@@ -405,9 +372,7 @@ void RE_FinishBloom( void )
 
 bool RE_CanMinimize( void )
 {
-	if ( vk.fboActive || vk.offscreenRender )
-		return true;
-	return false;
+	return RE_CanMinimize_plus();
 }
 
 
@@ -419,5 +384,5 @@ const glconfig_t *RE_GetConfig( void )
 
 void RE_VertexLighting( bool allowed )
 {
-	tr.vertexLightingAllowed = allowed;
+	RE_VertexLighting_plus(allowed);
 }

@@ -390,3 +390,28 @@ float Q_acos_plus(float c)
 	return angle;
 }
 #endif
+
+int Q_log2_plus(int val)
+{
+	int answer;
+
+	answer = 0;
+	while ((val >>= 1) != 0)
+	{
+		answer++;
+	}
+	return answer;
+}
+
+void AxisClear_plus(vec3_t axis[3])
+{
+	axis[0][0] = 1;
+	axis[0][1] = 0;
+	axis[0][2] = 0;
+	axis[1][0] = 0;
+	axis[1][1] = 1;
+	axis[1][2] = 0;
+	axis[2][0] = 0;
+	axis[2][1] = 0;
+	axis[2][2] = 1;
+}

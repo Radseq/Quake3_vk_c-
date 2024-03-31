@@ -45,14 +45,7 @@ return a hash value for the filename
 ** R_GammaCorrect
 */
 void R_GammaCorrect( byte *buffer, int bufSize ) {
-	int i;
-	if ( vk.capture.image != VK_NULL_HANDLE )
-		return;
-	if ( !gls.deviceSupportsGamma )
-		return;
-	for ( i = 0; i < bufSize; i++ ) {
-		buffer[i] = s_gammatable[buffer[i]];
-	}
+R_GammaCorrect_plus(buffer, bufSize);
 }
 
 typedef struct {
@@ -1627,10 +1620,7 @@ R_GetSkinByHandle
 ===============
 */
 skin_t	*R_GetSkinByHandle( qhandle_t hSkin ) {
-	if ( hSkin < 1 || hSkin >= tr.numSkins ) {
-		return tr.skins[0];
-	}
-	return tr.skins[ hSkin ];
+	return R_GetSkinByHandle_plus(hSkin);
 }
 
 

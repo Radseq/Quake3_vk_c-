@@ -102,24 +102,146 @@ static unsigned char s_gammatable_linear[256];
 
 void R_SkinList_f_plus()
 {
-    ri.Printf(PRINT_ALL, "------------------\n");
+	ri.Printf(PRINT_ALL, "------------------\n");
 
-    for (int i = 0; i < tr.numSkins; ++i)
-    {
-        const skin_t& skin = *tr.skins[i]; // Use reference instead of pointer
+	for (int i = 0; i < tr.numSkins; ++i)
+	{
+		const skin_t &skin = *tr.skins[i]; // Use reference instead of pointer
 
+		ri.Printf(PRINT_ALL, "%3i:%s (%d surfaces)\n", i, skin.name, skin.numSurfaces);
+		for (int j = 0; j < skin.numSurfaces; ++j)
+		{
+			const skinSurface_t &surface = skin.surfaces[j]; // Use reference instead of pointer
 
-        ri.Printf(PRINT_ALL, "%3i:%s (%d surfaces)\n", i, skin.name, skin.numSurfaces);
-        for (int j = 0; j < skin.numSurfaces; ++j)
-        {
-            const skinSurface_t& surface = skin.surfaces[j]; // Use reference instead of pointer
+			// Check if shader is valid before printing
+			const char *shaderName = surface.shader ? surface.shader->name : "Unknown";
 
-            // Check if shader is valid before printing
-            const char* shaderName = surface.shader ? surface.shader->name : "Unknown";
+			ri.Printf(PRINT_ALL, "       %s = %s\n", surface.name, shaderName);
+		}
+	}
 
-            ri.Printf(PRINT_ALL, "       %s = %s\n", surface.name, shaderName);
-        }
-    }
+	ri.Printf(PRINT_ALL, "------------------\n");
+}
 
-    ri.Printf(PRINT_ALL, "------------------\n");
+void R_GammaCorrect_plus(byte *buffer, int bufSize)
+{
+	int i;
+	if (vk.capture.image != VK_NULL_HANDLE)
+		return;
+	if (!gls.deviceSupportsGamma)
+		return;
+	for (i = 0; i < bufSize; i++)
+	{
+		buffer[i] = s_gammatable[buffer[i]];
+	}
+}
+
+void R_SetColorMappings_plus()
+{
+	int i, j;
+	float g;
+	int inf;
+	int shift;
+	bool applyGamma;
+
+	if (!tr.inited)
+	{
+		// it may be called from window handling functions where gamma flags is now yet known/set
+		return;
+	}
+
+	// setup the overbright lighting
+	// negative value will force gamma in windowed mode
+	tr.overbrightBits = abs(r_overBrightBits->integer);
+
+	// never overbright in windowed mode
+	if (!glConfig.isFullscreen && r_overBrightBits->integer >= 0 && !vk.fboActive)
+	{
+		tr.overbrightBits = 0;
+		applyGamma = false;
+	}
+	else
+	{
+		if (!glConfig.deviceSupportsGamma && !vk.fboActive)
+		{
+			tr.overbrightBits = 0; // need hardware gamma for overbright
+			applyGamma = false;
+		}
+		else
+		{
+			applyGamma = true;
+		}
+	}
+
+	// allow 2 overbright bits in 24 bit, but only 1 in 16 bit
+	if (glConfig.colorBits > 16)
+	{
+		if (tr.overbrightBits > 2)
+		{
+			tr.overbrightBits = 2;
+		}
+	}
+	else
+	{
+		if (tr.overbrightBits > 1)
+		{
+			tr.overbrightBits = 1;
+		}
+	}
+	if (tr.overbrightBits < 0)
+	{
+		tr.overbrightBits = 0;
+	}
+
+	tr.identityLight = 1.0f / (1 << tr.overbrightBits);
+	tr.identityLightByte = 255 * tr.identityLight;
+
+	g = r_gamma->value;
+
+	shift = tr.overbrightBits;
+
+	for (i = 0; i < ARRAY_LEN(s_gammatable); i++)
+	{
+		if (g == 1.0f)
+		{
+			inf = i;
+		}
+		else
+		{
+			inf = 255 * powf(i / 255.0f, 1.0f / g) + 0.5f;
+		}
+		inf <<= shift;
+		if (inf < 0)
+		{
+			inf = 0;
+		}
+		if (inf > 255)
+		{
+			inf = 255;
+		}
+		s_gammatable[i] = inf;
+	}
+
+	for (i = 0; i < ARRAY_LEN(s_intensitytable); i++)
+	{
+		j = i * r_intensity->value;
+		if (j > 255)
+		{
+			j = 255;
+		}
+		s_intensitytable[i] = j;
+	}
+
+	if (gls.deviceSupportsGamma)
+	{
+		if (vk.fboActive)
+			ri.GLimp_SetGamma(s_gammatable_linear, s_gammatable_linear, s_gammatable_linear);
+		else
+		{
+			if (applyGamma)
+			{
+				ri.GLimp_SetGamma(s_gammatable, s_gammatable, s_gammatable);
+			}
+		}
+	}
 }

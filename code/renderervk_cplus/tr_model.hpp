@@ -3,6 +3,7 @@
 
 #include "../renderervk/tr_local.h"
 #include "q_shared.hpp"
+#include "tr_model_iqm.hpp"
 
 #ifdef __cplusplus
 extern "C"
@@ -15,6 +16,8 @@ extern "C"
     void R_Modellist_f_plus();
     // todo not working???
     model_t *R_AllocModel_plus();
+    int R_LerpTag_plus(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame,
+                       float frac, const char *tagName);
 
 #ifdef __cplusplus
 }

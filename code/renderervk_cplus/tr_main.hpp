@@ -53,7 +53,7 @@ extern "C"
 
     void R_DecomposeSort_plus(unsigned sort, int *entityNum, shader_t **shader,
                               int *fogNum, int *dlightMap);
-    void R_RenderView_plus(const viewParms_t *parms);
+    //void R_RenderView_plus(const viewParms_t *parms);
 
 #ifdef __cplusplus
 }

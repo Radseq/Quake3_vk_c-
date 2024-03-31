@@ -29,6 +29,8 @@ extern "C"
     float RadiusFromBounds_plus(const vec3_t mins, const vec3_t maxs);
     void AddPointToBounds_plus(const vec3_t v, vec3_t mins, vec3_t maxs);
     float Q_acos_plus(float c);
+    int Q_log2_plus(int val);
+    void AxisClear_plus(vec3_t axis[3]);
 
 #ifdef __cplusplus
 }

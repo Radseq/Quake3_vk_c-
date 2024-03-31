@@ -121,6 +121,9 @@ extern "C"
 		c[3] = a[3] * b;
 	}
 
+	int Q_strncmp_plus(const char *s1, const char *s2, int n);
+
+	void Q_strncpyz_plus(char *dest, const char *src, int destsize);
 
 #ifdef __cplusplus
 }

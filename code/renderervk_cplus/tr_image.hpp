@@ -15,6 +15,8 @@ extern "C"
     float R_FogFactor_plus(float s, float t);
 
     void R_SkinList_f_plus();
+    void R_GammaCorrect_plus(byte *buffer, int bufSize);
+    void R_SetColorMappings_plus();
 
 #ifdef __cplusplus
 }
