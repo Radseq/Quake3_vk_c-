@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "q_math.hpp"
 
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -124,6 +125,8 @@ extern "C"
 	int Q_strncmp_plus(const char *s1, const char *s2, int n);
 
 	void Q_strncpyz_plus(char *dest, const char *src, int destsize);
+
+	int LongSwap_plus(int l);
 
 #ifdef __cplusplus
 }

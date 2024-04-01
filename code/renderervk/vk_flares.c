@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // tr_flares.c
 
 #include "tr_local.h"
+#include "../renderervk_cplus/vk_flares.hpp"
 
 /*
 =============================================================================
@@ -57,33 +58,6 @@ up to five ort more times in a frame with 3D status bar icons).
 
 // flare states maintain visibility over multiple frames for fading
 // layers: view, mirror, menu
-typedef struct flare_s {
-	struct		flare_s	*next;		// for active chain
-
-	int			addedFrame;
-	uint32_t	testCount;
-
-	portalView_t portalView;
-	int			frameSceneNum;
-	void		*surface;
-	int			fogNum;
-
-	int			fadeTime;
-
-	bool	visible;			// state of last test
-	float		drawIntensity;		// may be non 0 even if !visible due to fading
-
-	int			windowX, windowY;
-	float		eyeZ;
-	float		drawZ;
-
-	vec3_t		origin;
-	vec3_t		color;
-} flare_t;
-
-static flare_t	r_flareStructs[ MAX_FLARES ];
-static flare_t	*r_activeFlares, *r_inactiveFlares;
-
 
 /*
 ==================
@@ -93,22 +67,6 @@ R_ClearFlares
 void R_ClearFlares( void ) {
 	R_ClearFlares_plus();
 }
-
-
-static flare_t *R_SearchFlare( void *surface )
-{
-	flare_t *f;
-
-	// see if a flare with a matching surface, scene, and view exists
-	for ( f = r_activeFlares ; f ; f = f->next ) {
-		if ( f->surface == surface && f->frameSceneNum == backEnd.viewParms.frameSceneNum && f->portalView == backEnd.viewParms.portalView ) {
-			return f;
-		}
-	}
-
-	return NULL;
-}
-
 
 /*
 ==================

@@ -742,6 +742,11 @@ Q3RENDV_PLUS_OBJ = \
   $(B)/rendv_cplus/tr_font.o \
   $(B)/rendv_cplus/tr_shadows.o \
   $(B)/rendv_cplus/tr_cmds.o \
+  $(B)/rendv_cplus/tr_image_bmp.o \
+  $(B)/rendv_cplus/tr_image_pcx.o \
+  $(B)/rendv_cplus/tr_image_png.o \
+  $(B)/rendv_cplus/puff.o \
+  $(B)/rendv_cplus/tr_image_tga.o \
   # $(B)/rendv_cplus/vk_vbo.o \
   # $(B)/rendv_cplus/vk.o \
   # $(B)/rendv_cplus/tr_sky.o \
