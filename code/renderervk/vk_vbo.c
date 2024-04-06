@@ -46,49 +46,7 @@ host-visible index buffer which is finally rendered via single draw call.
 
 */
 
-#define MAX_VBO_STAGES MAX_SHADER_STAGES
-
-#define MIN_IBO_RUN 320
-
-//[ibo]: [index0][index1][index2]
-//[vbo]: [index0][vertex0...][index1][vertex1...][index2][vertex2...]
-
-typedef struct vbo_item_s {
-	int			index_offset;  // device-local, relative to current shader
-	int			soft_offset;   // host-visible, absolute
-	int			num_indexes;
-	int			num_vertexes;
-} vbo_item_t;
-
-typedef struct ibo_item_s {
-	int offset;
-	int length;
-} ibo_item_t;
-
-typedef struct vbo_s {
-	byte *vbo_buffer;
-	int vbo_offset;
-	int vbo_size;
-
-	byte *ibo_buffer;
-	int ibo_offset;
-	int ibo_size;
-
-	uint32_t soft_buffer_indexes;
-	uint32_t soft_buffer_offset;
-
-	ibo_item_t *ibo_items;
-	int ibo_items_count;
-
-	vbo_item_t *items;
-	int items_count;
-
-	int *items_queue;
-	int items_queue_count;
-
-} vbo_t;
-
-static vbo_t world_vbo;
+#include "vk_vbo.h"
 
 void VBO_Cleanup( void );
 
@@ -456,10 +414,9 @@ void VBO_PushData( int itemIndex, shaderCommands_t *input )
 	//	input->shader->curIndexes, input->shader->numIndexes );
 }
 
-
 void VBO_UnBind( void )
 {
-	tess.vboIndex = 0;
+	VBO_UnBind_plus();
 }
 
 
@@ -698,16 +655,7 @@ void R_BuildWorldVBO( msurface_t *surf, int surfCount )
 
 void VBO_Cleanup( void )
 {
-	int i;
-
-	memset( &world_vbo, 0, sizeof( world_vbo ) );
-
-	for ( i = 0; i < tr.numShaders; i++ )
-	{
-		tr.shaders[ i ]->isStaticShader = false;
-		tr.shaders[ i ]->iboOffset = -1;
-		tr.shaders[ i ]->vboOffset = -1;
-	}
+VBO_Cleanup_plus();
 }
 
 
@@ -717,56 +665,8 @@ qsort_int
 =============
 */
 void qsort_int(int* arr, const int n) {
-    if (n < 32) { // CUTOFF
-        for (int i = 1; i < n; i++) {
-            int j = i;
-            while (j > 0 && arr[j] < arr[j - 1]) {
-                int temp = arr[j];
-                arr[j] = arr[j - 1];
-                arr[j - 1] = temp;
-                j--;
-            }
-        }
-        return;
-    }
-
-    int stack[2 * n];
-    int top = -1;
-    stack[++top] = 0;
-    stack[++top] = n - 1;
-
-    while (top >= 0) {
-        int high = stack[top--];
-        int low = stack[top--];
-
-        int pivot = arr[high];
-        int i = low - 1;
-
-        for (int j = low; j <= high - 1; j++) {
-            if (arr[j] < pivot) {
-                i++;
-                int temp = arr[i];
-                arr[i] = arr[j];
-                arr[j] = temp;
-            }
-        }
-        int pi = i + 1;
-        int temp = arr[pi];
-        arr[pi] = arr[high];
-        arr[high] = temp;
-
-        if (pi - 1 > low) {
-            stack[++top] = low;
-            stack[++top] = pi - 1;
-        }
-
-        if (pi + 1 < high) {
-            stack[++top] = pi + 1;
-            stack[++top] = high;
-        }
-    }
+	qsort_int_plus(arr, n);
 }
-
 
 static int run_length( const int *a, int from, int to, int *count )
 {

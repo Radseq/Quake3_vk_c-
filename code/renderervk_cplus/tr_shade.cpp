@@ -258,3 +258,179 @@ void VK_SetFogParams_plus( vkUniform_t *uniform, int *fogStage )
 	}
 }
 
+void R_ComputeColors_plus( const int b, color4ub_t *dest, const shaderStage_t *pStage )
+{
+	int		i;
+
+	if ( tess.numVertexes == 0 )
+		return;
+
+	//
+	// rgbGen
+	//
+	switch ( pStage->bundle[b].rgbGen )
+	{
+		case CGEN_IDENTITY:
+			Com_Memset( dest, 0xff, tess.numVertexes * 4 );
+			break;
+		default:
+		case CGEN_IDENTITY_LIGHTING:
+			Com_Memset( dest, tr.identityLightByte, tess.numVertexes * 4 );
+			break;
+		case CGEN_LIGHTING_DIFFUSE:
+			RB_CalcDiffuseColor_plus( ( unsigned char * ) dest );
+			break;
+		case CGEN_EXACT_VERTEX:
+			Com_Memcpy( dest, tess.vertexColors, tess.numVertexes * sizeof( tess.vertexColors[0] ) );
+			break;
+		case CGEN_CONST:
+			for ( i = 0; i < tess.numVertexes; i++ ) {
+				dest[i] = pStage->bundle[b].constantColor;
+			}
+			break;
+		case CGEN_VERTEX:
+			if ( tr.identityLight == 1 )
+			{
+				Com_Memcpy( dest, tess.vertexColors, tess.numVertexes * sizeof( tess.vertexColors[0] ) );
+			}
+			else
+			{
+				for ( i = 0; i < tess.numVertexes; i++ )
+				{
+					dest[i].rgba[0] = tess.vertexColors[i].rgba[0] * tr.identityLight;
+					dest[i].rgba[1] = tess.vertexColors[i].rgba[1] * tr.identityLight;
+					dest[i].rgba[2] = tess.vertexColors[i].rgba[2] * tr.identityLight;
+					dest[i].rgba[3] = tess.vertexColors[i].rgba[3];
+				}
+			}
+			break;
+		case CGEN_ONE_MINUS_VERTEX:
+			if ( tr.identityLight == 1 )
+			{
+				for ( i = 0; i < tess.numVertexes; i++ )
+				{
+					dest[i].rgba[0] = 255 - tess.vertexColors[i].rgba[0];
+					dest[i].rgba[1] = 255 - tess.vertexColors[i].rgba[1];
+					dest[i].rgba[2] = 255 - tess.vertexColors[i].rgba[2];
+				}
+			}
+			else
+			{
+				for ( i = 0; i < tess.numVertexes; i++ )
+				{
+					dest[i].rgba[0] = ( 255 - tess.vertexColors[i].rgba[0] ) * tr.identityLight;
+					dest[i].rgba[1] = ( 255 - tess.vertexColors[i].rgba[1] ) * tr.identityLight;
+					dest[i].rgba[2] = ( 255 - tess.vertexColors[i].rgba[2] ) * tr.identityLight;
+				}
+			}
+			break;
+		case CGEN_FOG:
+			{
+				const fog_t *fog = tr.world->fogs + tess.fogNum;
+
+				for ( i = 0; i < tess.numVertexes; i++ ) {
+					dest[i] = fog->colorInt;
+				}
+			}
+			break;
+		case CGEN_WAVEFORM:
+			RB_CalcWaveColor_plus( &pStage->bundle[b].rgbWave, dest->rgba );
+			break;
+		case CGEN_ENTITY:
+			RB_CalcColorFromEntity_plus( dest->rgba );
+			break;
+		case CGEN_ONE_MINUS_ENTITY:
+			RB_CalcColorFromOneMinusEntity_plus( dest->rgba );
+			break;
+	}
+
+	//
+	// alphaGen
+	//
+	switch ( pStage->bundle[b].alphaGen )
+	{
+	case AGEN_SKIP:
+		break;
+	case AGEN_IDENTITY:
+		if ( ( pStage->bundle[b].rgbGen == CGEN_VERTEX && tr.identityLight != 1 ) ||
+			 pStage->bundle[b].rgbGen != CGEN_VERTEX ) {
+			for ( i = 0; i < tess.numVertexes; i++ ) {
+				dest[i].rgba[3] = 255;
+			}
+		}
+		break;
+	case AGEN_CONST:
+		for ( i = 0; i < tess.numVertexes; i++ ) {
+			dest[i].rgba[3] = pStage->bundle[b].constantColor.rgba[3];
+		}
+		break;
+	case AGEN_WAVEFORM:
+		RB_CalcWaveAlpha_plus( &pStage->bundle[b].alphaWave, dest->rgba );
+		break;
+	case AGEN_LIGHTING_SPECULAR:
+		RB_CalcSpecularAlpha_plus( dest->rgba );
+		break;
+	case AGEN_ENTITY:
+		RB_CalcAlphaFromEntity_plus( dest->rgba );
+		break;
+	case AGEN_ONE_MINUS_ENTITY:
+		RB_CalcAlphaFromOneMinusEntity_plus( dest->rgba );
+		break;
+	case AGEN_VERTEX:
+		for ( i = 0; i < tess.numVertexes; i++ ) {
+			dest[i].rgba[3] = tess.vertexColors[i].rgba[3];
+		}
+		break;
+	case AGEN_ONE_MINUS_VERTEX:
+		for ( i = 0; i < tess.numVertexes; i++ )
+		{
+			dest[i].rgba[3] = 255 - tess.vertexColors[i].rgba[3];
+		}
+		break;
+	case AGEN_PORTAL:
+		{
+			for ( i = 0; i < tess.numVertexes; i++ )
+			{
+				unsigned char alpha;
+				float len;
+				vec3_t v;
+
+				VectorSubtract( tess.xyz[i], backEnd.viewParms.ort.origin, v );
+				len = VectorLength( v ) * tess.shader->portalRangeR;
+
+				if ( len > 1 )
+				{
+					alpha = 0xff;
+				}
+				else
+				{
+					alpha = len * 0xff;
+				}
+
+				dest[i].rgba[3] = alpha;
+			}
+		}
+		break;
+	}
+
+	//
+	// fog adjustment for colors to fade out as fog increases
+	//
+	if ( tess.fogNum )
+	{
+		switch ( pStage->bundle[b].adjustColorsForFog )
+		{
+		case ACFF_MODULATE_RGB:
+			RB_CalcModulateColorsByFog_plus( dest->rgba );
+			break;
+		case ACFF_MODULATE_ALPHA:
+			RB_CalcModulateAlphasByFog_plus( dest->rgba );
+			break;
+		case ACFF_MODULATE_RGBA:
+			RB_CalcModulateRGBAsByFog_plus( dest->rgba );
+			break;
+		case ACFF_NONE:
+			break;
+		}
+	}
+}

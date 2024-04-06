@@ -1,4 +1,5 @@
-#pragma once
+#ifndef vk_H
+#define vk_H
 
 #include "../renderervk/vulkan/vulkan.h"
 #include "tr_common.h"
@@ -636,3 +637,5 @@ typedef struct {
 
 extern Vk_Instance	vk;				// shouldn't be cleared during ref re-init
 extern Vk_World		vk_world;		// this data is cleared during ref re-init
+
+#endif // vk_H

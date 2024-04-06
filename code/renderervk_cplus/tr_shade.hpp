@@ -11,6 +11,7 @@ extern "C"
     void RB_BeginSurface_plus(shader_t *shader, int fogNum);
     void R_ComputeTexCoords_plus(const int b, const textureBundle_t *bundle);
     void VK_SetFogParams_plus(vkUniform_t *uniform, int *fogStage);
+    void R_ComputeColors_plus( const int b, color4ub_t *dest, const shaderStage_t *pStage );
 
 #ifdef __cplusplus
 }

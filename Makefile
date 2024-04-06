@@ -747,9 +747,9 @@ Q3RENDV_PLUS_OBJ = \
   $(B)/rendv_cplus/tr_image_png.o \
   $(B)/rendv_cplus/puff.o \
   $(B)/rendv_cplus/tr_image_tga.o \
-  # $(B)/rendv_cplus/vk_vbo.o \
+  $(B)/rendv_cplus/vk_vbo.o \
+  $(B)/rendv_cplus/tr_sky.o \
   # $(B)/rendv_cplus/vk.o \
-  # $(B)/rendv_cplus/tr_sky.o \
 
 Q3RENDVOBJ = \
   $(B)/rendv/tr_animation.o \
