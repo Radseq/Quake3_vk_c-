@@ -92,7 +92,7 @@ static void HSVtoRGB(float h, float s, float v, float rgb[3])
 
 /*
 ===============
-R_ColorShiftLightingBytes
+R_ColorShiftLightingBytes_plus
 ===============
 */
 void R_ColorShiftLightingBytes_plus(const byte in[4], byte out[4], bool hasAlpha)
@@ -263,7 +263,7 @@ static float R_ProcessLightmap(byte *image, const byte *buf_p, float maxIntensit
 				for (x = 0; x < LIGHTMAP_SIZE; x++)
 				{
 					byte *dst = &image[((y + LIGHTMAP_BORDER) * LIGHTMAP_LEN + x + LIGHTMAP_BORDER) * 4];
-					R_ColorShiftLightingBytes(buf_p, dst, false);
+					R_ColorShiftLightingBytes_plus(buf_p, dst, false);
 					dst[3] = 255;
 					buf_p += 3;
 				}
@@ -278,7 +278,7 @@ static float R_ProcessLightmap(byte *image, const byte *buf_p, float maxIntensit
 				for (x = 0; x < LIGHTMAP_SIZE; x++)
 				{
 					byte *dst = &image[(y * LIGHTMAP_SIZE + x) * 4];
-					R_ColorShiftLightingBytes(buf_p, dst, false);
+					R_ColorShiftLightingBytes_plus(buf_p, dst, false);
 					dst[3] = 255;
 					buf_p += 3;
 				}
@@ -696,7 +696,7 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 			cv->points[i][3 + j] = LittleFloat(verts[i].st[j]);
 			cv->points[i][5 + j] = LittleFloat(verts[i].lightmap[j]);
 		}
-		R_ColorShiftLightingBytes(verts[i].color.rgba, (byte *)&cv->points[i][7], true);
+		R_ColorShiftLightingBytes_plus(verts[i].color.rgba, (byte *)&cv->points[i][7], true);
 		if (lightmapNum >= 0 && tr.mergeLightmaps)
 		{
 			// adjust lightmap coords
@@ -817,7 +817,7 @@ static void ParseMesh(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 			points[i].st[j] = LittleFloat(verts[i].st[j]);
 			points[i].lightmap[j] = LittleFloat(verts[i].lightmap[j]);
 		}
-		R_ColorShiftLightingBytes(verts[i].color.rgba, points[i].color.rgba, true);
+		R_ColorShiftLightingBytes_plus(verts[i].color.rgba, points[i].color.rgba, true);
 		if (lightmapNum >= 0 && tr.mergeLightmaps)
 		{
 			// adjust lightmap coords
@@ -905,7 +905,7 @@ static void ParseTriSurf(const dsurface_t *ds, const drawVert_t *verts, msurface
 			tri->verts[i].lightmap[j] = LittleFloat(verts[i].lightmap[j]);
 		}
 
-		R_ColorShiftLightingBytes(verts[i].color.rgba, tri->verts[i].color.rgba, true);
+		R_ColorShiftLightingBytes_plus(verts[i].color.rgba, tri->verts[i].color.rgba, true);
 		if (lightmapNum >= 0 && tr.mergeLightmaps)
 		{
 			// adjust lightmap coords
@@ -2334,8 +2334,8 @@ static void R_LoadLightGrid(const lump_t *l)
 	// deal with overbright bits
 	for (i = 0; i < numGridPoints; i++)
 	{
-		R_ColorShiftLightingBytes(&w->lightGridData[i * 8], &w->lightGridData[i * 8], false);
-		R_ColorShiftLightingBytes(&w->lightGridData[i * 8 + 3], &w->lightGridData[i * 8 + 3], false);
+		R_ColorShiftLightingBytes_plus(&w->lightGridData[i * 8], &w->lightGridData[i * 8], false);
+		R_ColorShiftLightingBytes_plus(&w->lightGridData[i * 8 + 3], &w->lightGridData[i * 8 + 3], false);
 	}
 }
 
