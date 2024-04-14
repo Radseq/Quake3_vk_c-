@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_bsp.hpp"
 #include "q_shared.hpp"
+#include "tr_image.hpp"
 // #include "tr_image.hpp"
 // #include "tr_shader.hpp"
 // #include "tr_curve.hpp"
@@ -357,7 +358,7 @@ static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 	for (offs = 0, i = 0; i < tr.numLightmaps; i++)
 	{
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOBORDER);
-		tr.lightmaps[i] = R_CreateImage(va("*mergedLightmap%d", i), NULL, NULL,
+		tr.lightmaps[i] = R_CreateImage_plus(va("*mergedLightmap%d", i), NULL, NULL,
 										lightmapWidth, lightmapHeight, flag);
 
 		for (y = 0; y < lightmapCountY; y++)
@@ -443,7 +444,7 @@ static void R_LoadLightmaps(const lump_t *l)
 	{
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOEDGE);
 		maxIntensity = R_ProcessLightmap(image, buf + i * LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3, maxIntensity);
-		tr.lightmaps[i] = R_CreateImage(va("*lightmap%d", i), NULL, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
+		tr.lightmaps[i] = R_CreateImage_plus(va("*lightmap%d", i), NULL, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
 										flag);
 	}
 

@@ -1,22 +1,86 @@
 #ifndef TR_IMAGE_HPP
 #define TR_IMAGE_HPP
 
+#include "q_shared.hpp"
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
 #include "../renderervk/tr_local.h"
-#include "q_shared.hpp"
 
-    skin_t *R_GetSkinByHandle_plus(qhandle_t hSkin);
-    int R_SumOfUsedImages_plus();
-    void R_InitFogTable_plus();
-    float R_FogFactor_plus(float s, float t);
+	static byte s_intensitytable[256];
+	static unsigned char s_gammatable[256];
+	static unsigned char s_gammatable_linear[256];
 
-    void R_SkinList_f_plus();
-    void R_GammaCorrect_plus(byte *buffer, int bufSize);
-    void R_SetColorMappings_plus();
+#define FILE_HASH_SIZE 1024
+	static image_t *hashTable[FILE_HASH_SIZE];
+
+/*
+================
+return a hash value for the filename
+================
+*/
+#define generateHashValue(fname) Com_GenerateHashValue((fname), FILE_HASH_SIZE)
+
+	typedef struct
+	{
+		const char *name;
+		GLint minimize, maximize;
+	} textureMode_t;
+
+	typedef struct
+	{
+		byte *buffer;
+		int buffer_size;
+		int mip_levels;
+		int base_level_width;
+		int base_level_height;
+	} Image_Upload_Data;
+
+
+
+	typedef struct
+	{
+		const char *ext;
+		void (*ImageLoader)(const char *, unsigned char **, int *, int *);
+	} imageExtToLoaderMap_t;
+
+	// Note that the ordering indicates the order of preference used
+	// when there are multiple images of different formats available
+	static const imageExtToLoaderMap_t imageLoaders[] =
+		{
+			{"png", R_LoadPNG},
+			{"tga", R_LoadTGA},
+			{"jpg", R_LoadJPG},
+			{"jpeg", R_LoadJPG},
+			{"pcx", R_LoadPCX},
+			{"bmp", R_LoadBMP}};
+
+	static const int numImageLoaders = ARRAY_LEN(imageLoaders);
+
+#define DLIGHT_SIZE 16
+#define FOG_S 256
+#define FOG_T 32
+#define DEFAULT_SIZE 16
+
+	skin_t *R_GetSkinByHandle_plus(qhandle_t hSkin);
+	int R_SumOfUsedImages_plus();
+	void R_InitFogTable_plus();
+	float R_FogFactor_plus(float s, float t);
+
+	void R_SkinList_f_plus();
+	void R_GammaCorrect_plus(byte *buffer, int bufSize);
+	void TextureMode_plus(const char *string);
+	void R_ImageList_f_plus(void);
+	image_t *R_CreateImage_plus(const char *name, const char *name2, byte *pic, int width, int height, imgFlags_t flags);
+	image_t *R_FindImageFile_plus(const char *name, imgFlags_t flags);
+	void R_SetColorMappings_plus(void);
+	void R_InitImages_plus(void);
+	void R_DeleteTextures_plus(void);
+	void R_InitSkins_plus(void);
+	qhandle_t RE_RegisterSkin_plus(const char *name);
 
 #ifdef __cplusplus
 }

@@ -23,15 +23,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_local.h"
 #include "../renderervk_cplus/tr_image.hpp"
 
-static byte			 s_intensitytable[256];
-static unsigned char s_gammatable[256];
-static unsigned char s_gammatable_linear[256];
-
-GLint	gl_filter_min = GL_LINEAR_MIPMAP_NEAREST;
-GLint	gl_filter_max = GL_LINEAR;
-
-#define FILE_HASH_SIZE		1024
-static	image_t*		hashTable[FILE_HASH_SIZE];
+	static const textureMode_t modes[] = {
+		{"GL_NEAREST", GL_NEAREST, GL_NEAREST},
+		{"GL_LINEAR", GL_LINEAR, GL_LINEAR},
+		{"GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST},
+		{"GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR},
+		{"GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST},
+		{"GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR}};
 
 /*
 ================
@@ -48,55 +46,16 @@ void R_GammaCorrect( byte *buffer, int bufSize ) {
 R_GammaCorrect_plus(buffer, bufSize);
 }
 
-typedef struct {
-	const char *name;
-	GLint minimize, maximize;
-} textureMode_t;
-
-static const textureMode_t modes[] = {
-	{"GL_NEAREST", GL_NEAREST, GL_NEAREST},
-	{"GL_LINEAR", GL_LINEAR, GL_LINEAR},
-	{"GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST},
-	{"GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR},
-	{"GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST},
-	{"GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR}
-};
 
 /*
 ===============
 GL_TextureMode
 ===============
 */
-void TextureMode( const char *string ) {
-	const textureMode_t *mode;
-	image_t	*img;
-	int		i;
-	
-	mode = NULL;
-	for ( i = 0 ; i < ARRAY_LEN( modes ) ; i++ ) {
-		if ( !Q_stricmp_plus( modes[i].name, string ) ) {
-			mode = &modes[i];
-			break;
-		}
-	}
-
-	if ( mode == NULL ) {
-		ri.Printf( PRINT_ALL, "bad texture filter name '%s'\n", string );
-		return;
-	}
-
-	gl_filter_min = mode->minimize;
-	gl_filter_max = mode->maximize;
-
-	vk_wait_idle();
-	for ( i = 0 ; i < tr.numImages ; i++ ) {
-		img = tr.images[i];
-		if ( img->flags & IMGFLAG_MIPMAP ) {
-			vk_update_descriptor_set( img, true );
-		}
-	}
+void TextureMode( const char *string ) 
+{
+	TextureMode_plus(string);
 }
-
 
 /*
 ===============
@@ -116,88 +75,8 @@ R_ImageList_f
 ===============
 */
 void R_ImageList_f( void ) {
-	const image_t *image;
-	int i, estTotalSize = 0;
-	char *name, buf[MAX_QPATH*2 + 5];
-
-	ri.Printf( PRINT_ALL, "\n -n- --w-- --h-- type  -size- --name-------\n" );
-
-	for ( i = 0; i < tr.numImages; i++ )
-	{
-		const char *format = "???? ";
-		const char *sizeSuffix;
-		int estSize;
-		int displaySize;
-
-		image = tr.images[ i ];
-		estSize = image->uploadHeight * image->uploadWidth;
-
-		switch ( image->internalFormat )
-		{
-			case VK_FORMAT_B8G8R8A8_UNORM:
-				format = "BGRA ";
-				estSize *= 4;
-				break;
-			case VK_FORMAT_R8G8B8A8_UNORM:
-				format = "RGBA ";
-				estSize *= 4;
-				break;
-			case VK_FORMAT_R8G8B8_UNORM:
-				format = "RGB  ";
-				estSize *= 3;
-				break;
-			case VK_FORMAT_B4G4R4A4_UNORM_PACK16:
-				format = "RGBA ";
-				estSize *= 2;
-				break;
-			case VK_FORMAT_A1R5G5B5_UNORM_PACK16:
-				format = "RGB  ";
-				estSize *= 2;
-				break;
-		}
-
-		// mipmap adds about 50%
-		if (image->flags & IMGFLAG_MIPMAP)
-			estSize += estSize / 2;
-
-		sizeSuffix = "b ";
-		displaySize = estSize;
-
-		if ( displaySize >= 2048 )
-		{
-			displaySize = ( displaySize + 1023 ) / 1024;
-			sizeSuffix = "kb";
-		}
-
-		if ( displaySize >= 2048 )
-		{
-			displaySize = ( displaySize + 1023 ) / 1024;
-			sizeSuffix = "Mb";
-		}
-
-		if ( displaySize >= 2048 )
-		{
-			displaySize = ( displaySize + 1023 ) / 1024;
-			sizeSuffix = "Gb";
-		}
-
-		if ( Q_stricmp_plus( image->imgName, image->imgName2 ) == 0 ) {
-			name = image->imgName;
-		} else {
-			Com_sprintf( buf, sizeof( buf ), "%s => " S_COLOR_YELLOW "%s",
-				image->imgName, image->imgName2 );
-			name = buf;
-		}
-
-		ri.Printf( PRINT_ALL, " %3i %5i %5i %s %4i%s %s\n", i, image->uploadWidth, image->uploadHeight, format, displaySize, sizeSuffix, name );
-		estTotalSize += estSize;
-	}
-
-	ri.Printf( PRINT_ALL, " -----------------------\n" );
-	ri.Printf( PRINT_ALL, " approx %i kbytes\n", (estTotalSize + 1023) / 1024 );
-	ri.Printf( PRINT_ALL, " %i total images\n\n", tr.numImages );
+	R_ImageList_f_plus();
 }
-
 //=======================================================================
 
 /*
@@ -491,13 +370,7 @@ static bool RawImage_HasAlpha( const byte *scan, const int numPixels )
 	return false;
 }
 
-typedef struct {
-	byte *buffer;
-	int buffer_size;
-	int mip_levels;
-	int base_level_width;
-	int base_level_height;
-} Image_Upload_Data;
+
 
 static void generate_image_upload_data( image_t *image, byte *data, Image_Upload_Data *upload_data ) {
 	
@@ -764,28 +637,6 @@ image_t *R_CreateImage( const char *name, const char *name2, byte *pic, int widt
 	upload_vk_image( image, pic );
 	return image;
 }
-
-//===================================================================
-
-typedef struct
-{
-	const char *ext;
-	void (*ImageLoader)( const char *, unsigned char **, int *, int * );
-} imageExtToLoaderMap_t;
-
-// Note that the ordering indicates the order of preference used
-// when there are multiple images of different formats available
-static const imageExtToLoaderMap_t imageLoaders[] =
-{
-	{ "png",  R_LoadPNG },
-	{ "tga",  R_LoadTGA },
-	{ "jpg",  R_LoadJPG },
-	{ "jpeg", R_LoadJPG },
-	{ "pcx",  R_LoadPCX },
-	{ "bmp",  R_LoadBMP }
-};
-
-static const int numImageLoaders = ARRAY_LEN( imageLoaders );
 
 /*
 =================

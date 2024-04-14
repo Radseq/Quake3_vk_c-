@@ -70,7 +70,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_font.hpp"
 
 #ifdef BUILD_FREETYPE
-void R_GetGlyphInfo(FT_GlyphSlot glyph, int *left, int *right, int *width, int *top, int *bottom, int *height, int *pitch)
+void R_GetGlyphInfo_plus(FT_GlyphSlot glyph, int *left, int *right, int *width, int *top, int *bottom, int *height, int *pitch)
 {
 	*left = _FLOOR(glyph->metrics.horiBearingX);
 	*right = _CEIL(glyph->metrics.horiBearingX + glyph->metrics.width);
@@ -82,12 +82,12 @@ void R_GetGlyphInfo(FT_GlyphSlot glyph, int *left, int *right, int *width, int *
 	*pitch = (true ? (*width + 3) & -4 : (*width + 7) >> 3);
 }
 
-FT_Bitmap *R_RenderGlyph(FT_GlyphSlot glyph, glyphInfo_t *glyphOut)
+FT_Bitmap *R_RenderGlyph_plus(FT_GlyphSlot glyph, glyphInfo_t *glyphOut)
 {
 	FT_Bitmap *bit2;
 	int left, right, width, top, bottom, height, pitch, size;
 
-	R_GetGlyphInfo(glyph, &left, &right, &width, &top, &bottom, &height, &pitch);
+	R_GetGlyphInfo_plus(glyph, &left, &right, &width, &top, &bottom, &height, &pitch);
 
 	if (glyph->format == ft_glyph_format_outline)
 	{
@@ -185,7 +185,7 @@ static glyphInfo_t *RE_ConstructGlyphInfo(unsigned char *imageOut, int *xOut, in
 	if (face != NULL)
 	{
 		FT_Load_Glyph(face, FT_Get_Char_Index(face, c), FT_LOAD_DEFAULT);
-		bitmap = R_RenderGlyph(face->glyph, &glyph);
+		bitmap = R_RenderGlyph_plus(face->glyph, &glyph);
 		if (bitmap)
 		{
 			glyph.xSkip = (face->glyph->metrics.horiAdvance >> 6) + 1;
@@ -307,7 +307,7 @@ static int readInt(void)
 	return i;
 }
 
-float readFloat(void)
+float readFloat_plus(void)
 {
 	poor me;
 #if defined Q3_BIG_ENDIAN
@@ -325,240 +325,240 @@ float readFloat(void)
 	return me.ffred;
 }
 
-// void RE_RegisterFont_plus(const char *fontName, int pointSize, fontInfo_t *font)
-// {
-// #ifdef BUILD_FREETYPE
-// 	FT_Face face;
-// 	int j, k, xOut, yOut, lastStart, imageNumber;
-// 	int scaledSize, newSize, maxHeight, left;
-// 	unsigned char *out, *imageBuff;
-// 	glyphInfo_t *glyph;
-// 	image_t *image;
-// 	qhandle_t h;
-// 	float max;
-// 	float dpi = 72;
-// 	float glyphScale;
-// #endif
-// 	void *faceData;
-// 	int i, len;
-// 	char name[1024];
+void RE_RegisterFont_plus(const char *fontName, int pointSize, fontInfo_t *font)
+{
+#ifdef BUILD_FREETYPE
+	FT_Face face;
+	int j, k, xOut, yOut, lastStart, imageNumber;
+	int scaledSize, newSize, maxHeight, left;
+	unsigned char *out, *imageBuff;
+	glyphInfo_t *glyph;
+	image_t *image;
+	qhandle_t h;
+	float max;
+	float dpi = 72;
+	float glyphScale;
+#endif
+	void *faceData;
+	int i, len;
+	char name[1024];
 
-// 	if (!fontName)
-// 	{
-// 		ri.Printf(PRINT_ALL, "RE_RegisterFont: called with empty name\n");
-// 		return;
-// 	}
+	if (!fontName)
+	{
+		ri.Printf(PRINT_ALL, "RE_RegisterFont: called with empty name\n");
+		return;
+	}
 
-// 	if (pointSize <= 0)
-// 	{
-// 		pointSize = 12;
-// 	}
+	if (pointSize <= 0)
+	{
+		pointSize = 12;
+	}
 
-// 	// R_IssuePendingRenderCommands();
+	// R_IssuePendingRenderCommands();
 
-// 	if (registeredFontCount >= MAX_FONTS)
-// 	{
-// 		ri.Printf(PRINT_WARNING, "RE_RegisterFont: Too many fonts registered already.\n");
-// 		return;
-// 	}
+	if (registeredFontCount >= MAX_FONTS)
+	{
+		ri.Printf(PRINT_WARNING, "RE_RegisterFont: Too many fonts registered already.\n");
+		return;
+	}
 
-// 	Com_sprintf(name, sizeof(name), "fonts/fontImage_%i.dat", pointSize);
-// 	for (i = 0; i < registeredFontCount; i++)
-// 	{
-// 		if (Q_stricmp_plus(name, registeredFont[i].name) == 0)
-// 		{
-// 			Com_Memcpy(font, &registeredFont[i], sizeof(fontInfo_t));
-// 			return;
-// 		}
-// 	}
+	Com_sprintf(name, sizeof(name), "fonts/fontImage_%i.dat", pointSize);
+	for (i = 0; i < registeredFontCount; i++)
+	{
+		if (Q_stricmp_plus(name, registeredFont[i].name) == 0)
+		{
+			Com_Memcpy(font, &registeredFont[i], sizeof(fontInfo_t));
+			return;
+		}
+	}
 
-// 	len = ri.FS_ReadFile(name, NULL);
-// 	if (len == sizeof(fontInfo_t))
-// 	{
-// 		ri.FS_ReadFile(name, &faceData);
-// 		fdOffset = 0;
-// 		fdFile = static_cast<unsigned char *>(faceData);
-// 		for (i = 0; i < GLYPHS_PER_FONT; i++)
-// 		{
-// 			font->glyphs[i].height = readInt();
-// 			font->glyphs[i].top = readInt();
-// 			font->glyphs[i].bottom = readInt();
-// 			font->glyphs[i].pitch = readInt();
-// 			font->glyphs[i].xSkip = readInt();
-// 			font->glyphs[i].imageWidth = readInt();
-// 			font->glyphs[i].imageHeight = readInt();
-// 			font->glyphs[i].s = readFloat();
-// 			font->glyphs[i].t = readFloat();
-// 			font->glyphs[i].s2 = readFloat();
-// 			font->glyphs[i].t2 = readFloat();
-// 			font->glyphs[i].glyph = readInt();
-// 			Q_strncpyz(font->glyphs[i].shaderName, (const char *)&fdFile[fdOffset], sizeof(font->glyphs[i].shaderName));
-// 			fdOffset += sizeof(font->glyphs[i].shaderName);
-// 		}
-// 		font->glyphScale = readFloat();
-// 		Com_Memcpy(font->name, &fdFile[fdOffset], MAX_QPATH);
+	len = ri.FS_ReadFile(name, NULL);
+	if (len == sizeof(fontInfo_t))
+	{
+		ri.FS_ReadFile(name, &faceData);
+		fdOffset = 0;
+		fdFile = static_cast<unsigned char *>(faceData);
+		for (i = 0; i < GLYPHS_PER_FONT; i++)
+		{
+			font->glyphs[i].height = readInt();
+			font->glyphs[i].top = readInt();
+			font->glyphs[i].bottom = readInt();
+			font->glyphs[i].pitch = readInt();
+			font->glyphs[i].xSkip = readInt();
+			font->glyphs[i].imageWidth = readInt();
+			font->glyphs[i].imageHeight = readInt();
+			font->glyphs[i].s = readFloat_plus();
+			font->glyphs[i].t = readFloat_plus();
+			font->glyphs[i].s2 = readFloat_plus();
+			font->glyphs[i].t2 = readFloat_plus();
+			font->glyphs[i].glyph = readInt();
+			Q_strncpyz(font->glyphs[i].shaderName, (const char *)&fdFile[fdOffset], sizeof(font->glyphs[i].shaderName));
+			fdOffset += sizeof(font->glyphs[i].shaderName);
+		}
+		font->glyphScale = readFloat_plus();
+		Com_Memcpy(font->name, &fdFile[fdOffset], MAX_QPATH);
 
-// 		//		Com_Memcpy(font, faceData, sizeof(fontInfo_t));
-// 		Q_strncpyz(font->name, name, sizeof(font->name));
-// 		for (i = GLYPH_START; i <= GLYPH_END; i++)
-// 		{
-// 			font->glyphs[i].glyph = RE_RegisterShaderNoMip(font->glyphs[i].shaderName);
-// 		}
-// 		Com_Memcpy(&registeredFont[registeredFontCount++], font, sizeof(fontInfo_t));
-// 		ri.FS_FreeFile(faceData);
-// 		return;
-// 	}
+		//		Com_Memcpy(font, faceData, sizeof(fontInfo_t));
+		Q_strncpyz(font->name, name, sizeof(font->name));
+		for (i = GLYPH_START; i <= GLYPH_END; i++)
+		{
+			font->glyphs[i].glyph = RE_RegisterShaderNoMip(font->glyphs[i].shaderName);
+		}
+		Com_Memcpy(&registeredFont[registeredFontCount++], font, sizeof(fontInfo_t));
+		ri.FS_FreeFile(faceData);
+		return;
+	}
 
-// #ifndef BUILD_FREETYPE
-// 	ri.Printf(PRINT_WARNING, "RE_RegisterFont: FreeType code not available\n");
-// #else
-// 	if (ftLibrary == NULL)
-// 	{
-// 		ri.Printf(PRINT_WARNING, "RE_RegisterFont: FreeType not initialized.\n");
-// 		return;
-// 	}
+#ifndef BUILD_FREETYPE
+	ri.Printf(PRINT_WARNING, "RE_RegisterFont: FreeType code not available\n");
+#else
+	if (ftLibrary == NULL)
+	{
+		ri.Printf(PRINT_WARNING, "RE_RegisterFont: FreeType not initialized.\n");
+		return;
+	}
 
-// 	len = ri.FS_ReadFile(fontName, &faceData);
-// 	if (len <= 0)
-// 	{
-// 		ri.Printf(PRINT_WARNING, "RE_RegisterFont: Unable to read font file '%s'\n", fontName);
-// 		return;
-// 	}
+	len = ri.FS_ReadFile(fontName, &faceData);
+	if (len <= 0)
+	{
+		ri.Printf(PRINT_WARNING, "RE_RegisterFont: Unable to read font file '%s'\n", fontName);
+		return;
+	}
 
-// 	// allocate on the stack first in case we fail
-// 	if (FT_New_Memory_Face(ftLibrary, faceData, len, 0, &face))
-// 	{
-// 		ri.Printf(PRINT_WARNING, "RE_RegisterFont: FreeType, unable to allocate new face.\n");
-// 		return;
-// 	}
+	// allocate on the stack first in case we fail
+	if (FT_New_Memory_Face(ftLibrary, faceData, len, 0, &face))
+	{
+		ri.Printf(PRINT_WARNING, "RE_RegisterFont: FreeType, unable to allocate new face.\n");
+		return;
+	}
 
-// 	if (FT_Set_Char_Size(face, pointSize << 6, pointSize << 6, dpi, dpi))
-// 	{
-// 		ri.Printf(PRINT_WARNING, "RE_RegisterFont: FreeType, unable to set face char size.\n");
-// 		return;
-// 	}
+	if (FT_Set_Char_Size(face, pointSize << 6, pointSize << 6, dpi, dpi))
+	{
+		ri.Printf(PRINT_WARNING, "RE_RegisterFont: FreeType, unable to set face char size.\n");
+		return;
+	}
 
-// 	//*font = &registeredFonts[registeredFontCount++];
+	//*font = &registeredFonts[registeredFontCount++];
 
-// 	// make a 256x256 image buffer, once it is full, register it, clean it and keep going
-// 	// until all glyphs are rendered
+	// make a 256x256 image buffer, once it is full, register it, clean it and keep going
+	// until all glyphs are rendered
 
-// 	out = ri.Malloc(256 * 256);
-// 	if (out == NULL)
-// 	{
-// 		ri.Printf(PRINT_WARNING, "RE_RegisterFont: ri.Malloc failure during output image creation.\n");
-// 		return;
-// 	}
-// 	Com_Memset(out, 0, 256 * 256);
+	out = ri.Malloc(256 * 256);
+	if (out == NULL)
+	{
+		ri.Printf(PRINT_WARNING, "RE_RegisterFont: ri.Malloc failure during output image creation.\n");
+		return;
+	}
+	Com_Memset(out, 0, 256 * 256);
 
-// 	maxHeight = 0;
+	maxHeight = 0;
 
-// 	for (i = GLYPH_START; i <= GLYPH_END; i++)
-// 	{
-// 		RE_ConstructGlyphInfo(out, &xOut, &yOut, &maxHeight, face, (unsigned char)i, true);
-// 	}
+	for (i = GLYPH_START; i <= GLYPH_END; i++)
+	{
+		RE_ConstructGlyphInfo(out, &xOut, &yOut, &maxHeight, face, (unsigned char)i, true);
+	}
 
-// 	xOut = 0;
-// 	yOut = 0;
-// 	i = GLYPH_START;
-// 	lastStart = i;
-// 	imageNumber = 0;
+	xOut = 0;
+	yOut = 0;
+	i = GLYPH_START;
+	lastStart = i;
+	imageNumber = 0;
 
-// 	while (i <= GLYPH_END + 1)
-// 	{
+	while (i <= GLYPH_END + 1)
+	{
 
-// 		if (i == GLYPH_END + 1)
-// 		{
-// 			// upload/save current image buffer
-// 			xOut = yOut = -1;
-// 		}
-// 		else
-// 		{
-// 			glyph = RE_ConstructGlyphInfo(out, &xOut, &yOut, &maxHeight, face, (unsigned char)i, false);
-// 		}
+		if (i == GLYPH_END + 1)
+		{
+			// upload/save current image buffer
+			xOut = yOut = -1;
+		}
+		else
+		{
+			glyph = RE_ConstructGlyphInfo(out, &xOut, &yOut, &maxHeight, face, (unsigned char)i, false);
+		}
 
-// 		if (xOut == -1 || yOut == -1)
-// 		{
-// 			// ran out of room
-// 			// we need to create an image from the bitmap, set all the handles in the glyphs to this point
-// 			//
+		if (xOut == -1 || yOut == -1)
+		{
+			// ran out of room
+			// we need to create an image from the bitmap, set all the handles in the glyphs to this point
+			//
 
-// 			scaledSize = 256 * 256;
-// 			newSize = scaledSize * 4;
-// 			imageBuff = ri.Malloc(newSize);
-// 			left = 0;
-// 			max = 0;
-// 			for (k = 0; k < (scaledSize); k++)
-// 			{
-// 				if (max < out[k])
-// 				{
-// 					max = out[k];
-// 				}
-// 			}
+			scaledSize = 256 * 256;
+			newSize = scaledSize * 4;
+			imageBuff = ri.Malloc(newSize);
+			left = 0;
+			max = 0;
+			for (k = 0; k < (scaledSize); k++)
+			{
+				if (max < out[k])
+				{
+					max = out[k];
+				}
+			}
 
-// 			if (max > 0)
-// 			{
-// 				max = 255 / max;
-// 			}
+			if (max > 0)
+			{
+				max = 255 / max;
+			}
 
-// 			for (k = 0; k < (scaledSize); k++)
-// 			{
-// 				imageBuff[left++] = 255;
-// 				imageBuff[left++] = 255;
-// 				imageBuff[left++] = 255;
+			for (k = 0; k < (scaledSize); k++)
+			{
+				imageBuff[left++] = 255;
+				imageBuff[left++] = 255;
+				imageBuff[left++] = 255;
 
-// 				imageBuff[left++] = ((float)out[k] * max);
-// 			}
+				imageBuff[left++] = ((float)out[k] * max);
+			}
 
-// 			Com_sprintf(name, sizeof(name), "fonts/fontImage_%i_%i.tga", imageNumber++, pointSize);
-// 			if (r_saveFontData->integer)
-// 			{
-// 				WriteTGA(name, imageBuff, 256, 256);
-// 			}
+			Com_sprintf(name, sizeof(name), "fonts/fontImage_%i_%i.tga", imageNumber++, pointSize);
+			if (r_saveFontData->integer)
+			{
+				WriteTGA(name, imageBuff, 256, 256);
+			}
 
-// 			// Com_sprintf (name, sizeof(name), "fonts/fontImage_%i_%i", imageNumber++, pointSize);
-// 			image = R_CreateImage(name, NULL, imageBuff, 256, 256, IMGFLAG_CLAMPTOEDGE);
-// 			h = RE_RegisterShaderFromImage(name, LIGHTMAP_2D, image, false);
-// 			for (j = lastStart; j < i; j++)
-// 			{
-// 				font->glyphs[j].glyph = h;
-// 				Q_strncpyz(font->glyphs[j].shaderName, name, sizeof(font->glyphs[j].shaderName));
-// 			}
-// 			lastStart = i;
-// 			Com_Memset(out, 0, 256 * 256);
-// 			xOut = 0;
-// 			yOut = 0;
-// 			ri.Free(imageBuff);
-// 			if (i == GLYPH_END + 1)
-// 				i++;
-// 		}
-// 		else
-// 		{
-// 			Com_Memcpy(&font->glyphs[i], glyph, sizeof(glyphInfo_t));
-// 			i++;
-// 		}
-// 	}
+			// Com_sprintf (name, sizeof(name), "fonts/fontImage_%i_%i", imageNumber++, pointSize);
+			image = R_CreateImage_plus(name, NULL, imageBuff, 256, 256, IMGFLAG_CLAMPTOEDGE);
+			h = RE_RegisterShaderFromImage(name, LIGHTMAP_2D, image, false);
+			for (j = lastStart; j < i; j++)
+			{
+				font->glyphs[j].glyph = h;
+				Q_strncpyz(font->glyphs[j].shaderName, name, sizeof(font->glyphs[j].shaderName));
+			}
+			lastStart = i;
+			Com_Memset(out, 0, 256 * 256);
+			xOut = 0;
+			yOut = 0;
+			ri.Free(imageBuff);
+			if (i == GLYPH_END + 1)
+				i++;
+		}
+		else
+		{
+			Com_Memcpy(&font->glyphs[i], glyph, sizeof(glyphInfo_t));
+			i++;
+		}
+	}
 
-// 	// change the scale to be relative to 1 based on 72 dpi ( so dpi of 144 means a scale of .5 )
-// 	glyphScale = 72.0f / dpi;
+	// change the scale to be relative to 1 based on 72 dpi ( so dpi of 144 means a scale of .5 )
+	glyphScale = 72.0f / dpi;
 
-// 	// we also need to adjust the scale based on point size relative to 48 points as the ui scaling is based on a 48 point font
-// 	glyphScale *= 48.0f / pointSize;
+	// we also need to adjust the scale based on point size relative to 48 points as the ui scaling is based on a 48 point font
+	glyphScale *= 48.0f / pointSize;
 
-// 	registeredFont[registeredFontCount].glyphScale = glyphScale;
-// 	font->glyphScale = glyphScale;
-// 	Com_Memcpy(&registeredFont[registeredFontCount++], font, sizeof(fontInfo_t));
+	registeredFont[registeredFontCount].glyphScale = glyphScale;
+	font->glyphScale = glyphScale;
+	Com_Memcpy(&registeredFont[registeredFontCount++], font, sizeof(fontInfo_t));
 
-// 	if (r_saveFontData->integer)
-// 	{
-// 		ri.FS_WriteFile(va("fonts/fontImage_%i.dat", pointSize), font, sizeof(fontInfo_t));
-// 	}
+	if (r_saveFontData->integer)
+	{
+		ri.FS_WriteFile(va("fonts/fontImage_%i.dat", pointSize), font, sizeof(fontInfo_t));
+	}
 
-// 	ri.Free(out);
+	ri.Free(out);
 
-// 	ri.FS_FreeFile(faceData);
-// #endif
-// }
+	ri.FS_FreeFile(faceData);
+#endif
+}
 
 void R_InitFreeType_plus()
 {

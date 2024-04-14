@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 #include "tr_backend.hpp"
+#include "tr_image.hpp"
 
 backEndData_t *backEndData;
 backEndState_t backEnd;
@@ -567,7 +568,7 @@ void RE_UploadCinematic_plus(int w, int h, int cols, int rows, byte *data, int c
 
 	if (!tr.scratchImage[client])
 	{
-		tr.scratchImage[client] = R_CreateImage(va("*scratch%i", client), NULL, data, cols, rows, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
+		tr.scratchImage[client] = R_CreateImage_plus(va("*scratch%i", client), NULL, data, cols, rows, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
 	}
 
 	image = tr.scratchImage[client];

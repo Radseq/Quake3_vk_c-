@@ -1,13 +1,14 @@
 #ifndef TR_FONT_HPP
 #define TR_FONT_HPP
 
+#include "q_shared.hpp"
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-#include "q_shared.hpp"
-#include "../renderervk/tr_public.h"
 
+#include "../renderervk/tr_public.h"
 	extern void R_IssuePendingRenderCommands(void);
 	extern qhandle_t RE_RegisterShaderNoMip(const char *name);
 
@@ -28,6 +29,11 @@ extern "C"
 
 #define MAX_FONTS 6
 
+#ifdef BUILD_FREETYPE
+	void R_GetGlyphInfo_plus(FT_GlyphSlot glyph, int *left, int *right, int *width, int *top, int *bottom, int *height, int *pitch);
+	FT_Bitmap *R_RenderGlyph_plus(FT_GlyphSlot glyph, glyphInfo_t *glyphOut);
+#endif
+
 	static int registeredFontCount = 0;
 	static fontInfo_t registeredFont[MAX_FONTS];
 
@@ -40,9 +46,10 @@ extern "C"
 		float ffred;
 	} poor;
 
-	// void RE_RegisterFont_plus(const char *fontName, int pointSize, fontInfo_t *font);
+	void RE_RegisterFont_plus(const char *fontName, int pointSize, fontInfo_t *font);
 	void R_InitFreeType_plus();
 	void R_DoneFreeType_plus();
+	float readFloat_plus(void);
 
 #ifdef __cplusplus
 }
