@@ -141,7 +141,7 @@ static void R_LocalNormalToWorld(const vec3_t local, vec3_t world)
     world[2] = local[0] * tr.ort.axis[0][2] + local[1] * tr.ort.axis[1][2] + local[2] * tr.ort.axis[2][2];
 }
 
-void R_LocalPointToWorld(const vec3_t local, vec3_t world)
+void R_LocalPointToWorld_plus(const vec3_t local, vec3_t world)
 {
     world[0] = local[0] * tr.ort.axis[0][0] + local[1] * tr.ort.axis[1][0] + local[2] * tr.ort.axis[2][0] + tr.ort.origin[0];
     world[1] = local[0] * tr.ort.axis[0][1] + local[1] * tr.ort.axis[1][1] + local[2] * tr.ort.axis[2][1] + tr.ort.origin[1];
@@ -298,7 +298,7 @@ void R_RotateForEntity_plus(const trRefEntity_t *ent, const viewParms_t *viewPar
     orient->viewOrigin[2] = DotProduct(delta, orient->axis[2]) * axisLength;
 }
 
-int R_CullPointAndRadius(const vec3_t pt, float radius)
+int R_CullPointAndRadius_plus(const vec3_t pt, float radius)
 {
     if (r_nocull->integer)
     {
@@ -338,9 +338,9 @@ int R_CullLocalPointAndRadius_plus(const vec3_t pt, float radius)
 {
     vec3_t transformed;
 
-    R_LocalPointToWorld(pt, transformed);
+    R_LocalPointToWorld_plus(pt, transformed);
 
-    return R_CullPointAndRadius(transformed, radius);
+    return R_CullPointAndRadius_plus(transformed, radius);
 }
 
 /*

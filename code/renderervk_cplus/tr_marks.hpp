@@ -1,12 +1,11 @@
 #ifndef TR_MARKS_HPP
 #define TR_MARKS_HPP
 
-#include "../renderervk/tr_local.h"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+#include "../renderervk/tr_local.h"
 
 #define SIDE_FRONT 0
 #define SIDE_BACK 1
@@ -17,7 +16,7 @@ extern "C"
 #define MARKER_OFFSET 0 // 1
 
     int R_MarkFragments_plus(int numPoints, const vec3_t *points, const vec3_t projection,
-                        int maxPoints, vec3_t pointBuffer, int maxFragments, markFragment_t *fragmentBuffer);
+                             int maxPoints, vec3_t pointBuffer, int maxFragments, markFragment_t *fragmentBuffer);
 
 #ifdef __cplusplus
 }

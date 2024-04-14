@@ -1,14 +1,15 @@
 #ifndef TR_LIGHT_HPP
 #define TR_LIGHT_HPP
 
-#include "../qcommon/q_shared.h"
-#include "../renderervk/tr_local.h"
-#include "q_math.hpp"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "../qcommon/q_shared.h"
+#include "../renderervk/tr_local.h"
+#include "q_math.hpp"
+
 #define DLIGHT_AT_RADIUS 16
     // at the edge of a dlight's influence, this amount of light will be added
 

@@ -47,7 +47,7 @@ DNAME            = quake3e.ded
 RENDERER_PREFIX  = $(CNAME)
 
 CXX = g++
-CXXFLAGS = -std=c++2a -Wall -Wextra -O3 -DNDEBUG
+CXXFLAGS = -std=c++23 -Wall -Wextra -O3 -DNDEBUG
 
 ifeq ($(V),1)
 echo_cmd=@:
@@ -642,7 +642,8 @@ debug:
 	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS)" V=$(V)
 
 release:
-	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" V=$(V)
+	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS)" V=$(V)
+
 
 define ADD_COPY_TARGET
 TARGETS += $2
@@ -749,7 +750,9 @@ Q3RENDV_PLUS_OBJ = \
   $(B)/rendv_cplus/tr_image_tga.o \
   $(B)/rendv_cplus/vk_vbo.o \
   $(B)/rendv_cplus/tr_sky.o \
-  # $(B)/rendv_cplus/vk.o \
+  $(B)/rendv_cplus/tr_bsp.o \
+  $(B)/rendv_cplus/vk.o \
+  # $(B)/rendv_cplus/tr_init.o \
 
 Q3RENDVOBJ = \
   $(B)/rendv/tr_animation.o \

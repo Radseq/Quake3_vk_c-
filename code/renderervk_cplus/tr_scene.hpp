@@ -1,13 +1,12 @@
 #ifndef TR_SCENE_HPP
 #define TR_SCENE_HPP
 
-#include "../renderervk/tr_local.h"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
+#include "../renderervk/tr_local.h"
 
     void R_InitNextFrame_plus();
     void RE_ClearScene_plus();
@@ -20,7 +19,7 @@ extern "C"
 
     void *R_GetCommandBuffer_plus(int bytes); // todo wtf? to delete?
 
-    //void RE_RenderScene_plus(const refdef_t *fd);
+    // void RE_RenderScene_plus(const refdef_t *fd);
 
 #ifdef __cplusplus
 }

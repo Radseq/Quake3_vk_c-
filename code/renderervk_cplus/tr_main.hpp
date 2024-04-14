@@ -1,13 +1,13 @@
 #ifndef TR_MAIN_HPP
 #define TR_MAIN_HPP
 
-#include "../renderervk/tr_local.h"
-#include "q_math.hpp"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "../renderervk/tr_local.h"
+#include "q_math.hpp"
 
     static const float s_flipMatrix_plus[16] = {
         // convert from our coordinate system (looking down X)
@@ -53,7 +53,7 @@ extern "C"
 
     void R_DecomposeSort_plus(unsigned sort, int *entityNum, shader_t **shader,
                               int *fogNum, int *dlightMap);
-    //void R_RenderView_plus(const viewParms_t *parms);
+    // void R_RenderView_plus(const viewParms_t *parms);
 
 #ifdef __cplusplus
 }

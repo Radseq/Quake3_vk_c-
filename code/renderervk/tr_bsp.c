@@ -447,9 +447,8 @@ space in big maps...
 =================
 */
 void RE_SetWorldVisData( const byte *vis ) {
-	tr.externalVisData = vis;
+	RE_SetWorldVisData_plus(vis);
 }
-
 
 /*
 =================
@@ -2210,18 +2209,8 @@ RE_GetEntityToken
 =================
 */
 bool RE_GetEntityToken( char *buffer, int size ) {
-	const char	*s;
-
-	s = COM_Parse( &s_worldData.entityParsePoint );
-	Q_strncpyz( buffer, s, size );
-	if ( !s_worldData.entityParsePoint && !s[0] ) {
-		s_worldData.entityParsePoint = s_worldData.entityString;
-		return false;
-	} else {
-		return true;
-	}
+	return RE_GetEntityToken (buffer, size);
 }
-
 
 /*
 =================

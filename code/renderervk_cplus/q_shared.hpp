@@ -23,13 +23,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef Q_SHARED_HPP
 #define Q_SHARED_HPP
 
-#include "q_math.hpp"
-
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "q_math.hpp"
 
 #define ARRAY_LEN(x) (sizeof(x) / sizeof(*(x)))
 

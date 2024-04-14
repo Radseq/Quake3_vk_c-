@@ -1,16 +1,16 @@
 #ifndef TR_MODEL_IQM_HPP
 #define TR_MODEL_IQM_HPP
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #include "../renderervk/tr_local.h"
 #include "tr_main.hpp"
 #include "tr_shader.hpp"
 #include "tr_light.hpp"
 #include "tr_image.hpp"
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
 
 #define LL(x) x = LittleLong(x)
 

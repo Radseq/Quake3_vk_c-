@@ -3,12 +3,12 @@
 #ifndef Q_MATH_HPP
 #define Q_MATH_HPP
 
-#include "../qcommon/q_shared.h"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "../qcommon/q_shared.h"
 
     void ClearBounds_plus(vec3_t mins, vec3_t maxs);
     int BoxOnPlaneSide_plus(vec3_t emins, vec3_t emaxs, struct cplane_s *p);

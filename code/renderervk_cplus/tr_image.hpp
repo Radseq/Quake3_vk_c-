@@ -1,13 +1,13 @@
 #ifndef TR_IMAGE_HPP
 #define TR_IMAGE_HPP
 
-#include "../renderervk/tr_local.h"
-#include "q_shared.hpp"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "../renderervk/tr_local.h"
+#include "q_shared.hpp"
 
     skin_t *R_GetSkinByHandle_plus(qhandle_t hSkin);
     int R_SumOfUsedImages_plus();

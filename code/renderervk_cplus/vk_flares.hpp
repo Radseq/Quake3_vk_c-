@@ -1,15 +1,15 @@
 #ifndef VK_FLARES_HPP
 #define VK_FLARES_HPP
 
-#include "q_math.hpp"
-#include "tr_main.hpp"
-#include "tr_light.hpp"
-#include "q_shared.hpp"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "q_math.hpp"
+#include "tr_main.hpp"
+#include "tr_light.hpp"
+#include "q_shared.hpp"
 
       // flare states maintain visibility over multiple frames for fading
       // layers: view, mirror, menu
@@ -44,7 +44,6 @@ extern "C"
       void R_ClearFlares_plus(void);
       void RB_AddFlare_plus(void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t normal);
       void RB_AddDlightFlares_plus(void);
-
 
 #ifdef __cplusplus
 }

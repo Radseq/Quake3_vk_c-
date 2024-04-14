@@ -3,12 +3,11 @@
 #ifndef Q_COMMON_HPP
 #define Q_COMMON_HPP
 
-#include "q_shared.hpp"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+#include "q_shared.hpp"
 
     int Q_stricmp_plus(const char *s1, const char *s2);
 

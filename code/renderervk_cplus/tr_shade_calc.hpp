@@ -1,16 +1,14 @@
 #ifndef TR_SHADE_CALC_HPP
 #define TR_SHADE_CALC_HPP
 
-#include "../renderervk/tr_local.h"
-#include "q_shared.hpp"
-#include "tr_image.hpp"
-// #include "tr_surface.hpp"
-// #include "tr_shadows.hpp"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "../renderervk/tr_local.h"
+#include "q_shared.hpp"
+#include "tr_image.hpp"
 
 #define WAVEVALUE(table, base, amplitude, phase, freq) ((base) + table[(int64_t)((((phase) + tess.shaderTime * (freq)) * FUNCTABLE_SIZE)) & FUNCTABLE_MASK] * (amplitude))
 

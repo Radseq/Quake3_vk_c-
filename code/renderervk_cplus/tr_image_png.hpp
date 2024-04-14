@@ -1,15 +1,17 @@
 #ifndef TR_IMAGE_PNG_HPP
 #define TR_IMAGE_PNG_HPP
 
-#include "q_shared.hpp"
-#include "../renderervk/tr_public.h"
-#include "q_platform.hpp"
-#include "puff.hpp"
+
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "q_shared.hpp"
+#include "../renderervk/tr_public.h"
+#include "q_platform.hpp"
+#include "puff.hpp"
 
 // we could limit the png size to a lower value here
 #ifndef INT_MAX

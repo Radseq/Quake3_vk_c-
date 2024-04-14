@@ -1,12 +1,12 @@
 #ifndef TR_SHADOWS_HPP
 #define TR_SHADOWS_HPP
 
-#include "../renderervk/tr_local.h"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "../renderervk/tr_local.h"
 
     /*
 

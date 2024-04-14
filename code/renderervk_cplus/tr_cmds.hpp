@@ -1,12 +1,12 @@
 #ifndef TR_CMDS_HPP
 #define TR_CMDS_HPP
 
-#include "../renderervk/tr_local.h"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "../renderervk/tr_local.h"
 
 #define MODE_RED_CYAN 1
 #define MODE_RED_BLUE 2

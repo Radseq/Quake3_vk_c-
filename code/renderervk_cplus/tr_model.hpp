@@ -1,14 +1,14 @@
 #ifndef TR_MODEL_HPP
 #define TR_MODEL_HPP
 
-#include "../renderervk/tr_local.h"
-#include "q_shared.hpp"
-#include "tr_model_iqm.hpp"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "../renderervk/tr_local.h"
+#include "q_shared.hpp"
+#include "tr_model_iqm.hpp"
 
     model_t *R_GetModelByHandle_plus(qhandle_t index);
     void R_ModelBounds_plus(qhandle_t handle, vec3_t mins, vec3_t maxs);

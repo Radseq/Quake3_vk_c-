@@ -1,14 +1,12 @@
 #ifndef TR_IMAGE_PCX_HPP
 #define TR_IMAGE_PCX_HPP
 
-#include "../qcommon/q_shared.h"
-#include "../renderervk/tr_public.h"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-
+#include "../qcommon/q_shared.h"
+#include "../renderervk/tr_public.h"
     /*
     ========================================================================
 

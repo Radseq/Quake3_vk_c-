@@ -1,16 +1,14 @@
 #ifndef VK_HPP
 #define VK_HPP
 
-#include "../renderervk/vulkan/vulkan.h"
-#include "../renderervk/tr_common.h"
-#include "../renderervk/vk.h"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+#include "../renderervk/vulkan/vulkan.h"
+#include "../renderervk/tr_common.h"
 
-#pragma once
+#include "../renderervk/tr_local.h"
 
 #define MAX_SWAPCHAIN_IMAGES 8
 #define MIN_SWAPCHAIN_IMAGES_IMM 3
@@ -48,10 +46,6 @@ extern "C"
 #define VK_DESC_FOG_ONLY VK_DESC_TEXTURE1
 #define VK_DESC_FOG_DLIGHT VK_DESC_TEXTURE1
 
-  
-
-
-
 #define TESS_XYZ (1)
 #define TESS_RGBA0 (2)
 #define TESS_RGBA1 (4)
@@ -65,6 +59,9 @@ extern "C"
 #define TESS_ENT0 (1024) // uniform with ent.color[0]
 #define TESS_ENT1 (2048) // uniform with ent.color[1]
 #define TESS_ENT2 (4096) // uniform with ent.color[2]
+
+
+
       //
       // Initialization.
       //
@@ -132,6 +129,7 @@ extern "C"
       void vk_reset_descriptor_plus(int index);
       void vk_update_descriptor_plus(int index, VkDescriptorSet descriptor);
       void vk_update_descriptor_offset_plus(int index, uint32_t offset);
+      void vk_update_uniform_descriptor_plus(VkDescriptorSet descriptor, VkBuffer buffer);
 
       void vk_update_post_process_pipelines_plus(void);
 
@@ -141,6 +139,7 @@ extern "C"
       void VBO_RenderIBOItems_plus(void);
       void VBO_ClearQueue_plus(void);
 
+      VkPipeline create_pipeline_plus(const Vk_Pipeline_Def *def, renderPass_t renderPassIndex);
 
 #ifdef __cplusplus
 }

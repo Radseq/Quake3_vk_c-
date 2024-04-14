@@ -1,13 +1,14 @@
 #ifndef TR_IMAGE_TGA_HPP
 #define TR_IMAGE_TGA_HPP
 
-#include "q_shared.hpp"
-#include "../renderervk/tr_public.h"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "q_shared.hpp"
+#include "../renderervk/tr_public.h"
+
     /*
     ========================================================================
 

@@ -159,7 +159,7 @@ static bool	R_CullSurface( const surfaceType_t *surface, shader_t *shader ) {
 
 
 #ifdef USE_PMLIGHT
-bool R_LightCullBounds( const dlight_t* dl, const vec3_t mins, const vec3_t maxs )
+bool R_LightCullBounds_plus( const dlight_t* dl, const vec3_t mins, const vec3_t maxs )
 {
 	if ( dl->linear ) {
 		if (dl->transformed[0] - dl->radius > maxs[0] && dl->transformed2[0] - dl->radius > maxs[0] )
@@ -227,11 +227,11 @@ static bool R_LightCullSurface( const surfaceType_t* surface, const dlight_t* dl
 		return R_LightCullFace( (const srfSurfaceFace_t*)surface, dl );
 	case SF_GRID: {
 		const srfGridMesh_t* grid = (const srfGridMesh_t*)surface;
-		return R_LightCullBounds( dl, grid->meshBounds[0], grid->meshBounds[1] );
+		return R_LightCullBounds_plus( dl, grid->meshBounds[0], grid->meshBounds[1] );
 		}
 	case SF_TRIANGLES: {
 		const srfTriangles_t* tris = (const srfTriangles_t*)surface;
-		return R_LightCullBounds( dl, tris->bounds[0], tris->bounds[1] );
+		return R_LightCullBounds_plus( dl, tris->bounds[0], tris->bounds[1] );
 		}
 	default:
 		return false;
