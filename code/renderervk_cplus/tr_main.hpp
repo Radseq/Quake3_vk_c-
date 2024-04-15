@@ -1,22 +1,19 @@
 #ifndef TR_MAIN_HPP
 #define TR_MAIN_HPP
 
+#include "q_math.hpp"
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
 #include "../renderervk/tr_local.h"
-#include "q_math.hpp"
 
-    static const float s_flipMatrix_plus[16] = {
-        // convert from our coordinate system (looking down X)
-        // to OpenGL's coordinate system (looking down -Z)
-        0, 0, -1, 0,
-        -1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 0, 1};
-
+    // entities that will have procedurally generated surfaces will just
+    // point at this for their sorting surface
+    static surfaceType_t entitySurface = SF_ENTITY;
+    
     void R_AddDrawSurf_plus(surfaceType_t *surface, shader_t *shader,
                             int fogIndex, int dlightMap);
     int R_CullDlight_plus(const dlight_t *dl);
@@ -33,6 +30,11 @@ extern "C"
                                 orientationr_t *orient);
 
     void R_SetupProjection_plus(viewParms_t *dest, float zProj, bool computeFrustum);
+
+    int R_CullPointAndRadius_plus(const vec3_t pt, float radius);
+    void R_LocalPointToWorld_plus(const vec3_t local, vec3_t world);
+
+    void R_WorldToLocal_plus(const vec3_t world, vec3_t local);
 
 #ifdef USE_PMLIGHT
 
@@ -53,7 +55,7 @@ extern "C"
 
     void R_DecomposeSort_plus(unsigned sort, int *entityNum, shader_t **shader,
                               int *fogNum, int *dlightMap);
-    // void R_RenderView_plus(const viewParms_t *parms);
+    void R_RenderView_plus(const viewParms_t *parms);
 
 #ifdef __cplusplus
 }

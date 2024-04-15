@@ -17,9 +17,9 @@ extern "C"
     void RE_AddLightToScene_plus(const vec3_t org, float intensity, float r, float g, float b);
     void RE_AddAdditiveLightToScene_plus(const vec3_t org, float intensity, float r, float g, float b);
 
-    void *R_GetCommandBuffer_plus(int bytes); // todo wtf? to delete?
+    void *R_GetCommandBuffer_plus(int bytes);
 
-    // void RE_RenderScene_plus(const refdef_t *fd);
+    void RE_RenderScene_plus(const refdef_t *fd);
 
 #ifdef __cplusplus
 }

@@ -21,27 +21,30 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "tr_scene.hpp"
-#include "tr_shader.hpp"
-#include "tr_main.hpp"
 #include "q_shared.hpp"
 
-    static int r_firstSceneDrawSurf;
+static int r_firstSceneDrawSurf;
 #ifdef USE_PMLIGHT
-    static int r_firstSceneLitSurf;
+static int r_firstSceneLitSurf;
 #endif
 
-    extern int r_numdlights; // todo wtf??? powinno być bez extern
-    static int r_firstSceneDlight;
+extern int r_numdlights;  // todo delete extern
+static int r_firstSceneDlight;
 
-    static int r_numentities;
-    static int r_firstSceneEntity;
+static int r_numentities;
+static int r_firstSceneEntity;
 
-    static int r_numpolys;
-    static int r_firstScenePoly;
+static int r_numpolys;
+static int r_firstScenePoly;
 
-    static int r_numpolyverts;
+static int r_numpolyverts;
 
+/*
+====================
+R_InitNextFrame_plus
 
+====================
+*/
 void R_InitNextFrame_plus(void)
 {
 
@@ -64,7 +67,13 @@ void R_InitNextFrame_plus(void)
 	r_numpolyverts = 0;
 }
 
-void RE_ClearScene_plus()
+/*
+====================
+RE_ClearScene_plus
+
+====================
+*/
+void RE_ClearScene_plus(void)
 {
 	r_firstSceneDlight = r_numdlights;
 	r_firstSceneEntity = r_numentities;
@@ -81,12 +90,12 @@ DISCRETE POLYS
 
 /*
 =====================
-R_AddPolygonSurfaces
+R_AddPolygonSurfaces_plus
 
 Adds all the scene's polys into this view's drawsurf list
 =====================
 */
-void R_AddPolygonSurfaces_plus()
+void R_AddPolygonSurfaces_plus(void)
 {
 	int i;
 	shader_t *sh;
@@ -97,11 +106,17 @@ void R_AddPolygonSurfaces_plus()
 
 	for (i = 0, poly = tr.refdef.polys; i < tr.refdef.numPolys; i++, poly++)
 	{
-		sh = R_GetShaderByHandle_plus(poly->hShader);
-		R_AddDrawSurf_plus(const_cast<surfaceType_t*>(reinterpret_cast<const surfaceType_t*>(poly)), sh, poly->fogIndex, 0);
+		sh = R_GetShaderByHandle(poly->hShader);
+		R_AddDrawSurf(reinterpret_cast<surfaceType_t *>((void *)poly), sh, poly->fogIndex, 0);
 	}
 }
 
+/*
+=====================
+RE_AddPolyToScene_plus
+
+=====================
+*/
 void RE_AddPolyToScene_plus(qhandle_t hShader, int numVerts, const polyVert_t *verts, int numPolys)
 {
 	srfPoly_t *poly;
@@ -116,7 +131,7 @@ void RE_AddPolyToScene_plus(qhandle_t hShader, int numVerts, const polyVert_t *v
 	}
 #if 0
 	if ( !hShader ) {
-		ri.Printf( PRINT_WARNING, "WARNING: RE_AddPolyToScene: NULL poly shader\n");
+		ri.Printf( PRINT_WARNING, "WARNING: RE_AddPolyToScene_plus: NULL poly shader\n");
 		return;
 	}
 #endif
@@ -130,7 +145,7 @@ void RE_AddPolyToScene_plus(qhandle_t hShader, int numVerts, const polyVert_t *v
 			since we don't plan on changing the const and making for room for those effects
 			simply cut this message to developer only
 			*/
-			ri.Printf(PRINT_DEVELOPER, "WARNING: RE_AddPolyToScene: r_max_polys or r_max_polyverts reached\n");
+			ri.Printf(PRINT_DEVELOPER, "WARNING: RE_AddPolyToScene_plus: r_max_polys or r_max_polyverts reached\n");
 			return;
 		}
 
@@ -166,11 +181,11 @@ void RE_AddPolyToScene_plus(qhandle_t hShader, int numVerts, const polyVert_t *v
 		else
 		{
 			// find which fog volume the poly is in
-			VectorCopy_plus(poly->verts[0].xyz, bounds[0]);
-			VectorCopy_plus(poly->verts[0].xyz, bounds[1]);
+			VectorCopy(poly->verts[0].xyz, bounds[0]);
+			VectorCopy(poly->verts[0].xyz, bounds[1]);
 			for (i = 1; i < poly->numVerts; i++)
 			{
-				AddPointToBounds_plus(poly->verts[i].xyz, bounds[0], bounds[1]);
+				AddPointToBounds(poly->verts[i].xyz, bounds[0], bounds[1]);
 			}
 			for (fogIndex = 1; fogIndex < tr.world->numfogs; fogIndex++)
 			{
@@ -198,6 +213,11 @@ static int isnan_fp(const float *f)
 	return (int)(u >> 31);
 }
 
+/*
+=====================
+RE_AddRefEntityToScene_plus
+=====================
+*/
 void RE_AddRefEntityToScene_plus(const refEntity_t *ent, bool intShaderTime)
 {
 	if (!tr.registered)
@@ -206,7 +226,7 @@ void RE_AddRefEntityToScene_plus(const refEntity_t *ent, bool intShaderTime)
 	}
 	if (r_numentities >= MAX_REFENTITIES)
 	{
-		ri.Printf(PRINT_DEVELOPER, "RE_AddRefEntityToScene: Dropping refEntity, reached MAX_REFENTITIES\n");
+		ri.Printf(PRINT_DEVELOPER, "RE_AddRefEntityToScene_plus: Dropping refEntity, reached MAX_REFENTITIES\n");
 		return;
 	}
 	if (isnan_fp(&ent->origin[0]) || isnan_fp(&ent->origin[1]) || isnan_fp(&ent->origin[2]))
@@ -215,13 +235,13 @@ void RE_AddRefEntityToScene_plus(const refEntity_t *ent, bool intShaderTime)
 		if (first_time)
 		{
 			first_time = false;
-			ri.Printf(PRINT_WARNING, "RE_AddRefEntityToScene passed a refEntity which has an origin with a NaN component\n");
+			ri.Printf(PRINT_WARNING, "RE_AddRefEntityToScene_plus passed a refEntity which has an origin with a NaN component\n");
 		}
 		return;
 	}
 	if ((unsigned)ent->reType >= RT_MAX_REF_ENTITY_TYPE)
 	{
-		ri.Error(ERR_DROP, "RE_AddRefEntityToScene: bad reType %i", ent->reType);
+		ri.Error(ERR_DROP, "RE_AddRefEntityToScene_plus: bad reType %i", ent->reType);
 	}
 
 	backEndData->entities[r_numentities].e = *ent;
@@ -283,6 +303,11 @@ static void RE_AddDynamicLightToScene(const vec3_t org, float intensity, float r
 	dl->linear = false;
 }
 
+/*
+=====================
+RE_AddLinearLightToScene_plus
+=====================
+*/
 void RE_AddLinearLightToScene_plus(const vec3_t start, const vec3_t end, float intensity, float r, float g, float b)
 {
 	dlight_t *dl;
@@ -334,19 +359,33 @@ void RE_AddLinearLightToScene_plus(const vec3_t start, const vec3_t end, float i
 	dl->linear = true;
 }
 
+/*
+=====================
+RE_AddLightToScene_plus
+
+=====================
+*/
 void RE_AddLightToScene_plus(const vec3_t org, float intensity, float r, float g, float b)
 {
 	RE_AddDynamicLightToScene(org, intensity, r, g, b, false);
 }
 
+/*
+=====================
+RE_AddAdditiveLightToScene_plus
+
+=====================
+*/
 void RE_AddAdditiveLightToScene_plus(const vec3_t org, float intensity, float r, float g, float b)
 {
 	RE_AddDynamicLightToScene(org, intensity, r, g, b, true);
 }
 
+void *R_GetCommandBuffer_plus(int bytes);
+
 /*
 @@@@@@@@@@@@@@@@@@@@@
-RE_RenderScene
+RE_RenderScene_plus
 
 Draw a 3D view into a part of the window, then return
 to 2D drawing.
@@ -355,190 +394,190 @@ Rendering a scene may require multiple views to be rendered
 to handle mirrors,
 @@@@@@@@@@@@@@@@@@@@@
 */
-// void RE_RenderScene_plus(const refdef_t *fd)
-// {
-// 	renderCommand_t lastRenderCommand;
-// 	viewParms_t parms;
-// 	int startTime;
+void RE_RenderScene_plus(const refdef_t *fd)
+{
+	renderCommand_t lastRenderCommand;
+	viewParms_t parms;
+	int startTime;
 
-// 	if (!tr.registered)
-// 	{
-// 		return;
-// 	}
+	if (!tr.registered)
+	{
+		return;
+	}
 
-// 	if (r_norefresh->integer)
-// 	{
-// 		return;
-// 	}
+	if (r_norefresh->integer)
+	{
+		return;
+	}
 
-// 	startTime = ri.Milliseconds();
+	startTime = ri.Milliseconds();
 
-// 	if (!tr.world && !(fd->rdflags & RDF_NOWORLDMODEL))
-// 	{
-// 		ri.Error(ERR_DROP, "R_RenderScene: NULL worldmodel");
-// 	}
+	if (!tr.world && !(fd->rdflags & RDF_NOWORLDMODEL))
+	{
+		ri.Error(ERR_DROP, "R_RenderScene: NULL worldmodel");
+	}
 
-// 	Com_Memcpy(tr.refdef.text, fd->text, sizeof(tr.refdef.text));
+	Com_Memcpy(tr.refdef.text, fd->text, sizeof(tr.refdef.text));
 
-// 	tr.refdef.x = fd->x;
-// 	tr.refdef.y = fd->y;
-// 	tr.refdef.width = fd->width;
-// 	tr.refdef.height = fd->height;
-// 	tr.refdef.fov_x = fd->fov_x;
-// 	tr.refdef.fov_y = fd->fov_y;
+	tr.refdef.x = fd->x;
+	tr.refdef.y = fd->y;
+	tr.refdef.width = fd->width;
+	tr.refdef.height = fd->height;
+	tr.refdef.fov_x = fd->fov_x;
+	tr.refdef.fov_y = fd->fov_y;
 
-// 	VectorCopy(fd->vieworg, tr.refdef.vieworg);
-// 	VectorCopy(fd->viewaxis[0], tr.refdef.viewaxis[0]);
-// 	VectorCopy(fd->viewaxis[1], tr.refdef.viewaxis[1]);
-// 	VectorCopy(fd->viewaxis[2], tr.refdef.viewaxis[2]);
+	VectorCopy(fd->vieworg, tr.refdef.vieworg);
+	VectorCopy(fd->viewaxis[0], tr.refdef.viewaxis[0]);
+	VectorCopy(fd->viewaxis[1], tr.refdef.viewaxis[1]);
+	VectorCopy(fd->viewaxis[2], tr.refdef.viewaxis[2]);
 
-// 	tr.refdef.time = fd->time;
-// 	tr.refdef.rdflags = fd->rdflags;
+	tr.refdef.time = fd->time;
+	tr.refdef.rdflags = fd->rdflags;
 
-// 	// copy the areamask data over and note if it has changed, which
-// 	// will force a reset of the visible leafs even if the view hasn't moved
-// 	tr.refdef.areamaskModified = false;
-// 	if (!(tr.refdef.rdflags & RDF_NOWORLDMODEL))
-// 	{
-// 		int areaDiff;
-// 		int i;
+	// copy the areamask data over and note if it has changed, which
+	// will force a reset of the visible leafs even if the view hasn't moved
+	tr.refdef.areamaskModified = false;
+	if (!(tr.refdef.rdflags & RDF_NOWORLDMODEL))
+	{
+		int areaDiff;
+		int i;
 
-// 		// compare the area bits
-// 		areaDiff = 0;
-// 		for (i = 0; i < MAX_MAP_AREA_BYTES / sizeof(int); i++)
-// 		{
-// 			areaDiff |= ((int *)tr.refdef.areamask)[i] ^ ((int *)fd->areamask)[i];
-// 			((int *)tr.refdef.areamask)[i] = ((int *)fd->areamask)[i];
-// 		}
+		// compare the area bits
+		areaDiff = 0;
+		for (i = 0; i < MAX_MAP_AREA_BYTES / sizeof(int); i++)
+		{
+			areaDiff |= ((int *)tr.refdef.areamask)[i] ^ ((int *)fd->areamask)[i];
+			((int *)tr.refdef.areamask)[i] = ((int *)fd->areamask)[i];
+		}
 
-// 		if (areaDiff)
-// 		{
-// 			// a door just opened or something
-// 			tr.refdef.areamaskModified = true;
-// 		}
-// 	}
+		if (areaDiff)
+		{
+			// a door just opened or something
+			tr.refdef.areamaskModified = true;
+		}
+	}
 
-// 	// derived info
+	// derived info
 
-// 	tr.refdef.floatTime = (double)tr.refdef.time * 0.001; // -EC-: cast to double
+	tr.refdef.floatTime = (double)tr.refdef.time * 0.001; // -EC-: cast to double
 
-// 	tr.refdef.numDrawSurfs = r_firstSceneDrawSurf;
-// 	tr.refdef.drawSurfs = backEndData->drawSurfs;
+	tr.refdef.numDrawSurfs = r_firstSceneDrawSurf;
+	tr.refdef.drawSurfs = backEndData->drawSurfs;
 
-// #ifdef USE_PMLIGHT
-// 	tr.refdef.numLitSurfs = r_firstSceneLitSurf;
-// 	tr.refdef.litSurfs = backEndData->litSurfs;
-// #endif
+#ifdef USE_PMLIGHT
+	tr.refdef.numLitSurfs = r_firstSceneLitSurf;
+	tr.refdef.litSurfs = backEndData->litSurfs;
+#endif
 
-// 	tr.refdef.num_entities = r_numentities - r_firstSceneEntity;
-// 	tr.refdef.entities = &backEndData->entities[r_firstSceneEntity];
+	tr.refdef.num_entities = r_numentities - r_firstSceneEntity;
+	tr.refdef.entities = &backEndData->entities[r_firstSceneEntity];
 
-// 	tr.refdef.num_dlights = r_numdlights - r_firstSceneDlight;
-// 	tr.refdef.dlights = &backEndData->dlights[r_firstSceneDlight];
+	tr.refdef.num_dlights = r_numdlights - r_firstSceneDlight;
+	tr.refdef.dlights = &backEndData->dlights[r_firstSceneDlight];
 
-// 	tr.refdef.numPolys = r_numpolys - r_firstScenePoly;
-// 	tr.refdef.polys = &backEndData->polys[r_firstScenePoly];
+	tr.refdef.numPolys = r_numpolys - r_firstScenePoly;
+	tr.refdef.polys = &backEndData->polys[r_firstScenePoly];
 
-// 	// turn off dynamic lighting globally by clearing all the
-// 	// dlights if it needs to be disabled
-// 	if (r_dynamiclight->integer == 0 || glConfig.hardwareType == GLHW_PERMEDIA2)
-// 	{
-// 		tr.refdef.num_dlights = 0;
-// 	}
+	// turn off dynamic lighting globally by clearing all the
+	// dlights if it needs to be disabled
+	if (r_dynamiclight->integer == 0 || glConfig.hardwareType == GLHW_PERMEDIA2)
+	{
+		tr.refdef.num_dlights = 0;
+	}
 
-// 	// a single frame may have multiple scenes draw inside it --
-// 	// a 3D game view, 3D status bar renderings, 3D menus, etc.
-// 	// They need to be distinguished by the light flare code, because
-// 	// the visibility state for a given surface may be different in
-// 	// each scene / view.
-// 	tr.frameSceneNum++;
-// 	tr.sceneCount++;
+	// a single frame may have multiple scenes draw inside it --
+	// a 3D game view, 3D status bar renderings, 3D menus, etc.
+	// They need to be distinguished by the light flare code, because
+	// the visibility state for a given surface may be different in
+	// each scene / view.
+	tr.frameSceneNum++;
+	tr.sceneCount++;
 
-// 	// setup view parms for the initial view
-// 	//
-// 	// set up viewport
-// 	// The refdef takes 0-at-the-top y coordinates, so
-// 	// convert to GL's 0-at-the-bottom space
-// 	//
-// 	Com_Memset(&parms, 0, sizeof(parms));
-// 	parms.viewportX = tr.refdef.x;
-// 	parms.viewportY = glConfig.vidHeight - (tr.refdef.y + tr.refdef.height);
-// 	parms.viewportWidth = tr.refdef.width;
-// 	parms.viewportHeight = tr.refdef.height;
+	// setup view parms for the initial view
+	//
+	// set up viewport
+	// The refdef takes 0-at-the-top y coordinates, so
+	// convert to GL's 0-at-the-bottom space
+	//
+	Com_Memset(&parms, 0, sizeof(parms));
+	parms.viewportX = tr.refdef.x;
+	parms.viewportY = glConfig.vidHeight - (tr.refdef.y + tr.refdef.height);
+	parms.viewportWidth = tr.refdef.width;
+	parms.viewportHeight = tr.refdef.height;
 
-// 	parms.scissorX = parms.viewportX;
-// 	parms.scissorY = parms.viewportY;
-// 	parms.scissorWidth = parms.viewportWidth;
-// 	parms.scissorHeight = parms.viewportHeight;
+	parms.scissorX = parms.viewportX;
+	parms.scissorY = parms.viewportY;
+	parms.scissorWidth = parms.viewportWidth;
+	parms.scissorHeight = parms.viewportHeight;
 
-// 	parms.portalView = PV_NONE;
+	parms.portalView = PV_NONE;
 
-// #ifdef USE_PMLIGHT
-// 	parms.dlights = tr.refdef.dlights;
-// 	parms.num_dlights = tr.refdef.num_dlights;
-// #endif
+#ifdef USE_PMLIGHT
+	parms.dlights = tr.refdef.dlights;
+	parms.num_dlights = tr.refdef.num_dlights;
+#endif
 
-// 	parms.fovX = tr.refdef.fov_x;
-// 	parms.fovY = tr.refdef.fov_y;
+	parms.fovX = tr.refdef.fov_x;
+	parms.fovY = tr.refdef.fov_y;
 
-// 	parms.stereoFrame = tr.refdef.stereoFrame;
+	parms.stereoFrame = tr.refdef.stereoFrame;
 
-// 	VectorCopy(fd->vieworg, parms.ort.origin);
-// 	VectorCopy(fd->viewaxis[0], parms.ort.axis[0]);
-// 	VectorCopy(fd->viewaxis[1], parms.ort.axis[1]);
-// 	VectorCopy(fd->viewaxis[2], parms.ort.axis[2]);
+	VectorCopy(fd->vieworg, parms.ort.origin);
+	VectorCopy(fd->viewaxis[0], parms.ort.axis[0]);
+	VectorCopy(fd->viewaxis[1], parms.ort.axis[1]);
+	VectorCopy(fd->viewaxis[2], parms.ort.axis[2]);
 
-// 	VectorCopy(fd->vieworg, parms.pvsOrigin);
+	VectorCopy(fd->vieworg, parms.pvsOrigin);
 
-// 	lastRenderCommand = static_cast<renderCommand_t>(tr.lastRenderCommand);
-// 	tr.drawSurfCmd = NULL;
-// 	tr.numDrawSurfCmds = 0;
+	lastRenderCommand = static_cast<renderCommand_t>(tr.lastRenderCommand);
+	tr.drawSurfCmd = NULL;
+	tr.numDrawSurfCmds = 0;
 
-// 	R_RenderView_plus(&parms);
+	R_RenderView(&parms);
 
-// 	if (tr.needScreenMap)
-// 	{
-// 		if (lastRenderCommand == RC_DRAW_BUFFER)
-// 		{
-// 			// duplicate all views, including portals
-// 			drawSurfsCommand_t *cmd, *src = NULL;
-// 			int i;
+	if (tr.needScreenMap)
+	{
+		if (lastRenderCommand == RC_DRAW_BUFFER)
+		{
+			// duplicate all views, including portals
+			drawSurfsCommand_t *cmd, *src = NULL;
+			int i;
 
-// 			for (i = 0; i < tr.numDrawSurfCmds; i++)
-// 			{
-// 				cmd = static_cast<drawSurfsCommand_t *>(R_GetCommandBuffer_plus(sizeof(*cmd)));
-// 				if (cmd)
-// 				{
-// 					src = tr.drawSurfCmd + i;
-// 					*cmd = *src;
-// 				}
-// 				else
-// 				{
-// 					break;
-// 				}
-// 			}
+			for (i = 0; i < tr.numDrawSurfCmds; i++)
+			{
+				cmd = reinterpret_cast<drawSurfsCommand_t *>(R_GetCommandBuffer_plus(sizeof(*cmd)));
+				if (cmd)
+				{
+					src = tr.drawSurfCmd + i;
+					*cmd = *src;
+				}
+				else
+				{
+					break;
+				}
+			}
 
-// 			if (src)
-// 			{
-// 				// first drawsurface
-// 				tr.drawSurfCmd[0].refdef.needScreenMap = true;
-// 				// last drawsurface
-// 				src->refdef.switchRenderPass = true;
-// 			}
-// 		}
+			if (src)
+			{
+				// first drawsurface
+				tr.drawSurfCmd[0].refdef.needScreenMap = true;
+				// last drawsurface
+				src->refdef.switchRenderPass = true;
+			}
+		}
 
-// 		tr.needScreenMap = 0;
-// 	}
+		tr.needScreenMap = 0;
+	}
 
-// 	// the next scene rendered in this frame will tack on after this one
-// 	r_firstSceneDrawSurf = tr.refdef.numDrawSurfs;
-// #ifdef USE_PMLIGHT
-// 	r_firstSceneLitSurf = tr.refdef.numLitSurfs;
-// #endif
+	// the next scene rendered in this frame will tack on after this one
+	r_firstSceneDrawSurf = tr.refdef.numDrawSurfs;
+#ifdef USE_PMLIGHT
+	r_firstSceneLitSurf = tr.refdef.numLitSurfs;
+#endif
 
-// 	r_firstSceneEntity = r_numentities;
-// 	r_firstSceneDlight = r_numdlights;
-// 	r_firstScenePoly = r_numpolys;
+	r_firstSceneEntity = r_numentities;
+	r_firstSceneDlight = r_numdlights;
+	r_firstScenePoly = r_numpolys;
 
-// 	tr.frontEndMsec += ri.Milliseconds() - startTime;
-// }
+	tr.frontEndMsec += ri.Milliseconds() - startTime;
+}

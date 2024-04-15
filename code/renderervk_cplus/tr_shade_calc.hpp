@@ -1,14 +1,18 @@
 #ifndef TR_SHADE_CALC_HPP
 #define TR_SHADE_CALC_HPP
 
+#include "q_shared.hpp"
+#include "tr_image.hpp"
+// #include "tr_surface.hpp"
+// #include "tr_shadows.hpp"
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
 #include "../renderervk/tr_local.h"
-#include "q_shared.hpp"
-#include "tr_image.hpp"
+#include "tr_noise_cplus.hpp"
 
 #define WAVEVALUE(table, base, amplitude, phase, freq) ((base) + table[(int64_t)((((phase) + tess.shaderTime * (freq)) * FUNCTABLE_SIZE)) & FUNCTABLE_MASK] * (amplitude))
 
@@ -34,7 +38,7 @@ extern "C"
     void RB_CalcModulateAlphasByFog_plus(unsigned char *colors);
     void RB_CalcModulateRGBAsByFog_plus(unsigned char *colors);
     void RB_CalcDiffuseColor_plus(unsigned char *colors);
-    // void RB_DeformTessGeometry_plus( void );
+    void RB_DeformTessGeometry_plus(void);
 
 #ifdef __cplusplus
 }

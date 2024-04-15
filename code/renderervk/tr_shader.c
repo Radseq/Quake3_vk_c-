@@ -20,83 +20,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 #include "tr_local.h"
-
+#include "../renderervk_cplus/tr_shader.hpp"
 // tr_shader.c -- this file deals with the parsing and definition of shaders
 
-static char *s_shaderText;
-
-static const char *s_extensionOffset;
-static int s_extendedShader;
-
-// the shader is parsed into these global variables, then copied into
-// dynamically allocated memory if it is valid.
-static	shaderStage_t	stages[MAX_SHADER_STAGES];
-static	shader_t		shader;
-static	texModInfo_t	texMods[MAX_SHADER_STAGES][TR_MAX_TEXMODS+1]; // reserve one additional texmod for lightmap atlas correction
-
-#define FILE_HASH_SIZE		1024
-static	shader_t*		hashTable[FILE_HASH_SIZE];
-
-#define MAX_SHADERTEXT_HASH		2048
-static const char **shaderTextHashTable[MAX_SHADERTEXT_HASH];
-
-/*
-================
-return a hash value for the filename
-================
-*/
-#ifdef __GNUCC__
-  #warning TODO: check if long is ok here
-#endif
-
-#define generateHashValue Com_GenerateHashValue
 
 void RE_RemapShader(const char *shaderName, const char *newShaderName, const char *timeOffset) {
-	char		strippedName[MAX_QPATH];
-	int			hash;
-	shader_t	*sh, *sh2;
-	qhandle_t	h;
-
-	sh = R_FindShaderByName( shaderName );
-	if (sh == NULL || sh == tr.defaultShader) {
-		h = RE_RegisterShaderLightMap(shaderName, 0);
-		sh = R_GetShaderByHandle(h);
-	}
-	if (sh == NULL || sh == tr.defaultShader) {
-		ri.Printf( PRINT_WARNING, "WARNING: RE_RemapShader: shader %s not found\n", shaderName );
-		return;
-	}
-
-	sh2 = R_FindShaderByName( newShaderName );
-	if (sh2 == NULL || sh2 == tr.defaultShader) {
-		h = RE_RegisterShaderLightMap(newShaderName, 0);
-		sh2 = R_GetShaderByHandle(h);
-	}
-
-	if (sh2 == NULL || sh2 == tr.defaultShader) {
-		ri.Printf( PRINT_WARNING, "WARNING: RE_RemapShader: new shader %s not found\n", newShaderName );
-		return;
-	}
-
-	// remap all the shaders with the given name
-	// even tho they might have different lightmaps
-	COM_StripExtension(shaderName, strippedName, sizeof(strippedName));
-	hash = generateHashValue(strippedName, FILE_HASH_SIZE);
-	for (sh = hashTable[hash]; sh; sh = sh->next) {
-		if (Q_stricmp_plus(sh->name, strippedName) == 0) {
-			if (sh != sh2) {
-				sh->remappedShader = sh2;
-			} else {
-				sh->remappedShader = NULL;
-			}
-		}
-	}
-
-	if ( timeOffset ) {
-		sh2->timeOffset = Q_atof( timeOffset );
-	}
+	RE_RemapShader_plus(shaderName,   newShaderName,   timeOffset);
 }
-
 
 /*
 ===============
@@ -2084,61 +2014,6 @@ static void ComputeStageIteratorFunc( void )
 #define TEST
 #define TEST_A
 
-typedef struct {
-	int		blendA;
-	int		blendB;
-
-	int		multitextureEnv;
-	int		multitextureBlend;
-} collapse_t;
-
-static const collapse_t collapse[] = {
-	{ 0, GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO,
-		GL_MODULATE, 0 },
-
-	{ 0, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR,
-		GL_MODULATE, 0 },
-
-	{ GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR,
-		GL_MODULATE, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR },
-
-	{ GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR,
-		GL_MODULATE, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR },
-
-	{ GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR, GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO,
-		GL_MODULATE, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR },
-
-	{ GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO, GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO,
-		GL_MODULATE, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR },
-
-	{ 0, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE,
-		GL_ADD, 0 },
-
-	{ GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE,
-		GL_ADD, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE },
-
-	{ GLS_DSTBLEND_ONE | GLS_SRCBLEND_SRC_ALPHA, GLS_DSTBLEND_ONE | GLS_SRCBLEND_SRC_ALPHA,
-		GL_BLEND_ALPHA, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE},
-
-	{ GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA,
-		GL_BLEND_ONE_MINUS_ALPHA, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE},
-
-	{ 0, GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_SRCBLEND_SRC_ALPHA,
-		GL_BLEND_MIX_ALPHA, 0},
-
-	{ 0, GLS_DSTBLEND_SRC_ALPHA | GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA,
-		GL_BLEND_MIX_ONE_MINUS_ALPHA, 0},
-
-	{ 0, GLS_DSTBLEND_SRC_ALPHA | GLS_SRCBLEND_DST_COLOR,
-		GL_BLEND_DST_COLOR_SRC_ALPHA, 0},
-
-#if 0
-	{ 0, GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_SRCBLEND_SRC_ALPHA,
-		GL_DECAL, 0 },
-#endif
-	{ -1 }
-};
-
 
 /*
 ================
@@ -2746,8 +2621,8 @@ static shader_t *GeneratePermanentShader( void ) {
 	SortNewShader();
 
 	hash = generateHashValue(newShader->name, FILE_HASH_SIZE);
-	newShader->next = hashTable[hash];
-	hashTable[hash] = newShader;
+	newShader->next = shaderHashTable[hash];
+	shaderHashTable[hash] = newShader;
 
 	return newShader;
 }
@@ -3576,7 +3451,7 @@ shader_t *R_FindShaderByName( const char *name ) {
 	//
 	// see if the shader is already loaded
 	//
-	for (sh=hashTable[hash]; sh; sh=sh->next) {
+	for (sh=shaderHashTable[hash]; sh; sh=sh->next) {
 		// NOTE: if there was no shader or image available with the name strippedName
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
 		// have to check all default shaders otherwise for every call to R_FindShader
@@ -3703,7 +3578,7 @@ shader_t *R_FindShader( const char *name, int lightmapIndex, bool mipRawImage ) 
 	//
 	// see if the shader is already loaded
 	//
-	for (sh = hashTable[hash]; sh; sh = sh->next) {
+	for (sh = shaderHashTable[hash]; sh; sh = sh->next) {
 		// NOTE: if there was no shader or image available with the name strippedName
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
 		// have to check all default shaders otherwise for every call to R_FindShader
@@ -3777,50 +3652,8 @@ shader_t *R_FindShader( const char *name, int lightmapIndex, bool mipRawImage ) 
 
 
 qhandle_t RE_RegisterShaderFromImage(const char *name, int lightmapIndex, image_t *image, bool mipRawImage) {
-	unsigned long hash;
-	shader_t	*sh;
-
-	hash = generateHashValue(name, FILE_HASH_SIZE);
-
-	// probably not necessary since this function
-	// only gets called from tr_font.c with lightmapIndex == LIGHTMAP_2D
-	// but better safe than sorry.
-	if ( lightmapIndex >= tr.numLightmaps ) {
-		lightmapIndex = LIGHTMAP_WHITEIMAGE;
-	}
-
-	//
-	// see if the shader is already loaded
-	//
-	for (sh=hashTable[hash]; sh; sh=sh->next) {
-		// NOTE: if there was no shader or image available with the name strippedName
-		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
-		// have to check all default shaders otherwise for every call to R_FindShader
-		// with that same strippedName a new default shader is created.
-		if ( (sh->lightmapSearchIndex == lightmapIndex || sh->defaultShader) && !Q_stricmp_plus(sh->name, name)) {
-			// match found
-			return sh->index;
-		}
-	}
-
-	InitShader( name, lightmapIndex );
-
-	// FIXME: set these "need" values appropriately
-	//shader.needsNormal = true;
-	//shader.needsST1 = true;
-	//shader.needsST2 = true;
-	//shader.needsColor = true;
-
-	//
-	// create the default shading commands
-	//
-	R_CreateDefaultShading( image );
-
-	sh = FinishShader();
-
-	return sh->index;
+	return RE_RegisterShaderFromImage_plus(name,  lightmapIndex,  image,  mipRawImage);
 }
-
 
 /*
 ====================
@@ -3834,27 +3667,8 @@ way to ask for different implicit lighting modes (vertex, lightmap, etc)
 ====================
 */
 qhandle_t RE_RegisterShaderLightMap( const char *name, int lightmapIndex ) {
-	shader_t	*sh;
-
-	if ( strlen( name ) >= MAX_QPATH ) {
-		ri.Printf( PRINT_ALL, "Shader name exceeds MAX_QPATH\n" );
-		return 0;
-	}
-
-	sh = R_FindShader( name, lightmapIndex, true );
-
-	// we want to return 0 if the shader failed to
-	// load for some reason, but R_FindShader should
-	// still keep a name allocated for it, so if
-	// something calls RE_RegisterShader again with
-	// the same name, we don't try looking for it again
-	if ( sh->defaultShader ) {
-		return 0;
-	}
-
-	return sh->index;
+	return RE_RegisterShaderLightMap_plus(name,  lightmapIndex);
 }
-
 
 /*
 ====================
@@ -3952,59 +3766,9 @@ Dump information on all valid shaders to the console
 A second parameter will cause it to print in sorted order
 ===============
 */
-void	R_ShaderList_f (void) {{
-	int			i;
-	int			count;
-	const shader_t *sh;
-
-	ri.Printf (PRINT_ALL, "-----------------------\n");
-
-	count = 0;
-	for ( i = 0 ; i < tr.numShaders ; i++ ) {
-		if ( ri.Cmd_Argc() > 1 ) {
-			sh = tr.sortedShaders[i];
-		} else {
-			sh = tr.shaders[i];
-		}
-
-		ri.Printf( PRINT_ALL, "%i ", sh->numUnfoggedPasses );
-
-		if ( sh->lightmapIndex >= 0 ) {
-			ri.Printf (PRINT_ALL, "L ");
-		} else {
-			ri.Printf (PRINT_ALL, "  ");
-		}
-		if ( sh->multitextureEnv ) {
-			ri.Printf( PRINT_ALL, "MT(x) " ); // TODO: per-stage statistics?
-		} else {
-			ri.Printf( PRINT_ALL, "      " );
-		}
-		if ( sh->explicitlyDefined ) {
-			ri.Printf( PRINT_ALL, "E " );
-		} else {
-			ri.Printf( PRINT_ALL, "  " );
-		}
-
-		if ( sh->optimalStageIteratorFunc == RB_StageIteratorGeneric ) {
-			ri.Printf( PRINT_ALL, "gen " );
-		} else if ( sh->optimalStageIteratorFunc == RB_StageIteratorSky ) {
-			ri.Printf( PRINT_ALL, "sky " );
-		} else {
-			ri.Printf( PRINT_ALL, "    " );
-		}
-
-		if ( sh->defaultShader ) {
-			ri.Printf( PRINT_ALL, ": %s (DEFAULTED)\n", sh->name );
-		} else {
-			ri.Printf( PRINT_ALL, ": %s\n", sh->name );
-		}
-		count++;
-	}
-	ri.Printf (PRINT_ALL, "%i total shaders\n", count);
-	ri.Printf (PRINT_ALL, "------------------\n");
+void	R_ShaderList_f (void){
+	R_ShaderList_f_plus();
 }
-}
-
 #define	MAX_SHADER_FILES 16384
 
 static int loadShaderBuffers( char **shaderFiles, const int numShaderFiles, char **buffers )
@@ -4320,7 +4084,7 @@ R_InitShaders
 void R_InitShaders( void ) {
 	ri.Printf( PRINT_ALL, "Initializing Shaders\n" );
 
-	Com_Memset(hashTable, 0, sizeof(hashTable));
+	Com_Memset(shaderHashTable, 0, sizeof(shaderHashTable));
 
 	CreateInternalShaders();
 

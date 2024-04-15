@@ -1,28 +1,39 @@
-#include "tr_world.hpp"
-#include <cstddef>
+/*
+===========================================================================
+Copyright (C) 1999-2005 Id Software, Inc.
 
-static const byte *R_ClusterPVS(int cluster)
-{
-	if (!tr.world->vis || cluster < 0 || cluster >= tr.world->numClusters)
-	{
-		return tr.world->novis;
-	}
-	return tr.world->vis + cluster * tr.world->clusterBytes;
-}
+This file is part of Quake III Arena source code.
+
+Quake III Arena source code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.
+
+Quake III Arena source code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Quake III Arena source code; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+===========================================================================
+*/
+#include "tr_world.hpp"
 
 /*
 =================
-R_CullTriSurf_plus
+R_CullTriSurf
 
 Returns true if the grid is completely culled away.
 Also sets the clipped hint bit in tess
 =================
 */
-static bool R_CullTriSurf_plus(srfTriangles_t *cv)
+static bool R_CullTriSurf(srfTriangles_t *cv)
 {
 	int boxCull;
 
-	boxCull = R_CullLocalBox_plus(cv->bounds);
+	boxCull = R_CullLocalBox(cv->bounds);
 
 	if (boxCull == CULL_OUT)
 	{
@@ -33,13 +44,13 @@ static bool R_CullTriSurf_plus(srfTriangles_t *cv)
 
 /*
 =================
-R_CullGrid_plus
+R_CullGrid
 
 Returns true if the grid is completely culled away.
 Also sets the clipped hint bit in tess
 =================
 */
-static bool R_CullGrid_plus(srfGridMesh_t *cv)
+static bool R_CullGrid(srfGridMesh_t *cv)
 {
 	if (r_nocurves->integer)
 	{
@@ -50,7 +61,7 @@ static bool R_CullGrid_plus(srfGridMesh_t *cv)
 
 	if (tr.currentEntityNum != REFENTITYNUM_WORLD)
 	{
-		sphereCull = R_CullLocalPointAndRadius_plus(cv->localOrigin, cv->meshRadius);
+		sphereCull = R_CullLocalPointAndRadius(cv->localOrigin, cv->meshRadius);
 	}
 	else
 	{
@@ -68,7 +79,7 @@ static bool R_CullGrid_plus(srfGridMesh_t *cv)
 	{
 		tr.pc.c_sphere_cull_patch_clip++;
 
-		int boxCull = R_CullLocalBox_plus(cv->meshBounds);
+		int boxCull = R_CullLocalBox(cv->meshBounds);
 
 		if (boxCull == CULL_OUT)
 		{
@@ -94,7 +105,7 @@ static bool R_CullGrid_plus(srfGridMesh_t *cv)
 
 /*
 ================
-R_CullSurface_plus
+R_CullSurface
 
 Tries to back face cull surfaces before they are lighted or
 added to the sorting list.
@@ -102,7 +113,7 @@ added to the sorting list.
 This will also allow mirrors on both sides of a model without recursion.
 ================
 */
-static bool R_CullSurface_plus(const surfaceType_t *surface, shader_t *shader)
+static bool R_CullSurface(const surfaceType_t *surface, shader_t *shader)
 {
 	srfSurfaceFace_t *sface;
 	float d;
@@ -114,12 +125,12 @@ static bool R_CullSurface_plus(const surfaceType_t *surface, shader_t *shader)
 
 	if (*surface == SF_GRID)
 	{
-		return R_CullGrid_plus((srfGridMesh_t *)surface);
+		return R_CullGrid((srfGridMesh_t *)surface);
 	}
 
 	if (*surface == SF_TRIANGLES)
 	{
-		return R_CullTriSurf_plus((srfTriangles_t *)surface);
+		return R_CullTriSurf((srfTriangles_t *)surface);
 	}
 
 	if (*surface != SF_FACE)
@@ -162,124 +173,8 @@ static bool R_CullSurface_plus(const surfaceType_t *surface, shader_t *shader)
 	return false;
 }
 
-static mnode_t *R_PointInLeaf(const vec3_t p)
-{
-	mnode_t *node;
-	float d;
-	const cplane_t *plane;
-
-	if (!tr.world)
-	{
-		ri.Error(ERR_DROP, "R_PointInLeaf: bad model");
-	}
-
-	node = tr.world->nodes;
-	while (true)
-	{
-		if (node->contents != CONTENTS_NODE)
-		{
-			break;
-		}
-		plane = node->plane;
-		d = DotProduct(p, plane->normal) - plane->dist;
-		if (d > 0)
-		{
-			node = node->children[0];
-		}
-		else
-		{
-			node = node->children[1];
-		}
-	}
-
-	return node;
-}
-
-/*
-===============
-R_MarkLeaves
-
-Mark the leaves and nodes that are in the PVS for the current
-cluster
-===============
-*/
-static void R_MarkLeaves_plus()
-{
-	const byte *vis;
-	mnode_t *leaf, *parent;
-	int i;
-	int cluster;
-
-	if (r_lockpvs->integer)
-	{
-		return;
-	}
-
-	leaf = R_PointInLeaf(tr.viewParms.pvsOrigin);
-	cluster = leaf->cluster;
-
-	if (tr.viewCluster == cluster && !tr.refdef.areamaskModified && !r_showcluster->modified)
-	{
-		return;
-	}
-
-	if (r_showcluster->modified || r_showcluster->integer)
-	{
-		r_showcluster->modified = false;
-		if (r_showcluster->integer)
-		{
-			ri.Printf(PRINT_ALL, "cluster:%i  area:%i\n", cluster, leaf->area);
-		}
-	}
-
-	tr.visCount++;
-	tr.viewCluster = cluster;
-
-	if (r_novis->integer || tr.viewCluster == -1)
-	{
-		for (i = 0; i < tr.world->numnodes; i++)
-		{
-			if (tr.world->nodes[i].contents != CONTENTS_SOLID)
-			{
-				tr.world->nodes[i].visframe = tr.visCount;
-			}
-		}
-		return;
-	}
-
-	vis = R_ClusterPVS(tr.viewCluster);
-
-	for (i = 0, leaf = tr.world->nodes; i < tr.world->numnodes; i++, leaf++)
-	{
-		cluster = leaf->cluster;
-		if (cluster < 0 || cluster >= tr.world->numClusters)
-		{
-			continue;
-		}
-
-		if (!(vis[cluster >> 3] & (1 << (cluster & 7))))
-		{
-			continue;
-		}
-
-		if ((tr.refdef.areamask[leaf->area >> 3] & (1 << (leaf->area & 7))))
-		{
-			continue;
-		}
-
-		parent = leaf;
-		do
-		{
-			if (parent->visframe == tr.visCount)
-				break;
-			parent->visframe = tr.visCount;
-			parent = parent->parent;
-		} while (parent);
-	}
-}
-
 #ifdef USE_PMLIGHT
-bool R_LightCullBounds(const dlight_t *dl, const vec3_t mins, const vec3_t maxs)
+bool R_LightCullBounds_plus(const dlight_t *dl, const vec3_t mins, const vec3_t maxs)
 {
 	if (dl->linear)
 	{
@@ -339,7 +234,7 @@ static bool R_LightCullFace(const srfSurfaceFace_t *face, const dlight_t *dl)
 	return false;
 }
 
-static bool R_LightCullSurface_plus(const surfaceType_t *surface, const dlight_t *dl)
+static bool R_LightCullSurface(const surfaceType_t *surface, const dlight_t *dl)
 {
 	switch (*surface)
 	{
@@ -348,18 +243,17 @@ static bool R_LightCullSurface_plus(const surfaceType_t *surface, const dlight_t
 	case SF_GRID:
 	{
 		const srfGridMesh_t *grid = (const srfGridMesh_t *)surface;
-		return R_LightCullBounds(dl, grid->meshBounds[0], grid->meshBounds[1]);
+		return R_LightCullBounds_plus(dl, grid->meshBounds[0], grid->meshBounds[1]);
 	}
 	case SF_TRIANGLES:
 	{
 		const srfTriangles_t *tris = (const srfTriangles_t *)surface;
-		return R_LightCullBounds(dl, tris->bounds[0], tris->bounds[1]);
+		return R_LightCullBounds_plus(dl, tris->bounds[0], tris->bounds[1]);
 	}
 	default:
 		return false;
 	};
 }
-
 #endif // USE_PMLIGHT
 
 #ifdef USE_LEGACY_DLIGHTS
@@ -460,7 +354,7 @@ static int R_DlightTrisurf(srfTriangles_t *surf, int dlightBits)
 R_DlightSurface
 
 The given surface is going to be drawn, and it touches a leaf
-that is touched by one ort more dlights, so try to throw out
+that is touched by one or more dlights, so try to throw out
 more dlights if possible.
 ====================
 */
@@ -493,14 +387,11 @@ static int R_DlightSurface(msurface_t *surf, int dlightBits)
 #endif // USE_LEGACY_DLIGHTS
 
 /*
-=============================================================
-
-	WORLD MODEL
-
-=============================================================
+======================
+R_AddWorldSurface
+======================
 */
-
-static void R_AddWorldSurface_plus(msurface_t *surf, int dlightBits)
+static void R_AddWorldSurface(msurface_t *surf, int dlightBits)
 {
 	if (surf->viewCount == tr.viewCount)
 	{
@@ -511,7 +402,7 @@ static void R_AddWorldSurface_plus(msurface_t *surf, int dlightBits)
 	// FIXME: bmodel fog?
 
 	// try to cull before dlighting or adding
-	if (R_CullSurface_plus(surf->data, surf->shader))
+	if (R_CullSurface(surf->data, surf->shader))
 	{
 		return;
 	}
@@ -522,7 +413,7 @@ static void R_AddWorldSurface_plus(msurface_t *surf, int dlightBits)
 #endif
 	{
 		surf->vcVisible = tr.viewCount;
-		R_AddDrawSurf_plus(surf->data, surf->shader, surf->fogIndex, 0);
+		R_AddDrawSurf(surf->data, surf->shader, surf->fogIndex, 0);
 		return;
 	}
 #endif // USE_PMLIGHT
@@ -535,11 +426,216 @@ static void R_AddWorldSurface_plus(msurface_t *surf, int dlightBits)
 		dlightBits = (dlightBits != 0);
 	}
 
-	R_AddDrawSurf_plus(surf->data, surf->shader, surf->fogIndex, dlightBits);
+	R_AddDrawSurf(surf->data, surf->shader, surf->fogIndex, dlightBits);
 #endif // USE_LEGACY_DLIGHTS
 }
 
-static void R_RecursiveWorldNode_plus(mnode_t *node, unsigned int planeBits, unsigned int dlightBits)
+/*
+=============================================================
+	PM LIGHTING
+=============================================================
+*/
+#ifdef USE_PMLIGHT
+static void R_AddLitSurface(msurface_t *surf, const dlight_t *light)
+{
+	// since we're not worried about offscreen lights casting into the frustum (ATM !!!)
+	// only add the "lit" version of this surface if it was already added to the view
+	// if ( surf->viewCount != tr.viewCount )
+	//	return;
+
+	// surfaces that were faceculled will still have the current viewCount in vcBSP
+	// because that's set to indicate that it's BEEN vis tested at all, to avoid
+	// repeated vis tests, not whether it actually PASSED the vis test or not
+	// only light surfaces that are GENUINELY visible, as opposed to merely in a visible LEAF
+	if (surf->vcVisible != tr.viewCount)
+	{
+		return;
+	}
+
+	if (surf->shader->lightingStage < 0)
+	{
+		return;
+	}
+
+	if (surf->lightCount == tr.lightCount)
+		return;
+
+	surf->lightCount = tr.lightCount;
+
+	if (R_LightCullSurface(surf->data, light))
+	{
+		tr.pc.c_lit_culls++;
+		return;
+	}
+
+	R_AddLitSurf(surf->data, surf->shader, surf->fogIndex);
+}
+
+static void R_RecursiveLightNode(const mnode_t *node)
+{
+	bool children[2];
+	msurface_t **mark;
+	msurface_t *surf;
+	float d;
+	int c;
+	do
+	{
+		// if the node wasn't marked as potentially visible, exit
+		if (node->visframe != tr.visCount)
+			return;
+
+		if (node->contents != CONTENTS_NODE)
+			break;
+
+		children[0] = children[1] = false;
+
+		d = DotProduct(tr.light->origin, node->plane->normal) - node->plane->dist;
+		if (d > -tr.light->radius)
+		{
+			children[0] = true;
+		}
+		if (d < tr.light->radius)
+		{
+			children[1] = true;
+		}
+
+		if (tr.light->linear)
+		{
+			d = DotProduct(tr.light->origin2, node->plane->normal) - node->plane->dist;
+			if (d > -tr.light->radius)
+			{
+				children[0] = true;
+			}
+			if (d < tr.light->radius)
+			{
+				children[1] = true;
+			}
+		}
+
+		if (children[0] && children[1])
+		{
+			R_RecursiveLightNode(node->children[0]);
+			node = node->children[1];
+		}
+		else if (children[0])
+		{
+			node = node->children[0];
+		}
+		else if (children[1])
+		{
+			node = node->children[1];
+		}
+		else
+		{
+			return;
+		}
+
+	} while (1);
+
+	tr.pc.c_lit_leafs++;
+
+	// add the individual surfaces
+	c = node->nummarksurfaces;
+	mark = node->firstmarksurface;
+	while (c--)
+	{
+		// the surface may have already been added if it spans multiple leafs
+		surf = *mark;
+		R_AddLitSurface(surf, tr.light);
+		mark++;
+	}
+}
+#endif // USE_PMLIGHT
+
+/*
+=============================================================
+
+	BRUSH MODELS
+
+=============================================================
+*/
+
+/*
+=================
+R_AddBrushModelSurfaces_plus
+=================
+*/
+void R_AddBrushModelSurfaces_plus(trRefEntity_t *ent)
+{
+	bmodel_t *bmodel;
+	int clip;
+	const model_t *pModel;
+	int i;
+
+	pModel = R_GetModelByHandle(ent->e.hModel);
+
+	bmodel = pModel->bmodel;
+
+	clip = R_CullLocalBox(bmodel->bounds);
+	if (clip == CULL_OUT)
+	{
+		return;
+	}
+
+#ifdef USE_PMLIGHT
+#ifdef USE_LEGACY_DLIGHTS
+	if (r_dlightMode->integer)
+#endif
+	{
+		dlight_t *dl;
+		int s;
+
+		for (s = 0; s < bmodel->numSurfaces; s++)
+		{
+			R_AddWorldSurface(bmodel->firstSurface + s, 0);
+		}
+
+		R_SetupEntityLighting(&tr.refdef, ent);
+
+		R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.ort);
+
+		for (i = 0; i < tr.viewParms.num_dlights; i++)
+		{
+			dl = &tr.viewParms.dlights[i];
+			if (!R_LightCullBounds_plus(dl, bmodel->bounds[0], bmodel->bounds[1]))
+			{
+				tr.lightCount++;
+				tr.light = dl;
+				for (s = 0; s < bmodel->numSurfaces; s++)
+				{
+					R_AddLitSurface(bmodel->firstSurface + s, dl);
+				}
+			}
+		}
+		return;
+	}
+#endif // USE_PMLIGHT
+
+#ifdef USE_LEGACY_DLIGHTS
+	R_SetupEntityLighting(&tr.refdef, ent);
+	R_DlightBmodel(bmodel);
+
+	for (i = 0; i < bmodel->numSurfaces; i++)
+	{
+		R_AddWorldSurface(bmodel->firstSurface + i, tr.currentEntity->needDlights);
+	}
+#endif
+}
+
+/*
+=============================================================
+
+	WORLD MODEL
+
+=============================================================
+*/
+
+/*
+================
+R_RecursiveWorldNode
+================
+*/
+static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned int dlightBits)
 {
 
 	do
@@ -561,7 +657,7 @@ static void R_RecursiveWorldNode_plus(mnode_t *node, unsigned int planeBits, uns
 
 			if (planeBits & 1)
 			{
-				r = BoxOnPlaneSide_plus(node->mins, node->maxs, &tr.viewParms.frustum[0]);
+				r = BoxOnPlaneSide(node->mins, node->maxs, &tr.viewParms.frustum[0]);
 				if (r == 2)
 				{
 					return; // culled
@@ -574,7 +670,7 @@ static void R_RecursiveWorldNode_plus(mnode_t *node, unsigned int planeBits, uns
 
 			if (planeBits & 2)
 			{
-				r = BoxOnPlaneSide_plus(node->mins, node->maxs, &tr.viewParms.frustum[1]);
+				r = BoxOnPlaneSide(node->mins, node->maxs, &tr.viewParms.frustum[1]);
 				if (r == 2)
 				{
 					return; // culled
@@ -587,7 +683,7 @@ static void R_RecursiveWorldNode_plus(mnode_t *node, unsigned int planeBits, uns
 
 			if (planeBits & 4)
 			{
-				r = BoxOnPlaneSide_plus(node->mins, node->maxs, &tr.viewParms.frustum[2]);
+				r = BoxOnPlaneSide(node->mins, node->maxs, &tr.viewParms.frustum[2]);
 				if (r == 2)
 				{
 					return; // culled
@@ -600,7 +696,7 @@ static void R_RecursiveWorldNode_plus(mnode_t *node, unsigned int planeBits, uns
 
 			if (planeBits & 8)
 			{
-				r = BoxOnPlaneSide_plus(node->mins, node->maxs, &tr.viewParms.frustum[3]);
+				r = BoxOnPlaneSide(node->mins, node->maxs, &tr.viewParms.frustum[3]);
 				if (r == 2)
 				{
 					return; // culled
@@ -655,7 +751,7 @@ static void R_RecursiveWorldNode_plus(mnode_t *node, unsigned int planeBits, uns
 #endif // USE_LEGACY_DLIGHTS
 
 		// recurse down the children, front side first
-		R_RecursiveWorldNode_plus(node->children[0], planeBits, newDlights[0]);
+		R_RecursiveWorldNode(node->children[0], planeBits, newDlights[0]);
 
 		// tail recurse
 		node = node->children[1];
@@ -706,126 +802,184 @@ static void R_RecursiveWorldNode_plus(mnode_t *node, unsigned int planeBits, uns
 			// the surface may have already been added if it
 			// spans multiple leafs
 			surf = *mark;
-			R_AddWorldSurface_plus(surf, dlightBits);
+			R_AddWorldSurface(surf, dlightBits);
 			mark++;
 		}
 	}
 }
 
-#ifdef USE_PMLIGHT
-static void R_AddLitSurface_plus(msurface_t *surf, const dlight_t *light)
+/*
+===============
+R_PointInLeaf
+===============
+*/
+static mnode_t *R_PointInLeaf(const vec3_t p)
 {
-	// since we're not worried about offscreen lights casting into the frustum (ATM !!!)
-	// only add the "lit" version of this surface if it was already added to the view
-	// if ( surf->viewCount != tr.viewCount )
-	//	return;
-
-	// surfaces that were faceculled will still have the current viewCount in vcBSP
-	// because that's set to indicate that it's BEEN vis tested at all, to avoid
-	// repeated vis tests, not whether it actually PASSED the vis test or not
-	// only light surfaces that are GENUINELY visible, as opposed to merely in a visible LEAF
-	if (surf->vcVisible != tr.viewCount)
-	{
-		return;
-	}
-
-	if (surf->shader->lightingStage < 0)
-	{
-		return;
-	}
-
-	if (surf->lightCount == tr.lightCount)
-		return;
-
-	surf->lightCount = tr.lightCount;
-
-	if (R_LightCullSurface_plus(surf->data, light))
-	{
-		tr.pc.c_lit_culls++;
-		return;
-	}
-
-	R_AddLitSurf_plus(surf->data, surf->shader, surf->fogIndex);
-}
-
-static void R_RecursiveLightNode_plus(const mnode_t *node)
-{
-	bool children[2];
-	msurface_t **mark;
-	msurface_t *surf;
+	mnode_t *node;
 	float d;
-	int c;
-	do
+	const cplane_t *plane;
+
+	if (!tr.world)
 	{
-		// if the node wasn't marked as potentially visible, exit
-		if (node->visframe != tr.visCount)
-			return;
+		ri.Error(ERR_DROP, "R_PointInLeaf: bad model");
+	}
 
+	node = tr.world->nodes;
+	while (1)
+	{
 		if (node->contents != CONTENTS_NODE)
+		{
 			break;
-
-		children[0] = children[1] = false;
-
-		d = DotProduct(tr.light->origin, node->plane->normal) - node->plane->dist;
-		if (d > -tr.light->radius)
-		{
-			children[0] = true;
 		}
-		if (d < tr.light->radius)
-		{
-			children[1] = true;
-		}
-
-		if (tr.light->linear)
-		{
-			d = DotProduct(tr.light->origin2, node->plane->normal) - node->plane->dist;
-			if (d > -tr.light->radius)
-			{
-				children[0] = true;
-			}
-			if (d < tr.light->radius)
-			{
-				children[1] = true;
-			}
-		}
-
-		if (children[0] && children[1])
-		{
-			R_RecursiveLightNode_plus(node->children[0]);
-			node = node->children[1];
-		}
-		else if (children[0])
+		plane = node->plane;
+		d = DotProduct(p, plane->normal) - plane->dist;
+		if (d > 0)
 		{
 			node = node->children[0];
 		}
-		else if (children[1])
+		else
 		{
 			node = node->children[1];
 		}
-		else
+	}
+
+	return node;
+}
+
+/*
+==============
+R_ClusterPVS
+==============
+*/
+static const byte *R_ClusterPVS(int cluster)
+{
+	if (!tr.world->vis || cluster < 0 || cluster >= tr.world->numClusters)
+	{
+		return tr.world->novis;
+	}
+
+	return tr.world->vis + cluster * tr.world->clusterBytes;
+}
+
+/*
+=================
+R_inPVS_plus
+=================
+*/
+bool R_inPVS_plus(const vec3_t p1, const vec3_t p2)
+{
+	const mnode_t *leaf;
+	const byte *vis;
+
+	leaf = R_PointInLeaf(p1);
+	vis = ri.CM_ClusterPVS(leaf->cluster);
+	leaf = R_PointInLeaf(p2);
+
+	if (!(vis[leaf->cluster >> 3] & (1 << (leaf->cluster & 7))))
+	{
+		return false;
+	}
+	return true;
+}
+
+/*
+===============
+R_MarkLeaves
+
+Mark the leaves and nodes that are in the PVS for the current
+cluster
+===============
+*/
+static void R_MarkLeaves(void)
+{
+	const byte *vis;
+	mnode_t *leaf, *parent;
+	int i;
+	int cluster;
+
+	// lockpvs lets designers walk around to determine the
+	// extent of the current pvs
+	if (r_lockpvs->integer)
+	{
+		return;
+	}
+
+	// current viewcluster
+	leaf = R_PointInLeaf(tr.viewParms.pvsOrigin);
+	cluster = leaf->cluster;
+
+	// if the cluster is the same and the area visibility matrix
+	// hasn't changed, we don't need to mark everything again
+
+	// if r_showcluster was just turned on, remark everything
+	if (tr.viewCluster == cluster && !tr.refdef.areamaskModified && !r_showcluster->modified)
+	{
+		return;
+	}
+
+	if (r_showcluster->modified || r_showcluster->integer)
+	{
+		r_showcluster->modified = false;
+		if (r_showcluster->integer)
 		{
-			return;
+			ri.Printf(PRINT_ALL, "cluster:%i  area:%i\n", cluster, leaf->area);
+		}
+	}
+
+	tr.visCount++;
+	tr.viewCluster = cluster;
+
+	if (r_novis->integer || tr.viewCluster == -1)
+	{
+		for (i = 0; i < tr.world->numnodes; i++)
+		{
+			if (tr.world->nodes[i].contents != CONTENTS_SOLID)
+			{
+				tr.world->nodes[i].visframe = tr.visCount;
+			}
+		}
+		return;
+	}
+
+	vis = R_ClusterPVS(tr.viewCluster);
+
+	for (i = 0, leaf = tr.world->nodes; i < tr.world->numnodes; i++, leaf++)
+	{
+		cluster = leaf->cluster;
+		if (cluster < 0 || cluster >= tr.world->numClusters)
+		{
+			continue;
 		}
 
-	} while (1);
+		// check general pvs
+		if (!(vis[cluster >> 3] & (1 << (cluster & 7))))
+		{
+			continue;
+		}
 
-	tr.pc.c_lit_leafs++;
+		// check for door connection
+		if ((tr.refdef.areamask[leaf->area >> 3] & (1 << (leaf->area & 7))))
+		{
+			continue; // not visible
+		}
 
-	// add the individual surfaces
-	c = node->nummarksurfaces;
-	mark = node->firstmarksurface;
-	while (c--)
-	{
-		// the surface may have already been added if it spans multiple leafs
-		surf = *mark;
-		R_AddLitSurface_plus(surf, tr.light);
-		mark++;
+		parent = leaf;
+		do
+		{
+			if (parent->visframe == tr.visCount)
+				break;
+			parent->visframe = tr.visCount;
+			parent = parent->parent;
+		} while (parent);
 	}
 }
 
-#endif // USE_PMLIGHT
-
-void R_AddWorldSurfaces_plus()
+/*
+=============
+R_AddWorldSurfaces_plus
+=============
+*/
+void R_AddWorldSurfaces_plus(void)
 {
 #ifdef USE_PMLIGHT
 	dlight_t *dl;
@@ -846,10 +1000,10 @@ void R_AddWorldSurfaces_plus()
 	tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
 
 	// determine which leaves are in the PVS / areamask
-	R_MarkLeaves_plus();
+	R_MarkLeaves();
 
 	// clear out the visible min/max
-	ClearBounds_plus(tr.viewParms.visBounds[0], tr.viewParms.visBounds[1]);
+	ClearBounds(tr.viewParms.visBounds[0], tr.viewParms.visBounds[1]);
 
 	// perform frustum culling and add all the potentially visible surfaces
 	if (tr.refdef.num_dlights > MAX_DLIGHTS)
@@ -857,7 +1011,7 @@ void R_AddWorldSurfaces_plus()
 		tr.refdef.num_dlights = MAX_DLIGHTS;
 	}
 
-	R_RecursiveWorldNode_plus(tr.world->nodes, 15, (1ULL << tr.refdef.num_dlights) - 1);
+	R_RecursiveWorldNode(tr.world->nodes, 15, (1ULL << tr.refdef.num_dlights) - 1);
 
 #ifdef USE_PMLIGHT
 #ifdef USE_LEGACY_DLIGHTS
@@ -866,15 +1020,15 @@ void R_AddWorldSurfaces_plus()
 #endif // USE_LEGACY_DLIGHTS
 
 	// "transform" all the dlights so that dl->transformed is actually populated
-	// (even though HERE it's == dl->origin) so we can always use R_LightCullBounds
+	// (even though HERE it's == dl->origin) so we can always use R_LightCullBounds_plus
 	// instead of having copypasted versions for both world and local cases
 
-	R_TransformDlights_plus(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.viewParms.world);
+	R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.viewParms.world);
 	for (i = 0; i < tr.viewParms.num_dlights; i++)
 	{
 		dl = &tr.viewParms.dlights[i];
 		dl->head = dl->tail = NULL;
-		if (R_CullDlight_plus(dl) == CULL_OUT)
+		if (R_CullDlight(dl) == CULL_OUT)
 		{
 			tr.pc.c_light_cull_out++;
 			continue;
@@ -882,83 +1036,7 @@ void R_AddWorldSurfaces_plus()
 		tr.pc.c_light_cull_in++;
 		tr.lightCount++;
 		tr.light = dl;
-		R_RecursiveLightNode_plus(tr.world->nodes);
+		R_RecursiveLightNode(tr.world->nodes);
 	}
 #endif // USE_PMLIGHT
-}
-
-void R_AddBrushModelSurfaces_plus(trRefEntity_t *ent)
-{
-	bmodel_t *bmodel;
-	int clip;
-	const model_t *pModel;
-	int i;
-
-	pModel = R_GetModelByHandle_plus(ent->e.hModel);
-
-	bmodel = pModel->bmodel;
-
-	clip = R_CullLocalBox_plus(bmodel->bounds);
-	if (clip == CULL_OUT)
-	{
-		return;
-	}
-
-#ifdef USE_PMLIGHT
-#ifdef USE_LEGACY_DLIGHTS
-	if (r_dlightMode->integer)
-#endif
-	{
-		dlight_t *dl;
-		int s;
-
-		for (s = 0; s < bmodel->numSurfaces; s++)
-		{
-			R_AddWorldSurface_plus(bmodel->firstSurface + s, 0);
-		}
-
-		R_SetupEntityLighting_plus(&tr.refdef, ent);
-
-		R_TransformDlights_plus(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.ort);
-
-		for (i = 0; i < tr.viewParms.num_dlights; i++)
-		{
-			dl = &tr.viewParms.dlights[i];
-			if (!R_LightCullBounds(dl, bmodel->bounds[0], bmodel->bounds[1]))
-			{
-				tr.lightCount++;
-				tr.light = dl;
-				for (s = 0; s < bmodel->numSurfaces; s++)
-				{
-					R_AddLitSurface_plus(bmodel->firstSurface + s, dl);
-				}
-			}
-		}
-		return;
-	}
-#endif // USE_PMLIGHT
-
-#ifdef USE_LEGACY_DLIGHTS
-	R_SetupEntityLighting_plus(&tr.refdef, ent);
-	R_DlightBmodel_plus(bmodel);
-
-	for (i = 0; i < bmodel->numSurfaces; i++)
-	{
-		R_AddWorldSurface_plus(bmodel->firstSurface + i, tr.currentEntity->needDlights);
-	}
-#endif
-}
-
-bool R_inPVS_plus( const vec3_t p1, const vec3_t p2 ) {
-	const mnode_t *leaf;
-	const byte	*vis;
-
-	leaf = R_PointInLeaf( p1 );
-	vis = ri.CM_ClusterPVS( leaf->cluster );
-	leaf = R_PointInLeaf( p2 );
-
-	if ( !(vis[leaf->cluster>>3] & (1<<(leaf->cluster&7))) ) {
-		return false;
-	}
-	return true;
 }

@@ -32,6 +32,8 @@ extern "C"
     static int numEdgeDefs[SHADER_MAX_VERTEXES];
     static int facing[SHADER_MAX_INDEXES / 3];
 
+
+
     void RB_ShadowTessEnd_plus(void);
     void RB_ShadowFinish_plus(void);
     void RB_ProjectionShadowDeform_plus(void);
