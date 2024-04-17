@@ -48,7 +48,6 @@ void R_ColorShiftLightingBytes(const byte in[4], byte out[4], bool hasAlpha)
 
 int R_GetLightmapCoords(const int lightmapIndex, float *x, float *y)
 {
-
 	return R_GetLightmapCoords_plus(lightmapIndex, x, y);
 }
 
