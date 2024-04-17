@@ -60,8 +60,6 @@ extern "C"
 #define TESS_ENT1 (2048) // uniform with ent.color[1]
 #define TESS_ENT2 (4096) // uniform with ent.color[2]
 
-
-
       //
       // Initialization.
       //
@@ -140,6 +138,23 @@ extern "C"
       void VBO_ClearQueue_plus(void);
 
       VkPipeline create_pipeline_plus(const Vk_Pipeline_Def *def, renderPass_t renderPassIndex);
+
+#ifdef USE_VBO
+      void vk_release_vbo_plus(void);
+      bool vk_alloc_vbo_plus(const byte *vbo_data, int vbo_size);
+#endif
+
+      void vk_create_blur_pipeline_plus(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass);
+      uint32_t vk_alloc_pipeline_plus(const Vk_Pipeline_Def *def);
+
+      VkPipeline vk_gen_pipeline_plus(uint32_t index);
+      void vk_update_mvp_plus(const float *m);
+
+      void vk_bind_descriptor_sets_plus(void);
+      void vk_begin_post_bloom_render_pass_plus(void);
+      void vk_begin_bloom_extract_render_pass_plus(void);
+
+      void vk_begin_blur_render_pass_plus(uint32_t index);
 
 #ifdef __cplusplus
 }

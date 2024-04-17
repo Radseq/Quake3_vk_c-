@@ -6836,7 +6836,7 @@ void vk_clear_depth_plus(bool clear_stencil)
 	qvkCmdClearAttachments(vk.cmd->command_buffer, 1, &attachment, 1, clear_rect);
 }
 
-void vk_update_mvp_plus_plus(const float *m)
+void vk_update_mvp_plus(const float *m)
 {
 	float push_constants[16]; // mvp transform
 
@@ -8012,7 +8012,7 @@ bool vk_bloom_plus(void)
 		// restore last pipeline
 		qvkCmdBindPipeline(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.cmd->last_pipeline);
 
-		vk_update_mvp_plus_plus(NULL);
+		vk_update_mvp_plus(NULL);
 
 		// force depth range and viewport/scissor updates
 		vk.cmd->depth_range = DEPTH_RANGE_COUNT;
