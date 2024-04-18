@@ -393,3 +393,61 @@ void RE_VertexLighting_plus(bool allowed)
 {
 	tr.vertexLightingAllowed = allowed;
 }
+
+/*
+=============
+RE_EndFrame
+
+Returns the number of msec spent in the back end
+=============
+*/
+void RE_EndFrame_plus( int *frontEndMsec, int *backEndMsec ) {
+
+	swapBuffersCommand_t *cmd;
+
+	if ( !tr.registered ) {
+		return;
+	}
+
+	cmd = static_cast<swapBuffersCommand_t *>(R_GetCommandBufferReserved( sizeof( *cmd ), 0 ));
+	if ( !cmd ) {
+		return;
+	}
+	cmd->commandId = RC_SWAP_BUFFERS;
+
+	R_PerformanceCounters();
+
+	R_IssueRenderCommands();
+
+	R_InitNextFrame();
+
+	if ( frontEndMsec ) {
+		*frontEndMsec = tr.frontEndMsec;
+	}
+	tr.frontEndMsec = 0;
+
+	if ( backEndMsec ) {
+		*backEndMsec = backEnd.pc.msec;
+	}
+	backEnd.pc.msec = 0;
+
+	backEnd.throttle = false;
+
+	// recompile GPU shaders if needed
+	if ( ri.Cvar_CheckGroup( CVG_RENDERER ) ) {
+
+		// texturemode stuff
+		if ( r_textureMode->modified ) {
+			TextureMode( r_textureMode->string );
+		}
+
+		// gamma stuff
+		if ( r_gamma->modified ) {
+			R_SetColorMappings();
+		}
+
+		vk_update_post_process_pipelines();
+
+		ri.Cvar_ResetGroup( CVG_RENDERER, true /* reset modified flags */ );
+	}
+}

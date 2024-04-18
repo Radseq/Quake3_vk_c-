@@ -27,6 +27,7 @@ extern "C"
 	bool RE_CanMinimize_plus();
 	const glconfig_t *RE_GetConfig_plus();
 	void RE_VertexLighting_plus(bool allowed);
+	void RE_EndFrame_plus( int *frontEndMsec, int *backEndMsec ) ;
 
 #ifdef __cplusplus
 }

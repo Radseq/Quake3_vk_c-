@@ -23,6 +23,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_local.h"
 #include "../renderervk_cplus/tr_world.hpp"
+#include "../renderervk_cplus/tr_cmds.hpp"
+#include "../renderervk_cplus/tr_marks.hpp"
 
 glconfig_t	glConfig;
 
@@ -1486,8 +1488,8 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 
 	re.Shutdown = RE_Shutdown;
 
-	re.BeginRegistration = RE_BeginRegistration;
-	re.RegisterModel = RE_RegisterModel;
+	re.BeginRegistration = RE_BeginRegistration_plus;
+	re.RegisterModel = RE_RegisterModel_plus;
 	re.RegisterSkin = RE_RegisterSkin;
 	re.RegisterShader = RE_RegisterShader;
 	re.RegisterShaderNoMip = RE_RegisterShaderNoMip;
@@ -1498,14 +1500,14 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 	re.BeginFrame = RE_BeginFrame;
 	re.EndFrame = RE_EndFrame;
 
-	re.MarkFragments = R_MarkFragments;
+	re.MarkFragments = R_MarkFragments_plus;
 	re.LerpTag = R_LerpTag;
-	re.ModelBounds = R_ModelBounds;
+	re.ModelBounds = R_ModelBounds_plus;
 
 	re.ClearScene = RE_ClearScene;
 	re.AddRefEntityToScene = RE_AddRefEntityToScene;
 	re.AddPolyToScene = RE_AddPolyToScene;
-	re.LightForPoint = R_LightForPoint;
+	re.LightForPoint = R_LightForPoint_plus;
 	re.AddLightToScene = RE_AddLightToScene;
 	re.AddAdditiveLightToScene = RE_AddAdditiveLightToScene;
 	re.AddLinearLightToScene = RE_AddLinearLightToScene;
@@ -1525,11 +1527,11 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 	re.TakeVideoFrame = RE_TakeVideoFrame;
 	re.SetColorMappings = R_SetColorMappings;
 
-	re.ThrottleBackend = RE_ThrottleBackend;
-	re.FinishBloom = RE_FinishBloom;
-	re.CanMinimize = RE_CanMinimize;
+	re.ThrottleBackend = RE_ThrottleBackend_plus;
+	re.FinishBloom = RE_FinishBloom_plus;
+	re.CanMinimize = RE_CanMinimize_plus;
 	re.GetConfig = RE_GetConfig;
-	re.VertexLighting = RE_VertexLighting;
+	re.VertexLighting = RE_VertexLighting_plus;
 	re.SyncRender = RE_SyncRender;
 
 	return &re;

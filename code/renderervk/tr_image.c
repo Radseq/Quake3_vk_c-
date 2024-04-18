@@ -1188,27 +1188,8 @@ R_DeleteTextures
 ===============
 */
 void R_DeleteTextures( void ) {
-
-	image_t *img;
-	int i;
-
-	vk_wait_idle();
-
-	for ( i = 0; i < tr.numImages; i++ ) {
-		img = tr.images[ i ];
-		vk_destroy_image_resources( &img->handle, &img->view );
-
-		// img->descriptor will be released with pool reset
-	}
-
-	Com_Memset( tr.images, 0, sizeof( tr.images ) );
-	Com_Memset( tr.scratchImage, 0, sizeof( tr.scratchImage ) );
-	tr.numImages = 0;
-
-	Com_Memset( glState.currenttextures, 0, sizeof( glState.currenttextures ) );
+	R_DeleteTextures_plus();
 }
-
-
 /*
 ============================================================================
 
@@ -1452,16 +1433,7 @@ R_InitSkins
 ===============
 */
 void	R_InitSkins( void ) {
-	skin_t		*skin;
-
-	tr.numSkins = 1;
-
-	// make the default skin have all default shaders
-	skin = tr.skins[0] = ri.Hunk_Alloc( sizeof( skin_t ), h_low );
-	Q_strncpyz( skin->name, "<default skin>", sizeof( skin->name )  );
-	skin->numSurfaces = 1;
-	skin->surfaces = ri.Hunk_Alloc( sizeof( skinSurface_t ), h_low );
-	skin->surfaces[0].shader = tr.defaultShader;
+R_InitSkins_plus();
 }
 
 
