@@ -25,6 +25,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_model_iqm.hpp"
 #include "tr_surface.hpp"
 
+#define LL(x) x = LittleLong(x)
+
+// 3x4 identity matrix
+static float identityMatrix[12] = {
+	1, 0, 0, 0,
+	0, 1, 0, 0,
+	0, 0, 1, 0};
+
 static int R_CullIQM(const iqmData_t *data, const trRefEntity_t *ent)
 {
 	vec3_t bounds[2];
@@ -484,7 +492,7 @@ void RB_IQMSurfaceAnim_plus(const surfaceType_t *surface)
 	glIndex_t *ptr;
 	glIndex_t base;
 
-	RB_CHECKOVERFLOW(surf->num_vertexes, surf->num_triangles * 3);
+	RB_CHECKOVERFLOW_PLUS(surf->num_vertexes, surf->num_triangles * 3);
 
 	xyz = &data->positions[surf->first_vertex * 3];
 	normal = &data->normals[surf->first_vertex * 3];

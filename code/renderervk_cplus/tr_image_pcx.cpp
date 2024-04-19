@@ -23,6 +23,24 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_image_pcx.hpp"
 
+typedef struct
+{
+	char manufacturer;
+	char version;
+	char encoding;
+	char bits_per_pixel;
+	unsigned short xmin, ymin, xmax, ymax;
+	unsigned short hres, vres;
+	unsigned char palette[48];
+	char reserved;
+	char color_planes;
+	unsigned short bytes_per_line;
+	unsigned short palette_type;
+	unsigned short hscreensize, vscreensize;
+	char filler[54];
+	unsigned char data[];
+} pcx_t;
+
 void R_LoadPCX_plus(const char *filename, byte **pic, int *width, int *height)
 {
 	union

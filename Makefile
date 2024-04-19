@@ -752,7 +752,7 @@ Q3RENDV_PLUS_OBJ = \
   $(B)/rendv_cplus/tr_sky.o \
   $(B)/rendv_cplus/tr_bsp.o \
   $(B)/rendv_cplus/vk.o \
-  # $(B)/rendv_cplus/tr_init.o \
+  $(B)/rendv_cplus/tr_image_jpg.o \
 
 Q3RENDVOBJ = \
   $(B)/rendv/tr_animation.o \

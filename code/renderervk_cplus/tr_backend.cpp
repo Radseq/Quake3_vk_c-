@@ -21,6 +21,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include "tr_backend.hpp"
 #include "tr_image.hpp"
+#include "tr_light.hpp"
+#include "tr_main.hpp"
+#include "tr_shade.hpp"
+#include "tr_shadows.hpp"
+#include "tr_sky.hpp"
+#include "tr_surface.hpp"
+#include "vk_flares.hpp"
 
 backEndData_t *backEndData;
 backEndState_t backEnd;
@@ -94,8 +101,8 @@ static void RB_Hyperspace(void)
 
 	if (tess.shader != tr.whiteShader)
 	{
-		RB_EndSurface();
-		RB_BeginSurface(tr.whiteShader, 0);
+		RB_EndSurface_plus();
+		RB_BeginSurface_plus(tr.whiteShader, 0);
 	}
 
 #ifdef USE_VBO
@@ -107,10 +114,10 @@ static void RB_Hyperspace(void)
 	c.rgba[0] = c.rgba[1] = c.rgba[2] = (backEnd.refdef.time & 255);
 	c.rgba[3] = 255;
 
-	RB_AddQuadStamp2(backEnd.refdef.x, backEnd.refdef.y, backEnd.refdef.width, backEnd.refdef.height,
+	RB_AddQuadStamp2_plus(backEnd.refdef.x, backEnd.refdef.y, backEnd.refdef.width, backEnd.refdef.height,
 					 0.0, 0.0, 0.0, 0.0, c);
 
-	RB_EndSurface();
+	RB_EndSurface_plus();
 
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
@@ -212,7 +219,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 			continue;
 		}
 
-		R_DecomposeSort(drawSurf->sort, &entityNum, &shader, &fogNum, &dlighted);
+		R_DecomposeSort_plus(drawSurf->sort, &entityNum, &shader, &fogNum, &dlighted);
 		if (vk.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
 		{
 			continue;
@@ -225,7 +232,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 		{
 			if (oldShader != NULL)
 			{
-				RB_EndSurface();
+				RB_EndSurface_plus();
 			}
 #ifdef USE_PMLIGHT
 #define INSERT_POINT SS_FOG
@@ -237,7 +244,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 			}
 			oldShaderSort = shader->sort;
 #endif
-			RB_BeginSurface(shader, fogNum);
+			RB_BeginSurface_plus(shader, fogNum);
 			oldShader = shader;
 		}
 
@@ -259,7 +266,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
 				// set up the transformation matrix
-				R_RotateForEntity(backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
+				R_RotateForEntity_plus(backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
 				// set up the dynamic lighting if needed
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
@@ -267,7 +274,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 #endif
 					if (backEnd.currentEntity->needDlights)
 					{
-						R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.ort);
+						R_TransformDlights_plus(backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.ort);
 					}
 #endif // USE_LEGACY_DLIGHTS
 				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
@@ -288,7 +295,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 #ifdef USE_PMLIGHT
 				if (!r_dlightMode->integer)
 #endif
-					R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.ort);
+					R_TransformDlights_plus(backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.ort);
 #endif // USE_LEGACY_DLIGHTS
 			}
 
@@ -315,7 +322,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 	// draw the contents of the last shader batch
 	if (oldShader != NULL)
 	{
-		RB_EndSurface();
+		RB_EndSurface_plus();
 	}
 
 	backEnd.refdef.floatTime = originalTime;
@@ -386,7 +393,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 			continue;
 		}
 
-		R_DecomposeLitSort(litSurf->sort, &entityNum, &shader, &fogNum);
+		R_DecomposeLitSort_plus(litSurf->sort, &entityNum, &shader, &fogNum);
 
 		if (vk.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
 		{
@@ -407,9 +414,9 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 		{
 			if (oldShader != NULL)
 			{
-				RB_EndSurface();
+				RB_EndSurface_plus();
 			}
-			RB_BeginSurface(shader, fogNum);
+			RB_BeginSurface_plus(shader, fogNum);
 			oldShader = shader;
 		}
 
@@ -432,7 +439,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
 				// set up the transformation matrix
-				R_RotateForEntity(backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
+				R_RotateForEntity_plus(backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
 
 				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
 				{
@@ -455,7 +462,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 			tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
 
 			// set up the dynamic lighting
-			R_TransformDlights(1, dl, &backEnd.ort);
+			R_TransformDlights_plus(1, dl, &backEnd.ort);
 			tess.dlightUpdateParams = true;
 
 			tess.depthRange = depthRange ? DEPTH_RANGE_WEAPON : DEPTH_RANGE_NORMAL;
@@ -472,7 +479,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 	// draw the contents of the last shader batch
 	if (oldShader != NULL)
 	{
-		RB_EndSurface();
+		RB_EndSurface_plus();
 	}
 
 	backEnd.refdef.floatTime = originalTime;
@@ -627,10 +634,10 @@ static const void *RB_StretchPic(const void *data)
 	{
 		if (tess.numIndexes)
 		{
-			RB_EndSurface();
+			RB_EndSurface_plus();
 		}
 		backEnd.currentEntity = &backEnd.entity2D;
-		RB_BeginSurface(shader, 0);
+		RB_BeginSurface_plus(shader, 0);
 	}
 
 #ifdef USE_VBO
@@ -647,7 +654,7 @@ static const void *RB_StretchPic(const void *data)
 		vk_bloom();
 	}
 
-	RB_AddQuadStamp2(cmd->x, cmd->y, cmd->w, cmd->h, cmd->s1, cmd->t1, cmd->s2, cmd->t2, backEnd.color2D);
+	RB_AddQuadStamp2_plus(cmd->x, cmd->y, cmd->w, cmd->h, cmd->s1, cmd->t1, cmd->s2, cmd->t2, backEnd.color2D);
 
 	return (const void *)(cmd + 1);
 }
@@ -801,7 +808,7 @@ static const void *RB_DrawSurfs(const void *data)
 	const drawSurfsCommand_t *cmd;
 
 	// finish any 2D drawing if needed
-	RB_EndSurface();
+	RB_EndSurface_plus();
 
 	cmd = (const drawSurfsCommand_t *)data;
 
@@ -823,14 +830,14 @@ static const void *RB_DrawSurfs(const void *data)
 
 	if (r_drawSun->integer)
 	{
-		RB_DrawSun(0.1f, tr.sunShader);
+		RB_DrawSun_plus(0.1f, tr.sunShader);
 	}
 
 	// darken down any stencil shadows
-	RB_ShadowFinish();
+	RB_ShadowFinish_plus();
 
 	// add light flares on lights that aren't obscured
-	RB_RenderFlares();
+	RB_RenderFlares_plus();
 
 #ifdef USE_PMLIGHT
 	if (backEnd.refdef.numLitSurfs)
@@ -984,7 +991,7 @@ static const void *RB_ClearDepth(const void *data)
 {
 	const clearDepthCommand_t *cmd = static_cast<const clearDepthCommand_t *>(data);
 
-	RB_EndSurface();
+	RB_EndSurface_plus();
 
 	vk_clear_depth(r_shadows->integer == 2 ? true : false);
 
@@ -1016,7 +1023,7 @@ static const void *RB_FinishBloom(const void *data)
 {
 	const finishBloomCommand_t *cmd = static_cast<const finishBloomCommand_t *>(data);
 
-	RB_EndSurface();
+	RB_EndSurface_plus();
 
 	if (r_bloom->integer)
 	{
@@ -1040,7 +1047,7 @@ static const void *RB_SwapBuffers(const void *data)
 	const swapBuffersCommand_t *cmd;
 
 	// finish any 2D drawing if needed
-	RB_EndSurface();
+	RB_EndSurface_plus();
 
 	// texture swapping test
 	if (r_showImages->integer && !backEnd.drawConsole)

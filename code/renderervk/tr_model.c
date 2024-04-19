@@ -207,7 +207,7 @@ int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame
 		}
 		else if (model->type == MOD_IQM)
 		{
-			return R_IQMLerpTag(tag, model->modelData,
+			return R_IQMLerpTag_plus(tag, model->modelData,
 								startFrame, endFrame,
 								frac, tagName);
 		}

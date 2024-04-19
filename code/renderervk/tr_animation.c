@@ -20,7 +20,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 
-#include "tr_local.h"
 
 /*
 
@@ -33,31 +32,3 @@ frame.
 
 */
 
-// copied and adapted from tr_mesh.c
-
-/*
-==============
-R_MDRAddAnimSurfaces
-==============
-*/
-
-// much stuff in there is just copied from R_AddMd3Surfaces in tr_mesh.c
-
-void R_MDRAddAnimSurfaces(trRefEntity_t *ent)
-{
-	R_MDRAddAnimSurfaces_plus(ent);
-}
-/*
-==============
-RB_MDRSurfaceAnim
-==============
-*/
-void RB_MDRSurfaceAnim(mdrSurface_t *surface)
-{
-	RB_MDRSurfaceAnim_plus(surface);
-}
-
-void MC_UnCompress(float mat[3][4], const unsigned char *comp)
-{
-	MC_UnCompress_plus(mat, comp);
-}

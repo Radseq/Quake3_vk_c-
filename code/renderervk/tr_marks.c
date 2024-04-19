@@ -20,11 +20,3 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 // tr_marks.c -- polygon projection on the world polygons
-
-#include "tr_local.h"
-
-int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection,
-					int maxPoints, vec3_t pointBuffer, int maxFragments, markFragment_t *fragmentBuffer)
-{
-	return R_MarkFragments_plus(numPoints, points, projection, maxPoints, pointBuffer, maxFragments, fragmentBuffer);
-}

@@ -20,7 +20,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 #include "tr_local.h"
+#include "../renderervk_cplus/tr_sky.hpp"
 #include "../renderervk_cplus/tr_shader.hpp"
+#include "../renderervk_cplus/tr_shade.hpp"
 // tr_shader.c -- this file deals with the parsing and definition of shaders
 
 
@@ -1297,7 +1299,7 @@ static void ParseSkyParms( const char **text ) {
 	if ( shader.sky.cloudHeight == 0.0 ) {
 		shader.sky.cloudHeight = 512.0;
 	}
-	R_InitSkyTexCoords( shader.sky.cloudHeight );
+	R_InitSkyTexCoords_plus( shader.sky.cloudHeight );
 
 	// innerbox
 	token = COM_ParseExt( text, false );
@@ -1636,7 +1638,7 @@ static void FinishStage( shaderStage_t *stage )
 			if ( bundle->tcGen == TCGEN_LIGHTMAP ) {
 				texModInfo_t *tmi = &bundle->texMods[bundle->numTexMods];
 				float x, y;
-				const int lightmapIndex = R_GetLightmapCoords( bundle->lightmap - LIGHTMAP_INDEX_OFFSET, &x, &y );
+				const int lightmapIndex = R_GetLightmapCoords_plus( bundle->lightmap - LIGHTMAP_INDEX_OFFSET, &x, &y );
 				bundle->image[0] = tr.lightmaps[lightmapIndex];
 				tmi->type = TMOD_OFFSET;
 				tmi->offset[0] = x - tr.lightmapOffset[0];
@@ -2002,11 +2004,11 @@ static void ComputeStageIteratorFunc( void )
 	//
 	if ( shader.isSky )
 	{
-		shader.optimalStageIteratorFunc = RB_StageIteratorSky;
+		shader.optimalStageIteratorFunc = RB_StageIteratorSky_plus;
 	}
 	else
 	{
-		shader.optimalStageIteratorFunc = RB_StageIteratorGeneric;
+		shader.optimalStageIteratorFunc = RB_StageIteratorGeneric_plus;
 	}
 }
 
@@ -2323,7 +2325,7 @@ static void FixRenderCommandList( int newShader ) {
 				const drawSurfsCommand_t *ds_cmd =  (const drawSurfsCommand_t *)curCmd;
 
 				for ( i = 0, drawSurf = ds_cmd->drawSurfs; i < ds_cmd->numDrawSurfs; i++, drawSurf++ ) {
-					R_DecomposeSort( drawSurf->sort, &entityNum, &sh, &fogNum, &dlightMap );
+					R_DecomposeSort_plus( drawSurf->sort, &entityNum, &sh, &fogNum, &dlightMap );
 					sortedIndex = (( drawSurf->sort >> QSORT_SHADERNUM_SHIFT ) & SHADERNUM_MASK);
 					if ( sortedIndex >= newShader ) {
 						sortedIndex = sh->sortedIndex;

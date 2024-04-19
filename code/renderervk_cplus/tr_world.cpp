@@ -33,7 +33,7 @@ static bool R_CullTriSurf(srfTriangles_t *cv)
 {
 	int boxCull;
 
-	boxCull = R_CullLocalBox(cv->bounds);
+	boxCull = R_CullLocalBox_plus(cv->bounds);
 
 	if (boxCull == CULL_OUT)
 	{
@@ -61,11 +61,11 @@ static bool R_CullGrid(srfGridMesh_t *cv)
 
 	if (tr.currentEntityNum != REFENTITYNUM_WORLD)
 	{
-		sphereCull = R_CullLocalPointAndRadius(cv->localOrigin, cv->meshRadius);
+		sphereCull = R_CullLocalPointAndRadius_plus(cv->localOrigin, cv->meshRadius);
 	}
 	else
 	{
-		sphereCull = R_CullPointAndRadius(cv->localOrigin, cv->meshRadius);
+		sphereCull = R_CullPointAndRadius_plus(cv->localOrigin, cv->meshRadius);
 	}
 
 	// check for trivial reject
@@ -79,7 +79,7 @@ static bool R_CullGrid(srfGridMesh_t *cv)
 	{
 		tr.pc.c_sphere_cull_patch_clip++;
 
-		int boxCull = R_CullLocalBox(cv->meshBounds);
+		int boxCull = R_CullLocalBox_plus(cv->meshBounds);
 
 		if (boxCull == CULL_OUT)
 		{
@@ -413,7 +413,7 @@ static void R_AddWorldSurface(msurface_t *surf, int dlightBits)
 #endif
 	{
 		surf->vcVisible = tr.viewCount;
-		R_AddDrawSurf(surf->data, surf->shader, surf->fogIndex, 0);
+		R_AddDrawSurf_plus(surf->data, surf->shader, surf->fogIndex, 0);
 		return;
 	}
 #endif // USE_PMLIGHT
@@ -426,7 +426,7 @@ static void R_AddWorldSurface(msurface_t *surf, int dlightBits)
 		dlightBits = (dlightBits != 0);
 	}
 
-	R_AddDrawSurf(surf->data, surf->shader, surf->fogIndex, dlightBits);
+	R_AddDrawSurf_plus(surf->data, surf->shader, surf->fogIndex, dlightBits);
 #endif // USE_LEGACY_DLIGHTS
 }
 
@@ -468,7 +468,7 @@ static void R_AddLitSurface(msurface_t *surf, const dlight_t *light)
 		return;
 	}
 
-	R_AddLitSurf(surf->data, surf->shader, surf->fogIndex);
+	R_AddLitSurf_plus(surf->data, surf->shader, surf->fogIndex);
 }
 
 static void R_RecursiveLightNode(const mnode_t *node)
@@ -571,7 +571,7 @@ void R_AddBrushModelSurfaces_plus(trRefEntity_t *ent)
 
 	bmodel = pModel->bmodel;
 
-	clip = R_CullLocalBox(bmodel->bounds);
+	clip = R_CullLocalBox_plus(bmodel->bounds);
 	if (clip == CULL_OUT)
 	{
 		return;
@@ -590,9 +590,9 @@ void R_AddBrushModelSurfaces_plus(trRefEntity_t *ent)
 			R_AddWorldSurface(bmodel->firstSurface + s, 0);
 		}
 
-		R_SetupEntityLighting(&tr.refdef, ent);
+		R_SetupEntityLighting_plus(&tr.refdef, ent);
 
-		R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.ort);
+		R_TransformDlights_plus(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.ort);
 
 		for (i = 0; i < tr.viewParms.num_dlights; i++)
 		{
@@ -612,8 +612,8 @@ void R_AddBrushModelSurfaces_plus(trRefEntity_t *ent)
 #endif // USE_PMLIGHT
 
 #ifdef USE_LEGACY_DLIGHTS
-	R_SetupEntityLighting(&tr.refdef, ent);
-	R_DlightBmodel(bmodel);
+	R_SetupEntityLighting_plus(&tr.refdef, ent);
+	R_DlightBmodel_plus(bmodel);
 
 	for (i = 0; i < bmodel->numSurfaces; i++)
 	{
@@ -1023,12 +1023,12 @@ void R_AddWorldSurfaces_plus(void)
 	// (even though HERE it's == dl->origin) so we can always use R_LightCullBounds_plus
 	// instead of having copypasted versions for both world and local cases
 
-	R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.viewParms.world);
+	R_TransformDlights_plus(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.viewParms.world);
 	for (i = 0; i < tr.viewParms.num_dlights; i++)
 	{
 		dl = &tr.viewParms.dlights[i];
 		dl->head = dl->tail = NULL;
-		if (R_CullDlight(dl) == CULL_OUT)
+		if (R_CullDlight_plus(dl) == CULL_OUT)
 		{
 			tr.pc.c_light_cull_out++;
 			continue;

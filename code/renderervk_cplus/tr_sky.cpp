@@ -21,6 +21,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // tr_sky.c
 #include "tr_sky.hpp"
+#include "tr_backend.hpp"
+#include "tr_shade.hpp"
+#include "tr_surface.hpp"
+
 #include <array>
 
 #define SKY_SUBDIVISIONS 8
@@ -457,7 +461,7 @@ static void DrawSkySide(image_t *image, const int mins[2], const int maxs[2])
 
 	if (tess.numIndexes)
 	{
-		Bind(image);
+		Bind_plus(image);
 		tess.svars.texcoordPtr[0] = tess.texCoords[0];
 
 		vk_bind_pipeline(vk.skybox_pipeline);
@@ -788,11 +792,11 @@ void RB_DrawSun_plus(float scale, shader_t *shader)
 	// farthest depth range
 	tess.depthRange = DEPTH_RANGE_ONE;
 
-	RB_BeginSurface(shader, 0);
+	RB_BeginSurface_plus(shader, 0);
 
-	RB_AddQuadStamp(origin, vec1, vec2, sunColor);
+	RB_AddQuadStamp_plus(origin, vec1, vec2, sunColor);
 
-	RB_EndSurface();
+	RB_EndSurface_plus();
 
 	// back to normal depth range
 	tess.depthRange = DEPTH_RANGE_NORMAL;
@@ -849,7 +853,7 @@ void RB_StageIteratorSky_plus(void)
 	// draw the inner skybox
 	if (tess.numVertexes)
 	{
-		RB_StageIteratorGeneric();
+		RB_StageIteratorGeneric_plus();
 	}
 
 	// back to normal depth range

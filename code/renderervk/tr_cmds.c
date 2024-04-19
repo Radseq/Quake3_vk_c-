@@ -101,7 +101,7 @@ static void R_IssueRenderCommands( void ) {
 	// actually start the commands going
 	if ( !r_skipBackEnd->integer ) {
 		// let it start on the new batch
-		RB_ExecuteRenderCommands( cmdList->cmds );
+		RB_ExecuteRenderCommands_plus( cmdList->cmds );
 	}
 }
 
@@ -301,7 +301,7 @@ void RE_EndFrame( int *frontEndMsec, int *backEndMsec ) {
 
 	R_IssueRenderCommands();
 
-	R_InitNextFrame();
+	R_InitNextFrame_plus();
 
 	if ( frontEndMsec ) {
 		*frontEndMsec = tr.frontEndMsec;

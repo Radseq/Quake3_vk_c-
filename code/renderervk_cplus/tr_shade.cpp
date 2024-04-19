@@ -23,7 +23,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_shade.hpp"
 #include "tr_shade_calc.hpp"
-// #include "tr_shade_calc.hpp"
+#include "tr_backend.hpp"
+#include "tr_shadows.hpp"
 
 shaderCommands_t tess;
 
@@ -484,7 +485,7 @@ static void R_BindAnimatedImage(const textureBundle_t *bundle)
 	if (bundle->isScreenMap /*&& backEnd.viewParms.frameSceneNum == 1*/)
 	{
 		if (!backEnd.screenMapDone)
-			Bind(tr.blackImage);
+			Bind_plus(tr.blackImage);
 		else
 			vk_update_descriptor(glState.currenttmu + VK_DESC_TEXTURE_BASE, vk.screenMap.color_descriptor);
 		return;
@@ -492,7 +493,7 @@ static void R_BindAnimatedImage(const textureBundle_t *bundle)
 
 	if (bundle->numImageAnimations <= 1)
 	{
-		Bind(bundle->image[0]);
+		Bind_plus(bundle->image[0]);
 		return;
 	}
 
@@ -511,7 +512,7 @@ static void R_BindAnimatedImage(const textureBundle_t *bundle)
 	}
 	index %= bundle->numImageAnimations;
 
-	Bind(bundle->image[index]);
+	Bind_plus(bundle->image[index]);
 }
 
 #ifdef USE_PMLIGHT
@@ -602,14 +603,14 @@ void VK_LightingPass_plus(void)
 	else
 		pipeline = vk.dlight_pipelines_x[cull][tess.shader->polygonOffset][fog_stage][abs_light];
 
-	SelectTexture(0);
+	SelectTexture_plus(0);
 	R_BindAnimatedImage(&pStage->bundle[tess.shader->lightingBundle]);
 
 #ifdef USE_VBO
 	if (tess.vboIndex == 0)
 #endif
 	{
-		R_ComputeTexCoords(tess.shader->lightingBundle, &pStage->bundle[tess.shader->lightingBundle]);
+		R_ComputeTexCoords_plus(tess.shader->lightingBundle, &pStage->bundle[tess.shader->lightingBundle]);
 	}
 
 	vk_bind_pipeline(pipeline);
@@ -670,15 +671,15 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 		{
 			if (pStage->bundle[i].image[0] != NULL)
 			{
-				SelectTexture(i);
+				SelectTexture_plus(i);
 				R_BindAnimatedImage(&pStage->bundle[i]);
 				if (tess_flags & (TESS_ST0 << i))
 				{
-					R_ComputeTexCoords(i, &pStage->bundle[i]);
+					R_ComputeTexCoords_plus(i, &pStage->bundle[i]);
 				}
 				if (tess_flags & (TESS_RGBA0 << i))
 				{
-					R_ComputeColors(i, tess.svars.colors[i], pStage);
+					R_ComputeColors_plus(i, tess.svars.colors[i], pStage);
 				}
 				if (tess_flags & (TESS_ENT0 << i) && backEnd.currentEntity)
 				{
@@ -697,12 +698,12 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 			VK_PushUniform_plus(&uniform);
 		}
 
-		SelectTexture(0);
+		SelectTexture_plus(0);
 
 		if (r_lightmap->integer && pStage->bundle[1].lightmap != LIGHTMAP_INDEX_NONE)
 		{
-			// GL_SelectTexture( 0 );
-			Bind(tr.whiteImage); // replace diffuse texture with a white one thus effectively render only lightmap
+			// SelectTexture_plus( 0 );
+			Bind_plus(tr.whiteImage); // replace diffuse texture with a white one thus effectively render only lightmap
 		}
 
 		if (backEnd.viewParms.portalView == PV_MIRROR)
@@ -893,7 +894,7 @@ static bool ProjectDlightTexture(void)
 			continue;
 		}
 
-		Bind(tr.dlightImage);
+		Bind_plus(tr.dlightImage);
 		if (numIndexes != tess.numIndexes)
 		{
 			// re-bind index buffer for later fog pass
@@ -945,7 +946,7 @@ static void RB_FogPass(bool rebindIndex)
 		tess.svars.colors[0][i] = fog->colorInt;
 	}
 
-	RB_CalcFogTexCoords((float *)tess.svars.texcoords[0]);
+	RB_CalcFogTexCoords_plus((float *)tess.svars.texcoords[0]);
 	tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
 	GL_Bind(tr.fogImage);
 
@@ -972,12 +973,12 @@ void RB_StageIteratorGeneric_plus(void)
 	}
 	else
 #endif
-		RB_DeformTessGeometry();
+		RB_DeformTessGeometry_plus();
 
 #ifdef USE_PMLIGHT
 	if (tess.dlightPass)
 	{
-		VK_LightingPass();
+		VK_LightingPass_plus();
 		return;
 	}
 #endif
@@ -1070,7 +1071,7 @@ static void DrawNormals(const shaderCommands_t *input)
 		return; // must be handled specially
 #endif
 
-	Bind(tr.whiteImage);
+	Bind_plus(tr.whiteImage);
 
 	tess.numIndexes = 0;
 	for (i = 0; i < tess.numVertexes; i++)
@@ -1113,7 +1114,7 @@ void RB_EndSurface_plus(void)
 
 	if (tess.shader == tr.shadowShader)
 	{
-		RB_ShadowTessEnd();
+		RB_ShadowTessEnd_plus();
 		return;
 	}
 

@@ -21,6 +21,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // tr_image.c
 #include "tr_image.hpp"
+#include "tr_bsp.hpp"
+
 #include <algorithm> // for std::clamp
 #include <cstdint>	 // for std::uint32_t
 #include <array>
@@ -31,26 +33,25 @@ constexpr int FOG_TABLE_SIZE_PLUS = 256;
 GLint gl_filter_min = GL_LINEAR_MIPMAP_NEAREST;
 GLint gl_filter_max = GL_LINEAR;
 
-constexpr std::array<textureMode_t, 6> modes = {{
-    {"GL_NEAREST", GL_NEAREST, GL_NEAREST},
-    {"GL_LINEAR", GL_LINEAR, GL_LINEAR},
-    {"GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST},
-    {"GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR},
-    {"GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST},
-    {"GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR}
-}};
+constexpr std::array<textureMode_t, 6> modes = {{{"GL_NEAREST", GL_NEAREST, GL_NEAREST},
+												 {"GL_LINEAR", GL_LINEAR, GL_LINEAR},
+												 {"GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST},
+												 {"GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR},
+												 {"GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST},
+												 {"GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR}}};
 
-template<typename T, size_t N>
-constexpr size_t ARRAY_LEN2(const T (&)[N]) {
-    return N;
+template <typename T, size_t N>
+constexpr size_t ARRAY_LEN2(const T (&)[N])
+{
+	return N;
 }
 
 // Template function to get the length of a std::array
-template<typename T, size_t N>
-constexpr size_t ARRAY_LEN2(const std::array<T, N>&) {
-    return N;
+template <typename T, size_t N>
+constexpr size_t ARRAY_LEN2(const std::array<T, N> &)
+{
+	return N;
 }
-
 
 skin_t *R_GetSkinByHandle_plus(qhandle_t hSkin)
 {
@@ -773,7 +774,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 			int i, n = width * height;
 			for (i = 0; i < n; i++, p += 4)
 			{
-				R_ColorShiftLightingBytes(p, p, false);
+				R_ColorShiftLightingBytes_plus(p, p, false);
 			}
 		}
 	}
@@ -1421,7 +1422,7 @@ void R_InitImages_plus(void)
 	for (i = 0; i < 256; i++)
 		s_gammatable_linear[i] = (unsigned char)i;
 
-	//memset(hashTable, 0, sizeof(hashTable));
+	// memset(hashTable, 0, sizeof(hashTable));
 	std::fill(std::begin(hashTable), std::end(hashTable), nullptr);
 
 	// build brightness translation tables
@@ -1433,25 +1434,27 @@ void R_InitImages_plus(void)
 	vk_update_post_process_pipelines();
 }
 
-void R_DeleteTextures_plus( void ) {
+void R_DeleteTextures_plus(void)
+{
 
 	image_t *img;
 	int i;
 
 	vk_wait_idle();
 
-	for ( i = 0; i < tr.numImages; i++ ) {
-		img = tr.images[ i ];
-		vk_destroy_image_resources( &img->handle, &img->view );
+	for (i = 0; i < tr.numImages; i++)
+	{
+		img = tr.images[i];
+		vk_destroy_image_resources(&img->handle, &img->view);
 
 		// img->descriptor will be released with pool reset
 	}
 
-	Com_Memset( tr.images, 0, sizeof( tr.images ) );
-	Com_Memset( tr.scratchImage, 0, sizeof( tr.scratchImage ) );
+	Com_Memset(tr.images, 0, sizeof(tr.images));
+	Com_Memset(tr.scratchImage, 0, sizeof(tr.scratchImage));
 	tr.numImages = 0;
 
-	Com_Memset( glState.currenttextures, 0, sizeof( glState.currenttextures ) );
+	Com_Memset(glState.currenttextures, 0, sizeof(glState.currenttextures));
 }
 
 /*
@@ -1462,26 +1465,31 @@ This is unfortunate, but the skin files aren't
 compatible with our normal parsing rules.
 ==================
 */
-static char *CommaParse( const char **data_p ) {
+static char *CommaParse(const char **data_p)
+{
 	int c, len;
 	const char *data;
-	static char com_token[ MAX_TOKEN_CHARS ];
+	static char com_token[MAX_TOKEN_CHARS];
 
 	data = *data_p;
 	com_token[0] = '\0';
 
 	// make sure incoming data is valid
-	if ( !data ) {
+	if (!data)
+	{
 		*data_p = NULL;
 		return com_token;
 	}
 
 	len = 0;
 
-	while ( 1 ) {
+	while (1)
+	{
 		// skip whitespace
-		while ( (c = *data) <= ' ' ) {
-			if ( c == '\0' ) {
+		while ((c = *data) <= ' ')
+		{
+			if (c == '\0')
+			{
 				break;
 			}
 			data++;
@@ -1490,22 +1498,23 @@ static char *CommaParse( const char **data_p ) {
 		c = *data;
 
 		// skip double slash comments
-		if ( c == '/' && data[1] == '/' )
+		if (c == '/' && data[1] == '/')
 		{
 			data += 2;
-			while ( *data && *data != '\n' ) {
+			while (*data && *data != '\n')
+			{
 				data++;
 			}
 		}
 		// skip /* */ comments
-		else if ( c == '/' && data[1] == '*' ) 
+		else if (c == '/' && data[1] == '*')
 		{
 			data += 2;
-			while ( *data && ( *data != '*' || data[1] != '/' ) ) 
+			while (*data && (*data != '*' || data[1] != '/'))
 			{
 				data++;
 			}
-			if ( *data ) 
+			if (*data)
 			{
 				data += 2;
 			}
@@ -1516,29 +1525,30 @@ static char *CommaParse( const char **data_p ) {
 		}
 	}
 
-	if ( c == '\0' ) {
+	if (c == '\0')
+	{
 		return "";
 	}
 
 	// handle quoted strings
-	if ( c == '\"' )
+	if (c == '\"')
 	{
 		data++;
 		while (1)
 		{
 			c = *data;
-			if ( c == '\"' || c == '\0' )
+			if (c == '\"' || c == '\0')
 			{
-				if ( c == '\"' )
+				if (c == '\"')
 					data++;
-				com_token[ len ] = '\0';
+				com_token[len] = '\0';
 				*data_p = data;
 				return com_token;
 			}
 			data++;
-			if ( len < MAX_TOKEN_CHARS-1 )
+			if (len < MAX_TOKEN_CHARS - 1)
 			{
-				com_token[ len ] = c;
+				com_token[len] = c;
 				len++;
 			}
 		}
@@ -1547,150 +1557,166 @@ static char *CommaParse( const char **data_p ) {
 	// parse a regular word
 	do
 	{
-		if ( len < MAX_TOKEN_CHARS-1 )
+		if (len < MAX_TOKEN_CHARS - 1)
 		{
-			com_token[ len ] = c;
+			com_token[len] = c;
 			len++;
 		}
 		data++;
 		c = *data;
-	} while ( c > ' ' && c != ',' );
+	} while (c > ' ' && c != ',');
 
-	com_token[ len ] = '\0';
+	com_token[len] = '\0';
 
 	*data_p = data;
 	return com_token;
 }
 
-qhandle_t RE_RegisterSkin_plus( const char *name ) {
+qhandle_t RE_RegisterSkin_plus(const char *name)
+{
 	skinSurface_t parseSurfaces[MAX_SKIN_SURFACES];
-	qhandle_t	hSkin;
-	skin_t		*skin;
-	skinSurface_t	*surf;
-	union {
+	qhandle_t hSkin;
+	skin_t *skin;
+	skinSurface_t *surf;
+	union
+	{
 		char *c;
 		void *v;
 	} text;
-	const char	*text_p;
-	const char	*token;
-	char		surfName[MAX_QPATH];
-	int			totalSurfaces;
+	const char *text_p;
+	const char *token;
+	char surfName[MAX_QPATH];
+	int totalSurfaces;
 
-	if ( !name || !name[0] ) {
-		ri.Printf( PRINT_DEVELOPER, "Empty name passed to RE_RegisterSkin\n" );
+	if (!name || !name[0])
+	{
+		ri.Printf(PRINT_DEVELOPER, "Empty name passed to RE_RegisterSkin\n");
 		return 0;
 	}
 
-	if ( strlen( name ) >= MAX_QPATH ) {
-		ri.Printf( PRINT_DEVELOPER, "Skin name exceeds MAX_QPATH\n" );
+	if (strlen(name) >= MAX_QPATH)
+	{
+		ri.Printf(PRINT_DEVELOPER, "Skin name exceeds MAX_QPATH\n");
 		return 0;
 	}
-
 
 	// see if the skin is already loaded
-	for ( hSkin = 1; hSkin < tr.numSkins ; hSkin++ ) {
+	for (hSkin = 1; hSkin < tr.numSkins; hSkin++)
+	{
 		skin = tr.skins[hSkin];
-		if ( !Q_stricmp_plus( skin->name, name ) ) {
-			if( skin->numSurfaces == 0 ) {
-				return 0;		// default skin
+		if (!Q_stricmp_plus(skin->name, name))
+		{
+			if (skin->numSurfaces == 0)
+			{
+				return 0; // default skin
 			}
 			return hSkin;
 		}
 	}
 
 	// allocate a new skin
-	if ( tr.numSkins == MAX_SKINS ) {
-		ri.Printf( PRINT_WARNING, "WARNING: RE_RegisterSkin( '%s' ) MAX_SKINS hit\n", name );
+	if (tr.numSkins == MAX_SKINS)
+	{
+		ri.Printf(PRINT_WARNING, "WARNING: RE_RegisterSkin( '%s' ) MAX_SKINS hit\n", name);
 		return 0;
 	}
 	tr.numSkins++;
-	skin = reinterpret_cast<skin_t *>(ri.Hunk_Alloc( sizeof( skin_t ), h_low ));
+	skin = reinterpret_cast<skin_t *>(ri.Hunk_Alloc(sizeof(skin_t), h_low));
 	tr.skins[hSkin] = skin;
-	Q_strncpyz( skin->name, name, sizeof( skin->name ) );
+	Q_strncpyz(skin->name, name, sizeof(skin->name));
 	skin->numSurfaces = 0;
 
 	// If not a .skin file, load as a single shader
-	if ( strcmp( name + strlen( name ) - 5, ".skin" ) ) {
+	if (strcmp(name + strlen(name) - 5, ".skin"))
+	{
 		skin->numSurfaces = 1;
-		skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc( sizeof( skinSurface_t ), h_low ));
-		skin->surfaces[0].shader = R_FindShader( name, LIGHTMAP_NONE, true );
+		skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
+		skin->surfaces[0].shader = R_FindShader(name, LIGHTMAP_NONE, true);
 		return hSkin;
 	}
 
 	// load and parse the skin file
-	ri.FS_ReadFile( name, &text.v );
-	if ( !text.c ) {
+	ri.FS_ReadFile(name, &text.v);
+	if (!text.c)
+	{
 		return 0;
 	}
 
 	totalSurfaces = 0;
 	text_p = text.c;
-	while ( text_p && *text_p ) {
+	while (text_p && *text_p)
+	{
 		// get surface name
-		token = CommaParse( &text_p );
-		Q_strncpyz( surfName, token, sizeof( surfName ) );
+		token = CommaParse(&text_p);
+		Q_strncpyz(surfName, token, sizeof(surfName));
 
-		if ( !token[0] ) {
+		if (!token[0])
+		{
 			break;
 		}
 		// lowercase the surface name so skin compares are faster
-		Q_strlwr( surfName );
+		Q_strlwr(surfName);
 
-		if ( *text_p == ',' ) {
+		if (*text_p == ',')
+		{
 			text_p++;
 		}
 
-		if ( strstr( token, "tag_" ) ) {
+		if (strstr(token, "tag_"))
+		{
 			continue;
 		}
 
 		// parse the shader name
-		token = CommaParse( &text_p );
+		token = CommaParse(&text_p);
 
-		if ( skin->numSurfaces < MAX_SKIN_SURFACES ) {
+		if (skin->numSurfaces < MAX_SKIN_SURFACES)
+		{
 			surf = &parseSurfaces[skin->numSurfaces];
-			Q_strncpyz( surf->name, surfName, sizeof( surf->name ) );
-			surf->shader = R_FindShader( token, LIGHTMAP_NONE, true );
+			Q_strncpyz(surf->name, surfName, sizeof(surf->name));
+			surf->shader = R_FindShader(token, LIGHTMAP_NONE, true);
 			skin->numSurfaces++;
 		}
 
 		totalSurfaces++;
 	}
 
-	ri.FS_FreeFile( text.v );
+	ri.FS_FreeFile(text.v);
 
-	if ( totalSurfaces > MAX_SKIN_SURFACES ) {
-		ri.Printf( PRINT_WARNING, "WARNING: Ignoring excess surfaces (found %d, max is %d) in skin '%s'!\n",
-					totalSurfaces, MAX_SKIN_SURFACES, name );
+	if (totalSurfaces > MAX_SKIN_SURFACES)
+	{
+		ri.Printf(PRINT_WARNING, "WARNING: Ignoring excess surfaces (found %d, max is %d) in skin '%s'!\n",
+				  totalSurfaces, MAX_SKIN_SURFACES, name);
 	}
 
 	// never let a skin have 0 shaders
-	if ( skin->numSurfaces == 0 ) {
-		return 0;		// use default skin
+	if (skin->numSurfaces == 0)
+	{
+		return 0; // use default skin
 	}
 
 	// copy surfaces to skin
-	skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc( skin->numSurfaces * sizeof( skinSurface_t ), h_low ));
-	memcpy( skin->surfaces, parseSurfaces, skin->numSurfaces * sizeof( skinSurface_t ) );
+	skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc(skin->numSurfaces * sizeof(skinSurface_t), h_low));
+	memcpy(skin->surfaces, parseSurfaces, skin->numSurfaces * sizeof(skinSurface_t));
 
 	return hSkin;
 }
-
 
 /*
 ===============
 R_InitSkins
 ===============
 */
-void	R_InitSkins_plus( void ) {
-	skin_t		*skin;
+void R_InitSkins_plus(void)
+{
+	skin_t *skin;
 
 	tr.numSkins = 1;
 
 	// make the default skin have all default shaders
-	skin = tr.skins[0] = reinterpret_cast<skin_t *>(ri.Hunk_Alloc( sizeof( skin_t ), h_low ));
-	Q_strncpyz( skin->name, "<default skin>", sizeof( skin->name )  );
+	skin = tr.skins[0] = reinterpret_cast<skin_t *>(ri.Hunk_Alloc(sizeof(skin_t), h_low));
+	Q_strncpyz(skin->name, "<default skin>", sizeof(skin->name));
 	skin->numSurfaces = 1;
-	skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc( sizeof( skinSurface_t ), h_low ));
+	skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
 	skin->surfaces[0].shader = tr.defaultShader;
 }

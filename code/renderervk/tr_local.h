@@ -1256,7 +1256,6 @@ extern glstate_t	glState;		// outside of TR since it shouldn't be cleared during
 
 extern glstatic_t gls;
 
-extern void myGlMultMatrix(const float *a, const float *b, float *out);
 
 extern Vk_Instance	vk;				// shouldn't be cleared during ref re-init
 extern Vk_World		vk_world;		// this data is cleared during ref re-init
@@ -1384,43 +1383,18 @@ extern cvar_t	*r_marksOnTriangleMeshes;
 
 void R_SwapBuffers( int );
 
-void R_RenderView( const viewParms_t *parms );
-
-void R_AddMD3Surfaces( trRefEntity_t *e );
 void R_AddNullModelSurfaces( trRefEntity_t *e );
 void R_AddBeamSurfaces( trRefEntity_t *e );
 void R_AddRailSurfaces( trRefEntity_t *e, bool isUnderwater );
 void R_AddLightningBoltSurfaces( trRefEntity_t *e );
 
-void R_AddPolygonSurfaces( void );
-
-void R_DecomposeSort( unsigned sort, int *entityNum, shader_t **shader, 
-					 int *fogNum, int *dlightMap );
-
-void R_AddDrawSurf( surfaceType_t *surface, shader_t *shader, int fogIndex, int dlightMap );
-#ifdef USE_PMLIGHT
-void R_DecomposeLitSort( unsigned sort, int *entityNum, shader_t **shader, int *fogNum );
-void R_AddLitSurf( surfaceType_t *surface, shader_t *shader, int fogIndex );
-#endif
-
 #define	CULL_IN		0		// completely unclipped
 #define	CULL_CLIP	1		// clipped by one or more planes
 #define	CULL_OUT	2		// completely outside the clipping planes
-
-void R_LocalPointToWorld( const vec3_t local, vec3_t world );
-int R_CullLocalBox( const vec3_t bounds[2] );
-int R_CullPointAndRadius( const vec3_t origin, float radius );
-int R_CullLocalPointAndRadius( const vec3_t origin, float radius );
-int R_CullDlight( const dlight_t *dl );
-
-void R_SetupProjection( viewParms_t *dest, float zProj, bool computeFrustum );
-void R_RotateForEntity( const trRefEntity_t *ent, const viewParms_t *viewParms, orientationr_t *ort );
-
 /*
 ** GL wrapper/helper functions
 */
-void	Bind( image_t *image );
-void	SelectTexture( int unit );
+
 void	TextureMode( const char *string );
 void	CheckErrors( void );
 
@@ -1468,17 +1442,12 @@ void	CheckErrors( void );
 #define CLS_TEXCOORD_ARRAY						0x00000002
 #define CLS_NORMAL_ARRAY						0x00000004
 
-void		RE_StretchRaw( int x, int y, int w, int h, int cols, int rows, byte *data, int client, bool dirty );
-void		RE_UploadCinematic( int w, int h, int cols, int rows, byte *data, int client, bool dirty );
-
 void		RE_BeginFrame( stereoFrame_t stereoFrame );
 void		RE_BeginRegistration( glconfig_t *glconfig );
-void		RE_LoadWorldMap( const char *mapname );
-void		RE_SetWorldVisData( const byte *vis );
+
 qhandle_t	RE_RegisterModel( const char *name );
 qhandle_t	RE_RegisterSkin( const char *name );
 
-bool	RE_GetEntityToken( char *buffer, int size );
 
 model_t		*R_AllocModel( void );
 
@@ -1486,7 +1455,7 @@ void		R_Init( void );
 
 void		R_SetColorMappings( void );
 void		R_GammaCorrect( byte *buffer, int bufSize );
-void		R_ColorShiftLightingBytes( const byte in[4], byte out[4], bool hasAlpha );
+
 
 void	R_ImageList_f( void );
 void	R_SkinList_f( void );
@@ -1498,8 +1467,6 @@ void	R_DeleteTextures( void );
 int		R_SumOfUsedImages( void );
 void	R_InitSkins( void );
 skin_t	*R_GetSkinByHandle( qhandle_t hSkin );
-
-int R_ComputeLOD( trRefEntity_t *ent );
 
 const void *RB_TakeVideoFrameCmd( const void *data );
 
@@ -1591,18 +1558,6 @@ typedef struct shaderCommands_s
 
 extern	shaderCommands_t	tess;
 
-void RB_BeginSurface( shader_t *shader, int fogNum );
-void RB_EndSurface( void );
-void RB_CheckOverflow( int verts, int indexes );
-#define RB_CHECKOVERFLOW(v,i) RB_CheckOverflow(v,i)
-
-void RB_StageIteratorGeneric( void );
-void RB_StageIteratorSky( void );
-
-void RB_AddQuadStamp( const vec3_t origin, const vec3_t left, const vec3_t up, color4ub_t color );
-void RB_AddQuadStampExt( const vec3_t origin, const vec3_t left, const vec3_t up, color4ub_t color, float s1, float t1, float s2, float t2 );
-void RB_AddQuadStamp2( float x, float y, float w, float h, float s1, float t1, float s2, float t2, color4ub_t color );
-
 void RB_ShowImages( void );
 
 
@@ -1614,25 +1569,6 @@ WORLD MAP
 ============================================================
 */
 
-void R_AddBrushModelSurfaces( trRefEntity_t *e );
-void R_AddWorldSurfaces( void );
-bool R_inPVS( const vec3_t p1, const vec3_t p2 );
-
-
-/*
-============================================================
-
-FLARES
-
-============================================================
-*/
-
-void R_ClearFlares( void );
-
-void RB_AddFlare( void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t normal );
-void RB_AddDlightFlares( void );
-void RB_RenderFlares( void );
-
 /*
 ============================================================
 
@@ -1640,43 +1576,8 @@ LIGHTS
 
 ============================================================
 */
-void R_DlightBmodel( bmodel_t *bmodel );
-void R_SetupEntityLighting( const trRefdef_t *refdef, trRefEntity_t *ent );
-void R_TransformDlights( int count, dlight_t *dl, orientationr_t *ort );
-int R_LightForPoint( vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir );
-
-#ifdef USE_PMLIGHT
-void VK_LightingPass( void );
-bool R_LightCullBounds( const dlight_t* dl, const vec3_t mins, const vec3_t maxs );
-#endif // USE_PMLIGHT
 
 void R_DrawElements( int numIndexes, const glIndex_t *indexes );
-void R_ComputeColors( const int bundle, color4ub_t *dest, const shaderStage_t *pStage );
-void R_ComputeTexCoords( const int b, const textureBundle_t *bundle );
-
-/*
-============================================================
-
-SHADOWS
-
-============================================================
-*/
-
-void RB_ShadowTessEnd( void );
-void RB_ShadowFinish( void );
-void RB_ProjectionShadowDeform( void );
-
-/*
-============================================================
-
-SKIES
-
-============================================================
-*/
-
-void R_InitSkyTexCoords( float cloudLayerHeight );
-void R_DrawSkyBox( const shaderCommands_t *shader );
-void RB_DrawSun( float scale, shader_t *shader );
 
 /*
 ============================================================
@@ -1688,12 +1589,6 @@ CURVE TESSELATION
 
 #define PATCH_STITCHING
 
-srfGridMesh_t *R_SubdividePatchToGrid( int width, int height,
-								drawVert_t points[MAX_PATCH_SIZE*MAX_PATCH_SIZE] );
-srfGridMesh_t *R_GridInsertColumn( srfGridMesh_t *grid, int column, int row, vec3_t point, float loderror );
-srfGridMesh_t *R_GridInsertRow( srfGridMesh_t *grid, int row, int column, vec3_t point, float loderror );
-void R_FreeSurfaceGridMesh( srfGridMesh_t *grid );
-
 /*
 ============================================================
 
@@ -1701,10 +1596,6 @@ MARKERS, POLYGON PROJECTION ON WORLD POLYGONS
 
 ============================================================
 */
-
-int R_MarkFragments( int numPoints, const vec3_t *points, const vec3_t projection,
-				   int maxPoints, vec3_t pointBuffer, int maxFragments, markFragment_t *fragmentBuffer );
-
 
 /*
 ============================================================
@@ -1714,16 +1605,6 @@ SCENE GENERATION
 ============================================================
 */
 
-void R_InitNextFrame( void );
-
-void RE_ClearScene( void );
-void RE_AddRefEntityToScene( const refEntity_t *ent, bool intShaderTime );
-void RE_AddPolyToScene( qhandle_t hShader , int numVerts, const polyVert_t *verts, int num );
-void RE_AddLightToScene( const vec3_t org, float intensity, float r, float g, float b );
-void RE_AddAdditiveLightToScene( const vec3_t org, float intensity, float r, float g, float b );
-void RE_AddLinearLightToScene( const vec3_t start, const vec3_t end, float intensity, float r, float g, float b );
-
-void RE_RenderScene( const refdef_t *fd );
 
 /*
 =============================================================
@@ -1742,56 +1623,11 @@ UNCOMPRESSING BONES
 #define MC_SCALE_Y (1.0f/64)
 #define MC_SCALE_Z (1.0f/64)
 
-void MC_UnCompress(float mat[3][4],const unsigned char * comp);
-
-/*
-=============================================================
-
-ANIMATED MODELS
-
-=============================================================
-*/
-
-void R_MDRAddAnimSurfaces( trRefEntity_t *ent );
-void RB_MDRSurfaceAnim( mdrSurface_t *surface );
-bool R_LoadIQM (model_t *mod, void *buffer, int filesize, const char *name );
-void R_AddIQMSurfaces( trRefEntity_t *ent );
-void RB_IQMSurfaceAnim( const surfaceType_t *surface );
-int R_IQMLerpTag( orientation_t *tag, iqmData_t *data,
-                  int startFrame, int endFrame,
-                  float frac, const char *tagName );
-
 /*
 =============================================================
 =============================================================
 */
-void	R_TransformModelToClip( const vec3_t src, const float *modelMatrix, const float *projectionMatrix,
-							vec4_t eye, vec4_t dst );
-void	R_TransformClipToWindow( const vec4_t clip, const viewParms_t *view, vec4_t normalized, vec4_t window );
 
-void	RB_DeformTessGeometry( void );
-
-void	RB_CalcEnvironmentTexCoords( float *dstTexCoords );
-void	RB_CalcEnvironmentTexCoordsFP( float *dstTexCoords, int screenMap );
-void	RB_CalcFogTexCoords( float *dstTexCoords );
-const fogProgramParms_t *RB_CalcFogProgramParms( void );
-void	RB_CalcScrollTexCoords( const float scroll[2], float *srcTexCoords, float *dstTexCoords );
-void	RB_CalcRotateTexCoords( float rotSpeed, float *srcTexCoords, float *dstTexCoords );
-void	RB_CalcScaleTexCoords( const float scale[2], float *srcTexCoords, float *dstTexCoords );
-void	RB_CalcTurbulentTexCoords( const waveForm_t *wf, float *srcTexCoords, float *dstTexCoords );
-void	RB_CalcTransformTexCoords( const texModInfo_t *tmi, float *srcTexCoords, float *dstTexCoords );
-void	RB_CalcModulateColorsByFog( unsigned char *dstColors );
-void	RB_CalcModulateAlphasByFog( unsigned char *dstColors );
-void	RB_CalcModulateRGBAsByFog( unsigned char *dstColors );
-void	RB_CalcWaveAlpha( const waveForm_t *wf, unsigned char *dstColors );
-void	RB_CalcWaveColor( const waveForm_t *wf, unsigned char *dstColors );
-void	RB_CalcAlphaFromEntity( unsigned char *dstColors );
-void	RB_CalcAlphaFromOneMinusEntity( unsigned char *dstColors );
-void	RB_CalcStretchTexCoords( const waveForm_t *wf, float *srcTexCoords, float *dstTexCoords );
-void	RB_CalcColorFromEntity( unsigned char *dstColors );
-void	RB_CalcColorFromOneMinusEntity( unsigned char *dstColors );
-void	RB_CalcSpecularAlpha( unsigned char *alphas );
-void	RB_CalcDiffuseColor( unsigned char *colors );
 
 /*
 =============================================================
@@ -1801,7 +1637,6 @@ RENDERER BACK END FUNCTIONS
 =============================================================
 */
 
-void RB_ExecuteRenderCommands( const void *data );
 
 /*
 =============================================================
@@ -1920,7 +1755,6 @@ extern	int		max_polyverts;
 
 extern	backEndData_t	*backEndData;
 
-void RB_ExecuteRenderCommands( const void *data );
 void RB_TakeScreenshot( int x, int y, int width, int height, const char *fileName );
 void RB_TakeScreenshotJPEG( int x, int y, int width, int height, const char *fileName );
 void RB_TakeScreenshotBMP( int x, int y, int width, int height, const char *fileName, int clipboard );
@@ -1953,7 +1787,5 @@ extern void VBO_QueueItem( int itemIndex );
 extern void VBO_ClearQueue( void );
 extern void VBO_Flush( void );
 #endif
-
-int R_GetLightmapCoords( const int lightmapIndex, float *x, float *y );
 
 #endif //TR_LOCAL_H

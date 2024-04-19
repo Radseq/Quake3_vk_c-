@@ -20,18 +20,3 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 
-#include "../qcommon/q_shared.h"
-#include "../renderervk/tr_public.h"
-
-/*
-========================================================================
-
-TGA files are used for 24/32 bit images
-
-========================================================================
-*/
-
-
-void R_LoadTGA ( const char *name, byte **pic, int *width, int *height){
-	R_LoadTGA_plus(name, pic, width, height);
-}

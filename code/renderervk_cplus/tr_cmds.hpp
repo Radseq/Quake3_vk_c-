@@ -8,11 +8,7 @@ extern "C"
 
 #include "../renderervk/tr_local.h"
 
-#define MODE_RED_CYAN 1
-#define MODE_RED_BLUE 2
-#define MODE_RED_GREEN 3
-#define MODE_GREEN_MAGENTA 4
-#define MODE_MAX MODE_GREEN_MAGENTA
+
 
 	void *R_GetCommandBuffer_plus(int bytes);
 	void R_AddDrawSurfCmd_plus(drawSurf_t *drawSurfs, int numDrawSurfs);

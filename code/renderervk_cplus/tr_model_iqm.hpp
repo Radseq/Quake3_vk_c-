@@ -13,14 +13,6 @@ extern "C"
 
 #include "../renderervk/tr_local.h"
 
-#define LL(x) x = LittleLong(x)
-
-    // 3x4 identity matrix
-    static float identityMatrix[12] = {
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0};
-
     void R_AddIQMSurfaces_plus(trRefEntity_t *ent);
     int R_IQMLerpTag_plus(orientation_t *tag, iqmData_t *data,
                           int startFrame, int endFrame,

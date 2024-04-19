@@ -14,8 +14,6 @@ extern "C"
 #include "../renderervk/tr_local.h"
 #include "tr_noise_cplus.hpp"
 
-#define WAVEVALUE(table, base, amplitude, phase, freq) ((base) + table[(int64_t)((((phase) + tess.shaderTime * (freq)) * FUNCTABLE_SIZE)) & FUNCTABLE_MASK] * (amplitude))
-
     void RB_CalcStretchTexCoords_plus(const waveForm_t *wf, float *src, float *dst);
     void RB_CalcTransformTexCoords_plus(const texModInfo_t *tmi, float *src, float *dst);
     void RB_CalcRotateTexCoords_plus(float degsPerSecond, float *src, float *dst);

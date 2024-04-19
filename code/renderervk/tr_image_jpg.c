@@ -19,11 +19,3 @@ along with Quake III Arena source code; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
-
-#include "../qcommon/q_shared.h"
-#include "../renderervk/tr_public.h"
-
-void R_LoadJPG( const char *filename, unsigned char **pic, int *width, int *height )
-{
-	ri.CL_LoadJPG( filename, pic, width, height );
-}

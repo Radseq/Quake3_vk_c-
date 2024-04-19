@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shader.hpp"
 #include "tr_image.hpp"
 #include "tr_mesh.hpp"
+#include "tr_surface.hpp"
 
 /*
 
@@ -356,7 +357,7 @@ void RB_MDRSurfaceAnim_plus(mdrSurface_t *surface)
 	oldFrame = (mdrFrame_t *)((byte *)header + header->ofsFrames +
 							  backEnd.currentEntity->e.oldframe * frameSize);
 
-	RB_CHECKOVERFLOW(surface->numVerts, surface->numTriangles * 3);
+	RB_CHECKOVERFLOW_PLUS(surface->numVerts, surface->numTriangles * 3);
 
 	triangles = (int *)((byte *)surface + surface->ofsTriangles);
 	indexes = surface->numTriangles * 3;

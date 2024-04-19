@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "vk_vbo.hpp"
 #include "../renderervk/vk.h"
+#include "tr_shade.hpp"
 
 #ifdef USE_VBO
 
@@ -398,33 +399,33 @@ void VBO_PushData_plus(int itemIndex, shaderCommands_t *input)
 
 		if (pStage->tessFlags & TESS_RGBA0)
 		{
-			R_ComputeColors(0, tess.svars.colors[0], pStage);
+			R_ComputeColors_plus(0, tess.svars.colors[0], pStage);
 			VBO_AddStageColors(vbo, i, input, 0);
 		}
 		if (pStage->tessFlags & TESS_RGBA1)
 		{
-			R_ComputeColors(1, tess.svars.colors[1], pStage);
+			R_ComputeColors_plus(1, tess.svars.colors[1], pStage);
 			VBO_AddStageColors(vbo, i, input, 1);
 		}
 		if (pStage->tessFlags & TESS_RGBA2)
 		{
-			R_ComputeColors(2, tess.svars.colors[2], pStage);
+			R_ComputeColors_plus(2, tess.svars.colors[2], pStage);
 			VBO_AddStageColors(vbo, i, input, 2);
 		}
 
 		if (pStage->tessFlags & TESS_ST0)
 		{
-			R_ComputeTexCoords(0, &pStage->bundle[0]);
+			R_ComputeTexCoords_plus(0, &pStage->bundle[0]);
 			VBO_AddStageTxCoords(vbo, i, input, 0);
 		}
 		if (pStage->tessFlags & TESS_ST1)
 		{
-			R_ComputeTexCoords(1, &pStage->bundle[1]);
+			R_ComputeTexCoords_plus(1, &pStage->bundle[1]);
 			VBO_AddStageTxCoords(vbo, i, input, 1);
 		}
 		if (pStage->tessFlags & TESS_ST2)
 		{
-			R_ComputeTexCoords(2, &pStage->bundle[2]);
+			R_ComputeTexCoords_plus(2, &pStage->bundle[2]);
 			VBO_AddStageTxCoords(vbo, i, input, 2);
 		}
 	}
@@ -628,7 +629,7 @@ void R_BuildWorldVBO_plus(msurface_t *surf, int surfCount)
 			ri.Error(ERR_DROP, "Unexpected surface type");
 		}
 		initItem(vbo->items + i + 1);
-		RB_BeginSurface(sf->shader, 0);
+		RB_BeginSurface_plus(sf->shader, 0);
 		tess.allowVBO = false; // block execution of VBO path as we need to tesselate geometry
 #ifdef USE_TESS_NEEDS_NORMAL
 		tess.needsNormal = true;
@@ -807,9 +808,9 @@ void VBO_Flush_plus(void)
 {
 	if (tess.vboIndex)
 	{
-		RB_EndSurface();
+		RB_EndSurface_plus();
 		tess.vboIndex = 0;
-		RB_BeginSurface(tess.shader, tess.fogNum);
+		RB_BeginSurface_plus(tess.shader, tess.fogNum);
 	}
 }
 

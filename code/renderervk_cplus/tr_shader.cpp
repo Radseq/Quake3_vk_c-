@@ -20,10 +20,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 #include "tr_shader.hpp"
-
+#include "tr_bsp.hpp"
+#include "tr_main.hpp"
+#include "tr_shade.hpp"
+#include "tr_sky.hpp"
 // tr_shader.c -- this file deals with the parsing and definition of shaders
-
-
 
 void RE_RemapShader_plus(const char *shaderName, const char *newShaderName, const char *timeOffset)
 {
@@ -1411,7 +1412,7 @@ static void ParseSkyParms(const char **text)
 	{
 		shader.sky.cloudHeight = 512.0;
 	}
-	R_InitSkyTexCoords(shader.sky.cloudHeight);
+	R_InitSkyTexCoords_plus(shader.sky.cloudHeight);
 
 	// innerbox
 	token = COM_ParseExt(text, false);
@@ -1510,7 +1511,7 @@ static const infoParm_t infoParms[] = {
 	{"playerclip", 1, 0, CONTENTS_PLAYERCLIP},
 	{"monsterclip", 1, 0, CONTENTS_MONSTERCLIP},
 	{"nodrop", 1, 0, static_cast<int>(CONTENTS_NODROP)}, // don't drop items or leave bodies (death fog, lava, etc)
-	{"nonsolid", 1, SURF_NONSOLID, 0}, // clears the solid flag
+	{"nonsolid", 1, SURF_NONSOLID, 0},					 // clears the solid flag
 
 	// utility relevant attributes
 	{"origin", 1, 0, CONTENTS_ORIGIN},				 // center of rotating brushes
@@ -1826,7 +1827,7 @@ static void FinishStage(shaderStage_t *stage)
 			{
 				texModInfo_t *tmi = &bundle->texMods[bundle->numTexMods];
 				float x, y;
-				const int lightmapIndex = R_GetLightmapCoords(bundle->lightmap - LIGHTMAP_INDEX_OFFSET, &x, &y);
+				const int lightmapIndex = R_GetLightmapCoords_plus(bundle->lightmap - LIGHTMAP_INDEX_OFFSET, &x, &y);
 				bundle->image[0] = tr.lightmaps[lightmapIndex];
 				tmi->type = TMOD_OFFSET;
 				tmi->offset[0] = x - tr.lightmapOffset[0];
@@ -2224,15 +2225,13 @@ static void ComputeStageIteratorFunc(void)
 	//
 	if (shader.isSky)
 	{
-		shader.optimalStageIteratorFunc = RB_StageIteratorSky;
+		shader.optimalStageIteratorFunc = RB_StageIteratorSky_plus;
 	}
 	else
 	{
-		shader.optimalStageIteratorFunc = RB_StageIteratorGeneric;
+		shader.optimalStageIteratorFunc = RB_StageIteratorGeneric_plus;
 	}
 }
-
-
 
 /*
 ================
@@ -2571,7 +2570,7 @@ static void FixRenderCommandList(int newShader)
 
 				for (i = 0, drawSurf = ds_cmd->drawSurfs; i < ds_cmd->numDrawSurfs; i++, drawSurf++)
 				{
-					R_DecomposeSort(drawSurf->sort, &entityNum, &sh, &fogNum, &dlightMap);
+					R_DecomposeSort_plus(drawSurf->sort, &entityNum, &sh, &fogNum, &dlightMap);
 					sortedIndex = ((drawSurf->sort >> QSORT_SHADERNUM_SHIFT) & SHADERNUM_MASK);
 					if (sortedIndex >= newShader)
 					{
@@ -4325,11 +4324,11 @@ void R_ShaderList_f_plus(void)
 			ri.Printf(PRINT_ALL, "  ");
 		}
 
-		if (sh->optimalStageIteratorFunc == RB_StageIteratorGeneric)
+		if (sh->optimalStageIteratorFunc == RB_StageIteratorGeneric_plus)
 		{
 			ri.Printf(PRINT_ALL, "gen ");
 		}
-		else if (sh->optimalStageIteratorFunc == RB_StageIteratorSky)
+		else if (sh->optimalStageIteratorFunc == RB_StageIteratorSky_plus)
 		{
 			ri.Printf(PRINT_ALL, "sky ");
 		}

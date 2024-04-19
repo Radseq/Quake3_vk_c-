@@ -9,6 +9,11 @@ extern "C"
 #endif
 
 #include "../renderervk/tr_local.h"
+#include "tr_image_bmp.hpp"
+#include "tr_image_jpg.hpp"
+#include "tr_image_png.hpp"
+#include "tr_image_tga.hpp"
+#include "tr_image_pcx.hpp"
 
 	static byte s_intensitytable[256];
 	static unsigned char s_gammatable[256];
@@ -51,12 +56,12 @@ return a hash value for the filename
 	// when there are multiple images of different formats available
 	static const imageExtToLoaderMap_t imageLoaders[] =
 		{
-			{"png", R_LoadPNG},
-			{"tga", R_LoadTGA},
-			{"jpg", R_LoadJPG},
-			{"jpeg", R_LoadJPG},
-			{"pcx", R_LoadPCX},
-			{"bmp", R_LoadBMP}};
+			{"png", R_LoadPNG_plus},
+			{"tga", R_LoadTGA_plus},
+			{"jpg", R_LoadJPG_plus},
+			{"jpeg", R_LoadJPG_plus},
+			{"pcx", R_LoadPCX_plus},
+			{"bmp", R_LoadBMP_plus}};
 
 	static const int numImageLoaders = ARRAY_LEN(imageLoaders);
 

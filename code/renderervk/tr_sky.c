@@ -20,37 +20,3 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 // tr_sky.c
-#include "tr_local.h"
-#include "../renderervk_cplus/tr_sky.hpp"
-
-/*
-** R_InitSkyTexCoords
-** Called when a sky shader is parsed
-*/
-void R_InitSkyTexCoords(float heightCloud)
-{
-	R_InitSkyTexCoords_plus(heightCloud);
-}
-//======================================================================================
-
-/*
-** RB_DrawSun
-*/
-void RB_DrawSun(float scale, shader_t *shader)
-{
-	RB_DrawSun_plus(scale, shader);
-}
-
-/*
-================
-RB_StageIteratorSky
-
-All of the visible sky triangles are in tess
-
-Other things could be stuck in here, like birds in the sky, etc
-================
-*/
-void RB_StageIteratorSky(void)
-{
-	RB_StageIteratorSky_plus();
-}

@@ -25,6 +25,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "q_math.hpp"
 #include "q_shared.hpp"
 
+#define SIDE_FRONT 0
+#define SIDE_BACK 1
+#define SIDE_ON 2
+
+#define MAX_VERTS_ON_POLY 64
+
+#define MARKER_OFFSET 0 // 1
+
 /*
 =============
 R_ChopPolyBehindPlane
@@ -280,7 +288,7 @@ R_MarkFragments
 =================
 */
 int R_MarkFragments_plus(int numPoints, const vec3_t *points, const vec3_t projection,
-					int maxPoints, vec3_t pointBuffer, int maxFragments, markFragment_t *fragmentBuffer)
+						 int maxPoints, vec3_t pointBuffer, int maxFragments, markFragment_t *fragmentBuffer)
 {
 	int numsurfaces, numPlanes;
 	int i, j, k, m, n;

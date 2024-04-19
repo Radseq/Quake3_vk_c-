@@ -22,13 +22,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_scene.hpp"
 #include "q_shared.hpp"
+#include "tr_main.hpp"
+
+int r_numdlights;
 
 static int r_firstSceneDrawSurf;
 #ifdef USE_PMLIGHT
 static int r_firstSceneLitSurf;
 #endif
 
-extern int r_numdlights;  // todo delete extern
 static int r_firstSceneDlight;
 
 static int r_numentities;
@@ -107,7 +109,7 @@ void R_AddPolygonSurfaces_plus(void)
 	for (i = 0, poly = tr.refdef.polys; i < tr.refdef.numPolys; i++, poly++)
 	{
 		sh = R_GetShaderByHandle(poly->hShader);
-		R_AddDrawSurf(reinterpret_cast<surfaceType_t *>((void *)poly), sh, poly->fogIndex, 0);
+		R_AddDrawSurf_plus(reinterpret_cast<surfaceType_t *>((void *)poly), sh, poly->fogIndex, 0);
 	}
 }
 
@@ -533,7 +535,7 @@ void RE_RenderScene_plus(const refdef_t *fd)
 	tr.drawSurfCmd = NULL;
 	tr.numDrawSurfCmds = 0;
 
-	R_RenderView(&parms);
+	R_RenderView_plus(&parms);
 
 	if (tr.needScreenMap)
 	{

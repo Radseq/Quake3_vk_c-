@@ -10,10 +10,6 @@ extern "C"
 
 #include "../renderervk/tr_local.h"
 
-    // entities that will have procedurally generated surfaces will just
-    // point at this for their sorting surface
-    static surfaceType_t entitySurface = SF_ENTITY;
-    
     void R_AddDrawSurf_plus(surfaceType_t *surface, shader_t *shader,
                             int fogIndex, int dlightMap);
     int R_CullDlight_plus(const dlight_t *dl);
@@ -37,13 +33,6 @@ extern "C"
     void R_WorldToLocal_plus(const vec3_t world, vec3_t local);
 
 #ifdef USE_PMLIGHT
-
-    typedef struct litSurf_tape_s
-    {
-        struct litSurf_s *first;
-        struct litSurf_s *last;
-        unsigned count;
-    } litSurf_tape_t;
 
     // Philip Erdelsky gets all the credit for this one...
 

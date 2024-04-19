@@ -11,8 +11,6 @@ extern "C"
 
 #include "../renderervk/tr_local.h"
 
-
-
     model_t *R_GetModelByHandle_plus(qhandle_t index);
     void R_ModelBounds_plus(qhandle_t handle, vec3_t mins, vec3_t maxs);
     void R_ModelInit_plus();

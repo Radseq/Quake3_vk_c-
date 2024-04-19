@@ -70,6 +70,40 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_font.hpp"
 
 #ifdef BUILD_FREETYPE
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include FT_ERRORS_H
+#include FT_SYSTEM_H
+#include FT_IMAGE_H
+#include FT_OUTLINE_H
+
+#define _FLOOR(x) ((x) & -64)
+#define _CEIL(x) (((x) + 63) & -64)
+#define _TRUNC(x) ((x) >> 6)
+
+FT_Library ftLibrary = NULL;
+#endif
+
+#define MAX_FONTS 6
+
+#ifdef BUILD_FREETYPE
+void R_GetGlyphInfo_plus(FT_GlyphSlot glyph, int *left, int *right, int *width, int *top, int *bottom, int *height, int *pitch);
+FT_Bitmap *R_RenderGlyph_plus(FT_GlyphSlot glyph, glyphInfo_t *glyphOut);
+#endif
+
+static int registeredFontCount = 0;
+static fontInfo_t registeredFont[MAX_FONTS];
+
+static int fdOffset;
+static byte *fdFile;
+
+typedef union
+{
+	byte fred[4];
+	float ffred;
+} poor;
+
+#ifdef BUILD_FREETYPE
 void R_GetGlyphInfo_plus(FT_GlyphSlot glyph, int *left, int *right, int *width, int *top, int *bottom, int *height, int *pitch)
 {
 	*left = _FLOOR(glyph->metrics.horiBearingX);

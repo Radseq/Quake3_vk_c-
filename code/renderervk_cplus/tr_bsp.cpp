@@ -24,10 +24,25 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_bsp.hpp"
 #include "q_shared.hpp"
 #include "tr_image.hpp"
-// #include "tr_image.hpp"
 // #include "tr_shader.hpp"
-// #include "tr_curve.hpp"
+#include "tr_curve.hpp"
 // #include "vk_vbo.hpp"
+
+static world_t s_worldData;
+static byte *fileBase;
+
+static int c_gridVerts;
+
+#define LIGHTMAP_SIZE 128
+#define LIGHTMAP_BORDER 2
+#define LIGHTMAP_LEN (LIGHTMAP_SIZE + LIGHTMAP_BORDER * 2)
+
+static const int lightmapFlags = IMGFLAG_NOLIGHTSCALE | IMGFLAG_NO_COMPRESSION | IMGFLAG_LIGHTMAP | IMGFLAG_NOSCALE;
+
+static int lightmapWidth;
+static int lightmapHeight;
+static int lightmapCountX;
+static int lightmapCountY;
 
 /*
 
@@ -359,7 +374,7 @@ static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 	{
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOBORDER);
 		tr.lightmaps[i] = R_CreateImage_plus(va("*mergedLightmap%d", i), NULL, NULL,
-										lightmapWidth, lightmapHeight, flag);
+											 lightmapWidth, lightmapHeight, flag);
 
 		for (y = 0; y < lightmapCountY; y++)
 		{
@@ -445,7 +460,7 @@ static void R_LoadLightmaps(const lump_t *l)
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOEDGE);
 		maxIntensity = R_ProcessLightmap(image, buf + i * LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3, maxIntensity);
 		tr.lightmaps[i] = R_CreateImage_plus(va("*lightmap%d", i), NULL, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
-										flag);
+											 flag);
 	}
 
 	// if ( r_lightmap->integer == 2 )	{
@@ -651,7 +666,7 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	lightmapNum = LittleLong(ds->lightmapNum);
 	if (lightmapNum >= 0 && tr.mergeLightmaps)
 	{
-		lightmapNum = R_GetLightmapCoords(lightmapNum, &lightmapX, &lightmapY);
+		lightmapNum = R_GetLightmapCoords_plus(lightmapNum, &lightmapX, &lightmapY);
 	}
 	else
 	{
@@ -780,7 +795,7 @@ static void ParseMesh(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	lightmapNum = LittleLong(ds->lightmapNum);
 	if (lightmapNum >= 0 && tr.mergeLightmaps)
 	{
-		lightmapNum = R_GetLightmapCoords(lightmapNum, &lightmapX, &lightmapY);
+		lightmapNum = R_GetLightmapCoords_plus(lightmapNum, &lightmapX, &lightmapY);
 	}
 	else
 	{
@@ -828,7 +843,7 @@ static void ParseMesh(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	}
 
 	// pre-tesseleate
-	grid = R_SubdividePatchToGrid(width, height, points);
+	grid = R_SubdividePatchToGrid_plus(width, height, points);
 	surf->data = (surfaceType_t *)grid;
 
 	// copy the level of detail origin, which is the center
@@ -864,7 +879,7 @@ static void ParseTriSurf(const dsurface_t *ds, const drawVert_t *verts, msurface
 	lightmapNum = LittleLong(ds->lightmapNum);
 	if (lightmapNum >= 0 && tr.mergeLightmaps)
 	{
-		lightmapNum = R_GetLightmapCoords(lightmapNum, &lightmapX, &lightmapY);
+		lightmapNum = R_GetLightmapCoords_plus(lightmapNum, &lightmapX, &lightmapY);
 	}
 	else
 	{
@@ -1272,7 +1287,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						row = grid2->height - 1;
 					else
 						row = 0;
-					grid2 = R_GridInsertColumn(grid2, l + 1, row,
+					grid2 = R_GridInsertColumn_plus(grid2, l + 1, row,
 											   grid1->verts[k + 1 + offset1].xyz, grid1->widthLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1322,7 +1337,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						column = grid2->width - 1;
 					else
 						column = 0;
-					grid2 = R_GridInsertRow(grid2, l + 1, column,
+					grid2 = R_GridInsertRow_plus(grid2, l + 1, column,
 											grid1->verts[k + 1 + offset1].xyz, grid1->widthLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1385,7 +1400,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						row = grid2->height - 1;
 					else
 						row = 0;
-					grid2 = R_GridInsertColumn(grid2, l + 1, row,
+					grid2 = R_GridInsertColumn_plus(grid2, l + 1, row,
 											   grid1->verts[grid1->width * (k + 1) + offset1].xyz, grid1->heightLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1435,7 +1450,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						column = grid2->width - 1;
 					else
 						column = 0;
-					grid2 = R_GridInsertRow(grid2, l + 1, column,
+					grid2 = R_GridInsertRow_plus(grid2, l + 1, column,
 											grid1->verts[grid1->width * (k + 1) + offset1].xyz, grid1->heightLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1499,7 +1514,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						row = grid2->height - 1;
 					else
 						row = 0;
-					grid2 = R_GridInsertColumn(grid2, l + 1, row,
+					grid2 = R_GridInsertColumn_plus(grid2, l + 1, row,
 											   grid1->verts[k - 1 + offset1].xyz, grid1->widthLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1549,7 +1564,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						column = grid2->width - 1;
 					else
 						column = 0;
-					grid2 = R_GridInsertRow(grid2, l + 1, column,
+					grid2 = R_GridInsertRow_plus(grid2, l + 1, column,
 											grid1->verts[k - 1 + offset1].xyz, grid1->widthLodError[k + 1]);
 					if (!grid2)
 						break;
@@ -1614,7 +1629,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						row = grid2->height - 1;
 					else
 						row = 0;
-					grid2 = R_GridInsertColumn(grid2, l + 1, row,
+					grid2 = R_GridInsertColumn_plus(grid2, l + 1, row,
 											   grid1->verts[grid1->width * (k - 1) + offset1].xyz, grid1->heightLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1664,7 +1679,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						column = grid2->width - 1;
 					else
 						column = 0;
-					grid2 = R_GridInsertRow(grid2, l + 1, column,
+					grid2 = R_GridInsertRow_plus(grid2, l + 1, column,
 											grid1->verts[grid1->width * (k - 1) + offset1].xyz, grid1->heightLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1784,7 +1799,7 @@ static void R_MovePatchSurfacesToHunk(void)
 		hunkgrid->heightLodError = static_cast<float *>(ri.Hunk_Alloc(grid->height * 4, h_low));
 		Com_Memcpy(hunkgrid->heightLodError, grid->heightLodError, grid->height * 4);
 
-		R_FreeSurfaceGridMesh(grid);
+		R_FreeSurfaceGridMesh_plus(grid);
 
 		s_worldData.surfaces[i].data = reinterpret_cast<surfaceType_t *>(hunkgrid);
 	}

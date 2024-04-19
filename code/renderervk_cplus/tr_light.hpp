@@ -10,12 +10,6 @@ extern "C"
 #include "../renderervk/tr_local.h"
 #include "q_math.hpp"
 
-#define DLIGHT_AT_RADIUS 16
-    // at the edge of a dlight's influence, this amount of light will be added
-
-#define DLIGHT_MINIMUM_RADIUS 16
-    // never calculate a range less than this to prevent huge light numbers
-
     void R_TransformDlights_plus(int count, dlight_t *dl, orientationr_t *ort);
 #ifdef USE_LEGACY_DLIGHTS
     void R_DlightBmodel_plus(bmodel_t *bmodel);

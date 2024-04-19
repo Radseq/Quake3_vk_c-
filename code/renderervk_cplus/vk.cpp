@@ -6755,7 +6755,7 @@ static void get_mvp_transform(float *mvp)
 		proj[5] = -p[5];
 		// proj[10] = ( p[10] - 1.0f ) / 2.0f;
 		// proj[14] = p[14] / 2.0f;
-		myGlMultMatrix(vk_world.modelview_transform, proj, mvp);
+		myGlMultMatrix_plus(vk_world.modelview_transform, proj, mvp);
 	}
 }
 

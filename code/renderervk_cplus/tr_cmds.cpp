@@ -24,6 +24,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_backend.hpp"
 #include "tr_shader.hpp"
 #include "tr_scene.hpp"
+
+#define MODE_RED_CYAN 1
+#define MODE_RED_BLUE 2
+#define MODE_RED_GREEN 3
+#define MODE_GREEN_MAGENTA 4
+#define MODE_MAX MODE_GREEN_MAGENTA
+
 /*
 =====================
 R_PerformanceCounters
@@ -119,7 +126,7 @@ static void R_IssueRenderCommands(void)
 	if (!r_skipBackEnd->integer)
 	{
 		// let it start on the new batch
-		RB_ExecuteRenderCommands(cmdList->cmds);
+		RB_ExecuteRenderCommands_plus(cmdList->cmds);
 	}
 }
 
@@ -401,16 +408,19 @@ RE_EndFrame
 Returns the number of msec spent in the back end
 =============
 */
-void RE_EndFrame_plus( int *frontEndMsec, int *backEndMsec ) {
+void RE_EndFrame_plus(int *frontEndMsec, int *backEndMsec)
+{
 
 	swapBuffersCommand_t *cmd;
 
-	if ( !tr.registered ) {
+	if (!tr.registered)
+	{
 		return;
 	}
 
-	cmd = static_cast<swapBuffersCommand_t *>(R_GetCommandBufferReserved( sizeof( *cmd ), 0 ));
-	if ( !cmd ) {
+	cmd = static_cast<swapBuffersCommand_t *>(R_GetCommandBufferReserved(sizeof(*cmd), 0));
+	if (!cmd)
+	{
 		return;
 	}
 	cmd->commandId = RC_SWAP_BUFFERS;
@@ -419,14 +429,16 @@ void RE_EndFrame_plus( int *frontEndMsec, int *backEndMsec ) {
 
 	R_IssueRenderCommands();
 
-	R_InitNextFrame();
+	R_InitNextFrame_plus();
 
-	if ( frontEndMsec ) {
+	if (frontEndMsec)
+	{
 		*frontEndMsec = tr.frontEndMsec;
 	}
 	tr.frontEndMsec = 0;
 
-	if ( backEndMsec ) {
+	if (backEndMsec)
+	{
 		*backEndMsec = backEnd.pc.msec;
 	}
 	backEnd.pc.msec = 0;
@@ -434,20 +446,23 @@ void RE_EndFrame_plus( int *frontEndMsec, int *backEndMsec ) {
 	backEnd.throttle = false;
 
 	// recompile GPU shaders if needed
-	if ( ri.Cvar_CheckGroup( CVG_RENDERER ) ) {
+	if (ri.Cvar_CheckGroup(CVG_RENDERER))
+	{
 
 		// texturemode stuff
-		if ( r_textureMode->modified ) {
-			TextureMode( r_textureMode->string );
+		if (r_textureMode->modified)
+		{
+			TextureMode(r_textureMode->string);
 		}
 
 		// gamma stuff
-		if ( r_gamma->modified ) {
+		if (r_gamma->modified)
+		{
 			R_SetColorMappings();
 		}
 
 		vk_update_post_process_pipelines();
 
-		ri.Cvar_ResetGroup( CVG_RENDERER, true /* reset modified flags */ );
+		ri.Cvar_ResetGroup(CVG_RENDERER, true /* reset modified flags */);
 	}
 }

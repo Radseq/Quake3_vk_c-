@@ -22,6 +22,26 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_image_bmp.hpp"
 
+typedef struct
+{
+	char id[2];
+	unsigned fileSize;
+	unsigned reserved0;
+	unsigned bitmapDataOffset;
+	unsigned bitmapHeaderSize;
+	unsigned width;
+	unsigned height;
+	unsigned short planes;
+	unsigned short bitsPerPixel;
+	unsigned compression;
+	unsigned bitmapDataSize;
+	unsigned hRes;
+	unsigned vRes;
+	unsigned colors;
+	unsigned importantColors;
+	unsigned char palette[256][4];
+} BMPHeader_t;
+
 void R_LoadBMP_plus(const char *name, byte **pic, int *width, int *height)
 {
 	int columns, rows;

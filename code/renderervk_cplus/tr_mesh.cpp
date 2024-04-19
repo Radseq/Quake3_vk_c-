@@ -359,7 +359,7 @@ void R_AddMD3Surfaces_plus(trRefEntity_t *ent)
 		for (n = 0; n < tr.viewParms.num_dlights; n++)
 		{
 			dl = &tr.viewParms.dlights[n];
-			if (!R_LightCullBounds(dl, bounds[0], bounds[1]))
+			if (!R_LightCullBounds_plus(dl, bounds[0], bounds[1]))
 				dlights[numDlights++] = dl;
 		}
 	}

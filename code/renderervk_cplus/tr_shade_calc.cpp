@@ -22,6 +22,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // tr_shade_calc.c
 
 #include "tr_shade_calc.hpp"
+#include "tr_shadows.hpp"
+#include "tr_surface.hpp"
 
 // -EC-: avoid using ri.ftol
 #define	WAVEVALUE( table, base, amplitude, phase, freq )  ((base) + table[ (int64_t)( ( ( (phase) + tess.shaderTime * (freq) ) * FUNCTABLE_SIZE ) ) & FUNCTABLE_MASK ] * (amplitude))
@@ -325,7 +327,7 @@ static void DeformText( const char *text ) {
 			fcol = col*0.0625f;
 			size = 0.0625f;
 
-			RB_AddQuadStampExt( origin, width, height, color, fcol, frow, fcol + size, frow + size );
+			RB_AddQuadStampExt_plus( origin, width, height, color, fcol, frow, fcol + size, frow + size );
 		}
 		VectorMA( origin, -2, width, origin );
 	}
@@ -411,7 +413,7 @@ static void AutospriteDeform( void ) {
 			VectorScale(up, axisLength, up);
 		}
 
-		RB_AddQuadStamp( mid, left, up, tess.vertexColors[i] );
+		RB_AddQuadStamp_plus( mid, left, up, tess.vertexColors[i] );
 	}
 }
 
@@ -564,7 +566,7 @@ void RB_DeformTessGeometry_plus( void ) {
 			RB_CalcMoveVertexes( ds );
 			break;
 		case DEFORM_PROJECTION_SHADOW:
-			RB_ProjectionShadowDeform();
+			RB_ProjectionShadowDeform_plus();
 			break;
 		case DEFORM_AUTOSPRITE:
 			AutospriteDeform();
