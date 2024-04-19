@@ -185,7 +185,7 @@ void RE_AddPolyToScene_plus(qhandle_t hShader, int numVerts, const polyVert_t *v
 			VectorCopy(poly->verts[0].xyz, bounds[1]);
 			for (i = 1; i < poly->numVerts; i++)
 			{
-				AddPointToBounds(poly->verts[i].xyz, bounds[0], bounds[1]);
+				AddPointToBounds_plus(poly->verts[i].xyz, bounds[0], bounds[1]);
 			}
 			for (fogIndex = 1; fogIndex < tr.world->numfogs; fogIndex++)
 			{

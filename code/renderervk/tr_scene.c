@@ -22,50 +22,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_local.h"
 
-static int			r_firstSceneDrawSurf;
-#ifdef USE_PMLIGHT
-static int			r_firstSceneLitSurf;
-#endif
-
-int			r_numdlights;
-static int			r_firstSceneDlight;
-
-static int			r_numentities;
-static int			r_firstSceneEntity;
-
-static int			r_numpolys;
-static int			r_firstScenePoly;
-
-static int			r_numpolyverts;
-
-
+#include "../renderervk_cplus/tr_scene.hpp"
+int r_numdlights;
 /*
 ====================
 R_InitNextFrame
 
 ====================
 */
-void R_InitNextFrame( void ) {
-
-	backEndData->commands.used = 0;
-
-	r_firstSceneDrawSurf = 0;
-#ifdef USE_PMLIGHT
-	r_firstSceneLitSurf = 0;
-#endif
-
-	r_numdlights = 0;
-	r_firstSceneDlight = 0;
-
-	r_numentities = 0;
-	r_firstSceneEntity = 0;
-
-	r_numpolys = 0;
-	r_firstScenePoly = 0;
-
-	r_numpolyverts = 0;
+void R_InitNextFrame(void)
+{
+	R_InitNextFrame_plus();
 }
-
 
 /*
 ====================
@@ -73,12 +41,10 @@ RE_ClearScene
 
 ====================
 */
-void RE_ClearScene( void ) {
-	r_firstSceneDlight = r_numdlights;
-	r_firstSceneEntity = r_numentities;
-	r_firstScenePoly = r_numpolys;
+void RE_ClearScene(void)
+{
+	RE_ClearScene_plus();
 }
-
 /*
 ===========================================================================
 
@@ -94,8 +60,9 @@ R_AddPolygonSurfaces
 Adds all the scene's polys into this view's drawsurf list
 =====================
 */
-void R_AddPolygonSurfaces( void ) {
-R_AddPolygonSurfaces_plus();
+void R_AddPolygonSurfaces(void)
+{
+	R_AddPolygonSurfaces_plus();
 }
 
 /*
@@ -104,152 +71,55 @@ RE_AddPolyToScene
 
 =====================
 */
-void RE_AddPolyToScene( qhandle_t hShader, int numVerts, const polyVert_t *verts, int numPolys ) {
-	//RE_AddPolyToScene_plus(hShader, numVerts, verts, numPolys); // todo not working
-	srfPoly_t	*poly;
-	int			i, j;
-	int			fogIndex;
-	const fog_t		*fog;
-	vec3_t		bounds[2];
-
-	if ( !tr.registered ) {
-		return;
-	}
-#if 0
-	if ( !hShader ) {
-		ri.Printf( PRINT_WARNING, "WARNING: RE_AddPolyToScene: NULL poly shader\n");
-		return;
-	}
-#endif
-	for ( j = 0; j < numPolys; j++ ) {
-		if ( r_numpolyverts + numVerts > max_polyverts || r_numpolys >= max_polys ) {
-      /*
-      NOTE TTimo this was initially a PRINT_WARNING
-      but it happens a lot with high fighting scenes and particles
-      since we don't plan on changing the const and making for room for those effects
-      simply cut this message to developer only
-      */
-			ri.Printf( PRINT_DEVELOPER, "WARNING: RE_AddPolyToScene: r_max_polys ort r_max_polyverts reached\n");
-			return;
-		}
-
-		poly = &backEndData->polys[r_numpolys];
-		poly->surfaceType = SF_POLY;
-		poly->hShader = hShader;
-		poly->numVerts = numVerts;
-		poly->verts = &backEndData->polyVerts[r_numpolyverts];
-		
-		Com_Memcpy( poly->verts, &verts[numVerts*j], numVerts * sizeof( *verts ) );
-#if 0
-		if ( glConfig.hardwareType == GLHW_RAGEPRO ) {
-			poly->verts->modulate[0] = 255;
-			poly->verts->modulate[1] = 255;
-			poly->verts->modulate[2] = 255;
-			poly->verts->modulate[3] = 255;
-		}
-#endif
-		// done.
-		r_numpolys++;
-		r_numpolyverts += numVerts;
-
-		// if no world is loaded
-		if ( tr.world == NULL ) {
-			fogIndex = 0;
-		}
-		// see if it is in a fog volume
-		else if ( tr.world->numfogs == 1 ) {
-			fogIndex = 0;
-		} else {
-			// find which fog volume the poly is in
-			VectorCopy( poly->verts[0].xyz, bounds[0] );
-			VectorCopy( poly->verts[0].xyz, bounds[1] );
-			for ( i = 1 ; i < poly->numVerts ; i++ ) {
-				AddPointToBounds( poly->verts[i].xyz, bounds[0], bounds[1] );
-			}
-			for ( fogIndex = 1 ; fogIndex < tr.world->numfogs ; fogIndex++ ) {
-				fog = &tr.world->fogs[fogIndex]; 
-				if ( bounds[1][0] >= fog->bounds[0][0]
-					&& bounds[1][1] >= fog->bounds[0][1]
-					&& bounds[1][2] >= fog->bounds[0][2]
-					&& bounds[0][0] <= fog->bounds[1][0]
-					&& bounds[0][1] <= fog->bounds[1][1]
-					&& bounds[0][2] <= fog->bounds[1][2] ) {
-					break;
-				}
-			}
-			if ( fogIndex == tr.world->numfogs ) {
-				fogIndex = 0;
-			}
-		}
-		poly->fogIndex = fogIndex;
-	}
+void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts, int numPolys)
+{
+	RE_AddPolyToScene_plus(hShader, numVerts, verts, numPolys); // todo not working
 }
-
 
 //=================================================================================
 
-static int isnan_fp( const float *f )
+static int isnan_fp(const float *f)
 {
-	uint32_t u = *( (uint32_t*) f );
-	u = 0x7F800000 - ( u & 0x7FFFFFFF );
-	return (int)( u >> 31 );
+	uint32_t u = *((uint32_t *)f);
+	u = 0x7F800000 - (u & 0x7FFFFFFF);
+	return (int)(u >> 31);
 }
-
 
 /*
 =====================
 RE_AddRefEntityToScene
 =====================
 */
-void RE_AddRefEntityToScene( const refEntity_t *ent, bool intShaderTime ) {
-	if ( !tr.registered ) {
-		return;
-	}
-	if ( r_numentities >= MAX_REFENTITIES ) {
-		ri.Printf( PRINT_DEVELOPER, "RE_AddRefEntityToScene: Dropping refEntity, reached MAX_REFENTITIES\n" );
-		return;
-	}
-	if ( isnan_fp( &ent->origin[0] ) || isnan_fp( &ent->origin[1] ) || isnan_fp( &ent->origin[2] ) ) {
-		static bool first_time = true;
-		if ( first_time ) {
-			first_time = false;
-			ri.Printf( PRINT_WARNING, "RE_AddRefEntityToScene passed a refEntity which has an origin with a NaN component\n" );
-		}
-		return;
-	}
-	if ( (unsigned)ent->reType >= RT_MAX_REF_ENTITY_TYPE ) {
-		ri.Error( ERR_DROP, "RE_AddRefEntityToScene: bad reType %i", ent->reType );
-	}
-
-	backEndData->entities[r_numentities].e = *ent;
-	backEndData->entities[r_numentities].lightingCalculated = false;
-	backEndData->entities[r_numentities].intShaderTime = intShaderTime;
-
-	r_numentities++;
+void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
+{
+	RE_AddRefEntityToScene_plus(ent, intShaderTime);
 }
-
 
 /*
 =====================
 RE_AddDynamicLightToScene
 =====================
 */
-static void RE_AddDynamicLightToScene( const vec3_t org, float intensity, float r, float g, float b, int additive ) {
-	dlight_t	*dl;
+static void RE_AddDynamicLightToScene(const vec3_t org, float intensity, float r, float g, float b, int additive)
+{
+	dlight_t *dl;
 
-	if ( !tr.registered ) {
+	if (!tr.registered)
+	{
 		return;
 	}
-	if ( r_numdlights >= ARRAY_LEN( backEndData->dlights ) ) {
+	if (r_numdlights >= ARRAY_LEN(backEndData->dlights))
+	{
 		return;
 	}
-	if ( intensity <= 0 ) {
+	if (intensity <= 0)
+	{
 		return;
 	}
 
 #ifdef USE_PMLIGHT
 #ifdef USE_LEGACY_DLIGHTS
-	if ( r_dlightMode->integer )
+	if (r_dlightMode->integer)
 #endif
 	{
 		r *= r_dlightIntensity->value;
@@ -259,16 +129,16 @@ static void RE_AddDynamicLightToScene( const vec3_t org, float intensity, float 
 	}
 #endif
 
-	if ( r_dlightSaturation->value != 1.0 )
+	if (r_dlightSaturation->value != 1.0)
 	{
-		float luminance = LUMA( r, g, b );
-		r = LERP( luminance, r, r_dlightSaturation->value );
-		g = LERP( luminance, g, r_dlightSaturation->value );
-		b = LERP( luminance, b, r_dlightSaturation->value );
+		float luminance = LUMA(r, g, b);
+		r = LERP(luminance, r, r_dlightSaturation->value);
+		g = LERP(luminance, g, r_dlightSaturation->value);
+		b = LERP(luminance, b, r_dlightSaturation->value);
 	}
 
 	dl = &backEndData->dlights[r_numdlights++];
-	VectorCopy( org, dl->origin );
+	VectorCopy(org, dl->origin);
 	dl->radius = intensity;
 	dl->color[0] = r;
 	dl->color[1] = g;
@@ -277,17 +147,15 @@ static void RE_AddDynamicLightToScene( const vec3_t org, float intensity, float 
 	dl->linear = false;
 }
 
-
 /*
 =====================
 RE_AddLinearLightToScene
 =====================
 */
-void RE_AddLinearLightToScene( const vec3_t start, const vec3_t end, float intensity, float r, float g, float b  ) {
-	RE_AddLinearLightToScene_plus(start, end, intensity, r,g,b);
+void RE_AddLinearLightToScene(const vec3_t start, const vec3_t end, float intensity, float r, float g, float b)
+{
+	RE_AddLinearLightToScene_plus(start, end, intensity, r, g, b);
 }
-
-
 
 /*
 =====================
@@ -295,10 +163,10 @@ RE_AddLightToScene
 
 =====================
 */
-void RE_AddLightToScene( const vec3_t org, float intensity, float r, float g, float b ) {
-	RE_AddDynamicLightToScene( org, intensity, r, g, b, false );
+void RE_AddLightToScene(const vec3_t org, float intensity, float r, float g, float b)
+{
+	RE_AddDynamicLightToScene(org, intensity, r, g, b, false);
 }
-
 
 /*
 =====================
@@ -306,12 +174,12 @@ RE_AddAdditiveLightToScene
 
 =====================
 */
-void RE_AddAdditiveLightToScene( const vec3_t org, float intensity, float r, float g, float b ) {
-	RE_AddDynamicLightToScene( org, intensity, r, g, b, true );
+void RE_AddAdditiveLightToScene(const vec3_t org, float intensity, float r, float g, float b)
+{
+	RE_AddDynamicLightToScene(org, intensity, r, g, b, true);
 }
 
-
-void *R_GetCommandBuffer( int bytes );
+void *R_GetCommandBuffer(int bytes);
 
 /*
 @@@@@@@@@@@@@@@@@@@@@
@@ -324,183 +192,7 @@ Rendering a scene may require multiple views to be rendered
 to handle mirrors,
 @@@@@@@@@@@@@@@@@@@@@
 */
-void RE_RenderScene( const refdef_t *fd ) {
-	renderCommand_t	lastRenderCommand;
-	viewParms_t		parms;
-	int				startTime;
-
-	if ( !tr.registered ) {
-		return;
-	}
-
-	if ( r_norefresh->integer ) {
-		return;
-	}
-
-	startTime = ri.Milliseconds();
-
-	if (!tr.world && !( fd->rdflags & RDF_NOWORLDMODEL ) ) {
-		ri.Error (ERR_DROP, "R_RenderScene: NULL worldmodel");
-	}
-
-	Com_Memcpy( tr.refdef.text, fd->text, sizeof( tr.refdef.text ) );
-
-	tr.refdef.x = fd->x;
-	tr.refdef.y = fd->y;
-	tr.refdef.width = fd->width;
-	tr.refdef.height = fd->height;
-	tr.refdef.fov_x = fd->fov_x;
-	tr.refdef.fov_y = fd->fov_y;
-
-	VectorCopy( fd->vieworg, tr.refdef.vieworg );
-	VectorCopy( fd->viewaxis[0], tr.refdef.viewaxis[0] );
-	VectorCopy( fd->viewaxis[1], tr.refdef.viewaxis[1] );
-	VectorCopy( fd->viewaxis[2], tr.refdef.viewaxis[2] );
-
-	tr.refdef.time = fd->time;
-	tr.refdef.rdflags = fd->rdflags;
-
-	// copy the areamask data over and note if it has changed, which
-	// will force a reset of the visible leafs even if the view hasn't moved
-	tr.refdef.areamaskModified = false;
-	if ( ! (tr.refdef.rdflags & RDF_NOWORLDMODEL) ) {
-		int		areaDiff;
-		int		i;
-
-		// compare the area bits
-		areaDiff = 0;
-		for ( i = 0; i < MAX_MAP_AREA_BYTES/sizeof(int); i++ ) {
-			areaDiff |= ((int *)tr.refdef.areamask)[i] ^ ((int *)fd->areamask)[i];
-			((int *)tr.refdef.areamask)[i] = ((int *)fd->areamask)[i];
-		}
-
-		if ( areaDiff ) {
-			// a door just opened ort something
-			tr.refdef.areamaskModified = true;
-		}
-	}
-
-
-	// derived info
-
-	tr.refdef.floatTime = (double)tr.refdef.time * 0.001; // -EC-: cast to double
-
-	tr.refdef.numDrawSurfs = r_firstSceneDrawSurf;
-	tr.refdef.drawSurfs = backEndData->drawSurfs;
-
-#ifdef USE_PMLIGHT
-	tr.refdef.numLitSurfs = r_firstSceneLitSurf;
-	tr.refdef.litSurfs = backEndData->litSurfs;
-#endif
-
-	tr.refdef.num_entities = r_numentities - r_firstSceneEntity;
-	tr.refdef.entities = &backEndData->entities[r_firstSceneEntity];
-
-	tr.refdef.num_dlights = r_numdlights - r_firstSceneDlight;
-	tr.refdef.dlights = &backEndData->dlights[r_firstSceneDlight];
-
-	tr.refdef.numPolys = r_numpolys - r_firstScenePoly;
-	tr.refdef.polys = &backEndData->polys[r_firstScenePoly];
-
-	// turn off dynamic lighting globally by clearing all the
-	// dlights if it needs to be disabled
-	if ( r_dynamiclight->integer == 0 || glConfig.hardwareType == GLHW_PERMEDIA2 ) {
-		tr.refdef.num_dlights = 0;
-	}
-
-	// a single frame may have multiple scenes draw inside it --
-	// a 3D game view, 3D status bar renderings, 3D menus, etc.
-	// They need to be distinguished by the light flare code, because
-	// the visibility state for a given surface may be different in
-	// each scene / view.
-	tr.frameSceneNum++;
-	tr.sceneCount++;
-
-	// setup view parms for the initial view
-	//
-	// set up viewport
-	// The refdef takes 0-at-the-top y coordinates, so
-	// convert to GL's 0-at-the-bottom space
-	//
-	Com_Memset( &parms, 0, sizeof( parms ) );
-	parms.viewportX = tr.refdef.x;
-	parms.viewportY = glConfig.vidHeight - ( tr.refdef.y + tr.refdef.height );
-	parms.viewportWidth = tr.refdef.width;
-	parms.viewportHeight = tr.refdef.height;
-
-	parms.scissorX = parms.viewportX;
-	parms.scissorY = parms.viewportY;
-	parms.scissorWidth = parms.viewportWidth;
-	parms.scissorHeight = parms.viewportHeight;
-
-	parms.portalView = PV_NONE;
-
-#ifdef USE_PMLIGHT
-	parms.dlights = tr.refdef.dlights;
-	parms.num_dlights = tr.refdef.num_dlights;
-#endif
-
-	parms.fovX = tr.refdef.fov_x;
-	parms.fovY = tr.refdef.fov_y;
-	
-	parms.stereoFrame = tr.refdef.stereoFrame;
-
-	VectorCopy( fd->vieworg, parms.ort.origin );
-	VectorCopy( fd->viewaxis[0], parms.ort.axis[0] );
-	VectorCopy( fd->viewaxis[1], parms.ort.axis[1] );
-	VectorCopy( fd->viewaxis[2], parms.ort.axis[2] );
-
-	VectorCopy( fd->vieworg, parms.pvsOrigin );
-
-	lastRenderCommand = tr.lastRenderCommand;
-	tr.drawSurfCmd = NULL;
-	tr.numDrawSurfCmds = 0;
-
-	R_RenderView( &parms );
-
-	if ( tr.needScreenMap )
-	{
-		if ( lastRenderCommand == RC_DRAW_BUFFER )
-		{
-			// duplicate all views, including portals
-			drawSurfsCommand_t *cmd, *src = NULL;
-			int i;
-
-			for ( i = 0; i < tr.numDrawSurfCmds; i++ )
-			{
-				cmd = R_GetCommandBuffer( sizeof( *cmd ) );
-				if ( cmd )
-				{
-					src = tr.drawSurfCmd + i;
-					*cmd = *src;
-				}
-				else
-				{
-					break;
-				}
-			}
-
-			if ( src )
-			{
-				// first drawsurface
-				tr.drawSurfCmd[0].refdef.needScreenMap = true;
-				// last drawsurface
-				src->refdef.switchRenderPass = true;
-			}
-		}
-
-		tr.needScreenMap = 0;
-	}
-
-	// the next scene rendered in this frame will tack on after this one
-	r_firstSceneDrawSurf = tr.refdef.numDrawSurfs;
-#ifdef USE_PMLIGHT
-	r_firstSceneLitSurf = tr.refdef.numLitSurfs;
-#endif
-
-	r_firstSceneEntity = r_numentities;
-	r_firstSceneDlight = r_numdlights;
-	r_firstScenePoly = r_numpolys;
-
-	tr.frontEndMsec += ri.Milliseconds() - startTime;
+void RE_RenderScene(const refdef_t *fd)
+{
+	RE_RenderScene_plus(fd);
 }

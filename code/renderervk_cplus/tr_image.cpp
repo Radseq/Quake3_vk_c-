@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <algorithm> // for std::clamp
 #include <cstdint>	 // for std::uint32_t
 #include <array>
+#include <algorithm>
 
 constexpr int FOG_TABLE_SIZE_PLUS = 256;
 
@@ -942,7 +943,7 @@ image_t *R_CreateImage_plus(const char *name, const char *name2, byte *pic, int 
 		ri.Error(ERR_DROP, "R_CreateImage_plus: \"%s\" is too long", name);
 	}
 
-	if (name2 && Q_stricmp_plus(name, name2) != 0)
+	if (name2 && Q_stricmp(name, name2) != 0)
 	{
 		// leave only file name
 		name2 = (slash = strrchr(name2, '/')) != NULL ? slash + 1 : name2;
@@ -1420,7 +1421,8 @@ void R_InitImages_plus(void)
 	for (i = 0; i < 256; i++)
 		s_gammatable_linear[i] = (unsigned char)i;
 
-	Com_Memset(hashTable, 0, sizeof(hashTable));
+	//memset(hashTable, 0, sizeof(hashTable));
+	std::fill(std::begin(hashTable), std::end(hashTable), nullptr);
 
 	// build brightness translation tables
 	R_SetColorMappings_plus();
