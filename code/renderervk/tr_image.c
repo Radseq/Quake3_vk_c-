@@ -20,21 +20,3 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 // tr_image.c
-#include "tr_local.h"
-#include "../renderervk_cplus/tr_image.hpp"
-
-
-
-/*
-===============
-R_FindImageFile
-
-Finds or loads the given image.
-Returns NULL if it fails, not a default image.
-==============
-*/
-image_t *R_FindImageFile(const char *name, imgFlags_t flags)
-{
-	return R_FindImageFile_plus(name, flags);
-}
-

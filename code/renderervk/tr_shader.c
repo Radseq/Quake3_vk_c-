@@ -55,16 +55,3 @@ most world construction surfaces.
 */
 
 
-
-/*
-====================
-R_GetShaderByHandle
-
-When a handle is passed in by another module, this range checks
-it and returns a valid (possibly default) shader_t to be used internally.
-====================
-*/
-shader_t *R_GetShaderByHandle(qhandle_t hShader)
-{
-	return R_GetShaderByHandle_plus(hShader);
-}

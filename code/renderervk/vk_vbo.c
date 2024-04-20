@@ -20,8 +20,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 
-#include "tr_local.h"
-#include "vk.h"
 
 #ifdef USE_VBO
 
@@ -46,60 +44,5 @@ host-visible index buffer which is finally rendered via single draw call.
 
 */
 
-#include "vk_vbo.h"
 
-void VBO_PushData(int itemIndex, shaderCommands_t *input)
-{
-	VBO_PushData_plus(itemIndex, input);
-}
-
-void VBO_UnBind(void)
-{
-	VBO_UnBind_plus();
-}
-
-void R_BuildWorldVBO(msurface_t *surf, int surfCount)
-{
-	R_BuildWorldVBO_plus(surf, surfCount);
-}
-
-void VBO_Cleanup(void)
-{
-	VBO_Cleanup_plus();
-}
-
-/*
-=============
-qsort_int
-=============
-*/
-void qsort_int(int *arr, const int n)
-{
-	qsort_int_plus(arr, n);
-}
-
-void VBO_QueueItem(int itemIndex)
-{
-	VBO_QueueItem_plus(itemIndex);
-}
-
-void VBO_ClearQueue(void)
-{
-	VBO_ClearQueue_plus();
-}
-
-void VBO_Flush(void)
-{
-	VBO_Flush_plus();
-}
-
-void VBO_RenderIBOItems(void)
-{
-	VBO_RenderIBOItems_plus();
-}
-
-void VBO_PrepareQueues(void)
-{
-	VBO_PrepareQueues_plus();
-}
 #endif // USE_VBO

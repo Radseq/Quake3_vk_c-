@@ -1346,7 +1346,7 @@ static void R_CreateDefaultImage(void)
 		if (R_BuildDefaultImage(r_defaultImage->string))
 			return;
 		// load from external file
-		tr.defaultImage = R_FindImageFile(r_defaultImage->string, static_cast<imgFlags_t>(IMGFLAG_MIPMAP | IMGFLAG_PICMIP));
+		tr.defaultImage = R_FindImageFile_plus(r_defaultImage->string, static_cast<imgFlags_t>(IMGFLAG_MIPMAP | IMGFLAG_PICMIP));
 		if (tr.defaultImage)
 			return;
 	}

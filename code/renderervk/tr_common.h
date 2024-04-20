@@ -92,7 +92,6 @@ extern cvar_t *r_ext_max_anisotropy;
 // float R_NoiseGet4f( float x, float y, float z, double t );
 // void  R_NoiseInit( void );
 
-image_t *R_FindImageFile( const char *name, imgFlags_t flags );
 
 void R_UploadSubImage( byte *data, int x, int y, int width, int height, image_t *image );
 

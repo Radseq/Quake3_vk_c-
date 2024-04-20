@@ -1447,7 +1447,7 @@ const void *RB_TakeVideoFrameCmd( const void *data );
 // tr_shader.c
 //
 
-shader_t	*R_GetShaderByHandle( qhandle_t hShader );
+
 shader_t	*R_GetShaderByState( int index, long *cycleTime );
 
 

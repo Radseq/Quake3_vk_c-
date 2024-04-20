@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_scene.hpp"
 #include "q_shared.hpp"
 #include "tr_main.hpp"
+#include "tr_shader.hpp"
 
 int r_numdlights;
 
@@ -108,7 +109,7 @@ void R_AddPolygonSurfaces_plus(void)
 
 	for (i = 0, poly = tr.refdef.polys; i < tr.refdef.numPolys; i++, poly++)
 	{
-		sh = R_GetShaderByHandle(poly->hShader);
+		sh = R_GetShaderByHandle_plus(poly->hShader);
 		R_AddDrawSurf_plus(reinterpret_cast<surfaceType_t *>((void *)poly), sh, poly->fogIndex, 0);
 	}
 }
