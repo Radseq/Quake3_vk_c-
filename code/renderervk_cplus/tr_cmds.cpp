@@ -52,7 +52,7 @@ static void R_PerformanceCounters(void)
 		ri.Printf(PRINT_ALL, "%i/%i shaders/surfs %i leafs %i verts %i/%i tris %.2f mtex %.2f dc\n",
 				  backEnd.pc.c_shaders, backEnd.pc.c_surfaces, tr.pc.c_leafs, backEnd.pc.c_vertexes,
 				  backEnd.pc.c_indexes / 3, backEnd.pc.c_totalIndexes / 3,
-				  R_SumOfUsedImages() / (1000000.0f), backEnd.pc.c_overDraw / (float)(glConfig.vidWidth * glConfig.vidHeight));
+				  R_SumOfUsedImages_plus() / (1000000.0f), backEnd.pc.c_overDraw / (float)(glConfig.vidWidth * glConfig.vidHeight));
 	}
 	else if (r_speeds->integer == 2)
 	{
@@ -453,13 +453,13 @@ void RE_EndFrame_plus(int *frontEndMsec, int *backEndMsec)
 		// texturemode stuff
 		if (r_textureMode->modified)
 		{
-			TextureMode(r_textureMode->string);
+			TextureMode_plus(r_textureMode->string);
 		}
 
 		// gamma stuff
 		if (r_gamma->modified)
 		{
-			R_SetColorMappings();
+			R_SetColorMappings_plus();
 		}
 
 		vk_update_post_process_pipelines_plus();

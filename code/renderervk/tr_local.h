@@ -1396,7 +1396,6 @@ void R_AddLightningBoltSurfaces( trRefEntity_t *e );
 ** GL wrapper/helper functions
 */
 
-void	TextureMode( const char *string );
 void	CheckErrors( void );
 
 #define GLS_SRCBLEND_ZERO						0x00000001
@@ -1454,18 +1453,11 @@ model_t		*R_AllocModel( void );
 
 void		R_Init( void );
 
-void		R_SetColorMappings( void );
-void		R_GammaCorrect( byte *buffer, int bufSize );
-
-
-void	R_ImageList_f( void );
 void	R_SkinList_f( void );
 
-void	R_InitFogTable( void );
-float	R_FogFactor( float s, float t );
 void	R_InitImages( void );
 void	R_DeleteTextures( void );
-int		R_SumOfUsedImages( void );
+
 void	R_InitSkins( void );
 skin_t	*R_GetSkinByHandle( qhandle_t hSkin );
 

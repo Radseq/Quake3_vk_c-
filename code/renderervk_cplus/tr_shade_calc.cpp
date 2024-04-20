@@ -744,7 +744,7 @@ void RB_CalcModulateColorsByFog_plus( unsigned char *colors ) {
 	RB_CalcFogTexCoords_plus( texCoords[0] );
 
 	for ( i = 0; i < tess.numVertexes; i++, colors += 4 ) {
-		float f = 1.0 - R_FogFactor( texCoords[i][0], texCoords[i][1] );
+		float f = 1.0 - R_FogFactor_plus( texCoords[i][0], texCoords[i][1] );
 		colors[0] *= f;
 		colors[1] *= f;
 		colors[2] *= f;
@@ -765,7 +765,7 @@ void RB_CalcModulateAlphasByFog_plus( unsigned char *colors ) {
 	RB_CalcFogTexCoords_plus( texCoords[0] );
 
 	for ( i = 0; i < tess.numVertexes; i++, colors += 4 ) {
-		float f = 1.0 - R_FogFactor( texCoords[i][0], texCoords[i][1] );
+		float f = 1.0 - R_FogFactor_plus( texCoords[i][0], texCoords[i][1] );
 		colors[3] *= f;
 	}
 }
@@ -784,7 +784,7 @@ void RB_CalcModulateRGBAsByFog_plus( unsigned char *colors ) {
 	RB_CalcFogTexCoords_plus( texCoords[0] );
 
 	for ( i = 0; i < tess.numVertexes; i++, colors += 4 ) {
-		float f = 1.0 - R_FogFactor( texCoords[i][0], texCoords[i][1] );
+		float f = 1.0 - R_FogFactor_plus( texCoords[i][0], texCoords[i][1] );
 		colors[0] *= f;
 		colors[1] *= f;
 		colors[2] *= f;

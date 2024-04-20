@@ -25,6 +25,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shade.hpp"
 #include "tr_sky.hpp"
 #include "vk.hpp"
+#include "tr_image.hpp"
+
+#define generateHashValue Com_GenerateHashValue
+
 // tr_shader.c -- this file deals with the parsing and definition of shaders
 
 void RE_RemapShader_plus(const char *shaderName, const char *newShaderName, const char *timeOffset)
@@ -639,11 +643,11 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 				if (shader.noLightScale)
 					flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
-				stage->bundle[0].image[0] = R_FindImageFile(token, flags);
+				stage->bundle[0].image[0] = R_FindImageFile_plus(token, flags);
 
 				if (!stage->bundle[0].image[0])
 				{
-					ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token, shader.name);
+					ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile_plus could not find '%s' in shader '%s'\n", token, shader.name);
 					return false;
 				}
 			}
@@ -686,10 +690,10 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 			if (shader.noLightScale)
 				flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
-			stage->bundle[0].image[0] = R_FindImageFile(token, flags);
+			stage->bundle[0].image[0] = R_FindImageFile_plus(token, flags);
 			if (!stage->bundle[0].image[0])
 			{
-				ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token, shader.name);
+				ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile_plus could not find '%s' in shader '%s'\n", token, shader.name);
 				return false;
 			}
 		}
@@ -733,10 +737,10 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 					if (shader.noLightScale)
 						flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
-					stage->bundle[0].image[num] = R_FindImageFile(token, flags);
+					stage->bundle[0].image[num] = R_FindImageFile_plus(token, flags);
 					if (!stage->bundle[0].image[num])
 					{
-						ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token, shader.name);
+						ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile_plus could not find '%s' in shader '%s'\n", token, shader.name);
 						return false;
 					}
 					stage->bundle[0].numImageAnimations++;
@@ -764,7 +768,7 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 			{
 				if (!tr.scratchImage[handle])
 				{
-					tr.scratchImage[handle] = R_CreateImage(va("*scratch%i", handle), NULL, NULL, 256, 256, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
+					tr.scratchImage[handle] = R_CreateImage_plus(va("*scratch%i", handle), NULL, NULL, 256, 256, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
 				}
 				stage->bundle[0].isVideoMap = true;
 				stage->bundle[0].videoMapHandle = handle;
@@ -1392,7 +1396,7 @@ static void ParseSkyParms(const char **text)
 		for (i = 0; i < 6; i++)
 		{
 			Com_sprintf(pathname, sizeof(pathname), "%s_%s.tga", token, suf[i]);
-			shader.sky.outerbox[i] = R_FindImageFile(pathname, static_cast<imgFlags_t>(imgFlags | IMGFLAG_CLAMPTOEDGE));
+			shader.sky.outerbox[i] = R_FindImageFile_plus(pathname, static_cast<imgFlags_t>(imgFlags | IMGFLAG_CLAMPTOEDGE));
 
 			if (!shader.sky.outerbox[i])
 			{
@@ -1427,7 +1431,7 @@ static void ParseSkyParms(const char **text)
 		for (i = 0; i < 6; i++)
 		{
 			Com_sprintf(pathname, sizeof(pathname), "%s_%s.tga", token, suf[i]);
-			shader.sky.innerbox[i] = R_FindImageFile(pathname, imgFlags);
+			shader.sky.innerbox[i] = R_FindImageFile_plus(pathname, imgFlags);
 			if (!shader.sky.innerbox[i])
 			{
 				shader.sky.innerbox[i] = tr.defaultImage;
@@ -4071,7 +4075,7 @@ shader_t *R_FindShader_plus(const char *name, int lightmapIndex, bool mipRawImag
 			flags = static_cast<imgFlags_t>(flags | IMGFLAG_CLAMPTOEDGE);
 		}
 
-		image = R_FindImageFile(name, flags);
+		image = R_FindImageFile_plus(name, flags);
 		if (!image)
 		{
 			ri.Printf(PRINT_DEVELOPER, "Couldn't find image file for shader %s\n", name);

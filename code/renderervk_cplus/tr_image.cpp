@@ -1198,7 +1198,7 @@ static void R_CreateFogImage(void)
 	{
 		for (y = 0; y < FOG_T; y++)
 		{
-			d = R_FogFactor((x + 0.5f) / FOG_S, (y + 0.5f) / FOG_T);
+			d = R_FogFactor_plus((x + 0.5f) / FOG_S, (y + 0.5f) / FOG_T);
 
 			data[(y * FOG_S + x) * 4 + 0] =
 				data[(y * FOG_S + x) * 4 + 1] =

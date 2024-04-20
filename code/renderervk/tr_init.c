@@ -410,7 +410,7 @@ void RB_TakeScreenshot(int x, int y, int width, int height, const char *fileName
 	memcount = linelen * height;
 
 	// gamma correction
-	R_GammaCorrect(allbuf + offset, memcount);
+	R_GammaCorrect_plus(allbuf + offset, memcount);
 
 	ri.FS_WriteFile(fileName, buffer, memcount + header_size);
 
@@ -432,7 +432,7 @@ void RB_TakeScreenshotJPEG(int x, int y, int width, int height, const char *file
 	memcount = (width * 3 + padlen) * height;
 
 	// gamma correction
-	R_GammaCorrect(buffer + offset, memcount);
+	R_GammaCorrect_plus(buffer + offset, memcount);
 
 	ri.CL_SaveJPG(fileName, r_screenshotJpegQuality->integer, width, height, buffer + offset, padlen);
 	ri.Hunk_FreeTempMemory(buffer);
@@ -553,7 +553,7 @@ void RB_TakeScreenshotBMP(int x, int y, int width, int height, const char *fileN
 	FillBMPHeader(buffer - header_size, width, height, memcount, header_size);
 
 	// gamma correction
-	R_GammaCorrect(buffer, memcount);
+	R_GammaCorrect_plus(buffer, memcount);
 
 	if (clipboardOnly)
 	{
@@ -653,7 +653,7 @@ static void R_LevelShot(void)
 	}
 
 	// gamma correction
-	R_GammaCorrect(buffer + 18, 128 * 128 * 3);
+	R_GammaCorrect_plus(buffer + 18, 128 * 128 * 3);
 
 	ri.FS_WriteFile(checkname, buffer, 128 * 128 * 3 + 18);
 
@@ -801,7 +801,7 @@ const void *RB_TakeVideoFrameCmd(const void *data)
 	memcount = padwidth * cmd->height;
 
 	// gamma correction
-	R_GammaCorrect(cBuf, memcount);
+	R_GammaCorrect_plus(cBuf, memcount);
 
 	if (cmd->motionJpeg)
 	{
@@ -850,7 +850,7 @@ const void *RB_TakeVideoFrameCmd(const void *data)
 */
 static void GL_SetDefaultState(void)
 {
-	TextureMode(r_textureMode->string);
+	TextureMode_plus(r_textureMode->string);
 	glState.glStateBits = GLS_DEPTHTEST_DISABLE | GLS_DEPTHMASK_TRUE;
 }
 
@@ -1013,7 +1013,7 @@ R_Register
 static void R_Register(void)
 {
 	// make sure all the commands added here are also removed in R_Shutdown
-	ri.Cmd_AddCommand("imagelist", R_ImageList_f);
+	ri.Cmd_AddCommand("imagelist", R_ImageList_f_plus);
 	ri.Cmd_AddCommand("shaderlist", R_ShaderList_f);
 	ri.Cmd_AddCommand("skinlist", R_SkinList_f);
 	ri.Cmd_AddCommand("modellist", R_Modellist_f);
@@ -1426,7 +1426,7 @@ void R_Init(void)
 		}
 	}
 
-	R_InitFogTable();
+	R_InitFogTable_plus();
 
 	NoiseInit_plus();
 
@@ -1590,7 +1590,7 @@ refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp)
 	re.inPVS = R_inPVS_plus;
 
 	re.TakeVideoFrame = RE_TakeVideoFrame;
-	re.SetColorMappings = R_SetColorMappings;
+	re.SetColorMappings = R_SetColorMappings_plus;
 
 	re.ThrottleBackend = RE_ThrottleBackend_plus;
 	re.FinishBloom = RE_FinishBloom_plus;

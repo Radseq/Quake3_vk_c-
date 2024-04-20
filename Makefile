@@ -47,7 +47,7 @@ DNAME            = quake3e.ded
 RENDERER_PREFIX  = $(CNAME)
 
 CXX = g++
-CXXFLAGS = -std=c++23 -Wall -Wextra -O3 -DNDEBUG
+CXXFLAGS = -std=c++23 -Wall -Wextra -O3
 
 ifeq ($(V),1)
 echo_cmd=@:
@@ -639,10 +639,10 @@ default: release
 all: debug release
 
 debug:
-	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS)" V=$(V)
+	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(CXXFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS) -lstdc++" V=$(V)
 
 release:
-	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS)" V=$(V)
+	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(CXXFLAGS) $(RELEASE_CFLAGS)" LDFLAGS="$(LDFLAGS) -lstdc++" V=$(V)
 
 
 define ADD_COPY_TARGET
