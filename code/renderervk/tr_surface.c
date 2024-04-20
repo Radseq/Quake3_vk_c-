@@ -20,27 +20,3 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 // tr_surf.c
-#include "tr_local.h"
-#include "../renderervk_cplus/tr_surface.hpp"
-
-/*
-
-  THIS ENTIRE FILE IS BACK END
-
-backEnd.currentEntity will be valid.
-
-Tess_Begin has already been called for the surface's shader.
-
-The modelview matrix will be set.
-
-It is safe to actually issue drawing commands here if you don't want to
-use the shader system.
-*/
-
-//============================================================================
-
-
-void RB_SurfaceGridEstimate(srfGridMesh_t *cv, int *numVertexes, int *numIndexes)
-{
-	RB_SurfaceGridEstimate_plus(cv, numVertexes, numIndexes);
-}

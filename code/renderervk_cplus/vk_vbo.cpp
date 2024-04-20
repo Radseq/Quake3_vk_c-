@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_vbo.hpp"
 #include "vk.hpp"
 #include "tr_shade.hpp"
+#include "tr_surface.hpp"
 
 #ifdef USE_VBO
 
@@ -565,7 +566,7 @@ void R_BuildWorldVBO_plus(msurface_t *surf, int surfCount)
 		if (grid->surfaceType == SF_GRID && isStaticShader(sf->shader))
 		{
 			grid->vboItemIndex = ++numStaticSurfaces;
-			RB_SurfaceGridEstimate(grid, &grid->vboExpectVertices, &grid->vboExpectIndices);
+			RB_SurfaceGridEstimate_plus(grid, &grid->vboExpectVertices, &grid->vboExpectIndices);
 			numStaticVertexes += grid->vboExpectVertices;
 			numStaticIndexes += grid->vboExpectIndices;
 

@@ -66,21 +66,3 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // Currently a define in the project turns on or off the FreeType code which is currently
 // defined out. To pre-render new fonts you need enable the define ( BUILD_FREETYPE ) and
 // uncheck the exclude from build check box in the FreeType2 area of the Renderer project.
-
-#include "../qcommon/q_shared.h"
-#include "../qcommon/qcommon.h"
-#include "../renderervk/tr_public.h"
-
-
-
-#ifdef BUILD_FREETYPE
-void R_GetGlyphInfo(FT_GlyphSlot glyph, int *left, int *right, int *width, int *top, int *bottom, int *height, int *pitch)
-{
-	R_GetGlyphInfo_plus(glyph, left, right, width, top, bottom, height, pitch);
-}
-
-FT_Bitmap *R_RenderGlyph(FT_GlyphSlot glyph, glyphInfo_t *glyphOut)
-{
-	return R_RenderGlyph_plus(glyph, glyphOut);
-}
-#endif
