@@ -1014,7 +1014,7 @@ static void R_Register(void)
 {
 	// make sure all the commands added here are also removed in R_Shutdown
 	ri.Cmd_AddCommand("imagelist", R_ImageList_f_plus);
-	ri.Cmd_AddCommand("shaderlist", R_ShaderList_f);
+	ri.Cmd_AddCommand("shaderlist", R_ShaderList_f_plus);
 	ri.Cmd_AddCommand("skinlist", R_SkinList_f_plus);
 	ri.Cmd_AddCommand("modellist", R_Modellist_f);
 	ri.Cmd_AddCommand("screenshot", R_ScreenShot_f);
@@ -1450,7 +1450,7 @@ void R_Init(void)
 
 	vk_create_pipelines_plus();
 
-	R_InitShaders();
+	R_InitShaders_plus();
 
 	R_InitSkins_plus();
 
@@ -1585,7 +1585,7 @@ refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp)
 	re.UploadCinematic = RE_UploadCinematic_plus;
 
 	re.RegisterFont = RE_RegisterFont_plus;
-	re.RemapShader = RE_RemapShader;
+	re.RemapShader = RE_RemapShader_plus;
 	re.GetEntityToken = RE_GetEntityToken_plus;
 	re.inPVS = R_inPVS_plus;
 

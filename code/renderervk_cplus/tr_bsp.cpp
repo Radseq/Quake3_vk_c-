@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk.hpp"
 #include "tr_curve.hpp"
 #include "vk_vbo.hpp"
+#include "tr_shader.hpp"
 
 static world_t s_worldData;
 static byte *fileBase;
@@ -2419,7 +2420,7 @@ static void R_LoadEntities(const lump_t *l)
 			*vs++ = '\0';
 			if (r_vertexLight->integer && tr.vertexLightingAllowed)
 			{
-				RE_RemapShader(value, s, "0");
+				RE_RemapShader_plus(value, s, "0");
 			}
 			continue;
 		}
@@ -2434,7 +2435,7 @@ static void R_LoadEntities(const lump_t *l)
 				break;
 			}
 			*vs++ = '\0';
-			RE_RemapShader(value, s, "0");
+			RE_RemapShader_plus(value, s, "0");
 			continue;
 		}
 		// check for a different grid size
