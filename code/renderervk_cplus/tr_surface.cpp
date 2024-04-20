@@ -26,6 +26,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_model_iqm.hpp"
 #include "tr_shade.hpp"
 #include "vk_flares.hpp"
+#include "vk_vbo.hpp"
+#include "vk.hpp"
 
 /*
 
@@ -81,7 +83,7 @@ void RB_AddQuadStampExt_plus(const vec3_t origin, const vec3_t left, const vec3_
 	int ndx;
 
 #ifdef USE_VBO
-	VBO_Flush();
+	VBO_Flush_plus();
 #endif
 
 	RB_CHECKOVERFLOW_PLUS(4, 6);
@@ -154,7 +156,7 @@ void RB_AddQuadStamp2_plus(float x, float y, float w, float h, float s1, float t
 	int numVerts;
 
 #ifdef USE_VBO
-	VBO_Flush();
+	VBO_Flush_plus();
 #endif
 
 	RB_CHECKOVERFLOW_PLUS(4, 6);
@@ -269,7 +271,7 @@ static void RB_SurfacePolychain(const srfPoly_t *p)
 	int numv;
 
 #ifdef USE_VBO
-	VBO_Flush();
+	VBO_Flush_plus();
 #endif
 
 	RB_CHECKOVERFLOW_PLUS(p->numVerts, 3 * (p->numVerts - 2));
@@ -335,15 +337,15 @@ static void RB_SurfaceTriangles(const srfTriangles_t *srf)
 			// set some dummy parameters for RB_EndSurface
 			tess.numIndexes = 1;
 			tess.numVertexes = 0;
-			VBO_ClearQueue();
+			VBO_ClearQueue_plus();
 		}
 		tess.surfType = SF_TRIANGLES;
 		tess.vboIndex = srf->vboItemIndex;
-		VBO_QueueItem(srf->vboItemIndex);
+		VBO_QueueItem_plus(srf->vboItemIndex);
 		return; // no need to tesselate anything
 	}
 
-	VBO_Flush();
+	VBO_Flush_plus();
 #endif // USE_VBO
 
 	RB_CHECKOVERFLOW_PLUS(srf->numVerts, srf->numIndexes);
@@ -469,9 +471,9 @@ static void RB_SurfaceBeam(void)
 	}
 	tess.numVertexes = (NUM_BEAM_SEGS + 1) * 2;
 
-	vk_bind_pipeline(vk.surface_beam_pipeline);
-	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
+	vk_bind_pipeline_plus(vk.surface_beam_pipeline);
+	vk_bind_geometry_plus(TESS_XYZ | TESS_RGBA0);
+	vk_draw_geometry_plus(DEPTH_RANGE_NORMAL, false);
 
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
@@ -837,7 +839,7 @@ static void RB_SurfaceMesh(md3Surface_t *surface)
 	int numVerts;
 
 #ifdef USE_VBO
-	VBO_Flush();
+	VBO_Flush_plus();
 #endif
 
 	RB_CHECKOVERFLOW_PLUS(surface->numVerts, surface->numTriangles * 3);
@@ -915,15 +917,15 @@ static void RB_SurfaceFace(const srfSurfaceFace_t *surf)
 			// set some dummy parameters for RB_EndSurface
 			tess.numIndexes = 1;
 			tess.numVertexes = 0;
-			VBO_ClearQueue();
+			VBO_ClearQueue_plus();
 		}
 		tess.surfType = SF_FACE;
 		tess.vboIndex = surf->vboItemIndex;
-		VBO_QueueItem(surf->vboItemIndex);
+		VBO_QueueItem_plus(surf->vboItemIndex);
 		return; // no need to tesselate anything
 	}
 
-	VBO_Flush();
+	VBO_Flush_plus();
 #endif // USE_VBO
 
 	RB_CHECKOVERFLOW_PLUS(surf->numPoints, surf->numIndices);
@@ -1143,15 +1145,15 @@ static void RB_SurfaceGrid(srfGridMesh_t *cv)
 			// set some dummy parameters for RB_EndSurface
 			tess.numIndexes = 1;
 			tess.numVertexes = 0;
-			VBO_ClearQueue();
+			VBO_ClearQueue_plus();
 		}
 		tess.surfType = SF_GRID;
 		tess.vboIndex = cv->vboItemIndex;
-		VBO_QueueItem(cv->vboItemIndex);
+		VBO_QueueItem_plus(cv->vboItemIndex);
 		return; // no need to tesselate anything
 	}
 
-	VBO_Flush();
+	VBO_Flush_plus();
 #endif // USE_VBO
 
 #ifdef USE_LEGACY_DLIGHTS
@@ -1222,7 +1224,7 @@ static void RB_SurfaceGrid(srfGridMesh_t *cv)
 #ifdef USE_VBO
 					if (cv->vboItemIndex)
 					{
-						VBO_PushData(cv->vboItemIndex, &tess);
+						VBO_PushData_plus(cv->vboItemIndex, &tess);
 						tess.numIndexes = 0;
 						tess.numVertexes = 0;
 					}
@@ -1380,10 +1382,10 @@ static void RB_SurfaceAxis(void)
 
 	tess.numVertexes = 6;
 
-	vk_bind_pipeline(vk.surface_axis_pipeline);
+	vk_bind_pipeline_plus(vk.surface_axis_pipeline);
 	// TODO: use common layout and avoid ST0 binding?
-	vk_bind_geometry(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
+	vk_bind_geometry_plus(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
+	vk_draw_geometry_plus(DEPTH_RANGE_NORMAL, false);
 
 	tess.numVertexes = 0;
 }
@@ -1400,7 +1402,7 @@ Entities that have a single procedurally generated surface
 static void RB_SurfaceEntity(const surfaceType_t *surfType)
 {
 #ifdef USE_VBO
-	VBO_Flush();
+	VBO_Flush_plus();
 #endif
 	switch (backEnd.currentEntity->e.reType)
 	{
@@ -1438,7 +1440,7 @@ static void RB_SurfaceFlare(srfFlare_t *surf)
 	if (r_flares->integer)
 	{
 #ifdef USE_VBO
-		VBO_Flush();
+		VBO_Flush_plus();
 		tess.surfType = SF_FLARE;
 #endif
 		RB_AddFlare_plus(surf, tess.fogNum, surf->origin, surf->color, surf->normal);

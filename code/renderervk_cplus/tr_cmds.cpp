@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_backend.hpp"
 #include "tr_shader.hpp"
 #include "tr_scene.hpp"
+#include "vk.hpp"
 
 #define MODE_RED_CYAN 1
 #define MODE_RED_BLUE 2
@@ -461,7 +462,7 @@ void RE_EndFrame_plus(int *frontEndMsec, int *backEndMsec)
 			R_SetColorMappings();
 		}
 
-		vk_update_post_process_pipelines();
+		vk_update_post_process_pipelines_plus();
 
 		ri.Cvar_ResetGroup(CVG_RENDERER, true /* reset modified flags */);
 	}

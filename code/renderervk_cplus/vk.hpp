@@ -60,6 +60,8 @@ extern "C"
 #define TESS_ENT1 (2048) // uniform with ent.color[1]
 #define TESS_ENT2 (4096) // uniform with ent.color[2]
 
+
+
       //
       // Initialization.
       //
@@ -154,6 +156,12 @@ extern "C"
       void vk_begin_bloom_extract_render_pass_plus(void);
 
       void vk_begin_blur_render_pass_plus(uint32_t index);
+
+
+
+
+extern Vk_Instance	vk;				// shouldn't be cleared during ref re-init
+extern Vk_World		vk_world;		// this data is cleared during ref re-init
 
 #ifdef __cplusplus
 }

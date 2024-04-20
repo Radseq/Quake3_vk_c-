@@ -24,9 +24,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_bsp.hpp"
 #include "q_shared.hpp"
 #include "tr_image.hpp"
-// #include "tr_shader.hpp"
+#include "vk.hpp"
 #include "tr_curve.hpp"
-// #include "vk_vbo.hpp"
+#include "vk_vbo.hpp"
 
 static world_t s_worldData;
 static byte *fileBase;
@@ -388,7 +388,7 @@ static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 
 				R_ProcessLightmap(image, buf + offs, maxIntensity);
 
-				vk_upload_image_data(tr.lightmaps[i], x * LIGHTMAP_LEN, y * LIGHTMAP_LEN, LIGHTMAP_LEN, LIGHTMAP_LEN, 1, image, LIGHTMAP_LEN * LIGHTMAP_LEN * 4, true);
+				vk_upload_image_data_plus(tr.lightmaps[i], x * LIGHTMAP_LEN, y * LIGHTMAP_LEN, LIGHTMAP_LEN, LIGHTMAP_LEN, 1, image, LIGHTMAP_LEN * LIGHTMAP_LEN * 4, true);
 
 				offs += LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3;
 			}
@@ -2571,7 +2571,7 @@ void RE_LoadWorldMap_plus(const char *name)
 	R_LoadLightGrid(&header->lumps[LUMP_LIGHTGRID]);
 
 #ifdef USE_VBO
-	R_BuildWorldVBO(s_worldData.surfaces, s_worldData.numsurfaces);
+	R_BuildWorldVBO_plus(s_worldData.surfaces, s_worldData.numsurfaces);
 #endif
 
 	tr.mapLoading = false;

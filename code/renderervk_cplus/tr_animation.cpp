@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_image.hpp"
 #include "tr_mesh.hpp"
 #include "tr_surface.hpp"
+#include "vk_vbo.hpp"
 
 /*
 
@@ -330,7 +331,7 @@ void RB_MDRSurfaceAnim_plus(mdrSurface_t *surface)
 	int frameSize;
 
 #ifdef USE_VBO
-	VBO_Flush();
+	VBO_Flush_plus();
 
 	tess.surfType = SF_MDR;
 #endif

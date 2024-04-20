@@ -24,6 +24,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_backend.hpp"
 #include "tr_shade.hpp"
 #include "tr_surface.hpp"
+#include "vk_vbo.hpp"
+#include "vk.hpp"
 
 #include <array>
 
@@ -464,10 +466,10 @@ static void DrawSkySide(image_t *image, const int mins[2], const int maxs[2])
 		Bind_plus(image);
 		tess.svars.texcoordPtr[0] = tess.texCoords[0];
 
-		vk_bind_pipeline(vk.skybox_pipeline);
-		vk_bind_index();
-		vk_bind_geometry(TESS_XYZ | TESS_ST0);
-		vk_draw_geometry(r_showsky->integer ? DEPTH_RANGE_ZERO : DEPTH_RANGE_ONE, true);
+		vk_bind_pipeline_plus(vk.skybox_pipeline);
+		vk_bind_index_plus();
+		vk_bind_geometry_plus(TESS_XYZ | TESS_ST0);
+		vk_draw_geometry_plus(r_showsky->integer ? DEPTH_RANGE_ZERO : DEPTH_RANGE_ONE, true);
 		tess.numVertexes = 0;
 		tess.numIndexes = 0;
 	}
@@ -777,7 +779,7 @@ void RB_DrawSun_plus(float scale, shader_t *shader)
 		return;
 
 	sunColor.u32 = ~0U;
-	vk_update_mvp(NULL);
+	vk_update_mvp_plus(NULL);
 
 	dist = backEnd.viewParms.zFar / 1.75; // div sqrt(3)
 	size = dist * scale;
@@ -819,7 +821,7 @@ void RB_StageIteratorSky_plus(void)
 	}
 
 #ifdef USE_VBO
-	VBO_UnBind();
+	VBO_UnBind_plus();
 #endif
 
 	// go through all the polygons and project them onto

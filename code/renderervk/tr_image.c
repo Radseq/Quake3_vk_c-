@@ -564,8 +564,8 @@ static void upload_vk_image( image_t *image, byte *pic ) {
 	image->uploadWidth = w;
 	image->uploadHeight = h;
 
-	vk_create_image( image, w, h, upload_data.mip_levels );
-	vk_upload_image_data( image, 0, 0, w, h, upload_data.mip_levels, upload_data.buffer, upload_data.buffer_size, false );
+	vk_create_image_plus( image, w, h, upload_data.mip_levels );
+	vk_upload_image_data_plus( image, 0, 0, w, h, upload_data.mip_levels, upload_data.buffer, upload_data.buffer_size, false );
 
 	ri.Hunk_FreeTempMemory( upload_data.buffer );
 }
@@ -1178,7 +1178,7 @@ void R_InitImages( void ) {
 	// create default texture and white texture
 	R_CreateBuiltinImages();
 
-	vk_update_post_process_pipelines();
+	vk_update_post_process_pipelines_plus();
 }
 
 

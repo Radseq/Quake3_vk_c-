@@ -328,7 +328,7 @@ void RE_EndFrame( int *frontEndMsec, int *backEndMsec ) {
 			R_SetColorMappings();
 		}
 
-		vk_update_post_process_pipelines();
+		vk_update_post_process_pipelines_plus();
 
 		ri.Cvar_ResetGroup( CVG_RENDERER, true /* reset modified flags */ );
 	}

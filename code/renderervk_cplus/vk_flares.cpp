@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shade_calc.hpp"
 #include "tr_shade.hpp"
 #include "tr_surface.hpp"
+#include "vk.hpp"
 
 /*
 =============================================================================
@@ -356,7 +357,7 @@ static void RB_TestFlare(flare_t *f)
 
 	m = vk_ortho(backEnd.viewParms.viewportX, backEnd.viewParms.viewportX + backEnd.viewParms.viewportWidth,
 				 backEnd.viewParms.viewportY, backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight, 0, 1);
-	vk_update_mvp(m);
+	vk_update_mvp_plus(m);
 
 	tess.xyz[0][0] = f->windowX;
 	tess.xyz[0][1] = f->windowY;
@@ -367,16 +368,16 @@ static void RB_TestFlare(flare_t *f)
 	tess.vboIndex = 0;
 #endif
 	// render test dot
-	vk_reset_descriptor(VK_DESC_STORAGE);
-	vk_update_descriptor(VK_DESC_STORAGE, vk.storage.descriptor);
-	vk_update_descriptor_offset(VK_DESC_STORAGE, offset);
+	vk_reset_descriptor_plus(VK_DESC_STORAGE);
+	vk_update_descriptor_plus(VK_DESC_STORAGE, vk.storage.descriptor);
+	vk_update_descriptor_offset_plus(VK_DESC_STORAGE, offset);
 
-	vk_bind_pipeline(vk.dot_pipeline);
-	vk_bind_geometry(TESS_XYZ);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
+	vk_bind_pipeline_plus(vk.dot_pipeline);
+	vk_bind_geometry_plus(TESS_XYZ);
+	vk_draw_geometry_plus(DEPTH_RANGE_NORMAL, false);
 
 	// Com_Memcpy( vk_world.modelview_transform, modelMatrix_original, sizeof( modelMatrix_original ) );
-	// vk_update_mvp( NULL );
+	// vk_update_mvp_plus( NULL );
 
 	if (visible)
 	{
@@ -587,7 +588,7 @@ void RB_RenderFlares_plus(void)
 				 backEnd.viewParms.viewportY, backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight, 0.0, 1.0);
 #endif
 
-	vk_update_mvp(m);
+	vk_update_mvp_plus(m);
 
 	for (f = r_activeFlares; f; f = f->next)
 	{
@@ -598,5 +599,5 @@ void RB_RenderFlares_plus(void)
 	}
 
 	// Com_Memcpy( vk_world.modelview_transform, modelMatrix_original, sizeof( modelMatrix_original ) );
-	// vk_update_mvp( NULL );
+	// vk_update_mvp_plus( NULL );
 }

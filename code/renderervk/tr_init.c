@@ -249,7 +249,7 @@ static void InitOpenGL(void)
 			}
 		}
 
-		vk_initialize();
+		vk_initialize_plus();
 
 		glConfig.deviceSupportsGamma = false;
 
@@ -269,7 +269,7 @@ static void InitOpenGL(void)
 	if (!vk.active)
 	{
 		// might happen after REF_KEEP_WINDOW
-		vk_initialize();
+		vk_initialize_plus();
 		gls.initTime = ri.Milliseconds();
 	}
 	if (vk.active)
@@ -348,7 +348,7 @@ static byte *RB_ReadPixels(int x, int y, int width, int height, size_t *offset, 
 	buffer = ri.Hunk_AllocateTempMemory(width * height * 4 + *offset + bufAlign - 1);
 	bufstart = PADP((intptr_t)buffer + *offset, bufAlign);
 
-	vk_read_pixels(bufstart, width, height);
+	vk_read_pixels_plus(bufstart, width, height);
 
 	*offset = bufstart - buffer;
 	*padlen = PAD(linelen, packAlign) - linelen;
@@ -796,7 +796,7 @@ const void *RB_TakeVideoFrameCmd(const void *data)
 
 	cBuf = PADP(cmd->captureBuffer, packAlign);
 
-	vk_read_pixels(cBuf, cmd->width, cmd->height);
+	vk_read_pixels_plus(cBuf, cmd->width, cmd->height);
 
 	memcount = padwidth * cmd->height;
 
@@ -1002,7 +1002,7 @@ RE_SyncRender
 static void RE_SyncRender(void)
 {
 	if (vk.device)
-		vk_wait_idle();
+		vk_wait_idle_plus();
 }
 
 /*
@@ -1448,7 +1448,7 @@ void R_Init(void)
 
 	VarInfo();
 
-	vk_create_pipelines();
+	vk_create_pipelines_plus();
 
 	R_InitShaders();
 
@@ -1485,7 +1485,7 @@ static void RE_Shutdown(refShutdownCode_t code)
 	{
 		// R_IssuePendingRenderCommands();
 		R_DeleteTextures();
-		vk_release_resources();
+		vk_release_resources_plus();
 	}
 
 	R_DoneFreeType_plus();
@@ -1498,7 +1498,7 @@ static void RE_Shutdown(refShutdownCode_t code)
 	// shut down platform specific OpenGL/Vulkan stuff
 	if (code != REF_KEEP_CONTEXT)
 	{
-		vk_shutdown(code);
+		vk_shutdown_plus(code);
 
 		Com_Memset(&glState, 0, sizeof(glState));
 
@@ -1524,7 +1524,7 @@ Touch all images to make sure they are resident
 */
 static void RE_EndRegistration(void)
 {
-	vk_wait_idle();
+	vk_wait_idle_plus();
 	// command buffer is not in recording state at this stage
 	// so we can't issue RB_ShowImages() there
 }

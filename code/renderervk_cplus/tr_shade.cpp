@@ -25,6 +25,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shade_calc.hpp"
 #include "tr_backend.hpp"
 #include "tr_shadows.hpp"
+#include "vk_vbo.hpp"
+#include "vk.hpp"
 
 shaderCommands_t tess;
 
@@ -463,9 +465,9 @@ uint32_t VK_PushUniform_plus(const vkUniform_t *uniform)
 	Com_Memcpy(vk.cmd->vertex_buffer_ptr + offset, uniform, sizeof(*uniform));
 	vk.cmd->vertex_buffer_offset = offset + vk.uniform_item_size;
 
-	vk_reset_descriptor(VK_DESC_UNIFORM);
-	vk_update_descriptor(VK_DESC_UNIFORM, vk.cmd->uniform_descriptor);
-	vk_update_descriptor_offset(VK_DESC_UNIFORM, vk.cmd->uniform_read_offset);
+	vk_reset_descriptor_plus(VK_DESC_UNIFORM);
+	vk_update_descriptor_plus(VK_DESC_UNIFORM, vk.cmd->uniform_descriptor);
+	vk_update_descriptor_offset_plus(VK_DESC_UNIFORM, vk.cmd->uniform_read_offset);
 
 	return offset;
 }
@@ -487,7 +489,7 @@ static void R_BindAnimatedImage(const textureBundle_t *bundle)
 		if (!backEnd.screenMapDone)
 			Bind_plus(tr.blackImage);
 		else
-			vk_update_descriptor(glState.currenttmu + VK_DESC_TEXTURE_BASE, vk.screenMap.color_descriptor);
+			vk_update_descriptor_plus(glState.currenttmu + VK_DESC_TEXTURE_BASE, vk.screenMap.color_descriptor);
 		return;
 	}
 
@@ -596,7 +598,7 @@ void VK_LightingPass_plus(void)
 	abs_light = /* (pStage->stateBits & GLS_ATEST_BITS) && */ (cull == CT_TWO_SIDED) ? 1 : 0;
 
 	if (fog_stage)
-		vk_update_descriptor(VK_DESC_FOG_DLIGHT, tr.fogImage->descriptor);
+		vk_update_descriptor_plus(VK_DESC_FOG_DLIGHT, tr.fogImage->descriptor);
 
 	if (tess.light->linear)
 		pipeline = vk.dlight1_pipelines_x[cull][tess.shader->polygonOffset][fog_stage][abs_light];
@@ -613,10 +615,10 @@ void VK_LightingPass_plus(void)
 		R_ComputeTexCoords_plus(tess.shader->lightingBundle, &pStage->bundle[tess.shader->lightingBundle]);
 	}
 
-	vk_bind_pipeline(pipeline);
-	vk_bind_index();
-	vk_bind_lighting(tess.shader->lightingStage, tess.shader->lightingBundle);
-	vk_draw_geometry(tess.depthRange, true);
+	vk_bind_pipeline_plus(pipeline);
+	vk_bind_index_plus();
+	vk_bind_lighting_plus(tess.shader->lightingStage, tess.shader->lightingBundle);
+	vk_draw_geometry_plus(tess.depthRange, true);
 }
 #endif // USE_PMLIGHT
 
@@ -629,7 +631,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 	int fog_stage;
 	bool pushUniform;
 
-	vk_bind_index();
+	vk_bind_index_plus();
 
 	tess_flags = input->shader->tessFlags;
 
@@ -640,7 +642,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 	{
 		VK_SetFogParams_plus(&uniform, &fog_stage);
 		VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
-		vk_update_descriptor(VK_DESC_FOG_COLLAPSE, tr.fogImage->descriptor);
+		vk_update_descriptor_plus(VK_DESC_FOG_COLLAPSE, tr.fogImage->descriptor);
 		pushUniform = true;
 	}
 	else
@@ -715,9 +717,9 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 			pipeline = pStage->vk_pipeline[fog_stage];
 		}
 
-		vk_bind_pipeline(pipeline);
-		vk_bind_geometry(tess_flags);
-		vk_draw_geometry(tess.depthRange, true);
+		vk_bind_pipeline_plus(pipeline);
+		vk_bind_geometry_plus(tess_flags);
+		vk_draw_geometry_plus(tess.depthRange, true);
 
 		if (pStage->depthFragment)
 		{
@@ -725,8 +727,8 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 				pipeline = pStage->vk_mirror_pipeline_df;
 			else
 				pipeline = pStage->vk_pipeline_df;
-			vk_bind_pipeline(pipeline);
-			vk_draw_geometry(tess.depthRange, true);
+			vk_bind_pipeline_plus(pipeline);
+			vk_draw_geometry_plus(tess.depthRange, true);
 		}
 
 		// allow skipping out to show just lightmaps during development
@@ -740,7 +742,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 		VK_PushUniform_plus(&uniform);
 	}
 	if (tess_flags) // fog-only shaders?
-		vk_bind_geometry(tess_flags);
+		vk_bind_geometry_plus(tess_flags);
 }
 
 /*
@@ -901,10 +903,10 @@ static bool ProjectDlightTexture(void)
 			rebindIndex = true;
 		}
 		pipeline = vk.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
-		vk_bind_pipeline(pipeline);
-		vk_bind_index_ext(numIndexes, hitIndexes);
-		vk_bind_geometry(TESS_RGBA0 | TESS_ST0);
-		vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
+		vk_bind_pipeline_plus(pipeline);
+		vk_bind_index_ext_plus(numIndexes, hitIndexes);
+		vk_bind_geometry_plus(TESS_RGBA0 | TESS_ST0);
+		vk_draw_geometry_plus(DEPTH_RANGE_NORMAL, true);
 		backEnd.pc.c_totalIndexes += numIndexes;
 		backEnd.pc.c_dlightIndexes += numIndexes;
 	}
@@ -928,15 +930,15 @@ static void RB_FogPass(bool rebindIndex)
 	int fog_stage;
 
 	// fog parameters
-	vk_bind_pipeline(pipeline);
+	vk_bind_pipeline_plus(pipeline);
 	if (rebindIndex)
 	{
-		vk_bind_index();
+		vk_bind_index_plus();
 	}
 	VK_SetFogParams_plus(&uniform, &fog_stage);
 	VK_PushUniform_plus(&uniform);
-	vk_update_descriptor(VK_DESC_FOG_ONLY, tr.fogImage->descriptor);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
+	vk_update_descriptor_plus(VK_DESC_FOG_ONLY, tr.fogImage->descriptor);
+	vk_draw_geometry_plus(DEPTH_RANGE_NORMAL, true);
 #else
 	const fog_t *fog = tr.world->fogs + tess.fogNum;
 	int i;
@@ -950,13 +952,13 @@ static void RB_FogPass(bool rebindIndex)
 	tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
 	GL_Bind(tr.fogImage);
 
-	vk_bind_pipeline(pipeline);
+	vk_bind_pipeline_plus(pipeline);
 	if (rebindIndex)
 	{
-		vk_bind_index();
+		vk_bind_index_plus();
 	}
-	vk_bind_geometry(TESS_ST0 | TESS_RGBA0);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
+	vk_bind_geometry_plus(TESS_ST0 | TESS_RGBA0);
+	vk_draw_geometry_plus(DEPTH_RANGE_NORMAL, true);
 #endif
 }
 
@@ -968,7 +970,7 @@ void RB_StageIteratorGeneric_plus(void)
 #ifdef USE_VBO
 	if (tess.vboIndex != 0)
 	{
-		VBO_PrepareQueues();
+		VBO_PrepareQueues_plus();
 		tess.vboStage = 0;
 	}
 	else
@@ -1052,8 +1054,8 @@ static void DrawTris(const shaderCommands_t *input)
 			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk.tris_mirror_debug_pipeline : vk.tris_debug_pipeline;
 	}
 
-	vk_bind_pipeline(pipeline);
-	vk_draw_geometry(DEPTH_RANGE_ZERO, true);
+	vk_bind_pipeline_plus(pipeline);
+	vk_draw_geometry_plus(DEPTH_RANGE_ZERO, true);
 }
 
 /*
@@ -1084,10 +1086,10 @@ static void DrawNormals(const shaderCommands_t *input)
 	tess.numVertexes *= 2;
 	Com_Memset(tess.svars.colors[0][0].rgba, tr.identityLightByte, tess.numVertexes * sizeof(color4ub_t));
 
-	vk_bind_pipeline(vk.normals_debug_pipeline);
-	vk_bind_index();
-	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
-	vk_draw_geometry(DEPTH_RANGE_ZERO, true);
+	vk_bind_pipeline_plus(vk.normals_debug_pipeline);
+	vk_bind_index_plus();
+	vk_bind_geometry_plus(TESS_XYZ | TESS_RGBA0);
+	vk_draw_geometry_plus(DEPTH_RANGE_ZERO, true);
 }
 
 void RB_EndSurface_plus(void)

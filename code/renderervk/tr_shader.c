@@ -3305,17 +3305,17 @@ static shader_t *FinishShader( void ) {
 			}
 
 			def.mirror = false;
-			pStage->vk_pipeline[0] = vk_find_pipeline_ext( 0, &def, true );
+			pStage->vk_pipeline[0] = vk_find_pipeline_ext_plus( 0, &def, true );
 			def.mirror = true;
-			pStage->vk_mirror_pipeline[0] = vk_find_pipeline_ext( 0, &def, false );
+			pStage->vk_mirror_pipeline[0] = vk_find_pipeline_ext_plus( 0, &def, false );
 
 			if ( pStage->depthFragment ) {
 				def.mirror = false;
 				def.shader_type = TYPE_SIGNLE_TEXTURE_DF;
-				pStage->vk_pipeline_df = vk_find_pipeline_ext( 0, &def, true );
+				pStage->vk_pipeline_df = vk_find_pipeline_ext_plus( 0, &def, true );
 				def.mirror = true;
 				def.shader_type = TYPE_SIGNLE_TEXTURE_DF;
-				pStage->vk_mirror_pipeline_df = vk_find_pipeline_ext( 0, &def, false );
+				pStage->vk_mirror_pipeline_df = vk_find_pipeline_ext_plus( 0, &def, false );
 			}
 
 #ifdef USE_FOG_COLLAPSE
@@ -3323,16 +3323,16 @@ static shader_t *FinishShader( void ) {
 				Vk_Pipeline_Def def;
 				Vk_Pipeline_Def def_mirror;
 
-				vk_get_pipeline_def( pStage->vk_pipeline[0], &def );
-				vk_get_pipeline_def( pStage->vk_mirror_pipeline[0], &def_mirror );
+				vk_get_pipeline_def_plus( pStage->vk_pipeline[0], &def );
+				vk_get_pipeline_def_plus( pStage->vk_mirror_pipeline[0], &def_mirror );
 
 				def.fog_stage = 1;
 				def_mirror.fog_stage = 1;
 				def.acff = pStage->bundle[0].adjustColorsForFog;
 				def_mirror.acff = pStage->bundle[0].adjustColorsForFog;
 
-				pStage->vk_pipeline[1] = vk_find_pipeline_ext( 0, &def, false );
-				pStage->vk_mirror_pipeline[1] = vk_find_pipeline_ext( 0, &def_mirror, false );
+				pStage->vk_pipeline[1] = vk_find_pipeline_ext_plus( 0, &def, false );
+				pStage->vk_mirror_pipeline[1] = vk_find_pipeline_ext_plus( 0, &def_mirror, false );
 
 				pStage->bundle[0].adjustColorsForFog = ACFF_NONE; // will be handled in shader from now
 

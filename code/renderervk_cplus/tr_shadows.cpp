@@ -21,6 +21,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include "tr_shadows.hpp"
 #include "tr_backend.hpp"
+#include "vk.hpp"
+
 /*
 
   for a projection shadow:
@@ -226,12 +228,12 @@ void RB_ShadowTessEnd_plus(void)
 		pipeline[0] = vk.shadow_volume_pipelines[0][0];
 		pipeline[1] = vk.shadow_volume_pipelines[1][0];
 	}
-	vk_bind_pipeline(pipeline[0]); // back-sided
-	vk_bind_index();
-	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
-	vk_bind_pipeline(pipeline[1]); // front-sided
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
+	vk_bind_pipeline_plus(pipeline[0]); // back-sided
+	vk_bind_index_plus();
+	vk_bind_geometry_plus(TESS_XYZ | TESS_RGBA0);
+	vk_draw_geometry_plus(DEPTH_RANGE_NORMAL, true);
+	vk_bind_pipeline_plus(pipeline[1]); // front-sided
+	vk_draw_geometry_plus(DEPTH_RANGE_NORMAL, true);
 
 	tess.numVertexes /= 2;
 
@@ -294,12 +296,12 @@ void RB_ShadowFinish_plus(void)
 	vk_world.modelview_transform[10] = 1.0f;
 	vk_world.modelview_transform[15] = 1.0f;
 
-	vk_bind_pipeline(vk.shadow_finish_pipeline);
+	vk_bind_pipeline_plus(vk.shadow_finish_pipeline);
 
-	vk_update_mvp(NULL);
+	vk_update_mvp_plus(NULL);
 
-	vk_bind_geometry(TESS_XYZ | TESS_RGBA0 /*| TESS_ST0 */);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
+	vk_bind_geometry_plus(TESS_XYZ | TESS_RGBA0 /*| TESS_ST0 */);
+	vk_draw_geometry_plus(DEPTH_RANGE_NORMAL, false);
 
 	Com_Memcpy(vk_world.modelview_transform, tmp, 64);
 

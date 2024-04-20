@@ -48,6 +48,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "iqm.h"
 
 #include "vk.h"
+#include "../renderervk_cplus/vk.hpp"
 // GL constants substitutions
 typedef enum {
 	GL_NEAREST,
@@ -1775,17 +1776,5 @@ bool RE_CanMinimize( void );
 const glconfig_t *RE_GetConfig( void );
 void RE_VertexLighting( bool allowed );
 
-#ifdef USE_VBO
-// VBO functions
-extern void R_BuildWorldVBO( msurface_t *surf, int surfCount );
-
-extern void VBO_PushData( int itemIndex, shaderCommands_t *input );
-extern void VBO_UnBind( void );
-
-extern void VBO_Cleanup( void );
-extern void VBO_QueueItem( int itemIndex );
-extern void VBO_ClearQueue( void );
-extern void VBO_Flush( void );
-#endif
 
 #endif //TR_LOCAL_H

@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // tr_image.c
 #include "tr_image.hpp"
 #include "tr_bsp.hpp"
+#include "vk.hpp"
 
 #include <algorithm> // for std::clamp
 #include <cstdint>	 // for std::uint32_t
@@ -355,13 +356,13 @@ void TextureMode_plus(const char *string)
 	gl_filter_min = mode->minimize;
 	gl_filter_max = mode->maximize;
 
-	vk_wait_idle();
+	vk_wait_idle_plus();
 	for (i = 0; i < tr.numImages; i++)
 	{
 		img = tr.images[i];
 		if (img->flags & IMGFLAG_MIPMAP)
 		{
-			vk_update_descriptor_set(img, true);
+			vk_update_descriptor_set_plus(img, true);
 		}
 	}
 }
@@ -917,8 +918,8 @@ static void upload_vk_image(image_t *image, byte *pic)
 	image->uploadWidth = w;
 	image->uploadHeight = h;
 
-	vk_create_image(image, w, h, upload_data.mip_levels);
-	vk_upload_image_data(image, 0, 0, w, h, upload_data.mip_levels, upload_data.buffer, upload_data.buffer_size, false);
+	vk_create_image_plus(image, w, h, upload_data.mip_levels);
+	vk_upload_image_data_plus(image, 0, 0, w, h, upload_data.mip_levels, upload_data.buffer, upload_data.buffer_size, false);
 
 	ri.Hunk_FreeTempMemory(upload_data.buffer);
 }
@@ -1431,7 +1432,7 @@ void R_InitImages_plus(void)
 	// create default texture and white texture
 	R_CreateBuiltinImages();
 
-	vk_update_post_process_pipelines();
+	vk_update_post_process_pipelines_plus();
 }
 
 void R_DeleteTextures_plus(void)
@@ -1440,12 +1441,12 @@ void R_DeleteTextures_plus(void)
 	image_t *img;
 	int i;
 
-	vk_wait_idle();
+	vk_wait_idle_plus();
 
 	for (i = 0; i < tr.numImages; i++)
 	{
 		img = tr.images[i];
-		vk_destroy_image_resources(&img->handle, &img->view);
+		vk_destroy_image_resources_plus(&img->handle, &img->view);
 
 		// img->descriptor will be released with pool reset
 	}
