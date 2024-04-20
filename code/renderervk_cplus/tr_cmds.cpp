@@ -133,12 +133,12 @@ static void R_IssueRenderCommands(void)
 
 /*
 ============
-R_GetCommandBufferReserved
+R_GetCommandBuffer_plusReserved
 
 make sure there is enough command space
 ============
 */
-static void *R_GetCommandBufferReserved(int bytes, int reservedBytes)
+static void *R_GetCommandBuffer_plusReserved(int bytes, int reservedBytes)
 {
 	renderCommandList_t *cmdList;
 
@@ -170,7 +170,7 @@ returns NULL if there is not enough space for important commands
 void *R_GetCommandBuffer_plus(int bytes)
 {
 	tr.lastRenderCommand = RC_END_OF_LIST;
-	return R_GetCommandBufferReserved(bytes, PAD(sizeof(swapBuffersCommand_t), sizeof(void *)));
+	return R_GetCommandBuffer_plusReserved(bytes, PAD(sizeof(swapBuffersCommand_t), sizeof(void *)));
 }
 
 /*
@@ -248,7 +248,7 @@ void RE_StretchPic_plus(float x, float y, float w, float h,
 	{
 		return;
 	}
-	cmd = static_cast<stretchPicCommand_t *>(R_GetCommandBuffer_plus(sizeof(*cmd)));
+	cmd = reinterpret_cast<stretchPicCommand_t *>(R_GetCommandBuffer_plus(sizeof(*cmd)));
 	if (!cmd)
 	{
 		return;
@@ -419,7 +419,7 @@ void RE_EndFrame_plus(int *frontEndMsec, int *backEndMsec)
 		return;
 	}
 
-	cmd = static_cast<swapBuffersCommand_t *>(R_GetCommandBufferReserved(sizeof(*cmd), 0));
+	cmd = static_cast<swapBuffersCommand_t *>(R_GetCommandBuffer_plusReserved(sizeof(*cmd), 0));
 	if (!cmd)
 	{
 		return;
