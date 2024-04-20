@@ -900,16 +900,16 @@ static void GfxInfo(void)
 	ri.Printf(PRINT_ALL, "VK_MAX_TEXTURE_UNITS: %d\n", glConfig.numTextureUnits);
 
 	ri.Printf(PRINT_ALL, "\nPIXELFORMAT: color(%d-bits) Z(%d-bit) stencil(%d-bits)\n", glConfig.colorBits, glConfig.depthBits, glConfig.stencilBits);
-	ri.Printf(PRINT_ALL, " presentation: %s\n", vk_format_string(vk.present_format.format));
+	ri.Printf(PRINT_ALL, " presentation: %s\n", vk_format_string_plus(vk.present_format.format));
 	if (vk.color_format != vk.present_format.format)
 	{
-		ri.Printf(PRINT_ALL, " color: %s\n", vk_format_string(vk.color_format));
+		ri.Printf(PRINT_ALL, " color: %s\n", vk_format_string_plus(vk.color_format));
 	}
 	if (vk.capture_format != vk.present_format.format || vk.capture_format != vk.color_format)
 	{
-		ri.Printf(PRINT_ALL, " capture: %s\n", vk_format_string(vk.capture_format));
+		ri.Printf(PRINT_ALL, " capture: %s\n", vk_format_string_plus(vk.capture_format));
 	}
-	ri.Printf(PRINT_ALL, " depth: %s\n", vk_format_string(vk.depth_format));
+	ri.Printf(PRINT_ALL, " depth: %s\n", vk_format_string_plus(vk.depth_format));
 
 	if (glConfig.isFullscreen)
 	{

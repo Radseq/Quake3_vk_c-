@@ -227,8 +227,6 @@ typedef struct vkUniform_s {
 
 
 
-const char *vk_format_string( VkFormat format );
-
 
 typedef struct vk_tess_s {
 	VkCommandBuffer command_buffer;
