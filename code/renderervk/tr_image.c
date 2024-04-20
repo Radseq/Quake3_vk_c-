@@ -24,18 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../renderervk_cplus/tr_image.hpp"
 
 
-/*
-================
-R_CreateImage
 
-This is the only way any image_t are created
-Picture data may be modified in-place during mipmap processing
-================
-*/
-image_t *R_CreateImage(const char *name, const char *name2, byte *pic, int width, int height, imgFlags_t flags)
-{
-	return R_CreateImage_plus(name, name2, pic, width, height, flags);
-}
 /*
 ===============
 R_FindImageFile
@@ -49,62 +38,3 @@ image_t *R_FindImageFile(const char *name, imgFlags_t flags)
 	return R_FindImageFile_plus(name, flags);
 }
 
-/*
-===============
-R_InitImages
-===============
-*/
-void R_InitImages(void)
-{
-	R_InitImages_plus();
-}
-
-/*
-===============
-R_DeleteTextures
-===============
-*/
-void R_DeleteTextures(void)
-{
-	R_DeleteTextures_plus();
-}
-
-/*
-===============
-RE_RegisterSkin
-===============
-*/
-qhandle_t RE_RegisterSkin(const char *name)
-{
-	return RE_RegisterSkin_plus(name);
-}
-
-/*
-===============
-R_InitSkins
-===============
-*/
-void R_InitSkins(void)
-{
-	R_InitSkins_plus();
-}
-
-/*
-===============
-R_GetSkinByHandle
-===============
-*/
-skin_t *R_GetSkinByHandle(qhandle_t hSkin)
-{
-	return R_GetSkinByHandle_plus(hSkin);
-}
-
-/*
-===============
-R_SkinList_f
-===============
-*/
-void R_SkinList_f(void)
-{
-	R_SkinList_f_plus();
-}

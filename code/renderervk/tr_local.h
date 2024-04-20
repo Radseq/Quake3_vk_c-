@@ -1446,21 +1446,13 @@ void		RE_BeginFrame( stereoFrame_t stereoFrame );
 void		RE_BeginRegistration( glconfig_t *glconfig );
 
 qhandle_t	RE_RegisterModel( const char *name );
-qhandle_t	RE_RegisterSkin( const char *name );
 
 
 model_t		*R_AllocModel( void );
 
 void		R_Init( void );
 
-void	R_SkinList_f( void );
-
-void	R_InitImages( void );
-void	R_DeleteTextures( void );
-
-void	R_InitSkins( void );
 skin_t	*R_GetSkinByHandle( qhandle_t hSkin );
-
 const void *RB_TakeVideoFrameCmd( const void *data );
 
 //

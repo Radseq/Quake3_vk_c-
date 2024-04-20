@@ -1015,7 +1015,7 @@ static void R_Register(void)
 	// make sure all the commands added here are also removed in R_Shutdown
 	ri.Cmd_AddCommand("imagelist", R_ImageList_f_plus);
 	ri.Cmd_AddCommand("shaderlist", R_ShaderList_f);
-	ri.Cmd_AddCommand("skinlist", R_SkinList_f);
+	ri.Cmd_AddCommand("skinlist", R_SkinList_f_plus);
 	ri.Cmd_AddCommand("modellist", R_Modellist_f);
 	ri.Cmd_AddCommand("screenshot", R_ScreenShot_f);
 	ri.Cmd_AddCommand("screenshotJPEG", R_ScreenShot_f);
@@ -1444,7 +1444,7 @@ void R_Init(void)
 
 	InitOpenGL();
 
-	R_InitImages();
+	R_InitImages_plus();
 
 	VarInfo();
 
@@ -1452,7 +1452,7 @@ void R_Init(void)
 
 	R_InitShaders();
 
-	R_InitSkins();
+	R_InitSkins_plus();
 
 	R_ModelInit();
 
@@ -1484,7 +1484,7 @@ static void RE_Shutdown(refShutdownCode_t code)
 	if (tr.registered)
 	{
 		// R_IssuePendingRenderCommands();
-		R_DeleteTextures();
+		R_DeleteTextures_plus();
 		vk_release_resources_plus();
 	}
 
@@ -1555,7 +1555,7 @@ refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp)
 
 	re.BeginRegistration = RE_BeginRegistration_plus;
 	re.RegisterModel = RE_RegisterModel_plus;
-	re.RegisterSkin = RE_RegisterSkin;
+	re.RegisterSkin = RE_RegisterSkin_plus;
 	re.RegisterShader = RE_RegisterShader;
 	re.RegisterShaderNoMip = RE_RegisterShaderNoMip;
 	re.LoadWorld = RE_LoadWorldMap_plus;

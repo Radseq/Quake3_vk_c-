@@ -1703,11 +1703,6 @@ qhandle_t RE_RegisterSkin_plus(const char *name)
 	return hSkin;
 }
 
-/*
-===============
-R_InitSkins
-===============
-*/
 void R_InitSkins_plus(void)
 {
 	skin_t *skin;
