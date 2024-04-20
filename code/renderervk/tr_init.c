@@ -1016,7 +1016,7 @@ static void R_Register(void)
 	ri.Cmd_AddCommand("imagelist", R_ImageList_f_plus);
 	ri.Cmd_AddCommand("shaderlist", R_ShaderList_f_plus);
 	ri.Cmd_AddCommand("skinlist", R_SkinList_f_plus);
-	ri.Cmd_AddCommand("modellist", R_Modellist_f);
+	ri.Cmd_AddCommand("modellist", R_Modellist_f_plus);
 	ri.Cmd_AddCommand("screenshot", R_ScreenShot_f);
 	ri.Cmd_AddCommand("screenshotJPEG", R_ScreenShot_f);
 	ri.Cmd_AddCommand("screenshotBMP", R_ScreenShot_f);
@@ -1454,7 +1454,7 @@ void R_Init(void)
 
 	R_InitSkins_plus();
 
-	R_ModelInit();
+	R_ModelInit_plus();
 
 	R_InitFreeType_plus();
 
@@ -1566,7 +1566,7 @@ refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp)
 	re.EndFrame = RE_EndFrame;
 
 	re.MarkFragments = R_MarkFragments_plus;
-	re.LerpTag = R_LerpTag;
+	re.LerpTag = R_LerpTag_plus;
 	re.ModelBounds = R_ModelBounds_plus;
 
 	re.ClearScene = RE_ClearScene_plus;
