@@ -682,7 +682,7 @@ static void R_ScreenShot_f(void)
 	int typeMask;
 	const char *ext;
 
-	if (ri.CL_IsMinimized() && !RE_CanMinimize())
+	if (ri.CL_IsMinimized() && !RE_CanMinimize_plus())
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: unable to take screenshot when minimized because FBO is not available/enabled.\n");
 		return;
@@ -1562,8 +1562,8 @@ refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp)
 	re.SetWorldVisData = RE_SetWorldVisData_plus;
 	re.EndRegistration = RE_EndRegistration;
 
-	re.BeginFrame = RE_BeginFrame;
-	re.EndFrame = RE_EndFrame;
+	re.BeginFrame = RE_BeginFrame_plus;
+	re.EndFrame = RE_EndFrame_plus;
 
 	re.MarkFragments = R_MarkFragments_plus;
 	re.LerpTag = R_LerpTag_plus;
@@ -1579,8 +1579,8 @@ refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp)
 
 	re.RenderScene = RE_RenderScene_plus;
 
-	re.SetColor = RE_SetColor;
-	re.DrawStretchPic = RE_StretchPic;
+	re.SetColor = RE_SetColor_plus;
+	re.DrawStretchPic = RE_StretchPic_plus;
 	re.DrawStretchRaw = RE_StretchRaw_plus;
 	re.UploadCinematic = RE_UploadCinematic_plus;
 
@@ -1589,13 +1589,13 @@ refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp)
 	re.GetEntityToken = RE_GetEntityToken_plus;
 	re.inPVS = R_inPVS_plus;
 
-	re.TakeVideoFrame = RE_TakeVideoFrame;
+	re.TakeVideoFrame = RE_TakeVideoFrame_plus;
 	re.SetColorMappings = R_SetColorMappings_plus;
 
 	re.ThrottleBackend = RE_ThrottleBackend_plus;
 	re.FinishBloom = RE_FinishBloom_plus;
 	re.CanMinimize = RE_CanMinimize_plus;
-	re.GetConfig = RE_GetConfig;
+	re.GetConfig = RE_GetConfig_plus;
 	re.VertexLighting = RE_VertexLighting_plus;
 	re.SyncRender = RE_SyncRender;
 

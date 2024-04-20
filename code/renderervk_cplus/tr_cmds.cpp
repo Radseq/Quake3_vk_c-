@@ -116,7 +116,7 @@ static void R_IssueRenderCommands(void)
 	}
 	else
 	{
-		if (ri.CL_IsMinimized() && !RE_CanMinimize())
+		if (ri.CL_IsMinimized() && !RE_CanMinimize_plus())
 		{
 			backEnd.screenshotMask = 0;
 			return;

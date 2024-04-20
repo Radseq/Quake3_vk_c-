@@ -1436,9 +1436,6 @@ void	CheckErrors( void );
 #define CLS_TEXCOORD_ARRAY						0x00000002
 #define CLS_NORMAL_ARRAY						0x00000004
 
-void		RE_BeginFrame( stereoFrame_t stereoFrame );
-
-
 model_t		*R_AllocModel( void );
 
 void		R_Init( void );
@@ -1725,22 +1722,6 @@ extern	backEndData_t	*backEndData;
 void RB_TakeScreenshot( int x, int y, int width, int height, const char *fileName );
 void RB_TakeScreenshotJPEG( int x, int y, int width, int height, const char *fileName );
 void RB_TakeScreenshotBMP( int x, int y, int width, int height, const char *fileName, int clipboard );
-
-void R_AddDrawSurfCmd( drawSurf_t *drawSurfs, int numDrawSurfs );
-
-void RE_SetColor( const float *rgba );
-void RE_StretchPic ( float x, float y, float w, float h, 
-					  float s1, float t1, float s2, float t2, qhandle_t hShader );
-void RE_BeginFrame( stereoFrame_t stereoFrame );
-void RE_EndFrame( int *frontEndMsec, int *backEndMsec );
-void RE_TakeVideoFrame( int width, int height,
-		byte *captureBuffer, byte *encodeBuffer, bool motionJpeg );
-
-void RE_FinishBloom( void );
-void RE_ThrottleBackend( void );
-bool RE_CanMinimize( void );
-const glconfig_t *RE_GetConfig( void );
-void RE_VertexLighting( bool allowed );
 
 
 #endif //TR_LOCAL_H

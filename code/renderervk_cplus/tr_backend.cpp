@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_flares.hpp"
 #include "vk_vbo.hpp"
 #include "vk.hpp"
+#include "tr_cmds.hpp"
 
 backEndData_t *backEndData;
 backEndState_t backEnd;
@@ -567,7 +568,7 @@ void RE_StretchRaw_plus(int x, int y, int w, int h, int cols, int rows, byte *da
 	}
 
 	tr.cinematicShader->stages[0]->bundle[0].image[0] = tr.scratchImage[client];
-	RE_StretchPic(x, y, w, h, 0.5f / cols, 0.5f / rows, 1.0f - 0.5f / cols, 1.0f - 0.5 / rows, tr.cinematicShader->index);
+	RE_StretchPic_plus(x, y, w, h, 0.5f / cols, 0.5f / rows, 1.0f - 0.5f / cols, 1.0f - 0.5 / rows, tr.cinematicShader->index);
 }
 
 void RE_UploadCinematic_plus(int w, int h, int cols, int rows, byte *data, int client, bool dirty)

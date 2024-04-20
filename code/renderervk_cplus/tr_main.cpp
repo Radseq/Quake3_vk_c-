@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_scene.hpp"
 #include "tr_shade.hpp"
 #include "tr_world.hpp"
+#include "tr_cmds.hpp"
 
 #include <string.h> // memcpy
 
@@ -1569,7 +1570,7 @@ static void R_SortDrawSurfs(drawSurf_t *drawSurfs, int numDrawSurfs)
 	if (numDrawSurfs < 1)
 	{
 		// we still need to add it for hyperspace cases
-		R_AddDrawSurfCmd(drawSurfs, numDrawSurfs);
+		R_AddDrawSurfCmd_plus(drawSurfs, numDrawSurfs);
 		return;
 	}
 
@@ -1627,7 +1628,7 @@ static void R_SortDrawSurfs(drawSurf_t *drawSurfs, int numDrawSurfs)
 	}
 #endif // USE_PMLIGHT
 
-	R_AddDrawSurfCmd(drawSurfs, numDrawSurfs);
+	R_AddDrawSurfCmd_plus(drawSurfs, numDrawSurfs);
 }
 
 /*
