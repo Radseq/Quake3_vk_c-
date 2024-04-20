@@ -116,8 +116,7 @@ extern "C"
 
       void vk_read_pixels_plus(byte *buffer, uint32_t width, uint32_t height); // screenshots
       bool vk_bloom_plus(void);
-
-      bool vk_alloc_vbo_plus(const byte *vbo_data, int vbo_size);
+      
       void vk_update_mvp_plus(const float *m);
 
       uint32_t vk_tess_index_plus(uint32_t numIndexes, const void *src);

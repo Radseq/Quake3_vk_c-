@@ -7189,7 +7189,7 @@ void vk_draw_geometry_plus(Vk_Depth_Range depth_range, bool indexed)
 	// issue draw call(s)
 #ifdef USE_VBO
 	if (tess.vboIndex)
-		VBO_RenderIBOItems();
+		VBO_RenderIBOItems_plus();
 	else
 #endif
 		if (indexed)

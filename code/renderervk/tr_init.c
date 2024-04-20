@@ -274,7 +274,7 @@ static void InitOpenGL(void)
 	}
 	if (vk.active)
 	{
-		vk_init_descriptors();
+		vk_init_descriptors_plus();
 	}
 	else
 	{

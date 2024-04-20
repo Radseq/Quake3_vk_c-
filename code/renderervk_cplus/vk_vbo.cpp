@@ -21,10 +21,57 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "vk_vbo.hpp"
-#include "../renderervk/vk.h"
+#include "vk.hpp"
 #include "tr_shade.hpp"
 
 #ifdef USE_VBO
+
+#define MAX_VBO_STAGES MAX_SHADER_STAGES
+
+#define MIN_IBO_RUN 320
+
+//[ibo]: [index0][index1][index2]
+//[vbo]: [index0][vertex0...][index1][vertex1...][index2][vertex2...]
+
+typedef struct vbo_item_s
+{
+	int index_offset; // device-local, relative to current shader
+	int soft_offset;  // host-visible, absolute
+	int num_indexes;
+	int num_vertexes;
+} vbo_item_t;
+
+typedef struct ibo_item_s
+{
+	int offset;
+	int length;
+} ibo_item_t;
+
+typedef struct vbo_s
+{
+	byte *vbo_buffer;
+	int vbo_offset;
+	int vbo_size;
+
+	byte *ibo_buffer;
+	int ibo_offset;
+	int ibo_size;
+
+	uint32_t soft_buffer_indexes;
+	uint32_t soft_buffer_offset;
+
+	ibo_item_t *ibo_items;
+	int ibo_items_count;
+
+	vbo_item_t *items;
+	int items_count;
+
+	int *items_queue;
+	int items_queue_count;
+
+} vbo_t;
+
+static vbo_t world_vbo;
 
 /*
 
@@ -46,7 +93,6 @@ all remaining short index sequences are grouped together into single
 host-visible index buffer which is finally rendered via single draw call.
 
 */
-
 
 void VBO_Cleanup_plus(void);
 
@@ -656,7 +702,7 @@ void R_BuildWorldVBO_plus(msurface_t *surf, int surfCount)
 	ri.Hunk_FreeTempMemory(surfList);
 
 	//__fail:
-	vk_alloc_vbo(vbo->vbo_buffer, vbo->vbo_size);
+	vk_alloc_vbo_plus(vbo->vbo_buffer, vbo->vbo_size);
 
 	// if ( err == GL_OUT_OF_MEMORY )
 	//	ri.Printf( PRINT_WARNING, "%s: out of memory\n", __func__ );
@@ -819,7 +865,7 @@ static void VBO_AddItemDataToSoftBuffer(int itemIndex)
 	vbo_t *vbo = &world_vbo;
 	const vbo_item_t *vi = vbo->items + itemIndex;
 
-	const uint32_t offset = vk_tess_index(vi->num_indexes, vbo->ibo_buffer + vi->soft_offset);
+	const uint32_t offset = vk_tess_index_plus(vi->num_indexes, vbo->ibo_buffer + vi->soft_offset);
 
 	if (vbo->soft_buffer_indexes == 0)
 	{
@@ -849,20 +895,20 @@ void VBO_RenderIBOItems_plus(void)
 	// from device-local memory
 	if (vbo->ibo_items_count)
 	{
-		vk_bind_index_buffer(vk.vbo.vertex_buffer, tess.shader->iboOffset);
+		vk_bind_index_buffer_plus(vk.vbo.vertex_buffer, tess.shader->iboOffset);
 
 		for (i = 0; i < vbo->ibo_items_count; i++)
 		{
-			vk_draw_indexed(vbo->ibo_items[i].length, vbo->ibo_items[i].offset);
+			vk_draw_indexed_plus(vbo->ibo_items[i].length, vbo->ibo_items[i].offset);
 		}
 	}
 
 	// from host-visible memory
 	if (vbo->soft_buffer_indexes)
 	{
-		vk_bind_index_buffer(vk.cmd->vertex_buffer, vbo->soft_buffer_offset);
+		vk_bind_index_buffer_plus(vk.cmd->vertex_buffer, vbo->soft_buffer_offset);
 
-		vk_draw_indexed(vbo->soft_buffer_indexes, 0);
+		vk_draw_indexed_plus(vbo->soft_buffer_indexes, 0);
 	}
 }
 
