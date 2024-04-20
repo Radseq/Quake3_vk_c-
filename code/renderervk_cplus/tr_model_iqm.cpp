@@ -1386,7 +1386,7 @@ bool R_LoadIQM_plus(model_t *mod, void *buffer, int filesize, const char *mod_na
 			surface->surfaceType = SF_IQM;
 			Q_strncpyz(surface->name, str + mesh->name, sizeof(surface->name));
 			Q_strlwr(surface->name); // lowercase the surface name so skin compares are faster
-			surface->shader = R_FindShader(str + mesh->material, LIGHTMAP_NONE, true);
+			surface->shader = R_FindShader_plus(str + mesh->material, LIGHTMAP_NONE, true);
 			if (surface->shader->defaultShader)
 				surface->shader = tr.defaultShader;
 			surface->data = iqmData;

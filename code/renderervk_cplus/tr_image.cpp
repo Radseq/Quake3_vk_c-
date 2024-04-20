@@ -23,6 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_image.hpp"
 #include "tr_bsp.hpp"
 #include "vk.hpp"
+#include "tr_shader.hpp"
+
+#define generateHashValue(fname) Com_GenerateHashValue((fname),FILE_HASH_SIZE)
 
 #include <algorithm> // for std::clamp
 #include <cstdint>	 // for std::uint32_t
@@ -1632,7 +1635,7 @@ qhandle_t RE_RegisterSkin_plus(const char *name)
 	{
 		skin->numSurfaces = 1;
 		skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
-		skin->surfaces[0].shader = R_FindShader(name, LIGHTMAP_NONE, true);
+		skin->surfaces[0].shader = R_FindShader_plus(name, LIGHTMAP_NONE, true);
 		return hSkin;
 	}
 
@@ -1675,7 +1678,7 @@ qhandle_t RE_RegisterSkin_plus(const char *name)
 		{
 			surf = &parseSurfaces[skin->numSurfaces];
 			Q_strncpyz(surf->name, surfName, sizeof(surf->name));
-			surf->shader = R_FindShader(token, LIGHTMAP_NONE, true);
+			surf->shader = R_FindShader_plus(token, LIGHTMAP_NONE, true);
 			skin->numSurfaces++;
 		}
 

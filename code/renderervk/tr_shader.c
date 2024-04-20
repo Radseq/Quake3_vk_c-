@@ -25,20 +25,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../renderervk_cplus/tr_shade.hpp"
 // tr_shader.c -- this file deals with the parsing and definition of shaders
 
-
-/*
-==================
-R_FindShaderByName
-
-Will always return a valid shader, but it might be the
-default shader if the real one can't be found.
-==================
-*/
-shader_t *R_FindShaderByName(const char *name)
-{
-	return R_FindShaderByName_plus(name);
-}
-
 /*
 ===============
 R_FindShader
@@ -67,57 +53,9 @@ most world construction surfaces.
 
 ===============
 */
-shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
-{
-	return R_FindShader_plus(name, lightmapIndex, mipRawImage);
-}
 
-qhandle_t RE_RegisterShaderFromImage(const char *name, int lightmapIndex, image_t *image, bool mipRawImage)
-{
-	return RE_RegisterShaderFromImage_plus(name, lightmapIndex, image, mipRawImage);
-}
-/*
-====================
-RE_RegisterShaderLightMap
 
-This is the exported shader entry point for the rest of the system
-It will always return an index that will be valid.
 
-This should really only be used for explicit shaders, because there is no
-way to ask for different implicit lighting modes (vertex, lightmap, etc)
-====================
-*/
-qhandle_t RE_RegisterShaderLightMap(const char *name, int lightmapIndex)
-{
-	return RE_RegisterShaderLightMap_plus(name, lightmapIndex);
-}
-/*
-====================
-RE_RegisterShader
-
-This is the exported shader entry point for the rest of the system
-It will always return an index that will be valid.
-
-This should really only be used for explicit shaders, because there is no
-way to ask for different implicit lighting modes (vertex, lightmap, etc)
-====================
-*/
-qhandle_t RE_RegisterShader(const char *name)
-{
-	return RE_RegisterShader_plus(name);
-}
-
-/*
-====================
-RE_RegisterShaderNoMip
-
-For menu graphics that should never be picmiped
-====================
-*/
-qhandle_t RE_RegisterShaderNoMip(const char *name)
-{
-	return RE_RegisterShaderNoMip_plus(name);
-}
 /*
 ====================
 R_GetShaderByHandle

@@ -1556,8 +1556,8 @@ refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp)
 	re.BeginRegistration = RE_BeginRegistration_plus;
 	re.RegisterModel = RE_RegisterModel_plus;
 	re.RegisterSkin = RE_RegisterSkin_plus;
-	re.RegisterShader = RE_RegisterShader;
-	re.RegisterShaderNoMip = RE_RegisterShaderNoMip;
+	re.RegisterShader = RE_RegisterShader_plus;
+	re.RegisterShaderNoMip = RE_RegisterShaderNoMip_plus;
 	re.LoadWorld = RE_LoadWorldMap_plus;
 	re.SetWorldVisData = RE_SetWorldVisData_plus;
 	re.EndRegistration = RE_EndRegistration;

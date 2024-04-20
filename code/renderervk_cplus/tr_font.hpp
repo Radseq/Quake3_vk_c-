@@ -11,7 +11,7 @@ extern "C"
 #include "../renderervk/tr_public.h"
 
 	extern void R_IssuePendingRenderCommands(void);
-	extern qhandle_t RE_RegisterShaderNoMip(const char *name);
+	extern qhandle_t RE_RegisterShaderNoMip_plus(const char *name);
 	
 	void RE_RegisterFont_plus(const char *fontName, int pointSize, fontInfo_t *font);
 	void R_InitFreeType_plus();

@@ -594,7 +594,7 @@ static bool R_LoadMD3(model_t *mod, int lod, void *buffer, int fileSize, const c
 			// zero-terminate shader name
 			shader->name[sizeof(shader->name) - 1] = '\0';
 
-			sh = R_FindShader(shader->name, LIGHTMAP_NONE, true);
+			sh = R_FindShader_plus(shader->name, LIGHTMAP_NONE, true);
 			if (sh->defaultShader)
 			{
 				shader->shaderIndex = 0;
@@ -861,7 +861,7 @@ static bool R_LoadMDR(model_t *mod, void *buffer, int filesize, const char *mod_
 			Q_strlwr(surf->name);
 
 			// register the shaders
-			sh = R_FindShader(surf->shader, LIGHTMAP_NONE, true);
+			sh = R_FindShader_plus(surf->shader, LIGHTMAP_NONE, true);
 			if (sh->defaultShader)
 			{
 				surf->shaderIndex = 0;

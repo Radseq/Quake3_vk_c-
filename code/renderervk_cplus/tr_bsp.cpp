@@ -551,7 +551,7 @@ static shader_t *ShaderForShaderNum(const int shaderNum, int lightmapNum)
 		lightmapNum = LIGHTMAP_WHITEIMAGE;
 	}
 
-	shader = R_FindShader(dsh->shader, lightmapNum, true);
+	shader = R_FindShader_plus(dsh->shader, lightmapNum, true);
 
 	// if the shader had errors, just use default shader
 	if (shader->defaultShader)
@@ -2253,7 +2253,7 @@ static void R_LoadFogs(const lump_t *l, const lump_t *brushesLump, const lump_t 
 		out->bounds[1][2] = s_worldData.planes[planeNum].dist;
 
 		// get information from the shader for fog parameters
-		shader = R_FindShader(fogs->shader, LIGHTMAP_NONE, true);
+		shader = R_FindShader_plus(fogs->shader, LIGHTMAP_NONE, true);
 
 		VectorCopy(shader->fogParms.color, fogColor);
 

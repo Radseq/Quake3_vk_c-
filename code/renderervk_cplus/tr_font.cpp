@@ -436,7 +436,7 @@ void RE_RegisterFont_plus(const char *fontName, int pointSize, fontInfo_t *font)
 		Q_strncpyz(font->name, name, sizeof(font->name));
 		for (i = GLYPH_START; i <= GLYPH_END; i++)
 		{
-			font->glyphs[i].glyph = RE_RegisterShaderNoMip(font->glyphs[i].shaderName);
+			font->glyphs[i].glyph = RE_RegisterShaderNoMip_plus(font->glyphs[i].shaderName);
 		}
 		Com_Memcpy(&registeredFont[registeredFontCount++], font, sizeof(fontInfo_t));
 		ri.FS_FreeFile(faceData);
@@ -552,7 +552,7 @@ void RE_RegisterFont_plus(const char *fontName, int pointSize, fontInfo_t *font)
 
 			// Com_sprintf (name, sizeof(name), "fonts/fontImage_%i_%i", imageNumber++, pointSize);
 			image = R_CreateImage_plus(name, NULL, imageBuff, 256, 256, IMGFLAG_CLAMPTOEDGE);
-			h = RE_RegisterShaderFromImage(name, LIGHTMAP_2D, image, false);
+			h = RE_RegisterShaderFromImage_plus(name, LIGHTMAP_2D, image, false);
 			for (j = lastStart; j < i; j++)
 			{
 				font->glyphs[j].glyph = h;
