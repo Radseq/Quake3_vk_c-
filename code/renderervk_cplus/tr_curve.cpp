@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "tr_curve.hpp"
+#include <array>
 
 /*
 
@@ -121,9 +122,9 @@ static void MakeMeshNormals( int width, int height, drawVert_t ctrl[MAX_GRID_SIZ
 	bool	good[8];
 	bool	wrapWidth, wrapHeight;
 	float		len;
-static	int	neighbors[8][2] = {
-	{0,1}, {1,1}, {1,0}, {1,-1}, {0,-1}, {-1,-1}, {-1,0}, {-1,1}
-	};
+	static constexpr std::array<std::array<int, 2>, 8> neighbors = {{
+		{0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1}, {-1, -1}, {-1, 0}, {-1, 1}
+	}};
 
 	wrapWidth = false;
 	for ( i = 0 ; i < height ; i++ ) {

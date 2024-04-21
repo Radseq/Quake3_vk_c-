@@ -26,6 +26,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_scene.hpp"
 #include "vk_flares.hpp"
 
+#include <functional>
+#include <string_view>
+
 #define LL(x) x = LittleLong(x)
 
 static bool R_LoadMD3(model_t *mod, int lod, void *buffer, int fileSize, const char *name);
@@ -200,21 +203,22 @@ static qhandle_t R_RegisterIQM(const char *name, model_t *mod)
 	return mod->index;
 }
 
-typedef struct
+struct modelExtToLoaderMap_t
 {
-	const char *ext;
-	qhandle_t (*ModelLoader)(const char *, model_t *);
-} modelExtToLoaderMap_t;
+    const char* ext;
+    std::function<qhandle_t(const char*, model_t*)> ModelLoader;
+};
 
 // Note that the ordering indicates the order of preference used
 // when there are multiple models of different formats available
 static modelExtToLoaderMap_t modelLoaders[] =
-	{
-		{"iqm", R_RegisterIQM},
-		{"mdr", R_RegisterMDR},
-		{"md3", R_RegisterMD3}};
+{
+    {"iqm", R_RegisterIQM},
+    {"mdr", R_RegisterMDR},
+    {"md3", R_RegisterMD3}
+};
 
-static int numModelLoaders = ARRAY_LEN(modelLoaders);
+static constexpr int numModelLoaders = sizeof(modelLoaders) / sizeof(modelExtToLoaderMap_t);
 
 //===============================================================================
 

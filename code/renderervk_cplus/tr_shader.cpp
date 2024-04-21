@@ -27,6 +27,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk.hpp"
 #include "tr_image.hpp"
 
+#include <array>
+#include <string_view>
+
 #define generateHashValue Com_GenerateHashValue
 
 // tr_shader.c -- this file deals with the parsing and definition of shaders
@@ -1523,53 +1526,44 @@ static void ParseSort(const char **text)
 
 typedef struct
 {
-	const char *name;
+	std::string_view name;
 	int clearSolid, surfaceFlags, contents;
 } infoParm_t;
 
-static const infoParm_t infoParms[] = {
-	// server relevant contents
-	{"water", 1, 0, CONTENTS_WATER},
-	{"slime", 1, 0, CONTENTS_SLIME}, // mildly damaging
-	{"lava", 1, 0, CONTENTS_LAVA},	 // very damaging
-	{"playerclip", 1, 0, CONTENTS_PLAYERCLIP},
-	{"monsterclip", 1, 0, CONTENTS_MONSTERCLIP},
-	{"nodrop", 1, 0, static_cast<int>(CONTENTS_NODROP)}, // don't drop items or leave bodies (death fog, lava, etc)
-	{"nonsolid", 1, SURF_NONSOLID, 0},					 // clears the solid flag
-
-	// utility relevant attributes
-	{"origin", 1, 0, CONTENTS_ORIGIN},				 // center of rotating brushes
-	{"trans", 0, 0, CONTENTS_TRANSLUCENT},			 // don't eat contained surfaces
-	{"detail", 0, 0, CONTENTS_DETAIL},				 // don't include in structural bsp
-	{"structural", 0, 0, CONTENTS_STRUCTURAL},		 // force into structural bsp even if trans
-	{"areaportal", 1, 0, CONTENTS_AREAPORTAL},		 // divides areas
-	{"clusterportal", 1, 0, CONTENTS_CLUSTERPORTAL}, // for bots
-	{"donotenter", 1, 0, CONTENTS_DONOTENTER},		 // for bots
-
-	{"fog", 1, 0, CONTENTS_FOG},			 // carves surfaces entering
-	{"sky", 0, SURF_SKY, 0},				 // emit light from an environment map
-	{"lightfilter", 0, SURF_LIGHTFILTER, 0}, // filter light going through it
-	{"alphashadow", 0, SURF_ALPHASHADOW, 0}, // test light on a per-pixel basis
-	{"hint", 0, SURF_HINT, 0},				 // use as a primary splitter
-
-	// server attributes
-	{"slick", 0, SURF_SLICK, 0},
-	{"noimpact", 0, SURF_NOIMPACT, 0}, // don't make impact explosions or marks
-	{"nomarks", 0, SURF_NOMARKS, 0},   // don't make impact marks, but still explode
-	{"ladder", 0, SURF_LADDER, 0},
-	{"nodamage", 0, SURF_NODAMAGE, 0},
-	{"metalsteps", 0, SURF_METALSTEPS, 0},
-	{"flesh", 0, SURF_FLESH, 0},
-	{"nosteps", 0, SURF_NOSTEPS, 0},
-
-	// drawsurf attributes
-	{"nodraw", 0, SURF_NODRAW, 0},		   // don't generate a drawsurface (or a lightmap)
-	{"pointlight", 0, SURF_POINTLIGHT, 0}, // sample lighting at vertexes
-	{"nolightmap", 0, SURF_NOLIGHTMAP, 0}, // don't generate a lightmap
-	{"nodlight", 0, SURF_NODLIGHT, 0},	   // don't ever add dynamic lights
-	{"dust", 0, SURF_DUST, 0}			   // leave a dust trail when walking on this surface
-};
-
+constexpr std::array<infoParm_t, 32> infoParms = {{
+    {"water", 1, 0, CONTENTS_WATER},                       // Server relevant contents
+    {"slime", 1, 0, CONTENTS_SLIME},                       // Mildly damaging
+    {"lava", 1, 0, CONTENTS_LAVA},                         // Very damaging
+    {"playerclip", 1, 0, CONTENTS_PLAYERCLIP},             // Player clip
+    {"monsterclip", 1, 0, CONTENTS_MONSTERCLIP},           // Monster clip
+    {"nodrop", 1, 0, static_cast<int>(CONTENTS_NODROP)},   // Don't drop items or leave bodies
+    {"nonsolid", 1, SURF_NONSOLID, 0},                     // Clears the solid flag
+    {"origin", 1, 0, CONTENTS_ORIGIN},                     // Center of rotating brushes
+    {"trans", 0, 0, CONTENTS_TRANSLUCENT},                 // Don't eat contained surfaces
+    {"detail", 0, 0, CONTENTS_DETAIL},                     // Don't include in structural bsp
+    {"structural", 0, 0, CONTENTS_STRUCTURAL},             // Force into structural bsp even if transparent
+    {"areaportal", 1, 0, CONTENTS_AREAPORTAL},             // Divides areas
+    {"clusterportal", 1, 0, CONTENTS_CLUSTERPORTAL},       // For bots
+    {"donotenter", 1, 0, CONTENTS_DONOTENTER},             // For bots
+    {"fog", 1, 0, CONTENTS_FOG},                           // Carves surfaces entering
+    {"sky", 0, SURF_SKY, 0},                               // Emit light from an environment map
+    {"lightfilter", 0, SURF_LIGHTFILTER, 0},               // Filter light going through it
+    {"alphashadow", 0, SURF_ALPHASHADOW, 0},               // Test light on a per-pixel basis
+    {"hint", 0, SURF_HINT, 0},                             // Use as a primary splitter
+    {"slick", 0, SURF_SLICK, 0},                           // Slick surface
+    {"noimpact", 0, SURF_NOIMPACT, 0},                     // Don't make impact explosions or marks
+    {"nomarks", 0, SURF_NOMARKS, 0},                       // Don't make impact marks, but still explode
+    {"ladder", 0, SURF_LADDER, 0},                         // Ladder
+    {"nodamage", 0, SURF_NODAMAGE, 0},                     // No damage
+    {"metalsteps", 0, SURF_METALSTEPS, 0},                 // Metal steps
+    {"flesh", 0, SURF_FLESH, 0},                           // Flesh
+    {"nosteps", 0, SURF_NOSTEPS, 0},                       // No steps
+    {"nodraw", 0, SURF_NODRAW, 0},                         // Don't generate a drawsurface (or a lightmap)
+    {"pointlight", 0, SURF_POINTLIGHT, 0},                 // Sample lighting at vertexes
+    {"nolightmap", 0, SURF_NOLIGHTMAP, 0},                 // Don't generate a lightmap
+    {"nodlight", 0, SURF_NODLIGHT, 0},                     // Don't ever add dynamic lights
+    {"dust", 0, SURF_DUST, 0}                              // Leave a dust trail when walking on this surface
+}};
 /*
 ===============
 ParseSurfaceParm
@@ -1580,13 +1574,13 @@ surfaceparm <name>
 static void ParseSurfaceParm(const char **text)
 {
 	const char *token;
-	int numInfoParms = ARRAY_LEN(infoParms);
+	constexpr std::size_t numInfoParms = std::extent_v<decltype(infoParms)>;
 	int i;
 
 	token = COM_ParseExt(text, false);
 	for (i = 0; i < numInfoParms; i++)
 	{
-		if (!Q_stricmp(token, infoParms[i].name))
+		if (!Q_stricmp(token, infoParms[i].name.data()))
 		{
 			shader.surfaceFlags |= infoParms[i].surfaceFlags;
 			shader.contentFlags |= infoParms[i].contents;

@@ -26,12 +26,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_scene.hpp"
 #include "vk.hpp"
 
-#define MODE_RED_CYAN 1
-#define MODE_RED_BLUE 2
-#define MODE_RED_GREEN 3
-#define MODE_GREEN_MAGENTA 4
-#define MODE_MAX MODE_GREEN_MAGENTA
-
+constexpr int MODE_RED_CYAN = 1;
+constexpr int MODE_RED_BLUE = 2;
+constexpr int MODE_RED_GREEN = 3;
+constexpr int MODE_GREEN_MAGENTA = 4;
+constexpr int MODE_MAX = MODE_GREEN_MAGENTA;
 /*
 =====================
 R_PerformanceCounters

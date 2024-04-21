@@ -354,7 +354,7 @@ void TextureMode_plus(const char *string)
 	int i;
 
 	mode = NULL;
-	for (i = 0; i < ARRAY_LEN2(modes); i++)
+	for (i = 0; i < modes.size(); i++)
 	{
 		if (!Q_stricmp_plus(modes[i].name, string))
 		{
