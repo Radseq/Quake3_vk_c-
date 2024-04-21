@@ -25,12 +25,25 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk.hpp"
 #include "tr_shader.hpp"
 
-#define generateHashValue(fname) Com_GenerateHashValue((fname),FILE_HASH_SIZE)
+#define generateHashValue(fname) Com_GenerateHashValue((fname), FILE_HASH_SIZE)
 
 #include <algorithm> // for std::clamp
 #include <cstdint>	 // for std::uint32_t
 #include <array>
 #include <algorithm>
+
+// Note that the ordering indicates the order of preference used
+// when there are multiple images of different formats available
+static const imageExtToLoaderMap_t imageLoaders[] =
+	{
+		{"png", R_LoadPNG_plus},
+		{"tga", R_LoadTGA_plus},
+		{"jpg", R_LoadJPG_plus},
+		{"jpeg", R_LoadJPG_plus},
+		{"pcx", R_LoadPCX_plus},
+		{"bmp", R_LoadBMP_plus}};
+
+static const int numImageLoaders = ARRAY_LEN(imageLoaders);
 
 constexpr int FOG_TABLE_SIZE_PLUS = 256;
 

@@ -12,7 +12,7 @@ extern "C"
 
 	extern void R_IssuePendingRenderCommands(void);
 	extern qhandle_t RE_RegisterShaderNoMip_plus(const char *name);
-	
+
 	void RE_RegisterFont_plus(const char *fontName, int pointSize, fontInfo_t *font);
 	void R_InitFreeType_plus();
 	void R_DoneFreeType_plus();

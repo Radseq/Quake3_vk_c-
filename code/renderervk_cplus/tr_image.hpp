@@ -44,26 +44,11 @@ return a hash value for the filename
 		int base_level_height;
 	} Image_Upload_Data;
 
-
-
 	typedef struct
 	{
 		const char *ext;
 		void (*ImageLoader)(const char *, unsigned char **, int *, int *);
 	} imageExtToLoaderMap_t;
-
-	// Note that the ordering indicates the order of preference used
-	// when there are multiple images of different formats available
-	static const imageExtToLoaderMap_t imageLoaders[] =
-		{
-			{"png", R_LoadPNG_plus},
-			{"tga", R_LoadTGA_plus},
-			{"jpg", R_LoadJPG_plus},
-			{"jpeg", R_LoadJPG_plus},
-			{"pcx", R_LoadPCX_plus},
-			{"bmp", R_LoadBMP_plus}};
-
-	static const int numImageLoaders = ARRAY_LEN(imageLoaders);
 
 #define DLIGHT_SIZE 16
 #define FOG_S 256

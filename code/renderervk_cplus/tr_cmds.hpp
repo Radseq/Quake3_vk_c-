@@ -8,8 +8,6 @@ extern "C"
 
 #include "../renderervk/tr_local.h"
 
-
-
 	void *R_GetCommandBuffer_plus(int bytes);
 	void R_AddDrawSurfCmd_plus(drawSurf_t *drawSurfs, int numDrawSurfs);
 	void RE_SetColor_plus(const float *rgba);
@@ -23,7 +21,7 @@ extern "C"
 	bool RE_CanMinimize_plus();
 	const glconfig_t *RE_GetConfig_plus();
 	void RE_VertexLighting_plus(bool allowed);
-	void RE_EndFrame_plus( int *frontEndMsec, int *backEndMsec ) ;
+	void RE_EndFrame_plus(int *frontEndMsec, int *backEndMsec);
 
 #ifdef __cplusplus
 }
