@@ -954,7 +954,6 @@ typedef struct model_s {
 
 #define	MAX_MOD_KNOWN	1024
 
-model_t		*R_GetModelByHandle( qhandle_t hModel );
 
 //====================================================
 
@@ -1436,7 +1435,6 @@ void	CheckErrors( void );
 #define CLS_TEXCOORD_ARRAY						0x00000002
 #define CLS_NORMAL_ARRAY						0x00000004
 
-model_t		*R_AllocModel( void );
 
 void		R_Init( void );
 

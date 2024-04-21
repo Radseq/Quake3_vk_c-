@@ -567,7 +567,7 @@ void R_AddBrushModelSurfaces_plus(trRefEntity_t *ent)
 	const model_t *pModel;
 	int i;
 
-	pModel = R_GetModelByHandle(ent->e.hModel);
+	pModel = R_GetModelByHandle_plus(ent->e.hModel);
 
 	bmodel = pModel->bmodel;
 

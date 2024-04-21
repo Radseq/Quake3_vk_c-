@@ -1692,7 +1692,7 @@ static void R_AddEntitySurfaces(void)
 			// we must set up parts of tr.ort for model culling
 			R_RotateForEntity_plus(ent, &tr.viewParms, &tr.ort);
 
-			tr.currentModel = R_GetModelByHandle(ent->e.hModel);
+			tr.currentModel = R_GetModelByHandle_plus(ent->e.hModel);
 			if (!tr.currentModel)
 			{
 				R_AddDrawSurf_plus(&entitySurface, tr.defaultShader, 0, 0);

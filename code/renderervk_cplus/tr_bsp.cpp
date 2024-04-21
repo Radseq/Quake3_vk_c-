@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_curve.hpp"
 #include "vk_vbo.hpp"
 #include "tr_shader.hpp"
+#include "tr_model.hpp"
 
 static world_t s_worldData;
 static byte *fileBase;
@@ -1905,7 +1906,7 @@ static void R_LoadSubmodels(const lump_t *l)
 	{
 		model_t *model;
 
-		model = R_AllocModel();
+		model = R_AllocModel_plus();
 
 		if (model == NULL)
 		{
