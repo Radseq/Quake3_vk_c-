@@ -22,10 +22,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_light.hpp"
 
-#define DLIGHT_AT_RADIUS 16
+constexpr int DLIGHT_AT_RADIUS = 16;
 // at the edge of a dlight's influence, this amount of light will be added
 
-#define DLIGHT_MINIMUM_RADIUS 16
+constexpr int DLIGHT_MINIMUM_RADIUS = 16;
 // never calculate a range less than this to prevent huge light numbers
 
 extern cvar_t *r_ambientScale;

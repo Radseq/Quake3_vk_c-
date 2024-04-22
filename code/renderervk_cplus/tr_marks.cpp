@@ -29,9 +29,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define SIDE_BACK 1
 #define SIDE_ON 2
 
-#define MAX_VERTS_ON_POLY 64
+constexpr int MAX_VERTS_ON_POLY = 64;
 
-#define MARKER_OFFSET 0 // 1
+constexpr int MARKER_OFFSET = 0; // 1
 
 /*
 =============

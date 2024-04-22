@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define LL(x) x = LittleLong(x)
 
 // 3x4 identity matrix
-static float identityMatrix[12] = {
+static constexpr float identityMatrix[12] = {
 	1, 0, 0, 0,
 	0, 1, 0, 0,
 	0, 0, 1, 0};
