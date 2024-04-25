@@ -2697,7 +2697,7 @@ bool vk_alloc_vbo_plus(const byte *vbo_data, int vbo_size)
 }
 #endif
 
-#include "../renderervk/shaders/spirv/shader_data.c"
+#include "../renderervk_cplus/shaders/spirv/shader_data.c"
 #include "tr_main.hpp"
 #define SHADER_MODULE(name) SHADER_MODULE(name, sizeof(name))
 

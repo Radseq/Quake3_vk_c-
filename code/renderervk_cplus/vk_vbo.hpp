@@ -6,7 +6,7 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
+#include "tr_local.hpp"
 
 #ifdef USE_VBO
       void VBO_Cleanup_plus();

@@ -21,14 +21,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // tr_init.c -- functions that are not called every frame
 
-#include "tr_local.h"
-#include "../renderervk_cplus/tr_world.hpp"
-#include "../renderervk_cplus/tr_cmds.hpp"
-#include "../renderervk_cplus/tr_marks.hpp"
-#include "../renderervk_cplus/tr_backend.hpp"
-#include "../renderervk_cplus/tr_bsp.hpp"
-#include "../renderervk_cplus/tr_font.hpp"
-#include "../renderervk_cplus/tr_scene.hpp"
+#include "tr_world.hpp"
+#include "tr_cmds.hpp"
+#include "tr_marks.hpp"
+#include "tr_backend.hpp"
+#include "tr_bsp.hpp"
+#include "tr_font.hpp"
+#include "tr_scene.hpp"
+#include "tr_noise_cplus.hpp"
+#include "tr_local.hpp"
 
 glconfig_t glConfig;
 
@@ -185,7 +186,7 @@ static cvar_t *r_maxpolyverts;
 int max_polys;
 int max_polyverts;
 
-#include "vk.h"
+#include "vk.hpp"
 Vk_Instance vk;
 Vk_World vk_world;
 
@@ -345,8 +346,8 @@ static byte *RB_ReadPixels(int x, int y, int width, int height, size_t *offset, 
 
 	// Allocate a few more bytes so that we can choose an alignment we like
 	// buffer = ri.Hunk_AllocateTempMemory(padwidth * height + *offset + bufAlign - 1);
-	buffer = ri.Hunk_AllocateTempMemory(width * height * 4 + *offset + bufAlign - 1);
-	bufstart = PADP((intptr_t)buffer + *offset, bufAlign);
+	buffer = reinterpret_cast<byte *>(ri.Hunk_AllocateTempMemory(width * height * 4 + *offset + bufAlign - 1));
+	bufstart = reinterpret_cast<byte *>(PADP((intptr_t)buffer + *offset, bufAlign));
 
 	vk_read_pixels_plus(bufstart, width, height);
 
@@ -619,7 +620,7 @@ static void R_LevelShot(void)
 	allsource = RB_ReadPixels(0, 0, gls.captureWidth, gls.captureHeight, &offset, &padlen, 0);
 	source = allsource + offset;
 
-	buffer = ri.Hunk_AllocateTempMemory(128 * 128 * 3 + 18);
+	buffer = reinterpret_cast<byte *>(ri.Hunk_AllocateTempMemory(128 * 128 * 3 + 18));
 	Com_Memset(buffer, 0, 18);
 	buffer[2] = 2; // uncompressed type
 	buffer[12] = 128;
@@ -794,7 +795,7 @@ const void *RB_TakeVideoFrameCmd(const void *data)
 	avipadwidth = PAD(linelen, AVI_LINE_PADDING);
 	avipadlen = avipadwidth - linelen;
 
-	cBuf = PADP(cmd->captureBuffer, packAlign);
+	cBuf = reinterpret_cast<byte *>(PADP(cmd->captureBuffer, packAlign));
 
 	vk_read_pixels_plus(cBuf, cmd->width, cmd->height);
 
@@ -1435,7 +1436,7 @@ void R_Init(void)
 	max_polys = r_maxpolys->integer;
 	max_polyverts = r_maxpolyverts->integer;
 
-	ptr = ri.Hunk_Alloc(sizeof(*backEndData) + sizeof(srfPoly_t) * max_polys + sizeof(polyVert_t) * max_polyverts, h_low);
+	ptr = reinterpret_cast<byte *>(ri.Hunk_Alloc(sizeof(*backEndData) + sizeof(srfPoly_t) * max_polys + sizeof(polyVert_t) * max_polyverts, h_low));
 	backEndData = (backEndData_t *)ptr;
 	backEndData->polys = (srfPoly_t *)((char *)ptr + sizeof(*backEndData));
 	backEndData->polyVerts = (polyVert_t *)((char *)ptr + sizeof(*backEndData) + sizeof(srfPoly_t) * max_polys);

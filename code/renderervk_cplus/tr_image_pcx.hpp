@@ -6,7 +6,7 @@ extern "C"
 {
 #endif
 #include "../qcommon/q_shared.h"
-#include "../renderervk/tr_public.h"
+#include "tr_public.hpp"
     /*
     ========================================================================
 

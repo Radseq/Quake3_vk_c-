@@ -5,8 +5,8 @@
 extern "C"
 {
 #endif
-#include "../renderervk/tr_local.h"
 #include "q_math.hpp"
+#include "tr_local.hpp"
 
 	void R_FreeSurfaceGridMesh_plus(srfGridMesh_t *grid);
 	srfGridMesh_t *R_SubdividePatchToGrid_plus(int width, int height,

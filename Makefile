@@ -753,39 +753,9 @@ Q3RENDV_PLUS_OBJ = \
   $(B)/rendv_cplus/tr_bsp.o \
   $(B)/rendv_cplus/vk.o \
   $(B)/rendv_cplus/tr_image_jpg.o \
+  $(B)/rendv_cplus/tr_init.o \
 
-Q3RENDVOBJ = \
-  $(B)/rendv/tr_animation.o \
-  $(B)/rendv/tr_backend.o \
-  $(B)/rendv/tr_bsp.o \
-  $(B)/rendv/tr_cmds.o \
-  $(B)/rendv/tr_curve.o \
-  $(B)/rendv/tr_font.o \
-  $(B)/rendv/tr_image.o \
-  $(B)/rendv/tr_image_png.o \
-  $(B)/rendv/tr_image_jpg.o \
-  $(B)/rendv/tr_image_bmp.o \
-  $(B)/rendv/tr_image_tga.o \
-  $(B)/rendv/tr_image_pcx.o \
-  $(B)/rendv/tr_init.o \
-  $(B)/rendv/tr_light.o \
-  $(B)/rendv/tr_main.o \
-  $(B)/rendv/tr_marks.o \
-  $(B)/rendv/tr_mesh.o \
-  $(B)/rendv/tr_model.o \
-  $(B)/rendv/tr_model_iqm.o \
-  $(B)/rendv/tr_noise.o \
-  $(B)/rendv/tr_scene.o \
-  $(B)/rendv/tr_shade.o \
-  $(B)/rendv/tr_shade_calc.o \
-  $(B)/rendv/tr_shader.o \
-  $(B)/rendv/tr_shadows.o \
-  $(B)/rendv/tr_sky.o \
-  $(B)/rendv/tr_surface.o \
-  $(B)/rendv/tr_world.o \
-  $(B)/rendv/vk.o \
-  $(B)/rendv/vk_flares.o \
-  $(B)/rendv/vk_vbo.o \
+
 
 JPGOBJ = \
   $(B)/client/jpeg/jaricom.o \

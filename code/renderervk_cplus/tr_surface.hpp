@@ -6,7 +6,7 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
+#include "tr_local.hpp"
 
     void RB_CheckOverflow_plus(int verts, int indexes);
 #define RB_CHECKOVERFLOW_PLUS(v, i) RB_CheckOverflow_plus(v, i)

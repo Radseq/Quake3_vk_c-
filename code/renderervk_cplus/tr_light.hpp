@@ -7,8 +7,8 @@ extern "C"
 #endif
 
 #include "../qcommon/q_shared.h"
-#include "../renderervk/tr_local.h"
 #include "q_math.hpp"
+#include "tr_local.hpp"
 
     void R_TransformDlights_plus(int count, dlight_t *dl, orientationr_t *ort);
 #ifdef USE_LEGACY_DLIGHTS

@@ -7,7 +7,7 @@ extern "C"
 #endif
 
 #include "../qcommon/q_shared.h"
-#include "../renderervk/tr_public.h"
+#include "tr_public.hpp"
 
 	void R_LoadBMP_plus(const char *name, byte **pic, int *width, int *height);
 

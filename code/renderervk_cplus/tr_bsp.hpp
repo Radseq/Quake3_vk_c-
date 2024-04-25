@@ -6,7 +6,7 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
+#include "tr_local.hpp"
 
     void R_ColorShiftLightingBytes_plus(const byte in[4], byte out[4], bool hasAlpha);
     int R_GetLightmapCoords_plus(const int lightmapIndex, float *x, float *y);

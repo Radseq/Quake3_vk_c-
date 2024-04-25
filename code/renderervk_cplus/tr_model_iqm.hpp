@@ -11,7 +11,7 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
+#include "tr_local.hpp"
 
     void R_AddIQMSurfaces_plus(trRefEntity_t *ent);
     int R_IQMLerpTag_plus(orientation_t *tag, iqmData_t *data,

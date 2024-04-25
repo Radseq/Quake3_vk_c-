@@ -6,7 +6,7 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
+#include "tr_local.hpp"
 
 	void *R_GetCommandBuffer_plus(int bytes);
 	void R_AddDrawSurfCmd_plus(drawSurf_t *drawSurfs, int numDrawSurfs);

@@ -6,7 +6,7 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
+#include "tr_local.hpp"
 
     void RB_ShadowTessEnd_plus(void);
     void RB_ShadowFinish_plus(void);

@@ -6,9 +6,9 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
 #include "tr_light.hpp"
 #include "tr_main.hpp"
+#include "tr_local.hpp"
 
     void R_MDRAddAnimSurfaces_plus(trRefEntity_t *ent);
     void RB_MDRSurfaceAnim_plus(mdrSurface_t *surface);

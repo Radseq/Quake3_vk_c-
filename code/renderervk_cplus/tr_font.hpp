@@ -8,7 +8,7 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_public.h"
+#include "tr_public.hpp"
 
 	extern void R_IssuePendingRenderCommands(void);
 	extern qhandle_t RE_RegisterShaderNoMip_plus(const char *name);

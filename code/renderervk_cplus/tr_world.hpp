@@ -11,7 +11,7 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
+#include "tr_local.hpp"
 
       void R_AddWorldSurface_plus(msurface_t *surf, int dlightBits);
       void R_AddWorldSurfaces_plus();

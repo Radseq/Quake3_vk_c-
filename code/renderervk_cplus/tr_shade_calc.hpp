@@ -11,8 +11,8 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
 #include "tr_noise_cplus.hpp"
+#include "tr_local.hpp"
 
     void RB_CalcStretchTexCoords_plus(const waveForm_t *wf, float *src, float *dst);
     void RB_CalcTransformTexCoords_plus(const texModInfo_t *tmi, float *src, float *dst);

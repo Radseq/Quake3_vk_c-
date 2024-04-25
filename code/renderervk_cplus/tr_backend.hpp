@@ -6,7 +6,7 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
+#include "tr_local.hpp"
 
     void Bind_plus(image_t *image);
     void SelectTexture_plus(int unit);

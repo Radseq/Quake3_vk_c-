@@ -6,7 +6,7 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
+#include "tr_local.hpp"
 
     int R_ComputeLOD_plus(trRefEntity_t *ent);
     void R_AddMD3Surfaces_plus(trRefEntity_t *ent);

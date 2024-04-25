@@ -8,7 +8,7 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
+#include "tr_local.hpp"
 
     void R_AddDrawSurf_plus(surfaceType_t *surface, shader_t *shader,
                             int fogIndex, int dlightMap);

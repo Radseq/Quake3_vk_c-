@@ -5,10 +5,14 @@
 extern "C"
 {
 #endif
-#include "../renderervk/vulkan/vulkan.h"
-#include "../renderervk/tr_common.h"
+#include "../renderervk_cplus/vulkan/vulkan.h"
+#include "tr_common.hpp"
+#include "tr_local.hpp"
+#include "definitions.hpp"
 
-#include "../renderervk/tr_local.h"
+#define USE_VBO
+#define USE_PMLIGHT
+#define USE_LEGACY_DLIGHTS
 
 #define MAX_SWAPCHAIN_IMAGES 8
 #define MIN_SWAPCHAIN_IMAGES_IMM 3
@@ -45,6 +49,42 @@ extern "C"
 #define VK_DESC_TEXTURE_BASE VK_DESC_TEXTURE0
 #define VK_DESC_FOG_ONLY VK_DESC_TEXTURE1
 #define VK_DESC_FOG_DLIGHT VK_DESC_TEXTURE1
+
+
+
+
+
+
+
+
+
+
+
+
+      // this structure must be in sync with shader uniforms!
+      typedef struct vkUniform_s
+      {
+            // light/env parameters:
+            vec4_t eyePos; // vertex
+            union
+            {
+                  struct
+                  {
+                        vec4_t pos;    // vertex: light origin
+                        vec4_t color;  // fragment: rgb + 1/(r*r)
+                        vec4_t vector; // fragment: linear dynamic light
+                  } light;
+                  struct
+                  {
+                        vec4_t color[3]; // ent.color[3]
+                  } ent;
+            };
+            // fog parameters:
+            vec4_t fogDistanceVector; // vertex
+            vec4_t fogDepthVector;    // vertex
+            vec4_t fogEyeT;           // vertex
+            vec4_t fogColor;          // fragment
+      } vkUniform_t;
 
 #define TESS_XYZ (1)
 #define TESS_RGBA0 (2)
@@ -154,6 +194,15 @@ extern "C"
       void vk_begin_bloom_extract_render_pass_plus(void);
 
       void vk_begin_blur_render_pass_plus(uint32_t index);
+
+
+      // Vk_Instance contains engine-specific vulkan resources that persist entire renderer lifetime.
+      // This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.
+   
+
+      // Vk_World contains vulkan resources/state requested by the game code.
+      // It is reinitialized on a map change.
+
 
       extern Vk_Instance vk;    // shouldn't be cleared during ref re-init
       extern Vk_World vk_world; // this data is cleared during ref re-init

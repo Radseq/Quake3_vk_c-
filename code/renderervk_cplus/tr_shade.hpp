@@ -5,7 +5,7 @@
 extern "C"
 {
 #endif
-#include "../renderervk/tr_local.h"
+#include "tr_local.hpp"
 
     void RB_BeginSurface_plus(shader_t *shader, int fogNum);
     void R_ComputeTexCoords_plus(const int b, const textureBundle_t *bundle);

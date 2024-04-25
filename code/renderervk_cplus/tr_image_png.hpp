@@ -7,7 +7,7 @@ extern "C"
 #endif
 
 #include "q_shared.hpp"
-#include "../renderervk/tr_public.h"
+#include "tr_public.hpp"
 #include "q_platform.hpp"
 #include "puff.hpp"
 

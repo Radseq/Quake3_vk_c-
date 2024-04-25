@@ -8,12 +8,12 @@ extern "C"
 {
 #endif
 
-#include "../renderervk/tr_local.h"
 #include "tr_image_bmp.hpp"
 #include "tr_image_jpg.hpp"
 #include "tr_image_png.hpp"
 #include "tr_image_tga.hpp"
 #include "tr_image_pcx.hpp"
+#include "tr_local.hpp"
 
 	static byte s_intensitytable[256];
 	static unsigned char s_gammatable[256];
