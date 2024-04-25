@@ -1,4 +1,4 @@
-#include "tr_noise_cplus.hpp"
+#include "tr_noise.hpp"
 #include <cstdlib>
 #include <cmath>
 
@@ -29,7 +29,7 @@ float GetNoiseValue_plus(int x, int y, int z, int t)
     return s_noise_table[index];
 }
 
-void NoiseInit_plus()
+void NoiseInit()
 {
     for (int i = 0; i < NOISE_SIZE; i++)
     {
@@ -38,7 +38,7 @@ void NoiseInit_plus()
     }
 }
 
-float NoiseGet4f_plus(float x, float y, float z, double t)
+float NoiseGet4f(float x, float y, float z, double t)
 {
     int ix, iy, iz, it;
     float fx, fy, fz, ft;

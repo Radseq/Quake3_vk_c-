@@ -16,7 +16,7 @@ extern "C"
 	void RE_RegisterFont_plus(const char *fontName, int pointSize, fontInfo_t *font);
 	void R_InitFreeType_plus();
 	void R_DoneFreeType_plus();
-	float readFloat_plus(void);
+	//float readFloat_plus(void);
 
 #ifdef __cplusplus
 }

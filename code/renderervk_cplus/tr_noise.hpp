@@ -6,8 +6,8 @@ extern "C"
 {
 #endif
 
-    void NoiseInit_plus();
-    float NoiseGet4f_plus(float x, float y, float z, double t);
+    void NoiseInit();
+    float NoiseGet4f(float x, float y, float z, double t);
 
 #ifdef __cplusplus
 }

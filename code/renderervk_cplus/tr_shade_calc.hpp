@@ -4,7 +4,7 @@
 #include "q_shared.hpp"
 #include "tr_image.hpp"
 
-#include "tr_noise_cplus.hpp"
+#include "tr_noise.hpp"
 #include "tr_local.hpp"
 
 void RB_CalcStretchTexCoords_plus(const waveForm_t *wf, float *src, float *dst);

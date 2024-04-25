@@ -84,7 +84,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 FT_Library ftLibrary = NULL;
 #endif
 
-#define MAX_FONTS 6
+constexpr int MAX_FONTS = 6;
 
 #ifdef BUILD_FREETYPE
 void R_GetGlyphInfo_plus(FT_GlyphSlot glyph, int *left, int *right, int *width, int *top, int *bottom, int *height, int *pitch);
@@ -341,7 +341,7 @@ static int readInt(void)
 	return i;
 }
 
-float readFloat_plus(void)
+static float readFloat_plus(void)
 {
 	poor me;
 #if defined Q3_BIG_ENDIAN

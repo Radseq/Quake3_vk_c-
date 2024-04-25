@@ -182,17 +182,17 @@ static void RB_CalcDeformNormals( deformStage_t *ds ) {
 
 	for ( i = 0; i < tess.numVertexes; i++, xyz += 4, normal += 4 ) {
 		scale = 0.98f;
-		scale = NoiseGet4f_plus( xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
+		scale = NoiseGet4f( xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
 			tess.shaderTime * ds->deformationWave.frequency );
 		normal[ 0 ] += ds->deformationWave.amplitude * scale;
 
 		scale = 0.98f;
-		scale = NoiseGet4f_plus( 100 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
+		scale = NoiseGet4f( 100 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
 			tess.shaderTime * ds->deformationWave.frequency );
 		normal[ 1 ] += ds->deformationWave.amplitude * scale;
 
 		scale = 0.98f;
-		scale = NoiseGet4f_plus( 200 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
+		scale = NoiseGet4f( 200 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
 			tess.shaderTime * ds->deformationWave.frequency );
 		normal[ 2 ] += ds->deformationWave.amplitude * scale;
 
@@ -693,7 +693,7 @@ void RB_CalcWaveColor_plus( const waveForm_t *wf, unsigned char *dstColors )
 	color4ub_t color;
 
 	if ( wf->func == GF_NOISE ) {
-		glow = wf->base + NoiseGet4f_plus( 0, 0, 0, ( tess.shaderTime + wf->phase ) * wf->frequency ) * wf->amplitude;
+		glow = wf->base + NoiseGet4f( 0, 0, 0, ( tess.shaderTime + wf->phase ) * wf->frequency ) * wf->amplitude;
 	} else {
 		glow = EvalWaveForm( wf ) * tr.identityLight;
 	}

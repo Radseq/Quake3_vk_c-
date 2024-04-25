@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_bsp.hpp"
 #include "tr_font.hpp"
 #include "tr_scene.hpp"
-#include "tr_noise_cplus.hpp"
+#include "tr_noise.hpp"
 #include "tr_local.hpp"
 
 glconfig_t glConfig;
@@ -1429,7 +1429,7 @@ void R_Init(void)
 
 	R_InitFogTable_plus();
 
-	NoiseInit_plus();
+	NoiseInit();
 
 	R_Register();
 

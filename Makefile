@@ -720,7 +720,7 @@ endif
 #############################################################################
 
 Q3RENDV_PLUS_OBJ = \
-  $(B)/rendv_cplus/tr_noise_cplus.o \
+  $(B)/rendv_cplus/tr_noise.o \
   $(B)/rendv_cplus/q_math.o \
   $(B)/rendv_cplus/tr_world.o \
   $(B)/rendv_cplus/tr_light.o \

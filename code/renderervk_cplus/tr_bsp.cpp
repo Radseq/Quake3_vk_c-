@@ -35,9 +35,9 @@ static byte *fileBase;
 
 static int c_gridVerts;
 
-#define LIGHTMAP_SIZE 128
-#define LIGHTMAP_BORDER 2
-#define LIGHTMAP_LEN (LIGHTMAP_SIZE + LIGHTMAP_BORDER * 2)
+constexpr int LIGHTMAP_SIZE = 128;
+constexpr int LIGHTMAP_BORDER = 2;
+constexpr int LIGHTMAP_LEN = LIGHTMAP_SIZE + LIGHTMAP_BORDER * 2;
 
 static const int lightmapFlags = IMGFLAG_NOLIGHTSCALE | IMGFLAG_NO_COMPRESSION | IMGFLAG_LIGHTMAP | IMGFLAG_NOSCALE;
 
