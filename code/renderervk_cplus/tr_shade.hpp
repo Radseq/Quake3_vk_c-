@@ -1,10 +1,6 @@
 #ifndef TR_SHADE_HPP
 #define TR_SHADE_HPP
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
 #include "tr_local.hpp"
 
     void RB_BeginSurface_plus(shader_t *shader, int fogNum);
@@ -18,8 +14,5 @@ extern "C"
     void RB_StageIteratorGeneric_plus(void);
     void RB_EndSurface_plus(void);
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif // TR_SHADE_HPP

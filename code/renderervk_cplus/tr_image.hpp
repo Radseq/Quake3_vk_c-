@@ -3,10 +3,6 @@
 
 #include "q_shared.hpp"
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
 
 #include "tr_image_bmp.hpp"
 #include "tr_image_jpg.hpp"
@@ -50,10 +46,10 @@ return a hash value for the filename
 		void (*ImageLoader)(const char *, unsigned char **, int *, int *);
 	} imageExtToLoaderMap_t;
 
-#define DLIGHT_SIZE 16
-#define FOG_S 256
-#define FOG_T 32
-#define DEFAULT_SIZE 16
+constexpr int DLIGHT_SIZE = 16;
+constexpr int FOG_S = 256;
+constexpr int FOG_T = 32;
+constexpr int DEFAULT_SIZE = 16;
 
 	skin_t *R_GetSkinByHandle_plus(qhandle_t hSkin);
 	int R_SumOfUsedImages_plus();
@@ -72,8 +68,6 @@ return a hash value for the filename
 	void R_InitSkins_plus(void);
 	qhandle_t RE_RegisterSkin_plus(const char *name);
 
-#ifdef __cplusplus
-}
-#endif
+
 
 #endif // TR_IMAGE_HPP
