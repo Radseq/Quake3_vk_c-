@@ -333,7 +333,7 @@ Stores the length of padding after a line of pixels to address padlen
 Return value must be freed with ri.Hunk_FreeTempMemory()
 ==================
 */
-static byte *RB_ReadPixels(int x, int y, int width, int height, size_t *offset, int *padlen, int lineAlign)
+static byte *RB_ReadPixels(int width, int height, size_t *offset, int *padlen)
 {
 	byte *buffer, *bufstart;
 	int linelen;
@@ -373,7 +373,7 @@ void RB_TakeScreenshot(int x, int y, int width, int height, const char *fileName
 	size_t offset, memcount;
 
 	offset = header_size;
-	allbuf = RB_ReadPixels(x, y, width, height, &offset, &padlen, 0);
+	allbuf = RB_ReadPixels(width, height, &offset, &padlen);
 	buffer = allbuf + offset - header_size;
 
 	Com_Memset(buffer, 0, header_size);
@@ -429,7 +429,7 @@ void RB_TakeScreenshotJPEG(int x, int y, int width, int height, const char *file
 	size_t offset = 0, memcount;
 	int padlen;
 
-	buffer = RB_ReadPixels(x, y, width, height, &offset, &padlen, 0);
+	buffer = RB_ReadPixels(width, height, &offset, &padlen);
 	memcount = (width * 3 + padlen) * height;
 
 	// gamma correction
@@ -498,7 +498,7 @@ void RB_TakeScreenshotBMP(int x, int y, int width, int height, const char *fileN
 
 	offset = header_size;
 
-	allbuf = RB_ReadPixels(x, y, width, height, &offset, &padlen, 4);
+	allbuf = RB_ReadPixels(width, height, &offset, &padlen);
 	buffer = allbuf + offset;
 
 	// scanline length
@@ -617,7 +617,7 @@ static void R_LevelShot(void)
 
 	Com_sprintf(checkname, sizeof(checkname), "levelshots/%s.tga", tr.world->baseName);
 
-	allsource = RB_ReadPixels(0, 0, gls.captureWidth, gls.captureHeight, &offset, &padlen, 0);
+	allsource = RB_ReadPixels(gls.captureWidth, gls.captureHeight, &offset, &padlen);
 	source = allsource + offset;
 
 	buffer = reinterpret_cast<byte *>(ri.Hunk_AllocateTempMemory(128 * 128 * 3 + 18));

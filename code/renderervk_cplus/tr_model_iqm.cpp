@@ -778,7 +778,8 @@ bool R_LoadIQM_plus(model_t *mod, void *buffer, int filesize, const char *mod_na
 	iqmBounds_t *bounds;
 	unsigned short *framedata;
 	char *str;
-	int i, j, k;
+	uint32_t i;
+	int j, k;
 	iqmTransform_t *transform;
 	float *mat, *matInv;
 	size_t size, joint_names;

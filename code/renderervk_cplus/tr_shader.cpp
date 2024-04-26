@@ -30,6 +30,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <array>
 #include <string_view>
 
+static char *s_shaderText;
+
+static const char *s_extensionOffset;
+static int s_extendedShader;
+
+// the shader is parsed into these global variables, then copied into
+// dynamically allocated memory if it is valid.
+static shaderStage_t stages[MAX_SHADER_STAGES];
+static shader_t shader;
+static texModInfo_t texMods[MAX_SHADER_STAGES][TR_MAX_TEXMODS + 1]; // reserve one additional texmod for lightmap atlas correction
+
+#define FILE_HASH_SIZE 1024
+static shader_t *shaderHashTable[FILE_HASH_SIZE];
+
+#define MAX_SHADERTEXT_HASH 2048
+static const char **shaderTextHashTable[MAX_SHADERTEXT_HASH];
+
 #define generateHashValue Com_GenerateHashValue
 
 // tr_shader.c -- this file deals with the parsing and definition of shaders
@@ -1531,38 +1548,38 @@ typedef struct
 } infoParm_t;
 
 constexpr std::array<infoParm_t, 32> infoParms = {{
-    {"water", 1, 0, CONTENTS_WATER},                       // Server relevant contents
-    {"slime", 1, 0, CONTENTS_SLIME},                       // Mildly damaging
-    {"lava", 1, 0, CONTENTS_LAVA},                         // Very damaging
-    {"playerclip", 1, 0, CONTENTS_PLAYERCLIP},             // Player clip
-    {"monsterclip", 1, 0, CONTENTS_MONSTERCLIP},           // Monster clip
-    {"nodrop", 1, 0, static_cast<int>(CONTENTS_NODROP)},   // Don't drop items or leave bodies
-    {"nonsolid", 1, SURF_NONSOLID, 0},                     // Clears the solid flag
-    {"origin", 1, 0, CONTENTS_ORIGIN},                     // Center of rotating brushes
-    {"trans", 0, 0, CONTENTS_TRANSLUCENT},                 // Don't eat contained surfaces
-    {"detail", 0, 0, CONTENTS_DETAIL},                     // Don't include in structural bsp
-    {"structural", 0, 0, CONTENTS_STRUCTURAL},             // Force into structural bsp even if transparent
-    {"areaportal", 1, 0, CONTENTS_AREAPORTAL},             // Divides areas
-    {"clusterportal", 1, 0, CONTENTS_CLUSTERPORTAL},       // For bots
-    {"donotenter", 1, 0, CONTENTS_DONOTENTER},             // For bots
-    {"fog", 1, 0, CONTENTS_FOG},                           // Carves surfaces entering
-    {"sky", 0, SURF_SKY, 0},                               // Emit light from an environment map
-    {"lightfilter", 0, SURF_LIGHTFILTER, 0},               // Filter light going through it
-    {"alphashadow", 0, SURF_ALPHASHADOW, 0},               // Test light on a per-pixel basis
-    {"hint", 0, SURF_HINT, 0},                             // Use as a primary splitter
-    {"slick", 0, SURF_SLICK, 0},                           // Slick surface
-    {"noimpact", 0, SURF_NOIMPACT, 0},                     // Don't make impact explosions or marks
-    {"nomarks", 0, SURF_NOMARKS, 0},                       // Don't make impact marks, but still explode
-    {"ladder", 0, SURF_LADDER, 0},                         // Ladder
-    {"nodamage", 0, SURF_NODAMAGE, 0},                     // No damage
-    {"metalsteps", 0, SURF_METALSTEPS, 0},                 // Metal steps
-    {"flesh", 0, SURF_FLESH, 0},                           // Flesh
-    {"nosteps", 0, SURF_NOSTEPS, 0},                       // No steps
-    {"nodraw", 0, SURF_NODRAW, 0},                         // Don't generate a drawsurface (or a lightmap)
-    {"pointlight", 0, SURF_POINTLIGHT, 0},                 // Sample lighting at vertexes
-    {"nolightmap", 0, SURF_NOLIGHTMAP, 0},                 // Don't generate a lightmap
-    {"nodlight", 0, SURF_NODLIGHT, 0},                     // Don't ever add dynamic lights
-    {"dust", 0, SURF_DUST, 0}                              // Leave a dust trail when walking on this surface
+	{"water", 1, 0, CONTENTS_WATER},					 // Server relevant contents
+	{"slime", 1, 0, CONTENTS_SLIME},					 // Mildly damaging
+	{"lava", 1, 0, CONTENTS_LAVA},						 // Very damaging
+	{"playerclip", 1, 0, CONTENTS_PLAYERCLIP},			 // Player clip
+	{"monsterclip", 1, 0, CONTENTS_MONSTERCLIP},		 // Monster clip
+	{"nodrop", 1, 0, static_cast<int>(CONTENTS_NODROP)}, // Don't drop items or leave bodies
+	{"nonsolid", 1, SURF_NONSOLID, 0},					 // Clears the solid flag
+	{"origin", 1, 0, CONTENTS_ORIGIN},					 // Center of rotating brushes
+	{"trans", 0, 0, CONTENTS_TRANSLUCENT},				 // Don't eat contained surfaces
+	{"detail", 0, 0, CONTENTS_DETAIL},					 // Don't include in structural bsp
+	{"structural", 0, 0, CONTENTS_STRUCTURAL},			 // Force into structural bsp even if transparent
+	{"areaportal", 1, 0, CONTENTS_AREAPORTAL},			 // Divides areas
+	{"clusterportal", 1, 0, CONTENTS_CLUSTERPORTAL},	 // For bots
+	{"donotenter", 1, 0, CONTENTS_DONOTENTER},			 // For bots
+	{"fog", 1, 0, CONTENTS_FOG},						 // Carves surfaces entering
+	{"sky", 0, SURF_SKY, 0},							 // Emit light from an environment map
+	{"lightfilter", 0, SURF_LIGHTFILTER, 0},			 // Filter light going through it
+	{"alphashadow", 0, SURF_ALPHASHADOW, 0},			 // Test light on a per-pixel basis
+	{"hint", 0, SURF_HINT, 0},							 // Use as a primary splitter
+	{"slick", 0, SURF_SLICK, 0},						 // Slick surface
+	{"noimpact", 0, SURF_NOIMPACT, 0},					 // Don't make impact explosions or marks
+	{"nomarks", 0, SURF_NOMARKS, 0},					 // Don't make impact marks, but still explode
+	{"ladder", 0, SURF_LADDER, 0},						 // Ladder
+	{"nodamage", 0, SURF_NODAMAGE, 0},					 // No damage
+	{"metalsteps", 0, SURF_METALSTEPS, 0},				 // Metal steps
+	{"flesh", 0, SURF_FLESH, 0},						 // Flesh
+	{"nosteps", 0, SURF_NOSTEPS, 0},					 // No steps
+	{"nodraw", 0, SURF_NODRAW, 0},						 // Don't generate a drawsurface (or a lightmap)
+	{"pointlight", 0, SURF_POINTLIGHT, 0},				 // Sample lighting at vertexes
+	{"nolightmap", 0, SURF_NOLIGHTMAP, 0},				 // Don't generate a lightmap
+	{"nodlight", 0, SURF_NODLIGHT, 0},					 // Don't ever add dynamic lights
+	{"dust", 0, SURF_DUST, 0}							 // Leave a dust trail when walking on this surface
 }};
 /*
 ===============

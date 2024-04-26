@@ -50,17 +50,6 @@ extern "C"
 #define VK_DESC_FOG_ONLY VK_DESC_TEXTURE1
 #define VK_DESC_FOG_DLIGHT VK_DESC_TEXTURE1
 
-
-
-
-
-
-
-
-
-
-
-
       // this structure must be in sync with shader uniforms!
       typedef struct vkUniform_s
       {
@@ -195,14 +184,11 @@ extern "C"
 
       void vk_begin_blur_render_pass_plus(uint32_t index);
 
-
       // Vk_Instance contains engine-specific vulkan resources that persist entire renderer lifetime.
       // This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.
-   
 
       // Vk_World contains vulkan resources/state requested by the game code.
       // It is reinitialized on a map change.
-
 
       extern Vk_Instance vk;    // shouldn't be cleared during ref re-init
       extern Vk_World vk_world; // this data is cleared during ref re-init

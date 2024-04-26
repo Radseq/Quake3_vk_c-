@@ -8,26 +8,6 @@ extern "C"
 
 #include "tr_local.hpp"
 
-#define TEST
-#define TEST_A
-
-    static char *s_shaderText;
-
-    static const char *s_extensionOffset;
-    static int s_extendedShader;
-
-    // the shader is parsed into these global variables, then copied into
-    // dynamically allocated memory if it is valid.
-    static shaderStage_t stages[MAX_SHADER_STAGES];
-    static shader_t shader;
-    static texModInfo_t texMods[MAX_SHADER_STAGES][TR_MAX_TEXMODS + 1]; // reserve one additional texmod for lightmap atlas correction
-
-#define FILE_HASH_SIZE 1024
-    static shader_t *shaderHashTable[FILE_HASH_SIZE];
-
-#define MAX_SHADERTEXT_HASH 2048
-    static const char **shaderTextHashTable[MAX_SHADERTEXT_HASH];
-
 /*
 ================
 return a hash value for the filename

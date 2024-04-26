@@ -1761,13 +1761,13 @@ static bool vk_create_device(VkPhysicalDevice physical_device, int device_index)
 	return true;
 }
 
-#define INIT_INSTANCE_FUNCTION(func)                                              \
-    q##func = reinterpret_cast<PFN_##func>(ri.VK_GetInstanceProcAddr(vk_instance, #func)); \
-    if (q##func == nullptr)                                                        \
-    {                                                                              \
-        ri.Error(ERR_FATAL, "Failed to find entrypoint %s", #func);             \
-        exit(EXIT_FAILURE);                                                        \
-    }
+#define INIT_INSTANCE_FUNCTION(func)                                                       \
+	q##func = reinterpret_cast<PFN_##func>(ri.VK_GetInstanceProcAddr(vk_instance, #func)); \
+	if (q##func == nullptr)                                                                \
+	{                                                                                      \
+		ri.Error(ERR_FATAL, "Failed to find entrypoint %s", #func);                        \
+		exit(EXIT_FAILURE);                                                                \
+	}
 
 #define INIT_INSTANCE_FUNCTION_EXT(func) \
 	q##func = /*(PFN_ ## func)*/ ri.VK_GetInstanceProcAddr(vk_instance, #func);
@@ -1819,7 +1819,8 @@ static void init_vulkan_library(void)
 	VkPhysicalDeviceProperties props;
 	VkPhysicalDevice *physical_devices;
 	uint32_t device_count;
-	int device_index, i;
+	uint32_t device_index;
+	uint32_t i;
 	VkResult res;
 
 	Com_Memset(&vk, 0, sizeof(vk));
@@ -4617,7 +4618,8 @@ void vk_wait_idle_plus(void)
 
 void vk_release_resources_plus(void)
 {
-	int i, j;
+	uint32_t i;
+	int j;
 
 	vk_wait_idle_plus();
 

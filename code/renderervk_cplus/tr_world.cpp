@@ -260,7 +260,7 @@ static bool R_LightCullSurface(const surfaceType_t *surface, const dlight_t *dl)
 static int R_DlightFace(srfSurfaceFace_t *face, int dlightBits)
 {
 	float d;
-	int i;
+	uint32_t i;
 	const dlight_t *dl;
 
 	for (i = 0; i < tr.refdef.num_dlights; i++)
@@ -565,7 +565,7 @@ void R_AddBrushModelSurfaces_plus(trRefEntity_t *ent)
 	bmodel_t *bmodel;
 	int clip;
 	const model_t *pModel;
-	int i;
+	uint32_t i;
 
 	pModel = R_GetModelByHandle_plus(ent->e.hModel);
 

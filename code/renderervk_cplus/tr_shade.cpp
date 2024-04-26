@@ -626,7 +626,8 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 {
 	const shaderStage_t *pStage;
 	int tess_flags;
-	int stage, i;
+	int stage;
+	uint32_t i;
 	uint32_t pipeline;
 	int fog_stage;
 	bool pushUniform;

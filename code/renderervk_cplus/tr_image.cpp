@@ -43,6 +43,13 @@ static const imageExtToLoaderMap_t imageLoaders[] =
 		{"pcx", R_LoadPCX_plus},
 		{"bmp", R_LoadBMP_plus}};
 
+static byte s_intensitytable[256];
+static unsigned char s_gammatable[256];
+static unsigned char s_gammatable_linear[256];
+
+#define FILE_HASH_SIZE 1024
+static image_t *hashTable[FILE_HASH_SIZE];
+
 static const int numImageLoaders = ARRAY_LEN(imageLoaders);
 
 constexpr int FOG_TABLE_SIZE_PLUS = 256;
