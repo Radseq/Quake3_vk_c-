@@ -463,13 +463,13 @@ static void DrawSkySide(image_t *image, const int mins[2], const int maxs[2])
 
 	if (tess.numIndexes)
 	{
-		Bind_plus(image);
+		Bind(image);
 		tess.svars.texcoordPtr[0] = tess.texCoords[0];
 
-		vk_bind_pipeline_plus(vk.skybox_pipeline);
-		vk_bind_index_plus();
-		vk_bind_geometry_plus(TESS_XYZ | TESS_ST0);
-		vk_draw_geometry_plus(r_showsky->integer ? DEPTH_RANGE_ZERO : DEPTH_RANGE_ONE, true);
+		vk_bind_pipeline(vk.skybox_pipeline);
+		vk_bind_index();
+		vk_bind_geometry(TESS_XYZ | TESS_ST0);
+		vk_draw_geometry(r_showsky->integer ? DEPTH_RANGE_ZERO : DEPTH_RANGE_ONE, true);
 		tess.numVertexes = 0;
 		tess.numIndexes = 0;
 	}
@@ -698,7 +698,7 @@ static void BuildSkyTexCoords(void)
 ** R_InitSkyTexCoords_plus
 ** Called when a sky shader is parsed
 */
-void R_InitSkyTexCoords_plus(float heightCloud)
+void R_InitSkyTexCoords(float heightCloud)
 {
 	int i, s, t;
 	float radiusWorld = 4096;
@@ -768,7 +768,7 @@ void R_InitSkyTexCoords_plus(float heightCloud)
 /*
 ** RB_DrawSun_plus
 */
-void RB_DrawSun_plus(float scale, shader_t *shader)
+void RB_DrawSun(float scale, shader_t *shader)
 {
 	float size;
 	float dist;
@@ -779,7 +779,7 @@ void RB_DrawSun_plus(float scale, shader_t *shader)
 		return;
 
 	sunColor.u32 = ~0U;
-	vk_update_mvp_plus(NULL);
+	vk_update_mvp(NULL);
 
 	dist = backEnd.viewParms.zFar / 1.75; // div sqrt(3)
 	size = dist * scale;
@@ -794,11 +794,11 @@ void RB_DrawSun_plus(float scale, shader_t *shader)
 	// farthest depth range
 	tess.depthRange = DEPTH_RANGE_ONE;
 
-	RB_BeginSurface_plus(shader, 0);
+	RB_BeginSurface(shader, 0);
 
-	RB_AddQuadStamp_plus(origin, vec1, vec2, sunColor);
+	RB_AddQuadStamp(origin, vec1, vec2, sunColor);
 
-	RB_EndSurface_plus();
+	RB_EndSurface();
 
 	// back to normal depth range
 	tess.depthRange = DEPTH_RANGE_NORMAL;
@@ -813,7 +813,7 @@ All of the visible sky triangles are in tess
 Other things could be stuck in here, like birds in the sky, etc
 ================
 */
-void RB_StageIteratorSky_plus(void)
+void RB_StageIteratorSky(void)
 {
 	if (r_fastsky->integer && vk.fastSky)
 	{
@@ -821,7 +821,7 @@ void RB_StageIteratorSky_plus(void)
 	}
 
 #ifdef USE_VBO
-	VBO_UnBind_plus();
+	VBO_UnBind();
 #endif
 
 	// go through all the polygons and project them onto
@@ -855,7 +855,7 @@ void RB_StageIteratorSky_plus(void)
 	// draw the inner skybox
 	if (tess.numVertexes)
 	{
-		RB_StageIteratorGeneric_plus();
+		RB_StageIteratorGeneric();
 	}
 
 	// back to normal depth range

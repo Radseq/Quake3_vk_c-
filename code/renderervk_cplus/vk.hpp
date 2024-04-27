@@ -95,94 +95,94 @@ extern "C"
 
       // Initializes VK_Instance structure.
       // After calling this function we get fully functional vulkan subsystem.
-      void vk_initialize_plus(void);
+      void vk_initialize(void);
 
       // Called after initialization or renderer restart
-      void vk_init_descriptors_plus(void);
+      void vk_init_descriptors(void);
 
       // Shutdown vulkan subsystem by releasing resources acquired by Vk_Instance.
-      void vk_shutdown_plus(refShutdownCode_t code);
+      void vk_shutdown(refShutdownCode_t code);
 
       // Releases vulkan resources allocated during program execution.
       // This effectively puts vulkan subsystem into initial state (the state we have after vk_initialize call).
-      void vk_release_resources_plus(void);
+      void vk_release_resources(void);
 
-      void vk_wait_idle_plus(void);
+      void vk_wait_idle(void);
 
       //
       // Resources allocation.
       //
-      void vk_create_image_plus(image_t *image, int width, int height, int mip_levels);
-      void vk_upload_image_data_plus(image_t *image, int x, int y, int width, int height, int miplevels, byte *pixels, int size, bool update);
-      void vk_update_descriptor_set_plus(image_t *image, bool mipmap);
-      void vk_destroy_image_resources_plus(VkImage *image, VkImageView *imageView);
+      void vk_create_image(image_t *image, int width, int height, int mip_levels);
+      void vk_upload_image_data(image_t *image, int x, int y, int width, int height, int miplevels, byte *pixels, int size, bool update);
+      void vk_update_descriptor_set(image_t *image, bool mipmap);
+      void vk_destroy_image_resources(VkImage *image, VkImageView *imageView);
 
-      uint32_t vk_find_pipeline_ext_plus(uint32_t base, const Vk_Pipeline_Def *def, bool use);
-      void vk_get_pipeline_def_plus(uint32_t pipeline, Vk_Pipeline_Def *def);
+      uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def *def, bool use);
+      void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def *def);
 
-      void vk_create_post_process_pipeline_plus(int program_index, uint32_t width, uint32_t height);
-      void vk_create_pipelines_plus(void);
+      void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t height);
+      void vk_create_pipelines(void);
 
       //
       // Rendering setup.
       //
 
-      void vk_clear_color_plus(const vec4_t color);
-      void vk_clear_depth_plus(bool clear_stencil);
-      void vk_begin_frame_plus(void);
-      void vk_end_frame_plus(void);
-      void vk_present_frame_plus(void);
+      void vk_clear_color(const vec4_t color);
+      void vk_clear_depth(bool clear_stencil);
+      void vk_begin_frame(void);
+      void vk_end_frame(void);
+      void vk_present_frame(void);
 
-      void vk_end_render_pass_plus(void);
-      void vk_begin_main_render_pass_plus(void);
+      void vk_end_render_pass(void);
+      void vk_begin_main_render_pass(void);
 
-      void vk_bind_pipeline_plus(uint32_t pipeline);
-      void vk_bind_index_plus(void);
-      void vk_bind_index_ext_plus(const int numIndexes, const uint32_t *indexes);
-      void vk_bind_geometry_plus(uint32_t flags);
-      void vk_bind_lighting_plus(int stage, int bundle);
-      void vk_draw_geometry_plus(Vk_Depth_Range depth_range, bool indexed);
+      void vk_bind_pipeline(uint32_t pipeline);
+      void vk_bind_index(void);
+      void vk_bind_index_ext(const int numIndexes, const uint32_t *indexes);
+      void vk_bind_geometry(uint32_t flags);
+      void vk_bind_lighting(int stage, int bundle);
+      void vk_draw_geometry(Vk_Depth_Range depth_range, bool indexed);
 
-      void vk_read_pixels_plus(byte *buffer, uint32_t width, uint32_t height); // screenshots
-      bool vk_bloom_plus(void);
+      void vk_read_pixels(byte *buffer, uint32_t width, uint32_t height); // screenshots
+      bool vk_bloom(void);
 
-      void vk_update_mvp_plus(const float *m);
+      void vk_update_mvp(const float *m);
 
-      uint32_t vk_tess_index_plus(uint32_t numIndexes, const void *src);
-      void vk_bind_index_buffer_plus(VkBuffer buffer, uint32_t offset);
-      void vk_draw_indexed_plus(uint32_t indexCount, uint32_t firstIndex);
+      uint32_t vk_tess_index(uint32_t numIndexes, const void *src);
+      void vk_bind_index_buffer(VkBuffer buffer, uint32_t offset);
+      void vk_draw_indexed(uint32_t indexCount, uint32_t firstIndex);
 
-      void vk_reset_descriptor_plus(int index);
-      void vk_update_descriptor_plus(int index, VkDescriptorSet descriptor);
-      void vk_update_descriptor_offset_plus(int index, uint32_t offset);
-      void vk_update_uniform_descriptor_plus(VkDescriptorSet descriptor, VkBuffer buffer);
+      void vk_reset_descriptor(int index);
+      void vk_update_descriptor(int index, VkDescriptorSet descriptor);
+      void vk_update_descriptor_offset(int index, uint32_t offset);
+      void vk_update_uniform_descriptor(VkDescriptorSet descriptor, VkBuffer buffer);
 
-      void vk_update_post_process_pipelines_plus(void);
+      void vk_update_post_process_pipelines(void);
 
-      const char *vk_format_string_plus(VkFormat format);
+      const char *vk_format_string(VkFormat format);
 
-      void VBO_PrepareQueues_plus(void);
-      void VBO_RenderIBOItems_plus(void);
-      void VBO_ClearQueue_plus(void);
+      void VBO_PrepareQueues(void);
+      void VBO_RenderIBOItems(void);
+      void VBO_ClearQueue(void);
 
-      VkPipeline create_pipeline_plus(const Vk_Pipeline_Def *def, renderPass_t renderPassIndex);
+      VkPipeline create_pipeline(const Vk_Pipeline_Def *def, renderPass_t renderPassIndex);
 
 #ifdef USE_VBO
-      void vk_release_vbo_plus(void);
-      bool vk_alloc_vbo_plus(const byte *vbo_data, int vbo_size);
+      void vk_release_vbo(void);
+      bool vk_alloc_vbo(const byte *vbo_data, int vbo_size);
 #endif
 
-      void vk_create_blur_pipeline_plus(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass);
-      uint32_t vk_alloc_pipeline_plus(const Vk_Pipeline_Def *def);
+      void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass);
+      uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def *def);
 
-      VkPipeline vk_gen_pipeline_plus(uint32_t index);
-      void vk_update_mvp_plus(const float *m);
+      VkPipeline vk_gen_pipeline(uint32_t index);
+      void vk_update_mvp(const float *m);
 
-      void vk_bind_descriptor_sets_plus(void);
-      void vk_begin_post_bloom_render_pass_plus(void);
-      void vk_begin_bloom_extract_render_pass_plus(void);
+      void vk_bind_descriptor_sets(void);
+      void vk_begin_post_bloom_render_pass(void);
+      void vk_begin_bloom_extract_render_pass(void);
 
-      void vk_begin_blur_render_pass_plus(uint32_t index);
+      void vk_begin_blur_render_pass(uint32_t index);
 
       // Vk_Instance contains engine-specific vulkan resources that persist entire renderer lifetime.
       // This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.

@@ -721,14 +721,12 @@ endif
 
 Q3RENDV_PLUS_OBJ = \
   $(B)/rendv_cplus/tr_noise.o \
-  $(B)/rendv_cplus/q_math.o \
   $(B)/rendv_cplus/tr_world.o \
   $(B)/rendv_cplus/tr_light.o \
   $(B)/rendv_cplus/tr_main.o \
   $(B)/rendv_cplus/vk_flares.o \
   $(B)/rendv_cplus/tr_shade.o \
   $(B)/rendv_cplus/tr_shade_calc.o \
-  $(B)/rendv_cplus/q_shared.o \
   $(B)/rendv_cplus/tr_surface.o \
   $(B)/rendv_cplus/tr_model.o \
   $(B)/rendv_cplus/tr_model_iqm.o \
@@ -746,7 +744,6 @@ Q3RENDV_PLUS_OBJ = \
   $(B)/rendv_cplus/tr_image_bmp.o \
   $(B)/rendv_cplus/tr_image_pcx.o \
   $(B)/rendv_cplus/tr_image_png.o \
-  $(B)/rendv_cplus/puff.o \
   $(B)/rendv_cplus/tr_image_tga.o \
   $(B)/rendv_cplus/vk_vbo.o \
   $(B)/rendv_cplus/tr_sky.o \
@@ -754,7 +751,7 @@ Q3RENDV_PLUS_OBJ = \
   $(B)/rendv_cplus/vk.o \
   $(B)/rendv_cplus/tr_image_jpg.o \
   $(B)/rendv_cplus/tr_init.o \
-
+  $(B)/rendv_cplus/puff.o \
 
 
 JPGOBJ = \

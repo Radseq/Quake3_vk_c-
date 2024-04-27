@@ -156,7 +156,7 @@ static PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;
 ////////////////////////////////////////////////////////////////////////////
 
 // forward declaration
-VkPipeline create_pipeline_plus(const Vk_Pipeline_Def *def, renderPass_t renderPassIndex);
+VkPipeline create_pipeline(const Vk_Pipeline_Def *def, renderPass_t renderPassIndex);
 
 static uint32_t find_memory_type(uint32_t memory_type_bits, VkMemoryPropertyFlags properties)
 {
@@ -223,7 +223,7 @@ static const char *pmode_to_str(VkPresentModeKHR mode)
 	case (x):       \
 		return #x
 
-const char *vk_format_string_plus(VkFormat format)
+const char *vk_format_string(VkFormat format)
 {
 	static char buf[16];
 
@@ -1338,7 +1338,7 @@ static VkFormat get_depth_format(VkPhysicalDevice physical_device)
 		formats[1] = VK_FORMAT_D32_SFLOAT;
 		glConfig.stencilBits = 0;
 	}
-	for (i = 0; i < ARRAY_LEN(formats); i++)
+	for (i = 0; i < static_cast<int>(ARRAY_LEN(formats)); i++)
 	{
 		qvkGetPhysicalDeviceFormatProperties(physical_device, formats[i], &props);
 		if ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0)
@@ -1819,7 +1819,7 @@ static void init_vulkan_library(void)
 	VkPhysicalDeviceProperties props;
 	VkPhysicalDevice *physical_devices;
 	uint32_t device_count;
-	uint32_t device_index;
+	int device_index;
 	uint32_t i;
 	VkResult res;
 
@@ -1919,7 +1919,7 @@ static void init_vulkan_library(void)
 	vk.physical_device = VK_NULL_HANDLE;
 	for (i = 0; i < device_count; i++, device_index++)
 	{
-		if (device_index >= device_count || device_index < 0)
+		if (device_index >= static_cast<int>(device_count) || device_index < 0)
 		{
 			device_index = 0;
 		}
@@ -2202,7 +2202,7 @@ static void vk_create_layout_binding(int binding, VkDescriptorType type, VkShade
 	VK_CHECK(qvkCreateDescriptorSetLayout(vk.device, &desc, NULL, layout));
 }
 
-void vk_update_uniform_descriptor_plus(VkDescriptorSet descriptor, VkBuffer buffer)
+void vk_update_uniform_descriptor(VkDescriptorSet descriptor, VkBuffer buffer)
 {
 	VkDescriptorBufferInfo info;
 	VkWriteDescriptorSet desc;
@@ -2414,7 +2414,7 @@ static void vk_update_attachment_descriptors(void)
 	}
 }
 
-void vk_init_descriptors_plus(void)
+void vk_init_descriptors(void)
 {
 	VkDescriptorSetAllocateInfo alloc;
 	VkDescriptorBufferInfo info;
@@ -2457,7 +2457,7 @@ void vk_init_descriptors_plus(void)
 
 		VK_CHECK(qvkAllocateDescriptorSets(vk.device, &alloc, &vk.tess[i].uniform_descriptor));
 
-		vk_update_uniform_descriptor_plus(vk.tess[i].uniform_descriptor, vk.tess[i].vertex_buffer);
+		vk_update_uniform_descriptor(vk.tess[i].uniform_descriptor, vk.tess[i].vertex_buffer);
 
 		SET_OBJECT_NAME(vk.tess[i].uniform_descriptor, va("uniform descriptor %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
 	}
@@ -2604,7 +2604,7 @@ static void vk_create_storage_buffer(uint32_t size)
 }
 
 #ifdef USE_VBO
-void vk_release_vbo_plus(void)
+void vk_release_vbo(void)
 {
 	if (vk.vbo.vertex_buffer)
 		qvkDestroyBuffer(vk.device, vk.vbo.vertex_buffer, NULL);
@@ -2615,7 +2615,7 @@ void vk_release_vbo_plus(void)
 	vk.vbo.buffer_memory = VK_NULL_HANDLE;
 }
 
-bool vk_alloc_vbo_plus(const byte *vbo_data, int vbo_size)
+bool vk_alloc_vbo(const byte *vbo_data, int vbo_size)
 {
 	VkMemoryRequirements vb_mem_reqs;
 	VkMemoryAllocateInfo alloc_info;
@@ -2629,7 +2629,7 @@ bool vk_alloc_vbo_plus(const byte *vbo_data, int vbo_size)
 	VkBufferCopy copyRegion[1];
 	void *data;
 
-	vk_release_vbo_plus();
+	vk_release_vbo();
 
 	desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	desc.pNext = NULL;
@@ -2937,7 +2937,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.face_culling = CT_FRONT_SIDED;
 		def.polygon_offset = false;
 		def.mirror = false;
-		vk.skybox_pipeline = vk_find_pipeline_ext_plus(0, &def, true);
+		vk.skybox_pipeline = vk_find_pipeline_ext(0, &def, true);
 	}
 
 	// stencil shadows
@@ -2958,7 +2958,7 @@ static void vk_alloc_persistent_pipelines(void)
 			for (j = 0; j < 2; j++)
 			{
 				def.mirror = mirror_flags[j];
-				vk.shadow_volume_pipelines[i][j] = vk_find_pipeline_ext_plus(0, &def, r_shadows->integer ? true : false);
+				vk.shadow_volume_pipelines[i][j] = vk_find_pipeline_ext(0, &def, r_shadows->integer ? true : false);
 			}
 		}
 	}
@@ -2971,7 +2971,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.mirror = false;
 		def.shadow_phase = SHADOW_FS_QUAD;
 		def.primitives = TRIANGLE_STRIP;
-		vk.shadow_finish_pipeline = vk_find_pipeline_ext_plus(0, &def, r_shadows->integer ? true : false);
+		vk.shadow_finish_pipeline = vk_find_pipeline_ext(0, &def, r_shadows->integer ? true : false);
 	}
 
 	// fog and dlights
@@ -3009,15 +3009,15 @@ static void vk_alloc_persistent_pipelines(void)
 					def.shader_type = TYPE_SIGNLE_TEXTURE;
 #endif
 					def.state_bits = fog_state;
-					vk.fog_pipelines[i][j][k] = vk_find_pipeline_ext_plus(0, &def, true);
+					vk.fog_pipelines[i][j][k] = vk_find_pipeline_ext(0, &def, true);
 
 					def.shader_type = TYPE_SIGNLE_TEXTURE;
 					def.state_bits = dlight_state;
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
-					vk.dlight_pipelines[i][j][k] = vk_find_pipeline_ext_plus(0, &def, r_dlightMode->integer == 0 ? true : false);
+					vk.dlight_pipelines[i][j][k] = vk_find_pipeline_ext(0, &def, r_dlightMode->integer == 0 ? true : false);
 #else
-					vk.dlight_pipelines[i][j][k] = vk_find_pipeline_ext_plus(0, &def, true);
+					vk.dlight_pipelines[i][j][k] = vk_find_pipeline_ext(0, &def, true);
 #endif
 #endif
 				}
@@ -3040,9 +3040,9 @@ static void vk_alloc_persistent_pipelines(void)
 					{
 						def.abs_light = l;
 						def.shader_type = TYPE_SIGNLE_TEXTURE_LIGHTING;
-						vk.dlight_pipelines_x[i][j][k][l] = vk_find_pipeline_ext_plus(0, &def, false);
+						vk.dlight_pipelines_x[i][j][k][l] = vk_find_pipeline_ext(0, &def, false);
 						def.shader_type = TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR;
-						vk.dlight1_pipelines_x[i][j][k][l] = vk_find_pipeline_ext_plus(0, &def, false);
+						vk.dlight1_pipelines_x[i][j][k][l] = vk_find_pipeline_ext(0, &def, false);
 					}
 				}
 			}
@@ -3056,7 +3056,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.face_culling = CT_FRONT_SIDED;
 		def.primitives = TRIANGLE_STRIP;
-		vk.surface_beam_pipeline = vk_find_pipeline_ext_plus(0, &def, false);
+		vk.surface_beam_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 
 	// axis for missing models
@@ -3068,7 +3068,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.primitives = LINE_LIST;
 		if (vk.wideLines)
 			def.line_width = 3;
-		vk.surface_axis_pipeline = vk_find_pipeline_ext_plus(0, &def, false);
+		vk.surface_axis_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 
 	// flare visibility test dot
@@ -3078,7 +3078,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.face_culling = CT_TWO_SIDED;
 		def.shader_type = TYPE_DOT;
 		def.primitives = POINT_LIST;
-		vk.dot_pipeline = vk_find_pipeline_ext_plus(0, &def, true);
+		vk.dot_pipeline = vk_find_pipeline_ext(0, &def, true);
 	}
 
 	// DrawTris()
@@ -3088,42 +3088,42 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_WHITE;
 		def.face_culling = CT_FRONT_SIDED;
-		vk.tris_debug_pipeline = vk_find_pipeline_ext_plus(0, &def, false);
+		vk.tris_debug_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 	{
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_WHITE;
 		def.face_culling = CT_BACK_SIDED;
-		vk.tris_mirror_debug_pipeline = vk_find_pipeline_ext_plus(0, &def, false);
+		vk.tris_mirror_debug_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 	{
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_GREEN;
 		def.face_culling = CT_FRONT_SIDED;
-		vk.tris_debug_green_pipeline = vk_find_pipeline_ext_plus(0, &def, false);
+		vk.tris_debug_green_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 	{
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_GREEN;
 		def.face_culling = CT_BACK_SIDED;
-		vk.tris_mirror_debug_green_pipeline = vk_find_pipeline_ext_plus(0, &def, false);
+		vk.tris_mirror_debug_green_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 	{
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_RED;
 		def.face_culling = CT_FRONT_SIDED;
-		vk.tris_debug_red_pipeline = vk_find_pipeline_ext_plus(0, &def, false);
+		vk.tris_debug_red_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 	{
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_RED;
 		def.face_culling = CT_BACK_SIDED;
-		vk.tris_mirror_debug_red_pipeline = vk_find_pipeline_ext_plus(0, &def, false);
+		vk.tris_mirror_debug_red_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 
 	// DrawNormals()
@@ -3132,7 +3132,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = GLS_DEPTHMASK_TRUE;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.primitives = LINE_LIST;
-		vk.normals_debug_pipeline = vk_find_pipeline_ext_plus(0, &def, false);
+		vk.normals_debug_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 
 	// RB_DebugPolygon()
@@ -3140,14 +3140,14 @@ static void vk_alloc_persistent_pipelines(void)
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
-		vk.surface_debug_pipeline_solid = vk_find_pipeline_ext_plus(0, &def, false);
+		vk.surface_debug_pipeline_solid = vk_find_pipeline_ext(0, &def, false);
 	}
 	{
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.primitives = LINE_LIST;
-		vk.surface_debug_pipeline_outline = vk_find_pipeline_ext_plus(0, &def, false);
+		vk.surface_debug_pipeline_outline = vk_find_pipeline_ext(0, &def, false);
 	}
 
 	// RB_ShowImages
@@ -3156,22 +3156,22 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = GLS_DEPTHTEST_DISABLE | GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.primitives = TRIANGLE_STRIP;
-		vk.images_debug_pipeline = vk_find_pipeline_ext_plus(0, &def, false);
+		vk.images_debug_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 }
 
-void vk_create_blur_pipeline_plus(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass);
+void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass);
 
-void vk_update_post_process_pipelines_plus(void)
+void vk_update_post_process_pipelines(void)
 {
 	if (vk.fboActive)
 	{
 		// update gamma shader
-		vk_create_post_process_pipeline_plus(0, 0, 0);
+		vk_create_post_process_pipeline(0, 0, 0);
 		if (vk.capture.image)
 		{
 			// update capture pipeline
-			vk_create_post_process_pipeline_plus(3, gls.captureWidth, gls.captureHeight);
+			vk_create_post_process_pipeline(3, gls.captureWidth, gls.captureHeight);
 		}
 		if (r_bloom->integer)
 		{
@@ -3180,17 +3180,17 @@ void vk_update_post_process_pipelines_plus(void)
 			uint32_t height = gls.captureHeight;
 			uint32_t i;
 
-			vk_create_post_process_pipeline_plus(1, width, height); // bloom extraction
+			vk_create_post_process_pipeline(1, width, height); // bloom extraction
 
 			for (i = 0; i < ARRAY_LEN(vk.blur_pipeline); i += 2)
 			{
 				width /= 2;
 				height /= 2;
-				vk_create_blur_pipeline_plus(i + 0, width, height, true);  // horizontal
-				vk_create_blur_pipeline_plus(i + 1, width, height, false); // vertical
+				vk_create_blur_pipeline(i + 0, width, height, true);  // horizontal
+				vk_create_blur_pipeline(i + 1, width, height, false); // vertical
 			}
 
-			vk_create_post_process_pipeline_plus(2, glConfig.vidWidth, glConfig.vidHeight); // bloom blending
+			vk_create_post_process_pipeline(2, glConfig.vidWidth, glConfig.vidHeight); // bloom blending
 		}
 	}
 }
@@ -3818,7 +3818,7 @@ static void vk_restart_swapchain(const char *funcname)
 	uint32_t i;
 	ri.Printf(PRINT_WARNING, "%s(): restarting swapchain...\n", funcname);
 
-	vk_wait_idle_plus();
+	vk_wait_idle();
 
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++)
 	{
@@ -3843,7 +3843,7 @@ static void vk_restart_swapchain(const char *funcname)
 
 	vk_update_attachment_descriptors();
 
-	vk_update_post_process_pipelines_plus();
+	vk_update_post_process_pipelines();
 }
 
 static void vk_set_render_scale(void)
@@ -3887,7 +3887,7 @@ static void vk_set_render_scale(void)
 	}
 }
 
-void vk_initialize_plus(void)
+void vk_initialize(void)
 {
 	char buf[64], driver_version[64];
 	const char *vendor_name;
@@ -4251,7 +4251,7 @@ void vk_initialize_plus(void)
 	vk.active = true;
 }
 
-void vk_create_pipelines_plus(void)
+void vk_create_pipelines(void)
 {
 	vk_alloc_persistent_pipelines();
 
@@ -4441,7 +4441,7 @@ static void vk_destroy_pipelines(bool resetCounter)
 	}
 }
 
-void vk_shutdown_plus(refShutdownCode_t code)
+void vk_shutdown(refShutdownCode_t code)
 {
 	int i, j, k, l;
 
@@ -4480,7 +4480,7 @@ void vk_shutdown_plus(refShutdownCode_t code)
 	qvkDestroyPipelineLayout(vk.device, vk.pipeline_layout_blend, NULL);
 
 #ifdef USE_VBO
-	vk_release_vbo_plus();
+	vk_release_vbo();
 #endif
 
 	vk_release_geometry_buffers();
@@ -4611,19 +4611,19 @@ __cleanup:
 	}
 }
 
-void vk_wait_idle_plus(void)
+void vk_wait_idle(void)
 {
 	VK_CHECK(qvkDeviceWaitIdle(vk.device));
 }
 
-void vk_release_resources_plus(void)
+void vk_release_resources(void)
 {
 	uint32_t i;
 	int j;
 
-	vk_wait_idle_plus();
+	vk_wait_idle();
 
-	for (i = 0; i < vk_world.num_image_chunks; i++)
+	for (i = 0; i < static_cast<uint32_t>(vk_world.num_image_chunks); i++)
 		qvkFreeMemory(vk.device, vk_world.image_chunks[i].memory, NULL);
 
 	if (vk_world.staging_buffer != VK_NULL_HANDLE)
@@ -4632,7 +4632,7 @@ void vk_release_resources_plus(void)
 	if (vk_world.staging_buffer_memory != VK_NULL_HANDLE)
 		qvkFreeMemory(vk.device, vk_world.staging_buffer_memory, NULL);
 
-	for (i = 0; i < vk_world.num_samplers; i++)
+	for (i = 0; i < static_cast<uint32_t>(vk_world.num_samplers); i++)
 		qvkDestroySampler(vk.device, vk_world.samplers[i], NULL);
 
 	for (i = vk.pipelines_world_base; i < vk.pipelines_count; i++)
@@ -4700,7 +4700,7 @@ static void record_buffer_memory_barrier(VkCommandBuffer cb, VkBuffer buffer, Vk
 	qvkCmdPipelineBarrier(cb, src_stages, dst_stages, 0, 0, NULL, 1, &barrier, 0, NULL);
 }
 
-void vk_create_image_plus(image_t *image, int width, int height, int mip_levels)
+void vk_create_image(image_t *image, int width, int height, int mip_levels)
 {
 
 	VkFormat format = static_cast<VkFormat>(image->internalFormat);
@@ -4781,7 +4781,7 @@ void vk_create_image_plus(image_t *image, int width, int height, int mip_levels)
 		VK_CHECK(qvkAllocateDescriptorSets(vk.device, &desc, &image->descriptor));
 	}
 
-	vk_update_descriptor_set_plus(image, mip_levels > 1 ? true : false);
+	vk_update_descriptor_set(image, mip_levels > 1 ? true : false);
 
 	SET_OBJECT_NAME(image->handle, image->imgName, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
 	SET_OBJECT_NAME(image->view, image->imgName, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
@@ -4860,7 +4860,7 @@ static byte *resample_image_data(const int target_format, byte *data, const int 
 	}
 }
 
-void vk_upload_image_data_plus(image_t *image, int x, int y, int width, int height, int mipmaps, byte *pixels, int size, bool update)
+void vk_upload_image_data(image_t *image, int x, int y, int width, int height, int mipmaps, byte *pixels, int size, bool update)
 {
 
 	VkCommandBuffer command_buffer;
@@ -4937,7 +4937,7 @@ void vk_upload_image_data_plus(image_t *image, int x, int y, int width, int heig
 	}
 }
 
-void vk_update_descriptor_set_plus(image_t *image, bool mipmap)
+void vk_update_descriptor_set(image_t *image, bool mipmap)
 {
 	Vk_Sampler_Def sampler_def;
 	VkDescriptorImageInfo image_info;
@@ -4978,7 +4978,7 @@ void vk_update_descriptor_set_plus(image_t *image, bool mipmap)
 	qvkUpdateDescriptorSets(vk.device, 1, &descriptor_write, 0, NULL);
 }
 
-void vk_destroy_image_resources_plus(VkImage *image, VkImageView *imageView)
+void vk_destroy_image_resources(VkImage *image, VkImageView *imageView)
 {
 	if (image != NULL)
 	{
@@ -5048,7 +5048,7 @@ static bool vk_surface_format_color_depth(VkFormat format, int *r, int *g, int *
 	}
 }
 
-void vk_create_post_process_pipeline_plus(int program_index, uint32_t width, uint32_t height)
+void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t height)
 {
 	VkPipelineShaderStageCreateInfo shader_stages[2];
 	VkPipelineVertexInputStateCreateInfo vertex_input_state;
@@ -5129,7 +5129,7 @@ void vk_create_post_process_pipeline_plus(int program_index, uint32_t width, uin
 
 	if (*pipeline != VK_NULL_HANDLE)
 	{
-		vk_wait_idle_plus();
+		vk_wait_idle();
 		qvkDestroyPipeline(vk.device, *pipeline, NULL);
 		*pipeline = VK_NULL_HANDLE;
 	}
@@ -5156,7 +5156,7 @@ void vk_create_post_process_pipeline_plus(int program_index, uint32_t width, uin
 	frag_spec_data.dither = r_dither->integer;
 
 	if (!vk_surface_format_color_depth(vk.present_format.format, &frag_spec_data.depth_r, &frag_spec_data.depth_g, &frag_spec_data.depth_b))
-		ri.Printf(PRINT_ALL, "Format %s not recognized, dither to assume 8bpc\n", vk_format_string_plus(vk.base_format.format));
+		ri.Printf(PRINT_ALL, "Format %s not recognized, dither to assume 8bpc\n", vk_format_string(vk.base_format.format));
 
 	spec_entries[0].constantID = 0;
 	spec_entries[0].offset = offsetof(struct FragSpecData, gamma);
@@ -5346,7 +5346,7 @@ void vk_create_post_process_pipeline_plus(int program_index, uint32_t width, uin
 	SET_OBJECT_NAME(*pipeline, pipeline_name, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
 }
 
-void vk_create_blur_pipeline_plus(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass)
+void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass)
 {
 	VkPipelineShaderStageCreateInfo shader_stages[2];
 	VkPipelineVertexInputStateCreateInfo vertex_input_state;
@@ -5368,7 +5368,7 @@ void vk_create_blur_pipeline_plus(uint32_t index, uint32_t width, uint32_t heigh
 
 	if (*pipeline != VK_NULL_HANDLE)
 	{
-		vk_wait_idle_plus();
+		vk_wait_idle();
 		qvkDestroyPipeline(vk.device, *pipeline, NULL);
 		*pipeline = VK_NULL_HANDLE;
 	}
@@ -5540,7 +5540,7 @@ static void push_attr(uint32_t location, uint32_t binding, VkFormat format)
 	num_attrs++;
 }
 
-VkPipeline create_pipeline_plus(const Vk_Pipeline_Def *def, renderPass_t renderPassIndex)
+VkPipeline create_pipeline(const Vk_Pipeline_Def *def, renderPass_t renderPassIndex)
 {
 	VkShaderModule *vs_module = NULL;
 	VkShaderModule *fs_module = NULL;
@@ -6545,7 +6545,7 @@ VkPipeline create_pipeline_plus(const Vk_Pipeline_Def *def, renderPass_t renderP
 	return pipeline;
 }
 
-uint32_t vk_alloc_pipeline_plus(const Vk_Pipeline_Def *def)
+uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def *def)
 {
 	VK_Pipeline_t *pipeline;
 	if (vk.pipelines_count >= MAX_VK_PIPELINES)
@@ -6566,13 +6566,13 @@ uint32_t vk_alloc_pipeline_plus(const Vk_Pipeline_Def *def)
 	}
 }
 
-VkPipeline vk_gen_pipeline_plus(uint32_t index)
+VkPipeline vk_gen_pipeline(uint32_t index)
 {
 	if (index < vk.pipelines_count)
 	{
 		VK_Pipeline_t *pipeline = vk.pipelines + index;
 		if (pipeline->handle[vk.renderPassIndex] == VK_NULL_HANDLE)
-			pipeline->handle[vk.renderPassIndex] = create_pipeline_plus(&pipeline->def, vk.renderPassIndex);
+			pipeline->handle[vk.renderPassIndex] = create_pipeline(&pipeline->def, vk.renderPassIndex);
 		return pipeline->handle[vk.renderPassIndex];
 	}
 	else
@@ -6581,7 +6581,7 @@ VkPipeline vk_gen_pipeline_plus(uint32_t index)
 	}
 }
 
-uint32_t vk_find_pipeline_ext_plus(uint32_t base, const Vk_Pipeline_Def *def, bool use)
+uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def *def, bool use)
 {
 	const Vk_Pipeline_Def *cur_def;
 	uint32_t index;
@@ -6595,16 +6595,16 @@ uint32_t vk_find_pipeline_ext_plus(uint32_t base, const Vk_Pipeline_Def *def, bo
 		}
 	}
 
-	index = vk_alloc_pipeline_plus(def);
+	index = vk_alloc_pipeline(def);
 found:
 
 	if (use)
-		vk_gen_pipeline_plus(index);
+		vk_gen_pipeline(index);
 
 	return index;
 }
 
-void vk_get_pipeline_def_plus(uint32_t pipeline, Vk_Pipeline_Def *def)
+void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def *def)
 {
 	if (pipeline >= vk.pipelines_count)
 	{
@@ -6757,11 +6757,11 @@ static void get_mvp_transform(float *mvp)
 		proj[5] = -p[5];
 		// proj[10] = ( p[10] - 1.0f ) / 2.0f;
 		// proj[14] = p[14] / 2.0f;
-		myGlMultMatrix_plus(vk_world.modelview_transform, proj, mvp);
+		myGlMultMatrix(vk_world.modelview_transform, proj, mvp);
 	}
 }
 
-void vk_clear_color_plus(const vec4_t color)
+void vk_clear_color(const vec4_t color)
 {
 
 	VkClearAttachment attachment;
@@ -6803,7 +6803,7 @@ void vk_clear_color_plus(const vec4_t color)
 	qvkCmdClearAttachments(vk.cmd->command_buffer, 1, &attachment, rect_count, clear_rect);
 }
 
-void vk_clear_depth_plus(bool clear_stencil)
+void vk_clear_depth(bool clear_stencil)
 {
 
 	VkClearAttachment attachment;
@@ -6838,7 +6838,7 @@ void vk_clear_depth_plus(bool clear_stencil)
 	qvkCmdClearAttachments(vk.cmd->command_buffer, 1, &attachment, 1, clear_rect);
 }
 
-void vk_update_mvp_plus(const float *m)
+void vk_update_mvp(const float *m)
 {
 	float push_constants[16]; // mvp transform
 
@@ -6892,7 +6892,7 @@ static void vk_bind_attr(int index, unsigned int item_size, const void *src)
 	vk_bind_index_attr(index);
 }
 
-uint32_t vk_tess_index_plus(uint32_t numIndexes, const void *src)
+uint32_t vk_tess_index(uint32_t numIndexes, const void *src)
 {
 	const uint32_t offset = vk.cmd->vertex_buffer_offset;
 	const uint32_t size = numIndexes * sizeof(tess.indexes[0]);
@@ -6911,7 +6911,7 @@ uint32_t vk_tess_index_plus(uint32_t numIndexes, const void *src)
 	}
 }
 
-void vk_bind_index_buffer_plus(VkBuffer buffer, uint32_t offset)
+void vk_bind_index_buffer(VkBuffer buffer, uint32_t offset)
 {
 	if (vk.cmd->curr_index_buffer != buffer || vk.cmd->curr_index_offset != offset)
 		qvkCmdBindIndexBuffer(vk.cmd->command_buffer, buffer, offset, VK_INDEX_TYPE_UINT32);
@@ -6920,12 +6920,12 @@ void vk_bind_index_buffer_plus(VkBuffer buffer, uint32_t offset)
 	vk.cmd->curr_index_offset = offset;
 }
 
-void vk_draw_indexed_plus(uint32_t indexCount, uint32_t firstIndex)
+void vk_draw_indexed(uint32_t indexCount, uint32_t firstIndex)
 {
 	qvkCmdDrawIndexed(vk.cmd->command_buffer, indexCount, 1, firstIndex, 0, 0);
 }
 
-void vk_bind_index_plus(void)
+void vk_bind_index(void)
 {
 #ifdef USE_VBO
 	if (tess.vboIndex)
@@ -6936,15 +6936,15 @@ void vk_bind_index_plus(void)
 	}
 #endif
 
-	vk_bind_index_ext_plus(tess.numIndexes, tess.indexes);
+	vk_bind_index_ext(tess.numIndexes, tess.indexes);
 }
 
-void vk_bind_index_ext_plus(const int numIndexes, const uint32_t *indexes)
+void vk_bind_index_ext(const int numIndexes, const uint32_t *indexes)
 {
-	uint32_t offset = vk_tess_index_plus(numIndexes, indexes);
+	uint32_t offset = vk_tess_index(numIndexes, indexes);
 	if (offset != ~0U)
 	{
-		vk_bind_index_buffer_plus(vk.cmd->vertex_buffer, offset);
+		vk_bind_index_buffer(vk.cmd->vertex_buffer, offset);
 		vk.cmd->num_indexes = numIndexes;
 	}
 	else
@@ -6954,7 +6954,7 @@ void vk_bind_index_ext_plus(const int numIndexes, const uint32_t *indexes)
 	}
 }
 
-void vk_bind_geometry_plus(uint32_t flags)
+void vk_bind_geometry(uint32_t flags)
 {
 	// unsigned int size;
 	bind_base = -1;
@@ -7068,7 +7068,7 @@ void vk_bind_geometry_plus(uint32_t flags)
 	}
 }
 
-void vk_bind_lighting_plus(int stage, int bundle)
+void vk_bind_lighting(int stage, int bundle)
 {
 	bind_base = -1;
 	bind_count = 0;
@@ -7098,27 +7098,27 @@ void vk_bind_lighting_plus(int stage, int bundle)
 	}
 }
 
-void vk_reset_descriptor_plus(int index)
+void vk_reset_descriptor(int index)
 {
 	vk.cmd->descriptor_set.current[index] = VK_NULL_HANDLE;
 }
 
-void vk_update_descriptor_plus(int index, VkDescriptorSet descriptor)
+void vk_update_descriptor(int index, VkDescriptorSet descriptor)
 {
 	if (vk.cmd->descriptor_set.current[index] != descriptor)
 	{
-		vk.cmd->descriptor_set.start = (index < vk.cmd->descriptor_set.start) ? index : vk.cmd->descriptor_set.start;
-		vk.cmd->descriptor_set.end = (index > vk.cmd->descriptor_set.end) ? index : vk.cmd->descriptor_set.end;
+		vk.cmd->descriptor_set.start = (static_cast<uint32_t>(index) < vk.cmd->descriptor_set.start) ? static_cast<uint32_t>(index) : vk.cmd->descriptor_set.start;
+		vk.cmd->descriptor_set.end = (static_cast<uint32_t>(index) > vk.cmd->descriptor_set.end) ? static_cast<uint32_t>(index) : vk.cmd->descriptor_set.end;
 	}
 	vk.cmd->descriptor_set.current[index] = descriptor;
 }
 
-void vk_update_descriptor_offset_plus(int index, uint32_t offset)
+void vk_update_descriptor_offset(int index, uint32_t offset)
 {
 	vk.cmd->descriptor_set.offset[index] = offset;
 }
 
-void vk_bind_descriptor_sets_plus(void)
+void vk_bind_descriptor_sets(void)
 {
 	uint32_t offsets[2], offset_count;
 	uint32_t start, end, count;
@@ -7143,11 +7143,11 @@ void vk_bind_descriptor_sets_plus(void)
 	vk.cmd->descriptor_set.start = ~0U;
 }
 
-void vk_bind_pipeline_plus(uint32_t pipeline)
+void vk_bind_pipeline(uint32_t pipeline)
 {
 	VkPipeline vkpipe;
 
-	vkpipe = vk_gen_pipeline_plus(pipeline);
+	vkpipe = vk_gen_pipeline(pipeline);
 
 	if (vkpipe != vk.cmd->last_pipeline)
 	{
@@ -7158,7 +7158,7 @@ void vk_bind_pipeline_plus(uint32_t pipeline)
 	vk_world.dirty_depth_attachment |= (vk.pipelines[pipeline].def.state_bits & GLS_DEPTHMASK_TRUE);
 }
 
-void vk_draw_geometry_plus(Vk_Depth_Range depth_range, bool indexed)
+void vk_draw_geometry(Vk_Depth_Range depth_range, bool indexed)
 {
 	VkRect2D scissor_rect;
 	VkViewport viewport;
@@ -7169,7 +7169,7 @@ void vk_draw_geometry_plus(Vk_Depth_Range depth_range, bool indexed)
 		return;
 	}
 
-	vk_bind_descriptor_sets_plus();
+	vk_bind_descriptor_sets();
 
 	// configure pipeline's dynamic state
 	if (vk.cmd->depth_range != depth_range)
@@ -7191,7 +7191,7 @@ void vk_draw_geometry_plus(Vk_Depth_Range depth_range, bool indexed)
 	// issue draw call(s)
 #ifdef USE_VBO
 	if (tess.vboIndex)
-		VBO_RenderIBOItems_plus();
+		VBO_RenderIBOItems();
 	else
 #endif
 		if (indexed)
@@ -7244,7 +7244,7 @@ static void vk_begin_render_pass(VkRenderPass renderPass, VkFramebuffer frameBuf
 	qvkCmdBeginRenderPass(vk.cmd->command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-void vk_begin_main_render_pass_plus(void)
+void vk_begin_main_render_pass(void)
 {
 	VkFramebuffer frameBuffer = vk.framebuffers.main[vk.swapchain_image_index];
 
@@ -7260,7 +7260,7 @@ void vk_begin_main_render_pass_plus(void)
 	vk_begin_render_pass(vk.render_pass.main, frameBuffer, true, vk.renderWidth, vk.renderHeight);
 }
 
-void vk_begin_post_bloom_render_pass_plus(void)
+void vk_begin_post_bloom_render_pass(void)
 {
 	VkFramebuffer frameBuffer = vk.framebuffers.main[vk.swapchain_image_index];
 
@@ -7276,7 +7276,7 @@ void vk_begin_post_bloom_render_pass_plus(void)
 	vk_begin_render_pass(vk.render_pass.post_bloom, frameBuffer, false, vk.renderWidth, vk.renderHeight);
 }
 
-void vk_begin_bloom_extract_render_pass_plus(void)
+void vk_begin_bloom_extract_render_pass(void)
 {
 	VkFramebuffer frameBuffer = vk.framebuffers.bloom_extract;
 
@@ -7292,7 +7292,7 @@ void vk_begin_bloom_extract_render_pass_plus(void)
 	vk_begin_render_pass(vk.render_pass.bloom_extract, frameBuffer, false, vk.renderWidth, vk.renderHeight);
 }
 
-void vk_begin_blur_render_pass_plus(uint32_t index)
+void vk_begin_blur_render_pass(uint32_t index)
 {
 	VkFramebuffer frameBuffer = vk.framebuffers.blur[index];
 
@@ -7323,7 +7323,7 @@ static void vk_begin_screenmap_render_pass(void)
 	vk_begin_render_pass(vk.render_pass.screenmap, frameBuffer, true, vk.renderWidth, vk.renderHeight);
 }
 
-void vk_end_render_pass_plus(void)
+void vk_end_render_pass(void)
 {
 	qvkCmdEndRenderPass(vk.cmd->command_buffer);
 
@@ -7358,7 +7358,7 @@ static bool vk_find_screenmap_drawsurfs(void)
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFFULL
 #endif
 
-void vk_begin_frame_plus(void)
+void vk_begin_frame(void)
 {
 	VkCommandBufferBeginInfo begin_info;
 	// VkFramebuffer frameBuffer;
@@ -7466,7 +7466,7 @@ void vk_begin_frame_plus(void)
 	}
 	else
 	{
-		vk_begin_main_render_pass_plus();
+		vk_begin_main_render_pass();
 	}
 
 	// dynamic vertex buffer layout
@@ -7483,11 +7483,11 @@ void vk_begin_frame_plus(void)
 
 	Com_Memset(&vk.cmd->scissor_rect, 0, sizeof(vk.cmd->scissor_rect));
 
-	vk_update_descriptor_plus(VK_DESC_TEXTURE0, tr.whiteImage->descriptor);
-	vk_update_descriptor_plus(VK_DESC_TEXTURE1, tr.whiteImage->descriptor);
+	vk_update_descriptor(VK_DESC_TEXTURE0, tr.whiteImage->descriptor);
+	vk_update_descriptor(VK_DESC_TEXTURE1, tr.whiteImage->descriptor);
 	if (vk.maxBoundDescriptorSets >= VK_DESC_COUNT)
 	{
-		vk_update_descriptor_plus(VK_DESC_TEXTURE2, tr.whiteImage->descriptor);
+		vk_update_descriptor(VK_DESC_TEXTURE2, tr.whiteImage->descriptor);
 	}
 
 	// other stats
@@ -7498,13 +7498,13 @@ static void vk_resize_geometry_buffer(void)
 {
 	int i;
 
-	vk_end_render_pass_plus();
+	vk_end_render_pass();
 
 	VK_CHECK(qvkEndCommandBuffer(vk.cmd->command_buffer));
 
 	qvkResetCommandBuffer(vk.cmd->command_buffer, 0);
 
-	vk_wait_idle_plus();
+	vk_wait_idle();
 
 	vk_release_geometry_buffers();
 
@@ -7512,12 +7512,12 @@ static void vk_resize_geometry_buffer(void)
 	vk.geometry_buffer_size_new = 0;
 
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++)
-		vk_update_uniform_descriptor_plus(vk.tess[i].uniform_descriptor, vk.tess[i].vertex_buffer);
+		vk_update_uniform_descriptor(vk.tess[i].uniform_descriptor, vk.tess[i].vertex_buffer);
 
 	ri.Printf(PRINT_DEVELOPER, "...geometry buffer resized to %iK\n", (int)(vk.geometry_buffer_size / 1024));
 }
 
-void vk_end_frame_plus(void)
+void vk_end_frame(void)
 {
 	const VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	VkSubmitInfo submit_info;
@@ -7535,16 +7535,16 @@ void vk_end_frame_plus(void)
 
 	if (vk.fboActive)
 	{
-		vk.cmd->last_pipeline = VK_NULL_HANDLE; // do not restore clobbered descriptors in vk_bloom_plus()
+		vk.cmd->last_pipeline = VK_NULL_HANDLE; // do not restore clobbered descriptors in vk_bloom()
 
 		if (r_bloom->integer)
 		{
-			vk_bloom_plus();
+			vk_bloom();
 		}
 
 		if (backEnd.screenshotMask && vk.capture.image)
 		{
-			vk_end_render_pass_plus();
+			vk_end_render_pass();
 
 			// render to capture FBO
 			vk_begin_render_pass(vk.render_pass.capture, vk.framebuffers.capture, false, gls.captureWidth, gls.captureHeight);
@@ -7556,7 +7556,7 @@ void vk_end_frame_plus(void)
 
 		if (!ri.CL_IsMinimized())
 		{
-			vk_end_render_pass_plus();
+			vk_end_render_pass();
 
 			vk.renderWidth = gls.windowWidth;
 			vk.renderHeight = gls.windowHeight;
@@ -7572,7 +7572,7 @@ void vk_end_frame_plus(void)
 		}
 	}
 
-	vk_end_render_pass_plus();
+	vk_end_render_pass();
 
 	VK_CHECK(qvkEndCommandBuffer(vk.cmd->command_buffer));
 
@@ -7603,10 +7603,10 @@ void vk_end_frame_plus(void)
 	// presentation may take undefined time to complete, we can't measure it in a reliable way
 	backEnd.pc.msec = ri.Milliseconds() - backEnd.pc.msec;
 
-	// vk_present_frame_plus();
+	// vk_present_frame();
 }
 
-void vk_present_frame_plus(void)
+void vk_present_frame(void)
 {
 	VkPresentInfoKHR present_info;
 	VkResult res;
@@ -7662,7 +7662,7 @@ static bool is_bgr(VkFormat format)
 	}
 }
 
-void vk_read_pixels_plus(byte *buffer, uint32_t width, uint32_t height)
+void vk_read_pixels(byte *buffer, uint32_t width, uint32_t height)
 {
 	VkCommandBuffer command_buffer;
 	VkDeviceMemory memory;
@@ -7736,7 +7736,7 @@ void vk_read_pixels_plus(byte *buffer, uint32_t width, uint32_t height)
 	// host_cached bit is desirable for fast reads
 	memory_reqs = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
 	alloc_info.memoryTypeIndex = find_memory_type2(memory_requirements.memoryTypeBits, memory_reqs, &memory_flags);
-	if (alloc_info.memoryTypeIndex == ~0)
+	if (alloc_info.memoryTypeIndex == static_cast<uint32_t>(~0U))
 	{
 		// try less explicit flags, without host_coherent
 		memory_reqs = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
@@ -7936,7 +7936,7 @@ void vk_read_pixels_plus(byte *buffer, uint32_t width, uint32_t height)
 	}
 }
 
-bool vk_bloom_plus(void)
+bool vk_bloom(void)
 {
 	uint32_t i;
 
@@ -7950,48 +7950,48 @@ bool vk_bloom_plus(void)
 		return false;
 	}
 
-	vk_end_render_pass_plus(); // end main
+	vk_end_render_pass(); // end main
 
 	// bloom extraction
-	vk_begin_bloom_extract_render_pass_plus();
+	vk_begin_bloom_extract_render_pass();
 	qvkCmdBindPipeline(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.bloom_extract_pipeline);
 	qvkCmdBindDescriptorSets(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout_post_process, 0, 1, &vk.color_descriptor, 0, NULL);
 	qvkCmdDraw(vk.cmd->command_buffer, 4, 1, 0, 0);
-	vk_end_render_pass_plus();
+	vk_end_render_pass();
 
 	for (i = 0; i < VK_NUM_BLOOM_PASSES * 2; i += 2)
 	{
 		// horizontal blur
-		vk_begin_blur_render_pass_plus(i + 0);
+		vk_begin_blur_render_pass(i + 0);
 		qvkCmdBindPipeline(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.blur_pipeline[i + 0]);
 		qvkCmdBindDescriptorSets(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout_post_process, 0, 1, &vk.bloom_image_descriptor[i + 0], 0, NULL);
 		qvkCmdDraw(vk.cmd->command_buffer, 4, 1, 0, 0);
-		vk_end_render_pass_plus();
+		vk_end_render_pass();
 
 		// vectical blur
-		vk_begin_blur_render_pass_plus(i + 1);
+		vk_begin_blur_render_pass(i + 1);
 		qvkCmdBindPipeline(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.blur_pipeline[i + 1]);
 		qvkCmdBindDescriptorSets(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout_post_process, 0, 1, &vk.bloom_image_descriptor[i + 1], 0, NULL);
 		qvkCmdDraw(vk.cmd->command_buffer, 4, 1, 0, 0);
-		vk_end_render_pass_plus();
+		vk_end_render_pass();
 #if 0
 		// horizontal blur
-		vk_begin_blur_render_pass_plus( i+0 );
+		vk_begin_blur_render_pass( i+0 );
 		qvkCmdBindPipeline( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.blur_pipeline[i+0] );
 		qvkCmdBindDescriptorSets( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout_post_process, 0, 1, &vk.bloom_image_descriptor[i+2], 0, NULL );
 		qvkCmdDraw( vk.cmd->command_buffer, 4, 1, 0, 0 );
-		vk_end_render_pass_plus();
+		vk_end_render_pass();
 
 		// vectical blur
-		vk_begin_blur_render_pass_plus( i+1 );
+		vk_begin_blur_render_pass( i+1 );
 		qvkCmdBindPipeline( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.blur_pipeline[i+1] );
 		qvkCmdBindDescriptorSets( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout_post_process, 0, 1, &vk.bloom_image_descriptor[i+1], 0, NULL );
 		qvkCmdDraw( vk.cmd->command_buffer, 4, 1, 0, 0 );
-		vk_end_render_pass_plus();
+		vk_end_render_pass();
 #endif
 	}
 
-	vk_begin_post_bloom_render_pass_plus(); // begin post-bloom
+	vk_begin_post_bloom_render_pass(); // begin post-bloom
 	{
 		VkDescriptorSet dset[VK_NUM_BLOOM_PASSES];
 
@@ -8014,7 +8014,7 @@ bool vk_bloom_plus(void)
 		// restore last pipeline
 		qvkCmdBindPipeline(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.cmd->last_pipeline);
 
-		vk_update_mvp_plus(NULL);
+		vk_update_mvp(NULL);
 
 		// force depth range and viewport/scissor updates
 		vk.cmd->depth_range = DEPTH_RANGE_COUNT;

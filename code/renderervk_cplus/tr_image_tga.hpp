@@ -6,7 +6,6 @@ extern "C"
 {
 #endif
 
-#include "q_shared.hpp"
 #include "tr_public.hpp"
 
     /*
@@ -17,7 +16,7 @@ extern "C"
     ========================================================================
     */
 
-    void R_LoadTGA_plus(const char *name, byte **pic, int *width, int *height);
+    void R_LoadTGA(const char *name, byte **pic, int *width, int *height);
 
 #ifdef __cplusplus
 }

@@ -28,17 +28,17 @@ return a hash value for the filename
         int multitextureBlend;
     } collapse_t;
 
-    shader_t *R_GetShaderByHandle_plus(qhandle_t hShader);
-    void RE_RemapShader_plus(const char *shaderName, const char *newShaderName, const char *timeOffset);
-    shader_t *R_FindShaderByName_plus(const char *name);
-    shader_t *R_FindShader_plus(const char *name, int lightmapIndex, bool mipRawImage);
+    shader_t *R_GetShaderByHandle(qhandle_t hShader);
+    void RE_RemapShader(const char *shaderName, const char *newShaderName, const char *timeOffset);
+    shader_t *R_FindShaderByName(const char *name);
+    shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage);
 
-    qhandle_t RE_RegisterShaderFromImage_plus(const char *name, int lightmapIndex, image_t *image, bool mipRawImage);
-    qhandle_t RE_RegisterShaderLightMap_plus(const char *name, int lightmapIndex);
-    qhandle_t RE_RegisterShader_plus(const char *name);
-    qhandle_t RE_RegisterShaderNoMip_plus(const char *name);
-    void R_ShaderList_f_plus(void);
-    void R_InitShaders_plus(void);
+    qhandle_t RE_RegisterShaderFromImage(const char *name, int lightmapIndex, image_t *image, bool mipRawImage);
+    qhandle_t RE_RegisterShaderLightMap(const char *name, int lightmapIndex);
+    qhandle_t RE_RegisterShader(const char *name);
+    qhandle_t RE_RegisterShaderNoMip(const char *name);
+    void R_ShaderList_f(void);
+    void R_InitShaders(void);
 
 #ifdef __cplusplus
 }

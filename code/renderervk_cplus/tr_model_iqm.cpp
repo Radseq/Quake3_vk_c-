@@ -56,7 +56,7 @@ static int R_CullIQM(const iqmData_t *data, const trRefEntity_t *ent)
 		bounds[1][i] = oldBounds[i + 3] > newBounds[i + 3] ? oldBounds[i + 3] : newBounds[i + 3];
 	}
 
-	switch (R_CullLocalBox_plus(bounds))
+	switch (R_CullLocalBox(bounds))
 	{
 	case CULL_IN:
 		tr.pc.c_box_cull_md3_in++;
@@ -130,7 +130,7 @@ R_AddIQMSurfaces
 Add all surfaces of this model
 =================
 */
-void R_AddIQMSurfaces_plus(trRefEntity_t *ent)
+void R_AddIQMSurfaces(trRefEntity_t *ent)
 {
 	iqmData_t *data;
 	srfIQModel_t *surface;
@@ -183,7 +183,7 @@ void R_AddIQMSurfaces_plus(trRefEntity_t *ent)
 	//
 	if (!personalModel || r_shadows->integer > 1)
 	{
-		R_SetupEntityLighting_plus(&tr.refdef, ent);
+		R_SetupEntityLighting(&tr.refdef, ent);
 	}
 
 	//
@@ -194,10 +194,10 @@ void R_AddIQMSurfaces_plus(trRefEntity_t *ent)
 	for (i = 0; i < data->num_surfaces; i++)
 	{
 		if (ent->e.customShader)
-			shader = R_GetShaderByHandle_plus(ent->e.customShader);
+			shader = R_GetShaderByHandle(ent->e.customShader);
 		else if (ent->e.customSkin > 0 && ent->e.customSkin < tr.numSkins)
 		{
-			skin = R_GetSkinByHandle_plus(ent->e.customSkin);
+			skin = R_GetSkinByHandle(ent->e.customSkin);
 			shader = tr.defaultShader;
 
 			for (j = 0; j < skin->numSurfaces; j++)
@@ -219,18 +219,18 @@ void R_AddIQMSurfaces_plus(trRefEntity_t *ent)
 		// stencil shadows can't do personal models unless I polyhedron clip
 		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 && !(ent->e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == SS_OPAQUE)
 		{
-			R_AddDrawSurf_plus(reinterpret_cast<surfaceType_t *>(surface), tr.shadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
 		if (r_shadows->integer == 3 && fogNum == 0 && (ent->e.renderfx & RF_SHADOW_PLANE) && shader->sort == SS_OPAQUE)
 		{
-			R_AddDrawSurf_plus(reinterpret_cast<surfaceType_t *>(surface), tr.projectionShadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.projectionShadowShader, 0, 0);
 		}
 
 		if (!personalModel)
 		{
-			R_AddDrawSurf_plus(reinterpret_cast<surfaceType_t *>(surface), shader, fogNum, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), shader, fogNum, 0);
 			tr.needScreenMap |= shader->hasScreenMap;
 		}
 
@@ -419,7 +419,7 @@ static void ComputeJointMats(iqmData_t *data, int frame, int oldframe,
 	}
 }
 
-int R_IQMLerpTag_plus(orientation_t *tag, iqmData_t *data,
+int R_IQMLerpTag(orientation_t *tag, iqmData_t *data,
 					  int startFrame, int endFrame,
 					  float frac, const char *tagName)
 {
@@ -436,7 +436,7 @@ int R_IQMLerpTag_plus(orientation_t *tag, iqmData_t *data,
 	}
 	if (joint >= data->num_joints)
 	{
-		AxisClear_plus(tag->axis);
+		AxisClear(tag->axis);
 		VectorClear(tag->origin);
 		return false;
 	}
@@ -466,7 +466,7 @@ RB_AddIQMSurfaces
 Compute vertices for this model surface
 =================
 */
-void RB_IQMSurfaceAnim_plus(const surfaceType_t *surface)
+void RB_IQMSurfaceAnim(const surfaceType_t *surface)
 {
 	srfIQModel_t *surf = (srfIQModel_t *)surface;
 	iqmData_t *data = surf->data;
@@ -492,7 +492,7 @@ void RB_IQMSurfaceAnim_plus(const surfaceType_t *surface)
 	glIndex_t *ptr;
 	glIndex_t base;
 
-	RB_CHECKOVERFLOW_PLUS(surf->num_vertexes, surf->num_triangles * 3);
+	RB_CHECKOVERFLOW(surf->num_vertexes, surf->num_triangles * 3);
 
 	xyz = &data->positions[surf->first_vertex * 3];
 	normal = &data->normals[surf->first_vertex * 3];
@@ -767,7 +767,7 @@ static void Matrix34Invert(const float *inMat, float *outMat)
 	outMat[11] = -DotProduct(outMat + 8, trans);
 }
 
-bool R_LoadIQM_plus(model_t *mod, void *buffer, int filesize, const char *mod_name)
+bool R_LoadIQM(model_t *mod, void *buffer, int filesize, const char *mod_name)
 {
 	iqmHeader_t *header;
 	iqmVertexArray_t *vertexarray;
@@ -1387,7 +1387,7 @@ bool R_LoadIQM_plus(model_t *mod, void *buffer, int filesize, const char *mod_na
 			surface->surfaceType = SF_IQM;
 			Q_strncpyz(surface->name, str + mesh->name, sizeof(surface->name));
 			Q_strlwr(surface->name); // lowercase the surface name so skin compares are faster
-			surface->shader = R_FindShader_plus(str + mesh->material, LIGHTMAP_NONE, true);
+			surface->shader = R_FindShader(str + mesh->material, LIGHTMAP_NONE, true);
 			if (surface->shader->defaultShader)
 				surface->shader = tr.defaultShader;
 			surface->data = iqmData;

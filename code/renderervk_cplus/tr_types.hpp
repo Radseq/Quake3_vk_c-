@@ -210,7 +210,7 @@ extern "C"
 		textureCompression_t textureCompression;
 		bool textureEnvAddAvailable;
 
-		int vidWidth, vidHeight;
+		uint32_t vidWidth, vidHeight;
 		// aspect is the screen's physical width / height, which may be different
 		// than scrWidth / scrHeight if the pixels are non-square
 		// normal screens should be 4/3, but wide aspect monitors may be 16/9

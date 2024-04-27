@@ -51,7 +51,7 @@ static void R_PerformanceCounters(void)
 		ri.Printf(PRINT_ALL, "%i/%i shaders/surfs %i leafs %i verts %i/%i tris %.2f mtex %.2f dc\n",
 				  backEnd.pc.c_shaders, backEnd.pc.c_surfaces, tr.pc.c_leafs, backEnd.pc.c_vertexes,
 				  backEnd.pc.c_indexes / 3, backEnd.pc.c_totalIndexes / 3,
-				  R_SumOfUsedImages_plus() / (1000000.0f), backEnd.pc.c_overDraw / (float)(glConfig.vidWidth * glConfig.vidHeight));
+				  R_SumOfUsedImages() / (1000000.0f), backEnd.pc.c_overDraw / (float)(glConfig.vidWidth * glConfig.vidHeight));
 	}
 	else if (r_speeds->integer == 2)
 	{
@@ -115,7 +115,7 @@ static void R_IssueRenderCommands(void)
 	}
 	else
 	{
-		if (ri.CL_IsMinimized() && !RE_CanMinimize_plus())
+		if (ri.CL_IsMinimized() && !RE_CanMinimize())
 		{
 			backEnd.screenshotMask = 0;
 			return;
@@ -126,7 +126,7 @@ static void R_IssueRenderCommands(void)
 	if (!r_skipBackEnd->integer)
 	{
 		// let it start on the new batch
-		RB_ExecuteRenderCommands_plus(cmdList->cmds);
+		RB_ExecuteRenderCommands(cmdList->cmds);
 	}
 }
 
@@ -166,7 +166,7 @@ R_GetCommandBuffer_plus
 returns NULL if there is not enough space for important commands
 =============
 */
-void *R_GetCommandBuffer_plus(int bytes)
+void *R_GetCommandBuffer(int bytes)
 {
 	tr.lastRenderCommand = RC_END_OF_LIST;
 	return R_GetCommandBuffer_plusReserved(bytes, PAD(sizeof(swapBuffersCommand_t), sizeof(void *)));
@@ -177,11 +177,11 @@ void *R_GetCommandBuffer_plus(int bytes)
 R_AddDrawSurfCmd
 =============
 */
-void R_AddDrawSurfCmd_plus(drawSurf_t *drawSurfs, int numDrawSurfs)
+void R_AddDrawSurfCmd(drawSurf_t *drawSurfs, int numDrawSurfs)
 {
 	drawSurfsCommand_t *cmd;
 
-	cmd = static_cast<drawSurfsCommand_t *>(R_GetCommandBuffer_plus(sizeof(*cmd)));
+	cmd = static_cast<drawSurfsCommand_t *>(R_GetCommandBuffer(sizeof(*cmd)));
 	if (!cmd)
 	{
 		return;
@@ -208,7 +208,7 @@ RE_SetColor
 Passing NULL will set the color to white
 =============
 */
-void RE_SetColor_plus(const float *rgba)
+void RE_SetColor(const float *rgba)
 {
 	setColorCommand_t *cmd;
 
@@ -216,7 +216,7 @@ void RE_SetColor_plus(const float *rgba)
 	{
 		return;
 	}
-	cmd = static_cast<setColorCommand_t *>(R_GetCommandBuffer_plus(sizeof(*cmd)));
+	cmd = static_cast<setColorCommand_t *>(R_GetCommandBuffer(sizeof(*cmd)));
 	if (!cmd)
 	{
 		return;
@@ -238,7 +238,7 @@ void RE_SetColor_plus(const float *rgba)
 RE_StretchPic
 =============
 */
-void RE_StretchPic_plus(float x, float y, float w, float h,
+void RE_StretchPic(float x, float y, float w, float h,
 						float s1, float t1, float s2, float t2, qhandle_t hShader)
 {
 	stretchPicCommand_t *cmd;
@@ -247,13 +247,13 @@ void RE_StretchPic_plus(float x, float y, float w, float h,
 	{
 		return;
 	}
-	cmd = reinterpret_cast<stretchPicCommand_t *>(R_GetCommandBuffer_plus(sizeof(*cmd)));
+	cmd = reinterpret_cast<stretchPicCommand_t *>(R_GetCommandBuffer(sizeof(*cmd)));
 	if (!cmd)
 	{
 		return;
 	}
 	cmd->commandId = RC_STRETCH_PIC;
-	cmd->shader = R_GetShaderByHandle_plus(hShader);
+	cmd->shader = R_GetShaderByHandle(hShader);
 	cmd->x = x;
 	cmd->y = y;
 	cmd->w = w;
@@ -272,7 +272,7 @@ If running in stereo, RE_BeginFrame will be called twice
 for each RE_EndFrame
 ====================
 */
-void RE_BeginFrame_plus(stereoFrame_t stereoFrame)
+void RE_BeginFrame(stereoFrame_t stereoFrame)
 {
 	drawBufferCommand_t *cmd;
 
@@ -287,7 +287,7 @@ void RE_BeginFrame_plus(stereoFrame_t stereoFrame)
 	tr.frameCount++;
 	tr.frameSceneNum = 0;
 
-	if ((cmd = static_cast<drawBufferCommand_t *>(R_GetCommandBuffer_plus(sizeof(*cmd)))) == NULL)
+	if ((cmd = static_cast<drawBufferCommand_t *>(R_GetCommandBuffer(sizeof(*cmd)))) == NULL)
 		return;
 
 	cmd->commandId = RC_DRAW_BUFFER;
@@ -324,7 +324,7 @@ void RE_BeginFrame_plus(stereoFrame_t stereoFrame)
 		if (stereoFrame != STEREO_RIGHT)
 		{
 			clearColorCommand_t *clrcmd;
-			if ((clrcmd = static_cast<clearColorCommand_t *>(R_GetCommandBuffer_plus(sizeof(*clrcmd)))) == NULL)
+			if ((clrcmd = static_cast<clearColorCommand_t *>(R_GetCommandBuffer(sizeof(*clrcmd)))) == NULL)
 				return;
 			clrcmd->commandId = RC_CLEARCOLOR;
 		}
@@ -338,7 +338,7 @@ void RE_BeginFrame_plus(stereoFrame_t stereoFrame)
 RE_TakeVideoFrame
 =============
 */
-void RE_TakeVideoFrame_plus(int width, int height,
+void RE_TakeVideoFrame(int width, int height,
 							byte *captureBuffer, byte *encodeBuffer, bool motionJpeg)
 {
 	videoFrameCommand_t *cmd;
@@ -361,12 +361,12 @@ void RE_TakeVideoFrame_plus(int width, int height,
 	cmd->motionJpeg = motionJpeg;
 }
 
-void RE_ThrottleBackend_plus()
+void RE_ThrottleBackend()
 {
 	backEnd.throttle = true;
 }
 
-void RE_FinishBloom_plus()
+void RE_FinishBloom()
 {
 	finishBloomCommand_t *cmd;
 
@@ -375,7 +375,7 @@ void RE_FinishBloom_plus()
 		return;
 	}
 
-	cmd = static_cast<finishBloomCommand_t *>(R_GetCommandBuffer_plus(sizeof(*cmd)));
+	cmd = static_cast<finishBloomCommand_t *>(R_GetCommandBuffer(sizeof(*cmd)));
 	if (!cmd)
 	{
 		return;
@@ -384,19 +384,19 @@ void RE_FinishBloom_plus()
 	cmd->commandId = RC_FINISHBLOOM;
 }
 
-bool RE_CanMinimize_plus()
+bool RE_CanMinimize()
 {
 	if (vk.fboActive || vk.offscreenRender)
 		return true;
 	return false;
 }
 
-const glconfig_t *RE_GetConfig_plus()
+const glconfig_t *RE_GetConfig()
 {
 	return &glConfig;
 }
 
-void RE_VertexLighting_plus(bool allowed)
+void RE_VertexLighting(bool allowed)
 {
 	tr.vertexLightingAllowed = allowed;
 }
@@ -408,7 +408,7 @@ RE_EndFrame
 Returns the number of msec spent in the back end
 =============
 */
-void RE_EndFrame_plus(int *frontEndMsec, int *backEndMsec)
+void RE_EndFrame(int *frontEndMsec, int *backEndMsec)
 {
 
 	swapBuffersCommand_t *cmd;
@@ -429,7 +429,7 @@ void RE_EndFrame_plus(int *frontEndMsec, int *backEndMsec)
 
 	R_IssueRenderCommands();
 
-	R_InitNextFrame_plus();
+	R_InitNextFrame();
 
 	if (frontEndMsec)
 	{
@@ -452,16 +452,16 @@ void RE_EndFrame_plus(int *frontEndMsec, int *backEndMsec)
 		// texturemode stuff
 		if (r_textureMode->modified)
 		{
-			TextureMode_plus(r_textureMode->string);
+			TextureMode(r_textureMode->string);
 		}
 
 		// gamma stuff
 		if (r_gamma->modified)
 		{
-			R_SetColorMappings_plus();
+			R_SetColorMappings();
 		}
 
-		vk_update_post_process_pipelines_plus();
+		vk_update_post_process_pipelines();
 
 		ri.Cvar_ResetGroup(CVG_RENDERER, true /* reset modified flags */);
 	}

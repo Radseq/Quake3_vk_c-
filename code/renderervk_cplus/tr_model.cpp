@@ -189,7 +189,7 @@ static qhandle_t R_RegisterIQM(const char *name, model_t *mod)
 		return 0;
 	}
 
-	loaded = R_LoadIQM_plus(mod, buf.u, filesize, name);
+	loaded = R_LoadIQM(mod, buf.u, filesize, name);
 
 	ri.FS_FreeFile(buf.v);
 
@@ -225,7 +225,7 @@ static constexpr int numModelLoaders = sizeof(modelLoaders) / sizeof(modelExtToL
 /*
 ** R_GetModelByHandle_plus
 */
-model_t *R_GetModelByHandle_plus(qhandle_t index)
+model_t *R_GetModelByHandle(qhandle_t index)
 {
 	model_t *mod;
 
@@ -245,7 +245,7 @@ model_t *R_GetModelByHandle_plus(qhandle_t index)
 /*
 ** R_AllocModel_plus
 */
-model_t *R_AllocModel_plus(void)
+model_t *R_AllocModel(void)
 {
 	model_t *mod;
 
@@ -274,7 +274,7 @@ optimization to prevent disk rescanning if they are
 asked for again.
 ====================
 */
-qhandle_t RE_RegisterModel_plus(const char *name)
+qhandle_t RE_RegisterModel(const char *name)
 {
 	model_t *mod;
 	qhandle_t hModel;
@@ -315,9 +315,9 @@ qhandle_t RE_RegisterModel_plus(const char *name)
 
 	// allocate a new model_t
 
-	if ((mod = R_AllocModel_plus()) == NULL)
+	if ((mod = R_AllocModel()) == NULL)
 	{
-		ri.Printf(PRINT_WARNING, "RE_RegisterModel_plus: R_AllocModel_plus() failed for '%s'\n", name);
+		ri.Printf(PRINT_WARNING, "RE_RegisterModel_plus: R_AllocModel() failed for '%s'\n", name);
 		return 0;
 	}
 
@@ -598,7 +598,7 @@ static bool R_LoadMD3(model_t *mod, int lod, void *buffer, int fileSize, const c
 			// zero-terminate shader name
 			shader->name[sizeof(shader->name) - 1] = '\0';
 
-			sh = R_FindShader_plus(shader->name, LIGHTMAP_NONE, true);
+			sh = R_FindShader(shader->name, LIGHTMAP_NONE, true);
 			if (sh->defaultShader)
 			{
 				shader->shaderIndex = 0;
@@ -762,7 +762,7 @@ static bool R_LoadMDR(model_t *mod, void *buffer, int filesize, const char *mod_
 				}
 
 				/* Now do the actual uncompressing */
-				MC_UnCompress_plus(frame->bones[j].matrix, cframe->bones[j].Comp);
+				MC_UnCompress(frame->bones[j].matrix, cframe->bones[j].Comp);
 			}
 
 			// Next Frame...
@@ -865,7 +865,7 @@ static bool R_LoadMDR(model_t *mod, void *buffer, int filesize, const char *mod_
 			Q_strlwr(surf->name);
 
 			// register the shaders
-			sh = R_FindShader_plus(surf->shader, LIGHTMAP_NONE, true);
+			sh = R_FindShader(surf->shader, LIGHTMAP_NONE, true);
 			if (sh->defaultShader)
 			{
 				surf->shaderIndex = 0;
@@ -992,7 +992,7 @@ static bool R_LoadMDR(model_t *mod, void *buffer, int filesize, const char *mod_
 /*
 ** RE_BeginRegistration_plus
 */
-void RE_BeginRegistration_plus(glconfig_t *glconfigOut)
+void RE_BeginRegistration(glconfig_t *glconfigOut)
 {
 
 	R_Init();
@@ -1001,9 +1001,9 @@ void RE_BeginRegistration_plus(glconfig_t *glconfigOut)
 
 	tr.viewCluster = -1; // force markleafs to regenerate
 
-	R_ClearFlares_plus();
+	R_ClearFlares();
 
-	RE_ClearScene_plus();
+	RE_ClearScene();
 
 	tr.registered = true;
 }
@@ -1015,14 +1015,14 @@ void RE_BeginRegistration_plus(glconfig_t *glconfigOut)
 R_ModelInit_plus
 ===============
 */
-void R_ModelInit_plus(void)
+void R_ModelInit(void)
 {
 	model_t *mod;
 
 	// leave a space for NULL model
 	tr.numModels = 0;
 
-	mod = R_AllocModel_plus();
+	mod = R_AllocModel();
 	mod->type = MOD_BAD;
 }
 
@@ -1031,7 +1031,7 @@ void R_ModelInit_plus(void)
 R_Modellist_f_plus
 ================
 */
-void R_Modellist_f_plus(void)
+void R_Modellist_f(void)
 {
 	int i, j;
 	model_t *mod;
@@ -1139,7 +1139,7 @@ static md3Tag_t *R_GetAnimTag(mdrHeader_t *mod, int framenum, const char *tagNam
 R_LerpTag_plus
 ================
 */
-int R_LerpTag_plus(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame,
+int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame,
 				   float frac, const char *tagName)
 {
 	md3Tag_t *start, *end;
@@ -1148,7 +1148,7 @@ int R_LerpTag_plus(orientation_t *tag, qhandle_t handle, int startFrame, int end
 	float frontLerp, backLerp;
 	model_t *model;
 
-	model = R_GetModelByHandle_plus(handle);
+	model = R_GetModelByHandle(handle);
 	if (!model->md3[0])
 	{
 		if (model->type == MOD_MDR)
@@ -1158,7 +1158,7 @@ int R_LerpTag_plus(orientation_t *tag, qhandle_t handle, int startFrame, int end
 		}
 		else if (model->type == MOD_IQM)
 		{
-			return R_IQMLerpTag_plus(tag, reinterpret_cast<iqmData_t *>(model->modelData),
+			return R_IQMLerpTag(tag, reinterpret_cast<iqmData_t *>(model->modelData),
 								startFrame, endFrame,
 								frac, tagName);
 		}
@@ -1201,11 +1201,11 @@ int R_LerpTag_plus(orientation_t *tag, qhandle_t handle, int startFrame, int end
 R_ModelBounds_plus
 ====================
 */
-void R_ModelBounds_plus(qhandle_t handle, vec3_t mins, vec3_t maxs)
+void R_ModelBounds(qhandle_t handle, vec3_t mins, vec3_t maxs)
 {
 	model_t *model;
 
-	model = R_GetModelByHandle_plus(handle);
+	model = R_GetModelByHandle(handle);
 
 	if (model->type == MOD_BRUSH)
 	{

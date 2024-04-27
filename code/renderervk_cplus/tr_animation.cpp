@@ -62,7 +62,7 @@ static int R_MDRCullModel(mdrHeader_t *header, const trRefEntity_t *ent)
 	{
 		if (ent->e.frame == ent->e.oldframe)
 		{
-			switch (R_CullLocalPointAndRadius_plus(newFrame->localOrigin, newFrame->radius))
+			switch (R_CullLocalPointAndRadius(newFrame->localOrigin, newFrame->radius))
 			{
 				// Ummm... yeah yeah I know we don't really have an md3 here.. but we pretend
 				// we do. After all, the purpose of mdrs are not that different, are they?
@@ -84,14 +84,14 @@ static int R_MDRCullModel(mdrHeader_t *header, const trRefEntity_t *ent)
 		{
 			int sphereCull, sphereCullB;
 
-			sphereCull = R_CullLocalPointAndRadius_plus(newFrame->localOrigin, newFrame->radius);
+			sphereCull = R_CullLocalPointAndRadius(newFrame->localOrigin, newFrame->radius);
 			if (newFrame == oldFrame)
 			{
 				sphereCullB = sphereCull;
 			}
 			else
 			{
-				sphereCullB = R_CullLocalPointAndRadius_plus(oldFrame->localOrigin, oldFrame->radius);
+				sphereCullB = R_CullLocalPointAndRadius(oldFrame->localOrigin, oldFrame->radius);
 			}
 
 			if (sphereCull == sphereCullB)
@@ -121,7 +121,7 @@ static int R_MDRCullModel(mdrHeader_t *header, const trRefEntity_t *ent)
 		bounds[1][i] = oldFrame->bounds[1][i] > newFrame->bounds[1][i] ? oldFrame->bounds[1][i] : newFrame->bounds[1][i];
 	}
 
-	switch (R_CullLocalBox_plus(bounds))
+	switch (R_CullLocalBox(bounds))
 	{
 	case CULL_IN:
 		tr.pc.c_box_cull_md3_in++;
@@ -189,7 +189,7 @@ R_MDRAddAnimSurfaces
 
 // much stuff in there is just copied from R_AddMd3Surfaces in tr_mesh.c
 
-void R_MDRAddAnimSurfaces_plus(trRefEntity_t *ent)
+void R_MDRAddAnimSurfaces(trRefEntity_t *ent)
 {
 	mdrHeader_t *header;
 	mdrSurface_t *surface;
@@ -237,7 +237,7 @@ void R_MDRAddAnimSurfaces_plus(trRefEntity_t *ent)
 	}
 
 	// figure out the current LOD of the model we're rendering, and set the lod pointer respectively.
-	lodnum = R_ComputeLOD_plus(ent);
+	lodnum = R_ComputeLOD(ent);
 	// check whether this model has as that many LODs at all. If not, try the closest thing we got.
 	if (header->numLODs <= 0)
 		return;
@@ -253,7 +253,7 @@ void R_MDRAddAnimSurfaces_plus(trRefEntity_t *ent)
 	// set up lighting
 	if (!personalModel || r_shadows->integer > 1)
 	{
-		R_SetupEntityLighting_plus(&tr.refdef, ent);
+		R_SetupEntityLighting(&tr.refdef, ent);
 	}
 
 	// fogNum?
@@ -265,10 +265,10 @@ void R_MDRAddAnimSurfaces_plus(trRefEntity_t *ent)
 	{
 
 		if (ent->e.customShader)
-			shader = R_GetShaderByHandle_plus(ent->e.customShader);
+			shader = R_GetShaderByHandle(ent->e.customShader);
 		else if (ent->e.customSkin > 0 && ent->e.customSkin < tr.numSkins)
 		{
-			skin = R_GetSkinByHandle_plus(ent->e.customSkin);
+			skin = R_GetSkinByHandle(ent->e.customSkin);
 			shader = tr.defaultShader;
 
 			for (j = 0; j < skin->numSurfaces; j++)
@@ -281,7 +281,7 @@ void R_MDRAddAnimSurfaces_plus(trRefEntity_t *ent)
 			}
 		}
 		else if (surface->shaderIndex > 0)
-			shader = R_GetShaderByHandle_plus(surface->shaderIndex);
+			shader = R_GetShaderByHandle(surface->shaderIndex);
 		else
 			shader = tr.defaultShader;
 
@@ -290,18 +290,18 @@ void R_MDRAddAnimSurfaces_plus(trRefEntity_t *ent)
 		// stencil shadows can't do personal models unless I polyhedron clip
 		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 && !(ent->e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == SS_OPAQUE)
 		{
-			R_AddDrawSurf_plus(reinterpret_cast<surfaceType_t *>(surface), tr.shadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
 		if (r_shadows->integer == 3 && fogNum == 0 && (ent->e.renderfx & RF_SHADOW_PLANE) && shader->sort == SS_OPAQUE)
 		{
-			R_AddDrawSurf_plus(reinterpret_cast<surfaceType_t *>(surface), tr.projectionShadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.projectionShadowShader, 0, 0);
 		}
 
 		if (!personalModel)
 		{
-			R_AddDrawSurf_plus(reinterpret_cast<surfaceType_t *>(surface), shader, fogNum, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), shader, fogNum, 0);
 			tr.needScreenMap |= shader->hasScreenMap;
 		}
 
@@ -314,7 +314,7 @@ void R_MDRAddAnimSurfaces_plus(trRefEntity_t *ent)
 RB_MDRSurfaceAnim
 ==============
 */
-void RB_MDRSurfaceAnim_plus(mdrSurface_t *surface)
+void RB_MDRSurfaceAnim(mdrSurface_t *surface)
 {
 	int i, j, k;
 	float frontlerp, backlerp;
@@ -331,7 +331,7 @@ void RB_MDRSurfaceAnim_plus(mdrSurface_t *surface)
 	int frameSize;
 
 #ifdef USE_VBO
-	VBO_Flush_plus();
+	VBO_Flush();
 
 	tess.surfType = SF_MDR;
 #endif
@@ -358,7 +358,7 @@ void RB_MDRSurfaceAnim_plus(mdrSurface_t *surface)
 	oldFrame = (mdrFrame_t *)((byte *)header + header->ofsFrames +
 							  backEnd.currentEntity->e.oldframe * frameSize);
 
-	RB_CHECKOVERFLOW_PLUS(surface->numVerts, surface->numTriangles * 3);
+	RB_CHECKOVERFLOW(surface->numVerts, surface->numTriangles * 3);
 
 	triangles = (int *)((byte *)surface + surface->ofsTriangles);
 	indexes = surface->numTriangles * 3;
@@ -450,7 +450,7 @@ constexpr int MC_MASK_Y = (1 << MC_BITS_Y) - 1;
 constexpr int MC_MASK_Z = (1 << MC_BITS_Z) - 1;
 constexpr int MC_MASK_VECT = (1 << MC_BITS_VECT) - 1;
 
-void MC_UnCompress_plus(float mat[3][4], const unsigned char *comp)
+void MC_UnCompress(float mat[3][4], const unsigned char *comp)
 {
 	mat[0][3] = (static_cast<float>(reinterpret_cast<const short *>(comp)[0] - (1 << (MC_BITS_X - 1)))) * MC_SCALE_X;
 	mat[1][3] = (static_cast<float>(reinterpret_cast<const short *>(comp)[1] - (1 << (MC_BITS_Y - 1)))) * MC_SCALE_Y;

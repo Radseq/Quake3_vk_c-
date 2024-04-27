@@ -3,16 +3,16 @@
 
 #include "tr_local.hpp"
 
-    void RB_BeginSurface_plus(shader_t *shader, int fogNum);
-    void R_ComputeTexCoords_plus(const int b, const textureBundle_t *bundle);
-    void VK_SetFogParams_plus(vkUniform_t *uniform, int *fogStage);
-    void R_ComputeColors_plus(const int b, color4ub_t *dest, const shaderStage_t *pStage);
-    uint32_t VK_PushUniform_plus(const vkUniform_t *uniform);
+    void RB_BeginSurface(shader_t *shader, int fogNum);
+    void R_ComputeTexCoords(const int b, const textureBundle_t *bundle);
+    void VK_SetFogParams(vkUniform_t *uniform, int *fogStage);
+    void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t *pStage);
+    uint32_t VK_PushUniform(const vkUniform_t *uniform);
 #ifdef USE_PMLIGHT
-    void VK_LightingPass_plus(void);
+    void VK_LightingPass(void);
 #endif // USE_PMLIGHT
-    void RB_StageIteratorGeneric_plus(void);
-    void RB_EndSurface_plus(void);
+    void RB_StageIteratorGeneric(void);
+    void RB_EndSurface(void);
 
 
 #endif // TR_SHADE_HPP

@@ -5,8 +5,8 @@
 #include "tr_main.hpp"
 #include "tr_local.hpp"
 
-void R_MDRAddAnimSurfaces_plus(trRefEntity_t *ent);
-void RB_MDRSurfaceAnim_plus(mdrSurface_t *surface);
-void MC_UnCompress_plus(float mat[3][4], const unsigned char *comp);
+void R_MDRAddAnimSurfaces(trRefEntity_t *ent);
+void RB_MDRSurfaceAnim(mdrSurface_t *surface);
+void MC_UnCompress(float mat[3][4], const unsigned char *comp);
 
 #endif // TR_ANIMATION_HPP

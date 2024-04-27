@@ -181,7 +181,7 @@ static void MakeMeshNormals( int width, int height, drawVert_t ctrl[MAX_GRID_SIZ
 						break;					// edge of patch
 					}
 					VectorSubtract( ctrl[y][x].xyz, base, temp );
-					if ( VectorNormalize_plus( temp ) < 0.001f ) {
+					if ( VectorNormalize( temp ) < 0.001f ) {
 						continue;				// degenerate edge, get more dist
 					} else {
 						good[k] = true;
@@ -197,13 +197,13 @@ static void MakeMeshNormals( int width, int height, drawVert_t ctrl[MAX_GRID_SIZ
 					continue;	// didn't get two points
 				}
 				CrossProduct( around[(k+1)&7], around[k], normal );
-				if ( VectorNormalize_plus( normal ) < 0.001f ) {
+				if ( VectorNormalize( normal ) < 0.001f ) {
 					continue;
 				}
 				VectorAdd( normal, sum, sum );
 			}
 
-			VectorNormalize2_plus( sum, dv->normal );
+			VectorNormalize2( sum, dv->normal );
 		}
 	}
 }
@@ -315,12 +315,12 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh(int width, int height,
 	grid->width = width;
 	grid->height = height;
 	grid->surfaceType = SF_GRID;
-	ClearBounds_plus( grid->meshBounds[0], grid->meshBounds[1] );
+	ClearBounds( grid->meshBounds[0], grid->meshBounds[1] );
 	for ( i = 0 ; i < width ; i++ ) {
 		for ( j = 0 ; j < height ; j++ ) {
 			vert = &grid->verts[j*width+i];
 			*vert = ctrl[j][i];
-			AddPointToBounds_plus( vert->xyz, grid->meshBounds[0], grid->meshBounds[1] );
+			AddPointToBounds( vert->xyz, grid->meshBounds[0], grid->meshBounds[1] );
 		}
 	}
 
@@ -336,7 +336,7 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh(int width, int height,
 	return grid;
 }
 
-void R_FreeSurfaceGridMesh_plus( srfGridMesh_t *grid ) {
+void R_FreeSurfaceGridMesh( srfGridMesh_t *grid ) {
 	ri.Free(grid->widthLodError);
 	ri.Free(grid->heightLodError);
 	ri.Free(grid);
@@ -347,7 +347,7 @@ void R_FreeSurfaceGridMesh_plus( srfGridMesh_t *grid ) {
 R_SubdividePatchToGrid
 =================
 */
-srfGridMesh_t *R_SubdividePatchToGrid_plus( int width, int height,
+srfGridMesh_t *R_SubdividePatchToGrid( int width, int height,
 								drawVert_t points[MAX_PATCH_SIZE*MAX_PATCH_SIZE] ) {
 	int			i, j, k, l;
 	drawVert_t	prev;
@@ -402,7 +402,7 @@ srfGridMesh_t *R_SubdividePatchToGrid_plus( int width, int height,
 				// dist-from-midpoint
 				VectorSubtract( midxyz, ctrl[i][j].xyz, midxyz );
 				VectorSubtract( ctrl[i][j+2].xyz, ctrl[i][j].xyz, dir );
-				VectorNormalize_plus( dir );
+				VectorNormalize( dir );
 
 				d = DotProduct( midxyz, dir );
 				VectorScale( dir, d, projected );
@@ -516,7 +516,7 @@ srfGridMesh_t *R_SubdividePatchToGrid_plus( int width, int height,
 R_GridInsertColumn
 ===============
 */
-srfGridMesh_t *R_GridInsertColumn_plus( srfGridMesh_t *grid, int column, int row, vec3_t point, float loderror ) {
+srfGridMesh_t *R_GridInsertColumn( srfGridMesh_t *grid, int column, int row, vec3_t point, float loderror ) {
 	int i, j;
 	int width, height, oldwidth;
 	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE];
@@ -557,7 +557,7 @@ srfGridMesh_t *R_GridInsertColumn_plus( srfGridMesh_t *grid, int column, int row
 	VectorCopy(grid->lodOrigin, lodOrigin);
 	lodRadius = grid->lodRadius;
 	// free the old grid
-	R_FreeSurfaceGridMesh_plus(grid);
+	R_FreeSurfaceGridMesh(grid);
 	// create a new grid
 	grid = R_CreateSurfaceGridMesh( width, height, ctrl, errorTable );
 	grid->lodRadius = lodRadius;
@@ -570,7 +570,7 @@ srfGridMesh_t *R_GridInsertColumn_plus( srfGridMesh_t *grid, int column, int row
 R_GridInsertRow
 ===============
 */
-srfGridMesh_t *R_GridInsertRow_plus( srfGridMesh_t *grid, int row, int column, vec3_t point, float loderror ) {
+srfGridMesh_t *R_GridInsertRow( srfGridMesh_t *grid, int row, int column, vec3_t point, float loderror ) {
 	int i, j;
 	int width, height, oldheight;
 	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE];
@@ -611,7 +611,7 @@ srfGridMesh_t *R_GridInsertRow_plus( srfGridMesh_t *grid, int row, int column, v
 	VectorCopy(grid->lodOrigin, lodOrigin);
 	lodRadius = grid->lodRadius;
 	// free the old grid
-	R_FreeSurfaceGridMesh_plus(grid);
+	R_FreeSurfaceGridMesh(grid);
 	// create a new grid
 	grid = R_CreateSurfaceGridMesh( width, height, ctrl, errorTable );
 	grid->lodRadius = lodRadius;

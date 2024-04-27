@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 #include "tr_image_png.hpp"
+#include "puff.hpp"
 
 // we could limit the png size to a lower value here
 #ifndef INT_MAX
@@ -463,8 +464,8 @@ static bool FindChunk(struct BufferedFile *BF, uint32_t ChunkType)
 		 *  they might be needed later.
 		 */
 
-		Length = BigLong_plus(CH->Length);
-		Type = BigLong_plus(CH->Type);
+		Length = BigLong(CH->Length);
+		Type = BigLong(CH->Type);
 
 		/*
 		 *  We found it!
@@ -583,8 +584,8 @@ static uint32_t DecompressIDATs(struct BufferedFile *BF, uint8_t **Buffer)
 		 *  Length and Type of chunk
 		 */
 
-		Length = BigLong_plus(CH->Length);
-		Type = BigLong_plus(CH->Type);
+		Length = BigLong(CH->Length);
+		Type = BigLong(CH->Type);
 
 		/*
 		 *  We have reached the end of the IDAT chunks
@@ -653,8 +654,8 @@ static uint32_t DecompressIDATs(struct BufferedFile *BF, uint8_t **Buffer)
 		 *  Length and Type of chunk
 		 */
 
-		Length = BigLong_plus(CH->Length);
-		Type = BigLong_plus(CH->Type);
+		Length = BigLong(CH->Length);
+		Type = BigLong(CH->Type);
 
 		/*
 		 *  We have reached the end of the IDAT chunks
@@ -1277,8 +1278,8 @@ static bool DecodeImageNonInterlaced(struct PNG_Chunk_IHDR *IHDR,
 	 *  byte swapping
 	 */
 
-	IHDR_Width = BigLong_plus(IHDR->Width);
-	IHDR_Height = BigLong_plus(IHDR->Height);
+	IHDR_Width = BigLong(IHDR->Width);
+	IHDR_Height = BigLong(IHDR->Height);
 
 	/*
 	 *  information for un-filtering
@@ -1555,8 +1556,8 @@ static bool DecodeImageInterlaced(struct PNG_Chunk_IHDR *IHDR,
 	 *  byte swapping
 	 */
 
-	IHDR_Width = BigLong_plus(IHDR->Width);
-	IHDR_Height = BigLong_plus(IHDR->Height);
+	IHDR_Width = BigLong(IHDR->Width);
+	IHDR_Height = BigLong(IHDR->Height);
 
 	/*
 	 *  Skip and Offset for the passes.
@@ -1894,7 +1895,7 @@ static bool DecodeImageInterlaced(struct PNG_Chunk_IHDR *IHDR,
  *  The PNG loader
  */
 
-void R_LoadPNG_plus(const char *name, byte **pic, int *width, int *height)
+void R_LoadPNG(const char *name, byte **pic, int *width, int *height)
 {
 	struct BufferedFile *ThePNG;
 	byte *OutBuffer;
@@ -1998,8 +1999,8 @@ void R_LoadPNG_plus(const char *name, byte **pic, int *width, int *height)
 	 *  PNG multi-byte types are in Big Endian
 	 */
 
-	ChunkHeaderLength = BigLong_plus(CH->Length);
-	ChunkHeaderType = BigLong_plus(CH->Type);
+	ChunkHeaderLength = BigLong(CH->Length);
+	ChunkHeaderType = BigLong(CH->Type);
 
 	/*
 	 *  Check if the first chunk is an IHDR.
@@ -2044,8 +2045,8 @@ void R_LoadPNG_plus(const char *name, byte **pic, int *width, int *height)
 	 *  multi-byte type swapping
 	 */
 
-	IHDR_Width = BigLong_plus(IHDR->Width);
-	IHDR_Height = BigLong_plus(IHDR->Height);
+	IHDR_Width = BigLong(IHDR->Width);
+	IHDR_Height = BigLong(IHDR->Height);
 
 	/*
 	 *  Check if Width and Height are valid.
@@ -2119,8 +2120,8 @@ void R_LoadPNG_plus(const char *name, byte **pic, int *width, int *height)
 		 *  PNG multi-byte types are in Big Endian
 		 */
 
-		ChunkHeaderLength = BigLong_plus(CH->Length);
-		ChunkHeaderType = BigLong_plus(CH->Type);
+		ChunkHeaderLength = BigLong(CH->Length);
+		ChunkHeaderType = BigLong(CH->Type);
 
 		/*
 		 *  Check if the chunk is a PLTE.
@@ -2221,8 +2222,8 @@ void R_LoadPNG_plus(const char *name, byte **pic, int *width, int *height)
 		 *  PNG multi-byte types are in Big Endian
 		 */
 
-		ChunkHeaderLength = BigLong_plus(CH->Length);
-		ChunkHeaderType = BigLong_plus(CH->Type);
+		ChunkHeaderLength = BigLong(CH->Length);
+		ChunkHeaderType = BigLong(CH->Type);
 
 		/*
 		 *  Check if the chunk is a tRNS.

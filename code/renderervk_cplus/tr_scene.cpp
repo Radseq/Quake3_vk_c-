@@ -21,7 +21,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "tr_scene.hpp"
-#include "q_shared.hpp"
 #include "tr_main.hpp"
 #include "tr_shader.hpp"
 
@@ -48,7 +47,7 @@ R_InitNextFrame_plus
 
 ====================
 */
-void R_InitNextFrame_plus(void)
+void R_InitNextFrame(void)
 {
 
 	backEndData->commands.used = 0;
@@ -76,7 +75,7 @@ RE_ClearScene_plus
 
 ====================
 */
-void RE_ClearScene_plus(void)
+void RE_ClearScene(void)
 {
 	r_firstSceneDlight = r_numdlights;
 	r_firstSceneEntity = r_numentities;
@@ -98,7 +97,7 @@ R_AddPolygonSurfaces_plus
 Adds all the scene's polys into this view's drawsurf list
 =====================
 */
-void R_AddPolygonSurfaces_plus(void)
+void R_AddPolygonSurfaces(void)
 {
 	int i;
 	shader_t *sh;
@@ -109,8 +108,8 @@ void R_AddPolygonSurfaces_plus(void)
 
 	for (i = 0, poly = tr.refdef.polys; i < tr.refdef.numPolys; i++, poly++)
 	{
-		sh = R_GetShaderByHandle_plus(poly->hShader);
-		R_AddDrawSurf_plus(reinterpret_cast<surfaceType_t *>((void *)poly), sh, poly->fogIndex, 0);
+		sh = R_GetShaderByHandle(poly->hShader);
+		R_AddDrawSurf(reinterpret_cast<surfaceType_t *>((void *)poly), sh, poly->fogIndex, 0);
 	}
 }
 
@@ -120,7 +119,7 @@ RE_AddPolyToScene_plus
 
 =====================
 */
-void RE_AddPolyToScene_plus(qhandle_t hShader, int numVerts, const polyVert_t *verts, int numPolys)
+void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts, int numPolys)
 {
 	srfPoly_t *poly;
 	int i, j;
@@ -188,7 +187,7 @@ void RE_AddPolyToScene_plus(qhandle_t hShader, int numVerts, const polyVert_t *v
 			VectorCopy(poly->verts[0].xyz, bounds[1]);
 			for (i = 1; i < poly->numVerts; i++)
 			{
-				AddPointToBounds_plus(poly->verts[i].xyz, bounds[0], bounds[1]);
+				AddPointToBounds(poly->verts[i].xyz, bounds[0], bounds[1]);
 			}
 			for (fogIndex = 1; fogIndex < tr.world->numfogs; fogIndex++)
 			{
@@ -221,7 +220,7 @@ static int isnan_fp(const float *f)
 RE_AddRefEntityToScene_plus
 =====================
 */
-void RE_AddRefEntityToScene_plus(const refEntity_t *ent, bool intShaderTime)
+void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
 {
 	if (!tr.registered)
 	{
@@ -311,7 +310,7 @@ static void RE_AddDynamicLightToScene(const vec3_t org, float intensity, float r
 RE_AddLinearLightToScene_plus
 =====================
 */
-void RE_AddLinearLightToScene_plus(const vec3_t start, const vec3_t end, float intensity, float r, float g, float b)
+void RE_AddLinearLightToScene(const vec3_t start, const vec3_t end, float intensity, float r, float g, float b)
 {
 	dlight_t *dl;
 	if (VectorCompare(start, end))
@@ -368,7 +367,7 @@ RE_AddLightToScene_plus
 
 =====================
 */
-void RE_AddLightToScene_plus(const vec3_t org, float intensity, float r, float g, float b)
+void RE_AddLightToScene(const vec3_t org, float intensity, float r, float g, float b)
 {
 	RE_AddDynamicLightToScene(org, intensity, r, g, b, false);
 }
@@ -379,12 +378,12 @@ RE_AddAdditiveLightToScene_plus
 
 =====================
 */
-void RE_AddAdditiveLightToScene_plus(const vec3_t org, float intensity, float r, float g, float b)
+void RE_AddAdditiveLightToScene(const vec3_t org, float intensity, float r, float g, float b)
 {
 	RE_AddDynamicLightToScene(org, intensity, r, g, b, true);
 }
 
-void *R_GetCommandBuffer_plus(int bytes);
+void *R_GetCommandBuffer(int bytes);
 
 /*
 @@@@@@@@@@@@@@@@@@@@@
@@ -397,7 +396,7 @@ Rendering a scene may require multiple views to be rendered
 to handle mirrors,
 @@@@@@@@@@@@@@@@@@@@@
 */
-void RE_RenderScene_plus(const refdef_t *fd)
+void RE_RenderScene(const refdef_t *fd)
 {
 	renderCommand_t lastRenderCommand;
 	viewParms_t parms;
@@ -536,7 +535,7 @@ void RE_RenderScene_plus(const refdef_t *fd)
 	tr.drawSurfCmd = NULL;
 	tr.numDrawSurfCmds = 0;
 
-	R_RenderView_plus(&parms);
+	R_RenderView(&parms);
 
 	if (tr.needScreenMap)
 	{
@@ -548,7 +547,7 @@ void RE_RenderScene_plus(const refdef_t *fd)
 
 			for (i = 0; i < tr.numDrawSurfCmds; i++)
 			{
-				cmd = reinterpret_cast<drawSurfsCommand_t *>(R_GetCommandBuffer_plus(sizeof(*cmd)));
+				cmd = reinterpret_cast<drawSurfsCommand_t *>(R_GetCommandBuffer(sizeof(*cmd)));
 				if (cmd)
 				{
 					src = tr.drawSurfCmd + i;

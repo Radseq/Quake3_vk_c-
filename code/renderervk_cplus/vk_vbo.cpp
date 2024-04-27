@@ -95,7 +95,7 @@ host-visible index buffer which is finally rendered via single draw call.
 
 */
 
-void VBO_Cleanup_plus(void);
+void VBO_Cleanup(void);
 
 static bool isStaticRGBgen(colorGen_t cgen)
 {
@@ -429,7 +429,7 @@ static void VBO_AddStageTxCoords(vbo_t *vbo, const int stage, const shaderComman
 	memcpy(vbo->vbo_buffer + offs, input->svars.texcoordPtr[bundle], size);
 }
 
-void VBO_PushData_plus(int itemIndex, shaderCommands_t *input)
+void VBO_PushData(int itemIndex, shaderCommands_t *input)
 {
 	const shaderStage_t *pStage;
 	vbo_t *vbo = &world_vbo;
@@ -446,33 +446,33 @@ void VBO_PushData_plus(int itemIndex, shaderCommands_t *input)
 
 		if (pStage->tessFlags & TESS_RGBA0)
 		{
-			R_ComputeColors_plus(0, tess.svars.colors[0], pStage);
+			R_ComputeColors(0, tess.svars.colors[0], pStage);
 			VBO_AddStageColors(vbo, i, input, 0);
 		}
 		if (pStage->tessFlags & TESS_RGBA1)
 		{
-			R_ComputeColors_plus(1, tess.svars.colors[1], pStage);
+			R_ComputeColors(1, tess.svars.colors[1], pStage);
 			VBO_AddStageColors(vbo, i, input, 1);
 		}
 		if (pStage->tessFlags & TESS_RGBA2)
 		{
-			R_ComputeColors_plus(2, tess.svars.colors[2], pStage);
+			R_ComputeColors(2, tess.svars.colors[2], pStage);
 			VBO_AddStageColors(vbo, i, input, 2);
 		}
 
 		if (pStage->tessFlags & TESS_ST0)
 		{
-			R_ComputeTexCoords_plus(0, &pStage->bundle[0]);
+			R_ComputeTexCoords(0, &pStage->bundle[0]);
 			VBO_AddStageTxCoords(vbo, i, input, 0);
 		}
 		if (pStage->tessFlags & TESS_ST1)
 		{
-			R_ComputeTexCoords_plus(1, &pStage->bundle[1]);
+			R_ComputeTexCoords(1, &pStage->bundle[1]);
 			VBO_AddStageTxCoords(vbo, i, input, 1);
 		}
 		if (pStage->tessFlags & TESS_ST2)
 		{
-			R_ComputeTexCoords_plus(2, &pStage->bundle[2]);
+			R_ComputeTexCoords(2, &pStage->bundle[2]);
 			VBO_AddStageTxCoords(vbo, i, input, 2);
 		}
 	}
@@ -485,7 +485,7 @@ void VBO_PushData_plus(int itemIndex, shaderCommands_t *input)
 	//	input->shader->curIndexes, input->shader->numIndexes );
 }
 
-void VBO_UnBind_plus(void)
+void VBO_UnBind(void)
 {
 	tess.vboIndex = 0;
 }
@@ -506,7 +506,7 @@ static void initItem(vbo_item_t *item)
 	item->soft_offset = -1;
 }
 
-void R_BuildWorldVBO_plus(msurface_t *surf, int surfCount)
+void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 {
 	vbo_t *vbo = &world_vbo;
 	msurface_t **surfList;
@@ -531,7 +531,7 @@ void R_BuildWorldVBO_plus(msurface_t *surf, int surfCount)
 		return;
 	}
 
-	VBO_Cleanup_plus();
+	VBO_Cleanup();
 
 	vbo_size = 0;
 
@@ -566,7 +566,7 @@ void R_BuildWorldVBO_plus(msurface_t *surf, int surfCount)
 		if (grid->surfaceType == SF_GRID && isStaticShader(sf->shader))
 		{
 			grid->vboItemIndex = ++numStaticSurfaces;
-			RB_SurfaceGridEstimate_plus(grid, &grid->vboExpectVertices, &grid->vboExpectIndices);
+			RB_SurfaceGridEstimate(grid, &grid->vboExpectVertices, &grid->vboExpectIndices);
 			numStaticVertexes += grid->vboExpectVertices;
 			numStaticIndexes += grid->vboExpectIndices;
 
@@ -676,7 +676,7 @@ void R_BuildWorldVBO_plus(msurface_t *surf, int surfCount)
 			ri.Error(ERR_DROP, "Unexpected surface type");
 		}
 		initItem(vbo->items + i + 1);
-		RB_BeginSurface_plus(sf->shader, 0);
+		RB_BeginSurface(sf->shader, 0);
 		tess.allowVBO = false; // block execution of VBO path as we need to tesselate geometry
 #ifdef USE_TESS_NEEDS_NORMAL
 		tess.needsNormal = true;
@@ -685,9 +685,9 @@ void R_BuildWorldVBO_plus(msurface_t *surf, int surfCount)
 		tess.needsST2 = true;
 #endif
 		// tesselate
-		rb_surfaceTable[*sf->data](sf->data); // VBO_PushData_plus() may be called multiple times there
+		rb_surfaceTable[*sf->data](sf->data); // VBO_PushData() may be called multiple times there
 		// setup colors and texture coordinates
-		VBO_PushData_plus(i + 1, &tess);
+		VBO_PushData(i + 1, &tess);
 		if (grid->surfaceType == SF_GRID)
 		{
 			vbo_item_t *vi = vbo->items + i + 1;
@@ -703,7 +703,7 @@ void R_BuildWorldVBO_plus(msurface_t *surf, int surfCount)
 	ri.Hunk_FreeTempMemory(surfList);
 
 	//__fail:
-	vk_alloc_vbo_plus(vbo->vbo_buffer, vbo->vbo_size);
+	vk_alloc_vbo(vbo->vbo_buffer, vbo->vbo_size);
 
 	// if ( err == GL_OUT_OF_MEMORY )
 	//	ri.Printf( PRINT_WARNING, "%s: out of memory\n", __func__ );
@@ -735,10 +735,10 @@ void R_BuildWorldVBO_plus(msurface_t *surf, int surfCount)
 	vbo->vbo_buffer = NULL;
 
 	// release GPU resources
-	// VBO_Cleanup_plus();
+	// VBO_Cleanup();
 }
 
-void VBO_Cleanup_plus(void)
+void VBO_Cleanup(void)
 {
 	int i;
 
@@ -757,7 +757,7 @@ void VBO_Cleanup_plus(void)
 qsort_int_plus
 =============
 */
-void qsort_int_plus(int *arr, const int n)
+void qsort_int(int *arr, const int n)
 {
 	if (n < 32)
 	{ // CUTOFF
@@ -831,7 +831,7 @@ static int run_length(const int *a, int from, int to, int *count)
 	return n;
 }
 
-void VBO_QueueItem_plus(int itemIndex)
+void VBO_QueueItem(int itemIndex)
 {
 	vbo_t *vbo = &world_vbo;
 
@@ -845,19 +845,19 @@ void VBO_QueueItem_plus(int itemIndex)
 	}
 }
 
-void VBO_ClearQueue_plus(void)
+void VBO_ClearQueue(void)
 {
 	vbo_t *vbo = &world_vbo;
 	vbo->items_queue_count = 0;
 }
 
-void VBO_Flush_plus(void)
+void VBO_Flush(void)
 {
 	if (tess.vboIndex)
 	{
-		RB_EndSurface_plus();
+		RB_EndSurface();
 		tess.vboIndex = 0;
-		RB_BeginSurface_plus(tess.shader, tess.fogNum);
+		RB_BeginSurface(tess.shader, tess.fogNum);
 	}
 }
 
@@ -866,7 +866,7 @@ static void VBO_AddItemDataToSoftBuffer(int itemIndex)
 	vbo_t *vbo = &world_vbo;
 	const vbo_item_t *vi = vbo->items + itemIndex;
 
-	const uint32_t offset = vk_tess_index_plus(vi->num_indexes, vbo->ibo_buffer + vi->soft_offset);
+	const uint32_t offset = vk_tess_index(vi->num_indexes, vbo->ibo_buffer + vi->soft_offset);
 
 	if (vbo->soft_buffer_indexes == 0)
 	{
@@ -888,7 +888,7 @@ static void VBO_AddItemRangeToIBOBuffer(int offset, int length)
 	it->length = length;
 }
 
-void VBO_RenderIBOItems_plus(void)
+void VBO_RenderIBOItems(void)
 {
 	const vbo_t *vbo = &world_vbo;
 	int i;
@@ -896,24 +896,24 @@ void VBO_RenderIBOItems_plus(void)
 	// from device-local memory
 	if (vbo->ibo_items_count)
 	{
-		vk_bind_index_buffer_plus(vk.vbo.vertex_buffer, tess.shader->iboOffset);
+		vk_bind_index_buffer(vk.vbo.vertex_buffer, tess.shader->iboOffset);
 
 		for (i = 0; i < vbo->ibo_items_count; i++)
 		{
-			vk_draw_indexed_plus(vbo->ibo_items[i].length, vbo->ibo_items[i].offset);
+			vk_draw_indexed(vbo->ibo_items[i].length, vbo->ibo_items[i].offset);
 		}
 	}
 
 	// from host-visible memory
 	if (vbo->soft_buffer_indexes)
 	{
-		vk_bind_index_buffer_plus(vk.cmd->vertex_buffer, vbo->soft_buffer_offset);
+		vk_bind_index_buffer(vk.cmd->vertex_buffer, vbo->soft_buffer_offset);
 
-		vk_draw_indexed_plus(vbo->soft_buffer_indexes, 0);
+		vk_draw_indexed(vbo->soft_buffer_indexes, 0);
 	}
 }
 
-void VBO_PrepareQueues_plus(void)
+void VBO_PrepareQueues(void)
 {
 	vbo_t *vbo = &world_vbo;
 	int i, item_run, index_run, n;
@@ -923,7 +923,7 @@ void VBO_PrepareQueues_plus(void)
 
 	// sort items so we can scan for longest runs
 	if (vbo->items_queue_count > 1)
-		qsort_int_plus(vbo->items_queue, vbo->items_queue_count - 1);
+		qsort_int(vbo->items_queue, vbo->items_queue_count - 1);
 
 	vbo->soft_buffer_indexes = 0;
 	vbo->ibo_items_count = 0;

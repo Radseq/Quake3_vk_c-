@@ -89,7 +89,7 @@ static float EvalWaveFormClamped( const waveForm_t *wf )
 /*
 ** RB_CalcStretchTexCoords_plus
 */
-void RB_CalcStretchTexCoords_plus( const waveForm_t *wf, float *src, float *dst )
+void RB_CalcStretchTexCoords( const waveForm_t *wf, float *src, float *dst )
 {
 	float p;
 	texModInfo_t tmi;
@@ -104,7 +104,7 @@ void RB_CalcStretchTexCoords_plus( const waveForm_t *wf, float *src, float *dst 
 	tmi.matrix[1][1] = p;
 	tmi.translate[1] = 0.5f - 0.5f * p;
 
-	RB_CalcTransformTexCoords_plus( &tmi, src, dst );
+	RB_CalcTransformTexCoords( &tmi, src, dst );
 }
 
 
@@ -329,7 +329,7 @@ static void DeformText( const char *text ) {
 			fcol = col*0.0625f;
 			size = 0.0625f;
 
-			RB_AddQuadStampExt_plus( origin, width, height, color, fcol, frow, fcol + size, frow + size );
+			RB_AddQuadStampExt( origin, width, height, color, fcol, frow, fcol + size, frow + size );
 		}
 		VectorMA( origin, -2, width, origin );
 	}
@@ -415,7 +415,7 @@ static void AutospriteDeform( void ) {
 			VectorScale(up, axisLength, up);
 		}
 
-		RB_AddQuadStamp_plus( mid, left, up, tess.vertexColors[i] );
+		RB_AddQuadStamp( mid, left, up, tess.vertexColors[i] );
 	}
 }
 
@@ -546,7 +546,7 @@ RB_DeformTessGeometry_plus
 
 =====================
 */
-void RB_DeformTessGeometry_plus( void ) {
+void RB_DeformTessGeometry( void ) {
 	int		i;
 	deformStage_t	*ds;
 
@@ -569,7 +569,7 @@ void RB_DeformTessGeometry_plus( void ) {
 			RB_CalcMoveVertexes( ds );
 			break;
 		case DEFORM_PROJECTION_SHADOW:
-			RB_ProjectionShadowDeform_plus();
+			RB_ProjectionShadowDeform();
 			break;
 		case DEFORM_AUTOSPRITE:
 			AutospriteDeform();
@@ -603,7 +603,7 @@ COLORS
 /*
 ** RB_CalcColorFromEntity_plus
 */
-void RB_CalcColorFromEntity_plus( unsigned char *dstColors )
+void RB_CalcColorFromEntity( unsigned char *dstColors )
 {
 	uint32_t c, *pColors = (uint32_t *)dstColors;
 	int	i;
@@ -623,7 +623,7 @@ void RB_CalcColorFromEntity_plus( unsigned char *dstColors )
 /*
 ** RB_CalcColorFromOneMinusEntity_plus
 */
-void RB_CalcColorFromOneMinusEntity_plus( unsigned char *dstColors )
+void RB_CalcColorFromOneMinusEntity( unsigned char *dstColors )
 {
 	int	i;
 	uint32_t *pColors = ( uint32_t * ) dstColors;
@@ -647,7 +647,7 @@ void RB_CalcColorFromOneMinusEntity_plus( unsigned char *dstColors )
 /*
 ** RB_CalcAlphaFromEntity_plus
 */
-void RB_CalcAlphaFromEntity_plus( unsigned char *dstColors )
+void RB_CalcAlphaFromEntity( unsigned char *dstColors )
 {
 	int	i;
 
@@ -666,7 +666,7 @@ void RB_CalcAlphaFromEntity_plus( unsigned char *dstColors )
 /*
 ** RB_CalcAlphaFromOneMinusEntity_plus
 */
-void RB_CalcAlphaFromOneMinusEntity_plus( unsigned char *dstColors )
+void RB_CalcAlphaFromOneMinusEntity( unsigned char *dstColors )
 {
 	int	i;
 
@@ -685,7 +685,7 @@ void RB_CalcAlphaFromOneMinusEntity_plus( unsigned char *dstColors )
 /*
 ** RB_CalcWaveColor_plus
 */
-void RB_CalcWaveColor_plus( const waveForm_t *wf, unsigned char *dstColors )
+void RB_CalcWaveColor( const waveForm_t *wf, unsigned char *dstColors )
 {
 	int v, i;
 	float glow;
@@ -717,7 +717,7 @@ void RB_CalcWaveColor_plus( const waveForm_t *wf, unsigned char *dstColors )
 /*
 ** RB_CalcWaveAlpha_plus
 */
-void RB_CalcWaveAlpha_plus( const waveForm_t *wf, unsigned char *dstColors )
+void RB_CalcWaveAlpha( const waveForm_t *wf, unsigned char *dstColors )
 {
 	int i;
 	int v;
@@ -737,17 +737,17 @@ void RB_CalcWaveAlpha_plus( const waveForm_t *wf, unsigned char *dstColors )
 /*
 ** RB_CalcModulateColorsByFog_plus
 */
-void RB_CalcModulateColorsByFog_plus( unsigned char *colors ) {
+void RB_CalcModulateColorsByFog( unsigned char *colors ) {
 	int		i;
 	float	texCoords[SHADER_MAX_VERTEXES][2];
 
 	// calculate texcoords so we can derive density
 	// this is not wasted, because it would only have
 	// been previously called if the surface was opaque
-	RB_CalcFogTexCoords_plus( texCoords[0] );
+	RB_CalcFogTexCoords( texCoords[0] );
 
 	for ( i = 0; i < tess.numVertexes; i++, colors += 4 ) {
-		float f = 1.0 - R_FogFactor_plus( texCoords[i][0], texCoords[i][1] );
+		float f = 1.0 - R_FogFactor( texCoords[i][0], texCoords[i][1] );
 		colors[0] *= f;
 		colors[1] *= f;
 		colors[2] *= f;
@@ -758,17 +758,17 @@ void RB_CalcModulateColorsByFog_plus( unsigned char *colors ) {
 /*
 ** RB_CalcModulateAlphasByFog_plus
 */
-void RB_CalcModulateAlphasByFog_plus( unsigned char *colors ) {
+void RB_CalcModulateAlphasByFog( unsigned char *colors ) {
 	int		i;
 	float	texCoords[SHADER_MAX_VERTEXES][2];
 
 	// calculate texcoords so we can derive density
 	// this is not wasted, because it would only have
 	// been previously called if the surface was opaque
-	RB_CalcFogTexCoords_plus( texCoords[0] );
+	RB_CalcFogTexCoords( texCoords[0] );
 
 	for ( i = 0; i < tess.numVertexes; i++, colors += 4 ) {
-		float f = 1.0 - R_FogFactor_plus( texCoords[i][0], texCoords[i][1] );
+		float f = 1.0 - R_FogFactor( texCoords[i][0], texCoords[i][1] );
 		colors[3] *= f;
 	}
 }
@@ -777,17 +777,17 @@ void RB_CalcModulateAlphasByFog_plus( unsigned char *colors ) {
 /*
 ** RB_CalcModulateRGBAsByFog_plus
 */
-void RB_CalcModulateRGBAsByFog_plus( unsigned char *colors ) {
+void RB_CalcModulateRGBAsByFog( unsigned char *colors ) {
 	int		i;
 	float	texCoords[SHADER_MAX_VERTEXES][2];
 
 	// calculate texcoords so we can derive density
 	// this is not wasted, because it would only have
 	// been previously called if the surface was opaque
-	RB_CalcFogTexCoords_plus( texCoords[0] );
+	RB_CalcFogTexCoords( texCoords[0] );
 
 	for ( i = 0; i < tess.numVertexes; i++, colors += 4 ) {
-		float f = 1.0 - R_FogFactor_plus( texCoords[i][0], texCoords[i][1] );
+		float f = 1.0 - R_FogFactor( texCoords[i][0], texCoords[i][1] );
 		colors[0] *= f;
 		colors[1] *= f;
 		colors[2] *= f;
@@ -813,7 +813,7 @@ projected textures, but I don't trust the drivers and it
 doesn't fit our shader data.
 ========================
 */
-void RB_CalcFogTexCoords_plus( float *st ) {
+void RB_CalcFogTexCoords( float *st ) {
 	int			i;
 	float		*v;
 	float		s, t;
@@ -897,7 +897,7 @@ void RB_CalcFogTexCoords_plus( float *st ) {
 RB_CalcFogProgramParms_plus
 ========================
 */
-const fogProgramParms_t *RB_CalcFogProgramParms_plus( void )
+const fogProgramParms_t *RB_CalcFogProgramParms( void )
 {
 	static fogProgramParms_t parm;
 	const fog_t	*fog;
@@ -987,7 +987,7 @@ RB_CalcEnvironmentTexCoordsFP_plus
 Special version for first-person models, borrowed from OpenArena
 ========================
 */
-void RB_CalcEnvironmentTexCoordsFP_plus( float *st, int screenMap ) {
+void RB_CalcEnvironmentTexCoordsFP( float *st, int screenMap ) {
 	int			i;
 	const float	*v, *normal;
 	vec3_t		viewer, reflected, where, why, who; // what
@@ -995,7 +995,7 @@ void RB_CalcEnvironmentTexCoordsFP_plus( float *st, int screenMap ) {
 
 	if ( !backEnd.currentEntity || ( backEnd.currentEntity->e.renderfx & RF_FIRST_PERSON ) == 0 )
 	{
-		RB_CalcEnvironmentTexCoords_plus( st );
+		RB_CalcEnvironmentTexCoords( st );
 		return;
 	}
 
@@ -1037,7 +1037,7 @@ void RB_CalcEnvironmentTexCoordsFP_plus( float *st, int screenMap ) {
 /*
 ** RB_CalcEnvironmentTexCoords_plus
 */
-void RB_CalcEnvironmentTexCoords_plus( float *st )
+void RB_CalcEnvironmentTexCoords( float *st )
 {
 	int			i;
 	const float *v, *normal;
@@ -1067,7 +1067,7 @@ void RB_CalcEnvironmentTexCoords_plus( float *st )
 /*
 ** RB_CalcTurbulentTexCoords_plus
 */
-void RB_CalcTurbulentTexCoords_plus( const waveForm_t *wf, float *src, float *dst )
+void RB_CalcTurbulentTexCoords( const waveForm_t *wf, float *src, float *dst )
 {
 	int i;
 	double now; // -EC- set to double
@@ -1085,7 +1085,7 @@ void RB_CalcTurbulentTexCoords_plus( const waveForm_t *wf, float *src, float *ds
 /*
 ** RB_CalcScaleTexCoords_plus
 */
-void RB_CalcScaleTexCoords_plus( const float scale[2], float *src, float *dst )
+void RB_CalcScaleTexCoords( const float scale[2], float *src, float *dst )
 {
 	int i;
 
@@ -1100,7 +1100,7 @@ void RB_CalcScaleTexCoords_plus( const float scale[2], float *src, float *dst )
 /*
 ** RB_CalcScrollTexCoords_plus
 */
-void RB_CalcScrollTexCoords_plus( const float scrollSpeed[2], float *src, float *dst )
+void RB_CalcScrollTexCoords( const float scrollSpeed[2], float *src, float *dst )
 {
 	int i;
 	double	timeScale; // -EC-: set to double
@@ -1127,7 +1127,7 @@ void RB_CalcScrollTexCoords_plus( const float scrollSpeed[2], float *src, float 
 /*
 ** RB_CalcTransformTexCoords_plus
 */
-void RB_CalcTransformTexCoords_plus( const texModInfo_t *tmi, float *src, float *dst )
+void RB_CalcTransformTexCoords( const texModInfo_t *tmi, float *src, float *dst )
 {
 	int i;
 
@@ -1145,7 +1145,7 @@ void RB_CalcTransformTexCoords_plus( const texModInfo_t *tmi, float *src, float 
 /*
 ** RB_CalcRotateTexCoords_plus
 */
-void RB_CalcRotateTexCoords_plus( float degsPerSecond, float *src, float *dst )
+void RB_CalcRotateTexCoords( float degsPerSecond, float *src, float *dst )
 {
 	double timeScale = tess.shaderTime; // -EC- set to double
 	double degs; // -EC- set to double
@@ -1167,7 +1167,7 @@ void RB_CalcRotateTexCoords_plus( float degsPerSecond, float *src, float *dst )
 	tmi.matrix[1][1] = cosValue;
 	tmi.translate[1] = 0.5 - 0.5 * sinValue - 0.5 * cosValue;
 
-	RB_CalcTransformTexCoords_plus( &tmi, src, dst );
+	RB_CalcTransformTexCoords( &tmi, src, dst );
 }
 
 
@@ -1178,7 +1178,7 @@ void RB_CalcRotateTexCoords_plus( float degsPerSecond, float *src, float *dst )
 */
 vec3_t lightOrigin = { -960, 1980, 96 };		// FIXME: track dynamically
 
-void RB_CalcSpecularAlpha_plus( unsigned char *alphas ) {
+void RB_CalcSpecularAlpha( unsigned char *alphas ) {
 	int			i;
 	const float *v, *normal;
 	vec3_t		viewer,  reflected;
@@ -1272,7 +1272,7 @@ static void RB_CalcDiffuseColor_scalar(unsigned char *colors)
 
 
 
-void RB_CalcDiffuseColor_plus( unsigned char *colors )
+void RB_CalcDiffuseColor( unsigned char *colors )
 {
 	RB_CalcDiffuseColor_scalar( colors );
 }

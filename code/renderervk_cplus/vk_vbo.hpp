@@ -4,16 +4,16 @@
 #include "tr_local.hpp"
 
 #ifdef USE_VBO
-void VBO_Cleanup_plus();
-void VBO_PushData_plus(int itemIndex, shaderCommands_t *input);
-void VBO_UnBind_plus();
-void R_BuildWorldVBO_plus(msurface_t *surf, int surfCount);
-void qsort_int_plus(int *arr, const int n);
-void VBO_QueueItem_plus(int itemIndex);
-void VBO_ClearQueue_plus();
-void VBO_Flush_plus();
-void VBO_RenderIBOItems_plus();
-void VBO_PrepareQueues_plus();
+void VBO_Cleanup();
+void VBO_PushData(int itemIndex, shaderCommands_t *input);
+void VBO_UnBind();
+void R_BuildWorldVBO(msurface_t *surf, int surfCount);
+void qsort_int(int *arr, const int n);
+void VBO_QueueItem(int itemIndex);
+void VBO_ClearQueue();
+void VBO_Flush();
+void VBO_RenderIBOItems();
+void VBO_PrepareQueues();
 
 #endif // USE_VBO
 

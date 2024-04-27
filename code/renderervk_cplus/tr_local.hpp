@@ -1091,8 +1091,8 @@ the bits are allocated as follows:
 	typedef struct glstatic_s
 	{
 		// unmodified width/height according to actual \r_mode*
-		int windowWidth;
-		int windowHeight;
+		uint32_t windowWidth;
+		uint32_t windowHeight;
 		int captureWidth;
 		int captureHeight;
 		int initTime;

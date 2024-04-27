@@ -1,7 +1,6 @@
 #ifndef TR_IMAGE_HPP
 #define TR_IMAGE_HPP
 
-#include "q_shared.hpp"
 
 #include "tr_image_bmp.hpp"
 #include "tr_image_jpg.hpp"
@@ -42,21 +41,21 @@ constexpr int FOG_S = 256;
 constexpr int FOG_T = 32;
 constexpr int DEFAULT_SIZE = 16;
 
-skin_t *R_GetSkinByHandle_plus(qhandle_t hSkin);
-int R_SumOfUsedImages_plus();
-void R_InitFogTable_plus();
-float R_FogFactor_plus(float s, float t);
+skin_t *R_GetSkinByHandle(qhandle_t hSkin);
+int R_SumOfUsedImages();
+void R_InitFogTable();
+float R_FogFactor(float s, float t);
 
-void R_SkinList_f_plus();
-void R_GammaCorrect_plus(byte *buffer, int bufSize);
-void TextureMode_plus(const char *string);
-void R_ImageList_f_plus(void);
-image_t *R_CreateImage_plus(const char *name, const char *name2, byte *pic, int width, int height, imgFlags_t flags);
-image_t *R_FindImageFile_plus(const char *name, imgFlags_t flags);
-void R_SetColorMappings_plus(void);
-void R_InitImages_plus(void);
-void R_DeleteTextures_plus(void);
-void R_InitSkins_plus(void);
-qhandle_t RE_RegisterSkin_plus(const char *name);
+void R_SkinList_f();
+void R_GammaCorrect(byte *buffer, int bufSize);
+void TextureMode(const char *string);
+void R_ImageList_f(void);
+image_t *R_CreateImage(const char *name, const char *name2, byte *pic, int width, int height, imgFlags_t flags);
+image_t *R_FindImageFile(const char *name, imgFlags_t flags);
+void R_SetColorMappings(void);
+void R_InitImages(void);
+void R_DeleteTextures(void);
+void R_InitSkins(void);
+qhandle_t RE_RegisterSkin(const char *name);
 
 #endif // TR_IMAGE_HPP

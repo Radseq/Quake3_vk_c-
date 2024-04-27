@@ -1,34 +1,33 @@
 #ifndef TR_SHADE_CALC_HPP
 #define TR_SHADE_CALC_HPP
 
-#include "q_shared.hpp"
 #include "tr_image.hpp"
 
 #include "tr_noise.hpp"
 #include "tr_local.hpp"
 
-void RB_CalcStretchTexCoords_plus(const waveForm_t *wf, float *src, float *dst);
-void RB_CalcTransformTexCoords_plus(const texModInfo_t *tmi, float *src, float *dst);
-void RB_CalcRotateTexCoords_plus(float degsPerSecond, float *src, float *dst);
-void RB_CalcScrollTexCoords_plus(const float scrollSpeed[2], float *src, float *dst);
-void RB_CalcScaleTexCoords_plus(const float scale[2], float *src, float *dst);
-void RB_CalcTurbulentTexCoords_plus(const waveForm_t *wf, float *src, float *dst);
-void RB_CalcSpecularAlpha_plus(unsigned char *alphas);
-void RB_CalcFogTexCoords_plus(float *st);
-void RB_CalcEnvironmentTexCoords_plus(float *st);
-void RB_CalcEnvironmentTexCoordsFP_plus(float *st, int screenMap);
-const fogProgramParms_t *RB_CalcFogProgramParms_plus();
+void RB_CalcStretchTexCoords(const waveForm_t *wf, float *src, float *dst);
+void RB_CalcTransformTexCoords(const texModInfo_t *tmi, float *src, float *dst);
+void RB_CalcRotateTexCoords(float degsPerSecond, float *src, float *dst);
+void RB_CalcScrollTexCoords(const float scrollSpeed[2], float *src, float *dst);
+void RB_CalcScaleTexCoords(const float scale[2], float *src, float *dst);
+void RB_CalcTurbulentTexCoords(const waveForm_t *wf, float *src, float *dst);
+void RB_CalcSpecularAlpha(unsigned char *alphas);
+void RB_CalcFogTexCoords(float *st);
+void RB_CalcEnvironmentTexCoords(float *st);
+void RB_CalcEnvironmentTexCoordsFP(float *st, int screenMap);
+const fogProgramParms_t *RB_CalcFogProgramParms();
 
-void RB_CalcWaveColor_plus(const waveForm_t *wf, unsigned char *dstColors);
-void RB_CalcColorFromEntity_plus(unsigned char *dstColors);
-void RB_CalcColorFromOneMinusEntity_plus(unsigned char *dstColors);
-void RB_CalcWaveAlpha_plus(const waveForm_t *wf, unsigned char *dstColors);
-void RB_CalcAlphaFromEntity_plus(unsigned char *dstColors);
-void RB_CalcAlphaFromOneMinusEntity_plus(unsigned char *dstColors);
-void RB_CalcModulateColorsByFog_plus(unsigned char *colors);
-void RB_CalcModulateAlphasByFog_plus(unsigned char *colors);
-void RB_CalcModulateRGBAsByFog_plus(unsigned char *colors);
-void RB_CalcDiffuseColor_plus(unsigned char *colors);
-void RB_DeformTessGeometry_plus(void);
+void RB_CalcWaveColor(const waveForm_t *wf, unsigned char *dstColors);
+void RB_CalcColorFromEntity(unsigned char *dstColors);
+void RB_CalcColorFromOneMinusEntity(unsigned char *dstColors);
+void RB_CalcWaveAlpha(const waveForm_t *wf, unsigned char *dstColors);
+void RB_CalcAlphaFromEntity(unsigned char *dstColors);
+void RB_CalcAlphaFromOneMinusEntity(unsigned char *dstColors);
+void RB_CalcModulateColorsByFog(unsigned char *colors);
+void RB_CalcModulateAlphasByFog(unsigned char *colors);
+void RB_CalcModulateRGBAsByFog(unsigned char *colors);
+void RB_CalcDiffuseColor(unsigned char *colors);
+void RB_DeformTessGeometry(void);
 
 #endif // TR_SHADE_CALC_HPP

@@ -36,18 +36,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // when there are multiple images of different formats available
 static const imageExtToLoaderMap_t imageLoaders[] =
 	{
-		{"png", R_LoadPNG_plus},
-		{"tga", R_LoadTGA_plus},
-		{"jpg", R_LoadJPG_plus},
-		{"jpeg", R_LoadJPG_plus},
-		{"pcx", R_LoadPCX_plus},
-		{"bmp", R_LoadBMP_plus}};
+		{"png", R_LoadPNG},
+		{"tga", R_LoadTGA},
+		{"jpg", R_LoadJPG},
+		{"jpeg", R_LoadJPG},
+		{"pcx", R_LoadPCX},
+		{"bmp", R_LoadBMP}};
 
 static byte s_intensitytable[256];
 static unsigned char s_gammatable[256];
 static unsigned char s_gammatable_linear[256];
 
-#define FILE_HASH_SIZE 1024
+constexpr int FILE_HASH_SIZE = 1024;
 static image_t *hashTable[FILE_HASH_SIZE];
 
 static const int numImageLoaders = ARRAY_LEN(imageLoaders);
@@ -77,7 +77,7 @@ constexpr size_t ARRAY_LEN2(const std::array<T, N> &)
 	return N;
 }
 
-skin_t *R_GetSkinByHandle_plus(qhandle_t hSkin)
+skin_t *R_GetSkinByHandle(qhandle_t hSkin)
 {
 	if (hSkin < 1 || hSkin >= tr.numSkins)
 	{
@@ -86,7 +86,7 @@ skin_t *R_GetSkinByHandle_plus(qhandle_t hSkin)
 	return tr.skins[hSkin];
 }
 
-int R_SumOfUsedImages_plus()
+int R_SumOfUsedImages()
 {
 	const image_t *img;
 	int i, total = 0;
@@ -103,7 +103,7 @@ int R_SumOfUsedImages_plus()
 	return total;
 }
 
-void R_InitFogTable_plus()
+void R_InitFogTable()
 {
 	constexpr float Exponent = 0.5f;
 
@@ -129,7 +129,7 @@ constexpr float T_Max = 31.0f / 32;
 constexpr float Interpolation_Factor = 30.0f / 32;
 constexpr float Interpolation_Scale = 8.0f;
 
-float R_FogFactor_plus(float s, float t)
+float R_FogFactor(float s, float t)
 {
 	// Adjust s and t
 	s -= S_Adjustment;
@@ -147,7 +147,7 @@ float R_FogFactor_plus(float s, float t)
 	return tr.fogTable[index];
 }
 
-void R_SkinList_f_plus()
+void R_SkinList_f()
 {
 	ri.Printf(PRINT_ALL, "------------------\n");
 
@@ -170,7 +170,7 @@ void R_SkinList_f_plus()
 	ri.Printf(PRINT_ALL, "------------------\n");
 }
 
-void R_GammaCorrect_plus(byte *buffer, int bufSize)
+void R_GammaCorrect(byte *buffer, int bufSize)
 {
 	int i;
 	if (vk.capture.image != VK_NULL_HANDLE)
@@ -183,7 +183,7 @@ void R_GammaCorrect_plus(byte *buffer, int bufSize)
 	}
 }
 
-void R_SetColorMappings_plus()
+void R_SetColorMappings()
 {
 	int i, j;
 	float g;
@@ -354,7 +354,7 @@ static void R_LightScaleTexture(byte *in, int inwidth, int inheight, bool only_g
 	}
 }
 
-void TextureMode_plus(const char *string)
+void TextureMode(const char *string)
 {
 	const textureMode_t *mode;
 	image_t *img;
@@ -363,7 +363,7 @@ void TextureMode_plus(const char *string)
 	mode = NULL;
 	for (i = 0; i < modes.size(); i++)
 	{
-		if (!Q_stricmp_plus(modes[i].name, string))
+		if (!Q_stricmp(modes[i].name, string))
 		{
 			mode = &modes[i];
 			break;
@@ -379,18 +379,18 @@ void TextureMode_plus(const char *string)
 	gl_filter_min = mode->minimize;
 	gl_filter_max = mode->maximize;
 
-	vk_wait_idle_plus();
+	vk_wait_idle();
 	for (i = 0; i < tr.numImages; i++)
 	{
 		img = tr.images[i];
 		if (img->flags & IMGFLAG_MIPMAP)
 		{
-			vk_update_descriptor_set_plus(img, true);
+			vk_update_descriptor_set(img, true);
 		}
 	}
 }
 
-void R_ImageList_f_plus(void)
+void R_ImageList_f(void)
 {
 	const image_t *image;
 	int i, estTotalSize = 0;
@@ -457,7 +457,7 @@ void R_ImageList_f_plus(void)
 			sizeSuffix = "Gb";
 		}
 
-		if (Q_stricmp_plus(image->imgName, image->imgName2) == 0)
+		if (Q_stricmp(image->imgName, image->imgName2) == 0)
 		{
 			name = image->imgName;
 		}
@@ -798,7 +798,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 			int i, n = width * height;
 			for (i = 0; i < n; i++, p += 4)
 			{
-				R_ColorShiftLightingBytes_plus(p, p, false);
+				R_ColorShiftLightingBytes(p, p, false);
 			}
 		}
 	}
@@ -941,8 +941,8 @@ static void upload_vk_image(image_t *image, byte *pic)
 	image->uploadWidth = w;
 	image->uploadHeight = h;
 
-	vk_create_image_plus(image, w, h, upload_data.mip_levels);
-	vk_upload_image_data_plus(image, 0, 0, w, h, upload_data.mip_levels, upload_data.buffer, upload_data.buffer_size, false);
+	vk_create_image(image, w, h, upload_data.mip_levels);
+	vk_upload_image_data(image, 0, 0, w, h, upload_data.mip_levels, upload_data.buffer, upload_data.buffer_size, false);
 
 	ri.Hunk_FreeTempMemory(upload_data.buffer);
 }
@@ -955,7 +955,7 @@ This is the only way any image_t are created
 Picture data may be modified in-place during mipmap processing
 ================
 */
-image_t *R_CreateImage_plus(const char *name, const char *name2, byte *pic, int width, int height, imgFlags_t flags)
+image_t *R_CreateImage(const char *name, const char *name2, byte *pic, int width, int height, imgFlags_t flags)
 {
 	image_t *image;
 	long hash;
@@ -1053,7 +1053,7 @@ static const char *R_LoadImage(const char *name, byte **pic, int *width, int *he
 		// Look for the correct loader and use it
 		for (i = 0; i < numImageLoaders; i++)
 		{
-			if (!Q_stricmp_plus(ext, imageLoaders[i].ext))
+			if (!Q_stricmp(ext, imageLoaders[i].ext))
 			{
 				// Load
 				imageLoaders[i].ImageLoader(localName, pic, width, height);
@@ -1117,7 +1117,7 @@ Finds or loads the given image.
 Returns NULL if it fails, not a default image.
 ==============
 */
-image_t *R_FindImageFile_plus(const char *name, imgFlags_t flags)
+image_t *R_FindImageFile(const char *name, imgFlags_t flags)
 {
 	image_t *image;
 	const char *localName;
@@ -1138,7 +1138,7 @@ image_t *R_FindImageFile_plus(const char *name, imgFlags_t flags)
 	//
 	for (image = hashTable[hash]; image; image = image->next)
 	{
-		if (!Q_stricmp_plus(name, image->imgName))
+		if (!Q_stricmp(name, image->imgName))
 		{
 			// the white image can be used with any set of parms, but other mismatches are errors
 			if (strcmp(name, "*white"))
@@ -1158,7 +1158,7 @@ image_t *R_FindImageFile_plus(const char *name, imgFlags_t flags)
 		COM_StripExtension(name, strippedName, sizeof(strippedName));
 		for (image = hashTable[hash]; image; image = image->next)
 		{
-			if (!Q_stricmp_plus(strippedName, image->imgName))
+			if (!Q_stricmp(strippedName, image->imgName))
 			{
 				// if ( strcmp( strippedName, "*white" ) ) {
 				if (image->flags != flags)
@@ -1203,7 +1203,7 @@ image_t *R_FindImageFile_plus(const char *name, imgFlags_t flags)
 		}
 	}
 
-	image = R_CreateImage_plus(name, localName, pic, width, height, flags);
+	image = R_CreateImage(name, localName, pic, width, height, flags);
 	ri.Free(pic);
 	return image;
 }
@@ -1221,7 +1221,7 @@ static void R_CreateFogImage(void)
 	{
 		for (y = 0; y < FOG_T; y++)
 		{
-			d = R_FogFactor_plus((x + 0.5f) / FOG_S, (y + 0.5f) / FOG_T);
+			d = R_FogFactor((x + 0.5f) / FOG_S, (y + 0.5f) / FOG_T);
 
 			data[(y * FOG_S + x) * 4 + 0] =
 				data[(y * FOG_S + x) * 4 + 1] =
@@ -1229,7 +1229,7 @@ static void R_CreateFogImage(void)
 			data[(y * FOG_S + x) * 4 + 3] = 255 * d;
 		}
 	}
-	tr.fogImage = R_CreateImage_plus("*fog", NULL, data, FOG_S, FOG_T, IMGFLAG_CLAMPTOEDGE);
+	tr.fogImage = R_CreateImage("*fog", NULL, data, FOG_S, FOG_T, IMGFLAG_CLAMPTOEDGE);
 	ri.Hunk_FreeTempMemory(data);
 }
 
@@ -1263,7 +1263,7 @@ static void R_CreateDlightImage(void)
 			data[y][x][3] = 255;
 		}
 	}
-	tr.dlightImage = R_CreateImage_plus("*dlight", NULL, (byte *)data, DLIGHT_SIZE, DLIGHT_SIZE, IMGFLAG_CLAMPTOEDGE);
+	tr.dlightImage = R_CreateImage("*dlight", NULL, (byte *)data, DLIGHT_SIZE, DLIGHT_SIZE, IMGFLAG_CLAMPTOEDGE);
 }
 
 static int Hex(char c)
@@ -1293,7 +1293,7 @@ Create solid color texture from following input formats (hex):
 #rrggbb
 ==================
 */
-#define DEFAULT_SIZE 16
+constexpr int DEFAULT_SIZE = 16;
 static bool R_BuildDefaultImage(const char *format)
 {
 	byte data[DEFAULT_SIZE][DEFAULT_SIZE][4];
@@ -1350,7 +1350,7 @@ static bool R_BuildDefaultImage(const char *format)
 		}
 	}
 
-	tr.defaultImage = R_CreateImage_plus("*default", NULL, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, IMGFLAG_MIPMAP);
+	tr.defaultImage = R_CreateImage("*default", NULL, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, IMGFLAG_MIPMAP);
 
 	return true;
 }
@@ -1366,7 +1366,7 @@ static void R_CreateDefaultImage(void)
 		if (R_BuildDefaultImage(r_defaultImage->string))
 			return;
 		// load from external file
-		tr.defaultImage = R_FindImageFile_plus(r_defaultImage->string, static_cast<imgFlags_t>(IMGFLAG_MIPMAP | IMGFLAG_PICMIP));
+		tr.defaultImage = R_FindImageFile(r_defaultImage->string, static_cast<imgFlags_t>(IMGFLAG_MIPMAP | IMGFLAG_PICMIP));
 		if (tr.defaultImage)
 			return;
 	}
@@ -1396,7 +1396,7 @@ static void R_CreateDefaultImage(void)
 					data[x][DEFAULT_SIZE - 1][3] = 255;
 	}
 
-	tr.defaultImage = R_CreateImage_plus("*default", NULL, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, IMGFLAG_MIPMAP);
+	tr.defaultImage = R_CreateImage("*default", NULL, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, IMGFLAG_MIPMAP);
 }
 
 static void R_CreateBuiltinImages(void)
@@ -1407,11 +1407,11 @@ static void R_CreateBuiltinImages(void)
 	R_CreateDefaultImage();
 
 	Com_Memset(data, 0, sizeof(data));
-	tr.blackImage = R_CreateImage_plus("*black", NULL, (byte *)data, 8, 8, IMGFLAG_NONE);
+	tr.blackImage = R_CreateImage("*black", NULL, (byte *)data, 8, 8, IMGFLAG_NONE);
 
 	// we use a solid white image instead of disabling texturing
 	Com_Memset(data, 255, sizeof(data));
-	tr.whiteImage = R_CreateImage_plus("*white", NULL, (byte *)data, 8, 8, IMGFLAG_NONE);
+	tr.whiteImage = R_CreateImage("*white", NULL, (byte *)data, 8, 8, IMGFLAG_NONE);
 
 	// with overbright bits active, we need an image which is some fraction of full color,
 	// for default lightmaps, etc
@@ -1426,11 +1426,11 @@ static void R_CreateBuiltinImages(void)
 		}
 	}
 
-	tr.identityLightImage = R_CreateImage_plus("*identityLight", NULL, (byte *)data, 8, 8, IMGFLAG_NONE);
+	tr.identityLightImage = R_CreateImage("*identityLight", NULL, (byte *)data, 8, 8, IMGFLAG_NONE);
 
 	// for ( x = 0; x < ARRAY_LEN2( tr.scratchImage ); x++ ) {
 	//  scratchimage is usually used for cinematic drawing
-	// tr.scratchImage[x] = R_CreateImage_plus( "*scratch", (byte*)data, DEFAULT_SIZE, DEFAULT_SIZE,
+	// tr.scratchImage[x] = R_CreateImage( "*scratch", (byte*)data, DEFAULT_SIZE, DEFAULT_SIZE,
 	//	IMGFLAG_PICMIP | IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB );
 	//}
 
@@ -1438,7 +1438,7 @@ static void R_CreateBuiltinImages(void)
 	R_CreateFogImage();
 }
 
-void R_InitImages_plus(void)
+void R_InitImages(void)
 {
 	// initialize linear gamma table before setting color mappings for the first time
 	int i;
@@ -1450,26 +1450,26 @@ void R_InitImages_plus(void)
 	std::fill(std::begin(hashTable), std::end(hashTable), nullptr);
 
 	// build brightness translation tables
-	R_SetColorMappings_plus();
+	R_SetColorMappings();
 
 	// create default texture and white texture
 	R_CreateBuiltinImages();
 
-	vk_update_post_process_pipelines_plus();
+	vk_update_post_process_pipelines();
 }
 
-void R_DeleteTextures_plus(void)
+void R_DeleteTextures(void)
 {
 
 	image_t *img;
 	int i;
 
-	vk_wait_idle_plus();
+	vk_wait_idle();
 
 	for (i = 0; i < tr.numImages; i++)
 	{
 		img = tr.images[i];
-		vk_destroy_image_resources_plus(&img->handle, &img->view);
+		vk_destroy_image_resources(&img->handle, &img->view);
 
 		// img->descriptor will be released with pool reset
 	}
@@ -1596,7 +1596,7 @@ static char *CommaParse(const char **data_p)
 	return com_token;
 }
 
-qhandle_t RE_RegisterSkin_plus(const char *name)
+qhandle_t RE_RegisterSkin(const char *name)
 {
 	skinSurface_t parseSurfaces[MAX_SKIN_SURFACES];
 	qhandle_t hSkin;
@@ -1628,7 +1628,7 @@ qhandle_t RE_RegisterSkin_plus(const char *name)
 	for (hSkin = 1; hSkin < tr.numSkins; hSkin++)
 	{
 		skin = tr.skins[hSkin];
-		if (!Q_stricmp_plus(skin->name, name))
+		if (!Q_stricmp(skin->name, name))
 		{
 			if (skin->numSurfaces == 0)
 			{
@@ -1655,7 +1655,7 @@ qhandle_t RE_RegisterSkin_plus(const char *name)
 	{
 		skin->numSurfaces = 1;
 		skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
-		skin->surfaces[0].shader = R_FindShader_plus(name, LIGHTMAP_NONE, true);
+		skin->surfaces[0].shader = R_FindShader(name, LIGHTMAP_NONE, true);
 		return hSkin;
 	}
 
@@ -1698,7 +1698,7 @@ qhandle_t RE_RegisterSkin_plus(const char *name)
 		{
 			surf = &parseSurfaces[skin->numSurfaces];
 			Q_strncpyz(surf->name, surfName, sizeof(surf->name));
-			surf->shader = R_FindShader_plus(token, LIGHTMAP_NONE, true);
+			surf->shader = R_FindShader(token, LIGHTMAP_NONE, true);
 			skin->numSurfaces++;
 		}
 
@@ -1726,7 +1726,7 @@ qhandle_t RE_RegisterSkin_plus(const char *name)
 	return hSkin;
 }
 
-void R_InitSkins_plus(void)
+void R_InitSkins(void)
 {
 	skin_t *skin;
 

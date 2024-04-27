@@ -6,12 +6,10 @@ extern "C"
 {
 #endif
 
-#include "q_shared.hpp"
 #include "tr_public.hpp"
 #include "q_platform.hpp"
-#include "puff.hpp"
 
-    void R_LoadPNG_plus(const char *name, byte **pic, int *width, int *height);
+    void R_LoadPNG(const char *name, byte **pic, int *width, int *height);
 
 #ifdef __cplusplus
 }

@@ -101,7 +101,7 @@ static int R_CullModel(md3Header_t *header, const trRefEntity_t *ent, vec3_t bou
 	{
 		if (ent->e.frame == ent->e.oldframe)
 		{
-			switch (R_CullLocalPointAndRadius_plus(newFrame->localOrigin, newFrame->radius))
+			switch (R_CullLocalPointAndRadius(newFrame->localOrigin, newFrame->radius))
 			{
 			case CULL_OUT:
 				tr.pc.c_sphere_cull_md3_out++;
@@ -120,14 +120,14 @@ static int R_CullModel(md3Header_t *header, const trRefEntity_t *ent, vec3_t bou
 		{
 			int sphereCull, sphereCullB;
 
-			sphereCull = R_CullLocalPointAndRadius_plus(newFrame->localOrigin, newFrame->radius);
+			sphereCull = R_CullLocalPointAndRadius(newFrame->localOrigin, newFrame->radius);
 			if (newFrame == oldFrame)
 			{
 				sphereCullB = sphereCull;
 			}
 			else
 			{
-				sphereCullB = R_CullLocalPointAndRadius_plus(oldFrame->localOrigin, oldFrame->radius);
+				sphereCullB = R_CullLocalPointAndRadius(oldFrame->localOrigin, oldFrame->radius);
 			}
 
 			if (sphereCull == sphereCullB)
@@ -150,7 +150,7 @@ static int R_CullModel(md3Header_t *header, const trRefEntity_t *ent, vec3_t bou
 		}
 	}
 
-	switch (R_CullLocalBox_plus(bounds))
+	switch (R_CullLocalBox(bounds))
 	{
 	case CULL_IN:
 		tr.pc.c_box_cull_md3_in++;
@@ -165,7 +165,7 @@ static int R_CullModel(md3Header_t *header, const trRefEntity_t *ent, vec3_t bou
 	}
 }
 
-int R_ComputeLOD_plus(trRefEntity_t *ent)
+int R_ComputeLOD(trRefEntity_t *ent)
 {
 	float radius;
 	float flod, lodscale;
@@ -193,7 +193,7 @@ int R_ComputeLOD_plus(trRefEntity_t *ent)
 
 			mdrframe = (mdrFrame_t *)((byte *)mdr + mdr->ofsFrames + frameSize * ent->e.frame);
 
-			radius = RadiusFromBounds_plus(mdrframe->bounds[0], mdrframe->bounds[1]);
+			radius = RadiusFromBounds(mdrframe->bounds[0], mdrframe->bounds[1]);
 		}
 		else
 		{
@@ -201,7 +201,7 @@ int R_ComputeLOD_plus(trRefEntity_t *ent)
 
 			frame += ent->e.frame;
 
-			radius = RadiusFromBounds_plus(frame->bounds[0], frame->bounds[1]);
+			radius = RadiusFromBounds(frame->bounds[0], frame->bounds[1]);
 		}
 
 		if ((projectedRadius = ProjectRadius(radius, ent->e.origin)) != 0)
@@ -283,7 +283,7 @@ static int R_ComputeFogNum(md3Header_t *header, const trRefEntity_t *ent)
 	return 0;
 }
 
-void R_AddMD3Surfaces_plus(trRefEntity_t *ent)
+void R_AddMD3Surfaces(trRefEntity_t *ent)
 {
 	vec3_t bounds[2];
 	int i;
@@ -329,7 +329,7 @@ void R_AddMD3Surfaces_plus(trRefEntity_t *ent)
 	//
 	// compute LOD
 	//
-	lod = R_ComputeLOD_plus(ent);
+	lod = R_ComputeLOD(ent);
 
 	header = tr.currentModel->md3[lod];
 
@@ -348,18 +348,18 @@ void R_AddMD3Surfaces_plus(trRefEntity_t *ent)
 	//
 	if (!personalModel || r_shadows->integer > 1)
 	{
-		R_SetupEntityLighting_plus(&tr.refdef, ent);
+		R_SetupEntityLighting(&tr.refdef, ent);
 	}
 
 #ifdef USE_PMLIGHT
 	numDlights = 0;
 	if (r_dlightMode->integer >= 2 && (!personalModel || tr.viewParms.portalView != PV_NONE))
 	{
-		R_TransformDlights_plus(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.ort);
+		R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.ort);
 		for (n = 0; n < tr.viewParms.num_dlights; n++)
 		{
 			dl = &tr.viewParms.dlights[n];
-			if (!R_LightCullBounds_plus(dl, bounds[0], bounds[1]))
+			if (!R_LightCullBounds(dl, bounds[0], bounds[1]))
 				dlights[numDlights++] = dl;
 		}
 	}
@@ -379,14 +379,14 @@ void R_AddMD3Surfaces_plus(trRefEntity_t *ent)
 
 		if (ent->e.customShader)
 		{
-			shader = R_GetShaderByHandle_plus(ent->e.customShader);
+			shader = R_GetShaderByHandle(ent->e.customShader);
 		}
 		else if (ent->e.customSkin > 0 && ent->e.customSkin < tr.numSkins)
 		{
 			const skin_t *skin;
 			int j;
 
-			skin = R_GetSkinByHandle_plus(ent->e.customSkin);
+			skin = R_GetSkinByHandle(ent->e.customSkin);
 
 			// match the surface name to something in the skin file
 			shader = tr.defaultShader;
@@ -424,19 +424,19 @@ void R_AddMD3Surfaces_plus(trRefEntity_t *ent)
 		// stencil shadows can't do personal models unless I polyhedron clip
 		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 && !(ent->e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == SS_OPAQUE)
 		{
-			R_AddDrawSurf_plus(reinterpret_cast<surfaceType_t *>(surface), tr.shadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
 		if (r_shadows->integer == 3 && fogNum == 0 && (ent->e.renderfx & RF_SHADOW_PLANE) && shader->sort == SS_OPAQUE)
 		{
-			R_AddDrawSurf_plus(reinterpret_cast<surfaceType_t *>(surface), tr.projectionShadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.projectionShadowShader, 0, 0);
 		}
 
 		// don't add third_person objects if not viewing through a portal
 		if (!personalModel)
 		{
-			R_AddDrawSurf_plus(reinterpret_cast<surfaceType_t *>(surface), shader, fogNum, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), shader, fogNum, 0);
 			tr.needScreenMap |= shader->hasScreenMap;
 		}
 
@@ -447,7 +447,7 @@ void R_AddMD3Surfaces_plus(trRefEntity_t *ent)
 			{
 				dl = dlights[n];
 				tr.light = dl;
-				R_AddLitSurf_plus(reinterpret_cast<surfaceType_t *>(surface), shader, fogNum);
+				R_AddLitSurf(reinterpret_cast<surfaceType_t *>(surface), shader, fogNum);
 			}
 		}
 #endif

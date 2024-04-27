@@ -23,7 +23,7 @@ static int INDEX(int x, int y, int z, int t)
     return VAL(x + VAL(y + VAL(z + VAL(t))));
 }
 
-float GetNoiseValue_plus(int x, int y, int z, int t)
+float GetNoiseValue(int x, int y, int z, int t)
 {
     int index = INDEX(x, y, z, t);
     return s_noise_table[index];
@@ -57,15 +57,15 @@ float NoiseGet4f(float x, float y, float z, double t)
 
     for (int i = 0; i < 2; i++)
     {
-        front[0] = GetNoiseValue_plus(ix, iy, iz, it + i);
-        front[1] = GetNoiseValue_plus(ix + 1, iy, iz, it + i);
-        front[2] = GetNoiseValue_plus(ix, iy + 1, iz, it + i);
-        front[3] = GetNoiseValue_plus(ix + 1, iy + 1, iz, it + i);
+        front[0] = GetNoiseValue(ix, iy, iz, it + i);
+        front[1] = GetNoiseValue(ix + 1, iy, iz, it + i);
+        front[2] = GetNoiseValue(ix, iy + 1, iz, it + i);
+        front[3] = GetNoiseValue(ix + 1, iy + 1, iz, it + i);
 
-        back[0] = GetNoiseValue_plus(ix, iy, iz + 1, it + i);
-        back[1] = GetNoiseValue_plus(ix + 1, iy, iz + 1, it + i);
-        back[2] = GetNoiseValue_plus(ix, iy + 1, iz + 1, it + i);
-        back[3] = GetNoiseValue_plus(ix + 1, iy + 1, iz + 1, it + i);
+        back[0] = GetNoiseValue(ix, iy, iz + 1, it + i);
+        back[1] = GetNoiseValue(ix + 1, iy, iz + 1, it + i);
+        back[2] = GetNoiseValue(ix, iy + 1, iz + 1, it + i);
+        back[3] = GetNoiseValue(ix + 1, iy + 1, iz + 1, it + i);
 
         fvalue = LERP(LERP(front[0], front[1], fx), LERP(front[2], front[3], fx), fy);
         bvalue = LERP(LERP(back[0], back[1], fx), LERP(back[2], back[3], fx), fy);

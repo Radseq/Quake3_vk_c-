@@ -256,7 +256,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define LittleLong
 #define LittleFloat
 #define BigShort(x) ShortSwap(x)
-#define BigLong_plus(x) LongSwap_plus(x)
+#define BigLong(x) LongSwap(x)
 #define BigFloat(x) FloatSwap(&x)
 
 #else

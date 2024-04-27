@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_image_jpg.hpp"
 
-void R_LoadJPG_plus(const char *filename, unsigned char **pic, int *width, int *height)
+void R_LoadJPG(const char *filename, unsigned char **pic, int *width, int *height)
 {
     ri.CL_LoadJPG(filename, pic, width, height);
 }

@@ -8,20 +8,20 @@ extern "C"
 
 #include "tr_local.hpp"
 
-	void *R_GetCommandBuffer_plus(int bytes);
-	void R_AddDrawSurfCmd_plus(drawSurf_t *drawSurfs, int numDrawSurfs);
-	void RE_SetColor_plus(const float *rgba);
-	void RE_StretchPic_plus(float x, float y, float w, float h,
+	void *R_GetCommandBuffer(int bytes);
+	void R_AddDrawSurfCmd(drawSurf_t *drawSurfs, int numDrawSurfs);
+	void RE_SetColor(const float *rgba);
+	void RE_StretchPic(float x, float y, float w, float h,
 							float s1, float t1, float s2, float t2, qhandle_t hShader);
-	void RE_BeginFrame_plus(stereoFrame_t stereoFrame);
-	void RE_TakeVideoFrame_plus(int width, int height,
+	void RE_BeginFrame(stereoFrame_t stereoFrame);
+	void RE_TakeVideoFrame(int width, int height,
 								byte *captureBuffer, byte *encodeBuffer, bool motionJpeg);
-	void RE_ThrottleBackend_plus();
-	void RE_FinishBloom_plus();
-	bool RE_CanMinimize_plus();
-	const glconfig_t *RE_GetConfig_plus();
-	void RE_VertexLighting_plus(bool allowed);
-	void RE_EndFrame_plus(int *frontEndMsec, int *backEndMsec);
+	void RE_ThrottleBackend();
+	void RE_FinishBloom();
+	bool RE_CanMinimize();
+	const glconfig_t *RE_GetConfig();
+	void RE_VertexLighting(bool allowed);
+	void RE_EndFrame(int *frontEndMsec, int *backEndMsec);
 
 #ifdef __cplusplus
 }

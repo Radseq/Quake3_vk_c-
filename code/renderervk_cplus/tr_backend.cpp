@@ -38,7 +38,7 @@ backEndState_t backEnd;
 /*
 ** GL_Bind
 */
-void Bind_plus(image_t *image)
+void Bind(image_t *image)
 {
 	if (!image)
 	{
@@ -53,7 +53,7 @@ void Bind_plus(image_t *image)
 
 	// if ( glState.currenttextures[glState.currenttmu] != texnum ) {
 	image->frameUsed = tr.frameCount;
-	vk_update_descriptor_plus(glState.currenttmu + VK_DESC_TEXTURE_BASE, image->descriptor);
+	vk_update_descriptor(glState.currenttmu + VK_DESC_TEXTURE_BASE, image->descriptor);
 
 	//}
 }
@@ -61,7 +61,7 @@ void Bind_plus(image_t *image)
 /*
 ** GL_SelectTexture
 */
-void SelectTexture_plus(int unit)
+void SelectTexture(int unit)
 {
 	if (unit >= glConfig.numTextureUnits)
 	{
@@ -74,7 +74,7 @@ void SelectTexture_plus(int unit)
 /*
 ** GL_Cull
 */
-void GL_Cull_plus(cullType_t cullType)
+void GL_Cull(cullType_t cullType)
 {
 	if (glState.faceCulling == cullType)
 	{
@@ -104,12 +104,12 @@ static void RB_Hyperspace(void)
 
 	if (tess.shader != tr.whiteShader)
 	{
-		RB_EndSurface_plus();
-		RB_BeginSurface_plus(tr.whiteShader, 0);
+		RB_EndSurface();
+		RB_BeginSurface(tr.whiteShader, 0);
 	}
 
 #ifdef USE_VBO
-	VBO_UnBind_plus();
+	VBO_UnBind();
 #endif
 
 	RB_SetGL2D();
@@ -117,10 +117,10 @@ static void RB_Hyperspace(void)
 	c.rgba[0] = c.rgba[1] = c.rgba[2] = (backEnd.refdef.time & 255);
 	c.rgba[3] = 255;
 
-	RB_AddQuadStamp2_plus(backEnd.refdef.x, backEnd.refdef.y, backEnd.refdef.width, backEnd.refdef.height,
+	RB_AddQuadStamp2(backEnd.refdef.x, backEnd.refdef.y, backEnd.refdef.width, backEnd.refdef.height,
 					 0.0, 0.0, 0.0, 0.0, c);
 
-	RB_EndSurface_plus();
+	RB_EndSurface();
 
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
@@ -131,7 +131,7 @@ static void RB_Hyperspace(void)
 static void SetViewportAndScissor(void)
 {
 	// Com_Memcpy( vk_world.modelview_transform, backEnd.ort.modelMatrix, 64 );
-	// vk_update_mvp_plus();
+	// vk_update_mvp();
 	//  force depth range and viewport/scissor updates
 	vk.cmd->depth_range = DEPTH_RANGE_COUNT;
 }
@@ -155,7 +155,7 @@ static void RB_BeginDrawingView(void)
 	//
 	SetViewportAndScissor();
 
-	vk_clear_depth_plus(true);
+	vk_clear_depth(true);
 
 	if (backEnd.refdef.rdflags & RDF_HYPERSPACE)
 	{
@@ -222,7 +222,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 			continue;
 		}
 
-		R_DecomposeSort_plus(drawSurf->sort, &entityNum, &shader, &fogNum, &dlighted);
+		R_DecomposeSort(drawSurf->sort, &entityNum, &shader, &fogNum, &dlighted);
 		if (vk.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
 		{
 			continue;
@@ -235,7 +235,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 		{
 			if (oldShader != NULL)
 			{
-				RB_EndSurface_plus();
+				RB_EndSurface();
 			}
 #ifdef USE_PMLIGHT
 #define INSERT_POINT SS_FOG
@@ -247,7 +247,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 			}
 			oldShaderSort = shader->sort;
 #endif
-			RB_BeginSurface_plus(shader, fogNum);
+			RB_BeginSurface(shader, fogNum);
 			oldShader = shader;
 		}
 
@@ -269,7 +269,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
 				// set up the transformation matrix
-				R_RotateForEntity_plus(backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
+				R_RotateForEntity(backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
 				// set up the dynamic lighting if needed
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
@@ -277,7 +277,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 #endif
 					if (backEnd.currentEntity->needDlights)
 					{
-						R_TransformDlights_plus(backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.ort);
+						R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.ort);
 					}
 #endif // USE_LEGACY_DLIGHTS
 				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
@@ -298,7 +298,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 #ifdef USE_PMLIGHT
 				if (!r_dlightMode->integer)
 #endif
-					R_TransformDlights_plus(backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.ort);
+					R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.ort);
 #endif // USE_LEGACY_DLIGHTS
 			}
 
@@ -308,7 +308,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 
 			Com_Memcpy(vk_world.modelview_transform, backEnd.ort.modelMatrix, 64);
 			tess.depthRange = depthRange ? DEPTH_RANGE_WEAPON : DEPTH_RANGE_NORMAL;
-			vk_update_mvp_plus(NULL);
+			vk_update_mvp(NULL);
 
 			//
 			// change depthrange. Also change projection matrix so first person weapon does not look like coming
@@ -325,7 +325,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 	// draw the contents of the last shader batch
 	if (oldShader != NULL)
 	{
-		RB_EndSurface_plus();
+		RB_EndSurface();
 	}
 
 	backEnd.refdef.floatTime = originalTime;
@@ -333,7 +333,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 	// go back to the world modelview matrix
 	Com_Memcpy(vk_world.modelview_transform, backEnd.viewParms.world.modelMatrix, 64);
 	tess.depthRange = DEPTH_RANGE_NORMAL;
-	// vk_update_mvp_plus();
+	// vk_update_mvp();
 }
 
 #ifdef USE_PMLIGHT
@@ -396,7 +396,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 			continue;
 		}
 
-		R_DecomposeLitSort_plus(litSurf->sort, &entityNum, &shader, &fogNum);
+		R_DecomposeLitSort(litSurf->sort, &entityNum, &shader, &fogNum);
 
 		if (vk.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
 		{
@@ -417,9 +417,9 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 		{
 			if (oldShader != NULL)
 			{
-				RB_EndSurface_plus();
+				RB_EndSurface();
 			}
-			RB_BeginSurface_plus(shader, fogNum);
+			RB_BeginSurface(shader, fogNum);
 			oldShader = shader;
 		}
 
@@ -442,7 +442,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
 				// set up the transformation matrix
-				R_RotateForEntity_plus(backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
+				R_RotateForEntity(backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
 
 				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
 				{
@@ -465,12 +465,12 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 			tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
 
 			// set up the dynamic lighting
-			R_TransformDlights_plus(1, dl, &backEnd.ort);
+			R_TransformDlights(1, dl, &backEnd.ort);
 			tess.dlightUpdateParams = true;
 
 			tess.depthRange = depthRange ? DEPTH_RANGE_WEAPON : DEPTH_RANGE_NORMAL;
 			Com_Memcpy(vk_world.modelview_transform, backEnd.ort.modelMatrix, 64);
-			vk_update_mvp_plus(NULL);
+			vk_update_mvp(NULL);
 
 			oldEntityNum = entityNum;
 		}
@@ -482,7 +482,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 	// draw the contents of the last shader batch
 	if (oldShader != NULL)
 	{
-		RB_EndSurface_plus();
+		RB_EndSurface();
 	}
 
 	backEnd.refdef.floatTime = originalTime;
@@ -490,7 +490,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 	// go back to the world modelview matrix
 	Com_Memcpy(vk_world.modelview_transform, backEnd.viewParms.world.modelMatrix, 64);
 	tess.depthRange = DEPTH_RANGE_NORMAL;
-	// vk_update_mvp_plus();
+	// vk_update_mvp();
 }
 #endif // USE_PMLIGHT
 
@@ -511,7 +511,7 @@ static void RB_SetGL2D(void)
 {
 	backEnd.projection2D = true;
 
-	vk_update_mvp_plus(NULL);
+	vk_update_mvp(NULL);
 
 	// force depth range and viewport/scissor updates
 	vk.cmd->depth_range = DEPTH_RANGE_COUNT;
@@ -530,7 +530,7 @@ Stretches a raw 32 bit power of 2 bitmap image over the given screen rectangle.
 Used for cinematics.
 =============
 */
-void RE_StretchRaw_plus(int x, int y, int w, int h, int cols, int rows, byte *data, int client, bool dirty)
+void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data, int client, bool dirty)
 {
 	int i, j;
 	int start, end;
@@ -559,7 +559,7 @@ void RE_StretchRaw_plus(int x, int y, int w, int h, int cols, int rows, byte *da
 		ri.Error(ERR_DROP, "%s(): size not a power of 2: %i by %i", __func__, cols, rows);
 	}
 
-	RE_UploadCinematic_plus(w, h, cols, rows, data, client, dirty);
+	RE_UploadCinematic(w, h, cols, rows, data, client, dirty);
 
 	if (r_speeds->integer)
 	{
@@ -568,36 +568,36 @@ void RE_StretchRaw_plus(int x, int y, int w, int h, int cols, int rows, byte *da
 	}
 
 	tr.cinematicShader->stages[0]->bundle[0].image[0] = tr.scratchImage[client];
-	RE_StretchPic_plus(x, y, w, h, 0.5f / cols, 0.5f / rows, 1.0f - 0.5f / cols, 1.0f - 0.5 / rows, tr.cinematicShader->index);
+	RE_StretchPic(x, y, w, h, 0.5f / cols, 0.5f / rows, 1.0f - 0.5f / cols, 1.0f - 0.5 / rows, tr.cinematicShader->index);
 }
 
-void RE_UploadCinematic_plus(int w, int h, int cols, int rows, byte *data, int client, bool dirty)
+void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client, bool dirty)
 {
 
 	image_t *image;
 
 	if (!tr.scratchImage[client])
 	{
-		tr.scratchImage[client] = R_CreateImage_plus(va("*scratch%i", client), NULL, data, cols, rows, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
+		tr.scratchImage[client] = R_CreateImage(va("*scratch%i", client), NULL, data, cols, rows, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
 	}
 
 	image = tr.scratchImage[client];
 
-	Bind_plus(image);
+	Bind(image);
 
 	// if the scratchImage isn't in the format we want, specify it as a new texture
 	if (cols != image->width || rows != image->height)
 	{
 		image->width = image->uploadWidth = cols;
 		image->height = image->uploadHeight = rows;
-		vk_create_image_plus(image, cols, rows, 1);
-		vk_upload_image_data_plus(image, 0, 0, cols, rows, 1, data, cols * rows * 4, false);
+		vk_create_image(image, cols, rows, 1);
+		vk_upload_image_data(image, 0, 0, cols, rows, 1, data, cols * rows * 4, false);
 	}
 	else if (dirty)
 	{
 		// otherwise, just subimage upload it so that drivers can tell we are going to be changing
 		// it and don't try and do a texture compression
-		vk_upload_image_data_plus(image, 0, 0, cols, rows, 1, data, cols * rows * 4, true);
+		vk_upload_image_data(image, 0, 0, cols, rows, 1, data, cols * rows * 4, true);
 	}
 }
 
@@ -637,14 +637,14 @@ static const void *RB_StretchPic(const void *data)
 	{
 		if (tess.numIndexes)
 		{
-			RB_EndSurface_plus();
+			RB_EndSurface();
 		}
 		backEnd.currentEntity = &backEnd.entity2D;
-		RB_BeginSurface_plus(shader, 0);
+		RB_BeginSurface(shader, 0);
 	}
 
 #ifdef USE_VBO
-	VBO_UnBind_plus();
+	VBO_UnBind();
 #endif
 
 	if (!backEnd.projection2D)
@@ -654,10 +654,10 @@ static const void *RB_StretchPic(const void *data)
 
 	if (r_bloom->integer)
 	{
-		vk_bloom_plus();
+		vk_bloom();
 	}
 
-	RB_AddQuadStamp2_plus(cmd->x, cmd->y, cmd->w, cmd->h, cmd->s1, cmd->t1, cmd->s2, cmd->t2, backEnd.color2D);
+	RB_AddQuadStamp2(cmd->x, cmd->y, cmd->w, cmd->h, cmd->s1, cmd->t1, cmd->s2, cmd->t2, backEnd.color2D);
 
 	return (const void *)(cmd + 1);
 }
@@ -759,10 +759,10 @@ static void RB_DebugPolygon(int color, int numPoints, float *points)
 		tess.numIndexes += 3;
 	}
 
-	vk_bind_index_plus();
-	vk_bind_pipeline_plus(vk.surface_debug_pipeline_solid);
-	vk_bind_geometry_plus(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
-	vk_draw_geometry_plus(DEPTH_RANGE_NORMAL, true);
+	vk_bind_index();
+	vk_bind_pipeline(vk.surface_debug_pipeline_solid);
+	vk_bind_geometry(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
+	vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
 
 	// Outline.
 	Com_Memset(tess.svars.colors[0], tr.identityLightByte, numPoints * 2 * sizeof(color4ub_t));
@@ -775,9 +775,9 @@ static void RB_DebugPolygon(int color, int numPoints, float *points)
 	tess.numVertexes = numPoints * 2;
 	tess.numIndexes = 0;
 
-	vk_bind_pipeline_plus(vk.surface_debug_pipeline_outline);
-	vk_bind_geometry_plus(TESS_XYZ | TESS_RGBA0);
-	vk_draw_geometry_plus(DEPTH_RANGE_ZERO, false);
+	vk_bind_pipeline(vk.surface_debug_pipeline_outline);
+	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
+	vk_draw_geometry(DEPTH_RANGE_ZERO, false);
 	tess.numVertexes = 0;
 }
 
@@ -796,8 +796,8 @@ static void RB_DebugGraphics(void)
 		return;
 	}
 
-	Bind_plus(tr.whiteImage);
-	vk_update_mvp_plus(NULL);
+	Bind(tr.whiteImage);
+	vk_update_mvp(NULL);
 	ri.CM_DrawDebugSurface(RB_DebugPolygon);
 }
 
@@ -811,7 +811,7 @@ static const void *RB_DrawSurfs(const void *data)
 	const drawSurfsCommand_t *cmd;
 
 	// finish any 2D drawing if needed
-	RB_EndSurface_plus();
+	RB_EndSurface();
 
 	cmd = (const drawSurfsCommand_t *)data;
 
@@ -819,7 +819,7 @@ static const void *RB_DrawSurfs(const void *data)
 	backEnd.viewParms = cmd->viewParms;
 
 #ifdef USE_VBO
-	VBO_UnBind_plus();
+	VBO_UnBind();
 #endif
 
 	// clear the z buffer, set the modelview, etc
@@ -828,19 +828,19 @@ static const void *RB_DrawSurfs(const void *data)
 	RB_RenderDrawSurfList(cmd->drawSurfs, cmd->numDrawSurfs);
 
 #ifdef USE_VBO
-	VBO_UnBind_plus();
+	VBO_UnBind();
 #endif
 
 	if (r_drawSun->integer)
 	{
-		RB_DrawSun_plus(0.1f, tr.sunShader);
+		RB_DrawSun(0.1f, tr.sunShader);
 	}
 
 	// darken down any stencil shadows
-	RB_ShadowFinish_plus();
+	RB_ShadowFinish();
 
 	// add light flares on lights that aren't obscured
-	RB_RenderFlares_plus();
+	RB_RenderFlares();
 
 #ifdef USE_PMLIGHT
 	if (backEnd.refdef.numLitSurfs)
@@ -855,8 +855,8 @@ static const void *RB_DrawSurfs(const void *data)
 
 	if (cmd->refdef.switchRenderPass)
 	{
-		vk_end_render_pass_plus();
-		vk_begin_main_render_pass_plus();
+		vk_end_render_pass();
+		vk_begin_main_render_pass();
 		backEnd.screenMapDone = true;
 	}
 
@@ -877,7 +877,7 @@ static const void *RB_DrawBuffer(const void *data)
 
 	cmd = (const drawBufferCommand_t *)data;
 
-	vk_begin_frame_plus();
+	vk_begin_frame();
 
 	tess.depthRange = DEPTH_RANGE_NORMAL;
 
@@ -888,7 +888,7 @@ static const void *RB_DrawBuffer(const void *data)
 	{
 		const vec4_t color = {1, 0, 0.5, 1};
 		backEnd.projection2D = true; // to ensure we have viewport that occupies entire window
-		vk_clear_color_plus(color);
+		vk_clear_color(color);
 		backEnd.projection2D = false;
 	}
 
@@ -905,7 +905,7 @@ was there.  This is used to test for texture thrashing.
 Also called by RE_EndRegistration
 ===============
 */
-void RB_ShowImages_plus(void)
+void RB_ShowImages(void)
 {
 	int i;
 
@@ -914,7 +914,7 @@ void RB_ShowImages_plus(void)
 		RB_SetGL2D();
 	}
 
-	vk_clear_color_plus(colorBlack);
+	vk_clear_color(colorBlack);
 
 	for (i = 0; i < tr.numImages; i++)
 	{
@@ -932,7 +932,7 @@ void RB_ShowImages_plus(void)
 			h *= image->uploadHeight / 512.0f;
 		}
 
-		Bind_plus(image);
+		Bind(image);
 
 		tess.svars.colors[0][0].u32 = ~0U; // 255-255-255-255
 		tess.svars.colors[0][1].u32 = ~0U;
@@ -963,9 +963,9 @@ void RB_ShowImages_plus(void)
 
 		tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
 
-		vk_bind_pipeline_plus(vk.images_debug_pipeline);
-		vk_bind_geometry_plus(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
-		vk_draw_geometry_plus(DEPTH_RANGE_NORMAL, false);
+		vk_bind_pipeline(vk.images_debug_pipeline);
+		vk_bind_geometry(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
+		vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
 	}
 
 	tess.numIndexes = 0;
@@ -994,9 +994,9 @@ static const void *RB_ClearDepth(const void *data)
 {
 	const clearDepthCommand_t *cmd = static_cast<const clearDepthCommand_t *>(data);
 
-	RB_EndSurface_plus();
+	RB_EndSurface();
 
-	vk_clear_depth_plus(r_shadows->integer == 2 ? true : false);
+	vk_clear_depth(r_shadows->integer == 2 ? true : false);
 
 	return (const void *)(cmd + 1);
 }
@@ -1011,7 +1011,7 @@ static const void *RB_ClearColor(const void *data)
 	const clearColorCommand_t *cmd = static_cast<const clearColorCommand_t *>(data);
 
 	backEnd.projection2D = true;
-	vk_clear_color_plus(colorBlack);
+	vk_clear_color(colorBlack);
 	backEnd.projection2D = false;
 
 	return (const void *)(cmd + 1);
@@ -1026,17 +1026,17 @@ static const void *RB_FinishBloom(const void *data)
 {
 	const finishBloomCommand_t *cmd = static_cast<const finishBloomCommand_t *>(data);
 
-	RB_EndSurface_plus();
+	RB_EndSurface();
 
 	if (r_bloom->integer)
 	{
-		vk_bloom_plus();
+		vk_bloom();
 	}
 
 	// texture swapping test
 	if (r_showImages->integer)
 	{
-		RB_ShowImages_plus();
+		RB_ShowImages();
 	}
 
 	backEnd.drawConsole = true;
@@ -1050,19 +1050,19 @@ static const void *RB_SwapBuffers(const void *data)
 	const swapBuffersCommand_t *cmd;
 
 	// finish any 2D drawing if needed
-	RB_EndSurface_plus();
+	RB_EndSurface();
 
 	// texture swapping test
 	if (r_showImages->integer && !backEnd.drawConsole)
 	{
-		RB_ShowImages_plus();
+		RB_ShowImages();
 	}
 
 	cmd = (const swapBuffersCommand_t *)data;
 
 	tr.needScreenMap = 0;
 
-	vk_end_frame_plus();
+	vk_end_frame();
 
 	if (backEnd.screenshotMask && vk.cmd->waitForFence)
 	{
@@ -1101,7 +1101,7 @@ static const void *RB_SwapBuffers(const void *data)
 		backEnd.screenshotMask = 0;
 	}
 
-	vk_present_frame_plus();
+	vk_present_frame();
 
 	backEnd.projection2D = false;
 	backEnd.doneSurfaces = false;
@@ -1116,7 +1116,7 @@ static const void *RB_SwapBuffers(const void *data)
 RB_ExecuteRenderCommands
 ====================
 */
-void RB_ExecuteRenderCommands_plus(const void *data)
+void RB_ExecuteRenderCommands(const void *data)
 {
 
 	backEnd.pc.msec = ri.Milliseconds();
@@ -1159,7 +1159,7 @@ void RB_ExecuteRenderCommands_plus(const void *data)
 			// stop rendering
 			if (vk.frame_count)
 			{
-				vk_end_frame_plus();
+				vk_end_frame();
 			}
 			return;
 		}

@@ -70,18 +70,18 @@ constexpr collapse_t collapse[] = {
 #endif
 	{-1}};
 
-void RE_RemapShader_plus(const char *shaderName, const char *newShaderName, const char *timeOffset)
+void RE_RemapShader(const char *shaderName, const char *newShaderName, const char *timeOffset)
 {
 	char strippedName[MAX_QPATH];
 	int hash;
 	shader_t *sh, *sh2;
 	qhandle_t h;
 
-	sh = R_FindShaderByName_plus(shaderName);
+	sh = R_FindShaderByName(shaderName);
 	if (sh == NULL || sh == tr.defaultShader)
 	{
-		h = RE_RegisterShaderLightMap_plus(shaderName, 0);
-		sh = R_GetShaderByHandle_plus(h);
+		h = RE_RegisterShaderLightMap(shaderName, 0);
+		sh = R_GetShaderByHandle(h);
 	}
 	if (sh == NULL || sh == tr.defaultShader)
 	{
@@ -89,11 +89,11 @@ void RE_RemapShader_plus(const char *shaderName, const char *newShaderName, cons
 		return;
 	}
 
-	sh2 = R_FindShaderByName_plus(newShaderName);
+	sh2 = R_FindShaderByName(newShaderName);
 	if (sh2 == NULL || sh2 == tr.defaultShader)
 	{
-		h = RE_RegisterShaderLightMap_plus(newShaderName, 0);
-		sh2 = R_GetShaderByHandle_plus(h);
+		h = RE_RegisterShaderLightMap(newShaderName, 0);
+		sh2 = R_GetShaderByHandle(h);
 	}
 
 	if (sh2 == NULL || sh2 == tr.defaultShader)
@@ -682,7 +682,7 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 				if (shader.noLightScale)
 					flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
-				stage->bundle[0].image[0] = R_FindImageFile_plus(token, flags);
+				stage->bundle[0].image[0] = R_FindImageFile(token, flags);
 
 				if (!stage->bundle[0].image[0])
 				{
@@ -729,7 +729,7 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 			if (shader.noLightScale)
 				flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
-			stage->bundle[0].image[0] = R_FindImageFile_plus(token, flags);
+			stage->bundle[0].image[0] = R_FindImageFile(token, flags);
 			if (!stage->bundle[0].image[0])
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile_plus could not find '%s' in shader '%s'\n", token, shader.name);
@@ -776,7 +776,7 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 					if (shader.noLightScale)
 						flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
-					stage->bundle[0].image[num] = R_FindImageFile_plus(token, flags);
+					stage->bundle[0].image[num] = R_FindImageFile(token, flags);
 					if (!stage->bundle[0].image[num])
 					{
 						ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile_plus could not find '%s' in shader '%s'\n", token, shader.name);
@@ -807,7 +807,7 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 			{
 				if (!tr.scratchImage[handle])
 				{
-					tr.scratchImage[handle] = R_CreateImage_plus(va("*scratch%i", handle), NULL, NULL, 256, 256, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
+					tr.scratchImage[handle] = R_CreateImage(va("*scratch%i", handle), NULL, NULL, 256, 256, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
 				}
 				stage->bundle[0].isVideoMap = true;
 				stage->bundle[0].videoMapHandle = handle;
@@ -1435,7 +1435,7 @@ static void ParseSkyParms(const char **text)
 		for (i = 0; i < 6; i++)
 		{
 			Com_sprintf(pathname, sizeof(pathname), "%s_%s.tga", token, suf[i]);
-			shader.sky.outerbox[i] = R_FindImageFile_plus(pathname, static_cast<imgFlags_t>(imgFlags | IMGFLAG_CLAMPTOEDGE));
+			shader.sky.outerbox[i] = R_FindImageFile(pathname, static_cast<imgFlags_t>(imgFlags | IMGFLAG_CLAMPTOEDGE));
 
 			if (!shader.sky.outerbox[i])
 			{
@@ -1456,7 +1456,7 @@ static void ParseSkyParms(const char **text)
 	{
 		shader.sky.cloudHeight = 512.0;
 	}
-	R_InitSkyTexCoords_plus(shader.sky.cloudHeight);
+	R_InitSkyTexCoords(shader.sky.cloudHeight);
 
 	// innerbox
 	token = COM_ParseExt(text, false);
@@ -1470,7 +1470,7 @@ static void ParseSkyParms(const char **text)
 		for (i = 0; i < 6; i++)
 		{
 			Com_sprintf(pathname, sizeof(pathname), "%s_%s.tga", token, suf[i]);
-			shader.sky.innerbox[i] = R_FindImageFile_plus(pathname, imgFlags);
+			shader.sky.innerbox[i] = R_FindImageFile(pathname, imgFlags);
 			if (!shader.sky.innerbox[i])
 			{
 				shader.sky.innerbox[i] = tr.defaultImage;
@@ -1862,7 +1862,7 @@ static void FinishStage(shaderStage_t *stage)
 			{
 				texModInfo_t *tmi = &bundle->texMods[bundle->numTexMods];
 				float x, y;
-				const int lightmapIndex = R_GetLightmapCoords_plus(bundle->lightmap - LIGHTMAP_INDEX_OFFSET, &x, &y);
+				const int lightmapIndex = R_GetLightmapCoords(bundle->lightmap - LIGHTMAP_INDEX_OFFSET, &x, &y);
 				bundle->image[0] = tr.lightmaps[lightmapIndex];
 				tmi->type = TMOD_OFFSET;
 				tmi->offset[0] = x - tr.lightmapOffset[0];
@@ -2260,11 +2260,11 @@ static void ComputeStageIteratorFunc(void)
 	//
 	if (shader.isSky)
 	{
-		shader.optimalStageIteratorFunc = RB_StageIteratorSky_plus;
+		shader.optimalStageIteratorFunc = RB_StageIteratorSky;
 	}
 	else
 	{
-		shader.optimalStageIteratorFunc = RB_StageIteratorGeneric_plus;
+		shader.optimalStageIteratorFunc = RB_StageIteratorGeneric;
 	}
 }
 
@@ -2605,7 +2605,7 @@ static void FixRenderCommandList(int newShader)
 
 				for (i = 0, drawSurf = ds_cmd->drawSurfs; i < ds_cmd->numDrawSurfs; i++, drawSurf++)
 				{
-					R_DecomposeSort_plus(drawSurf->sort, &entityNum, &sh, &fogNum, &dlightMap);
+					R_DecomposeSort(drawSurf->sort, &entityNum, &sh, &fogNum, &dlightMap);
 					sortedIndex = ((drawSurf->sort >> QSORT_SHADERNUM_SHIFT) & SHADERNUM_MASK);
 					if (sortedIndex >= newShader)
 					{
@@ -3735,18 +3735,18 @@ static shader_t *FinishShader(void)
 			}
 
 			def.mirror = false;
-			pStage->vk_pipeline[0] = vk_find_pipeline_ext_plus(0, &def, true);
+			pStage->vk_pipeline[0] = vk_find_pipeline_ext(0, &def, true);
 			def.mirror = true;
-			pStage->vk_mirror_pipeline[0] = vk_find_pipeline_ext_plus(0, &def, false);
+			pStage->vk_mirror_pipeline[0] = vk_find_pipeline_ext(0, &def, false);
 
 			if (pStage->depthFragment)
 			{
 				def.mirror = false;
 				def.shader_type = TYPE_SIGNLE_TEXTURE_DF;
-				pStage->vk_pipeline_df = vk_find_pipeline_ext_plus(0, &def, true);
+				pStage->vk_pipeline_df = vk_find_pipeline_ext(0, &def, true);
 				def.mirror = true;
 				def.shader_type = TYPE_SIGNLE_TEXTURE_DF;
-				pStage->vk_mirror_pipeline_df = vk_find_pipeline_ext_plus(0, &def, false);
+				pStage->vk_mirror_pipeline_df = vk_find_pipeline_ext(0, &def, false);
 			}
 
 #ifdef USE_FOG_COLLAPSE
@@ -3755,16 +3755,16 @@ static shader_t *FinishShader(void)
 				Vk_Pipeline_Def def;
 				Vk_Pipeline_Def def_mirror;
 
-				vk_get_pipeline_def_plus(pStage->vk_pipeline[0], &def);
-				vk_get_pipeline_def_plus(pStage->vk_mirror_pipeline[0], &def_mirror);
+				vk_get_pipeline_def(pStage->vk_pipeline[0], &def);
+				vk_get_pipeline_def(pStage->vk_mirror_pipeline[0], &def_mirror);
 
 				def.fog_stage = 1;
 				def_mirror.fog_stage = 1;
 				def.acff = pStage->bundle[0].adjustColorsForFog;
 				def_mirror.acff = pStage->bundle[0].adjustColorsForFog;
 
-				pStage->vk_pipeline[1] = vk_find_pipeline_ext_plus(0, &def, false);
-				pStage->vk_mirror_pipeline[1] = vk_find_pipeline_ext_plus(0, &def_mirror, false);
+				pStage->vk_pipeline[1] = vk_find_pipeline_ext(0, &def, false);
+				pStage->vk_mirror_pipeline[1] = vk_find_pipeline_ext(0, &def_mirror, false);
 
 				pStage->bundle[0].adjustColorsForFog = ACFF_NONE; // will be handled in shader from now
 
@@ -3883,7 +3883,7 @@ Will always return a valid shader, but it might be the
 default shader if the real one can't be found.
 ==================
 */
-shader_t *R_FindShaderByName_plus(const char *name)
+shader_t *R_FindShaderByName(const char *name)
 {
 	char strippedName[MAX_QPATH];
 	int hash;
@@ -4011,7 +4011,7 @@ most world construction surfaces.
 
 ===============
 */
-shader_t *R_FindShader_plus(const char *name, int lightmapIndex, bool mipRawImage)
+shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 {
 	char strippedName[MAX_QPATH];
 	unsigned long hash;
@@ -4105,7 +4105,7 @@ shader_t *R_FindShader_plus(const char *name, int lightmapIndex, bool mipRawImag
 			flags = static_cast<imgFlags_t>(flags | IMGFLAG_CLAMPTOEDGE);
 		}
 
-		image = R_FindImageFile_plus(name, flags);
+		image = R_FindImageFile(name, flags);
 		if (!image)
 		{
 			ri.Printf(PRINT_DEVELOPER, "Couldn't find image file for shader %s\n", name);
@@ -4122,7 +4122,7 @@ shader_t *R_FindShader_plus(const char *name, int lightmapIndex, bool mipRawImag
 	return FinishShader();
 }
 
-qhandle_t RE_RegisterShaderFromImage_plus(const char *name, int lightmapIndex, image_t *image, bool mipRawImage)
+qhandle_t RE_RegisterShaderFromImage(const char *name, int lightmapIndex, image_t *image, bool mipRawImage)
 {
 	unsigned long hash;
 	shader_t *sh;
@@ -4182,7 +4182,7 @@ This should really only be used for explicit shaders, because there is no
 way to ask for different implicit lighting modes (vertex, lightmap, etc)
 ====================
 */
-qhandle_t RE_RegisterShaderLightMap_plus(const char *name, int lightmapIndex)
+qhandle_t RE_RegisterShaderLightMap(const char *name, int lightmapIndex)
 {
 	shader_t *sh;
 
@@ -4192,7 +4192,7 @@ qhandle_t RE_RegisterShaderLightMap_plus(const char *name, int lightmapIndex)
 		return 0;
 	}
 
-	sh = R_FindShader_plus(name, lightmapIndex, true);
+	sh = R_FindShader(name, lightmapIndex, true);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader_plus should
@@ -4218,7 +4218,7 @@ This should really only be used for explicit shaders, because there is no
 way to ask for different implicit lighting modes (vertex, lightmap, etc)
 ====================
 */
-qhandle_t RE_RegisterShader_plus(const char *name)
+qhandle_t RE_RegisterShader(const char *name)
 {
 	shader_t *sh;
 
@@ -4234,7 +4234,7 @@ qhandle_t RE_RegisterShader_plus(const char *name)
 		return 0;
 	}
 
-	sh = R_FindShader_plus(name, LIGHTMAP_2D, true);
+	sh = R_FindShader(name, LIGHTMAP_2D, true);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader_plus should
@@ -4256,7 +4256,7 @@ RE_RegisterShaderNoMip_plus
 For menu graphics that should never be picmiped
 ====================
 */
-qhandle_t RE_RegisterShaderNoMip_plus(const char *name)
+qhandle_t RE_RegisterShaderNoMip(const char *name)
 {
 	shader_t *sh;
 
@@ -4266,7 +4266,7 @@ qhandle_t RE_RegisterShaderNoMip_plus(const char *name)
 		return 0;
 	}
 
-	sh = R_FindShader_plus(name, LIGHTMAP_2D, false);
+	sh = R_FindShader(name, LIGHTMAP_2D, false);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader_plus should
@@ -4289,7 +4289,7 @@ When a handle is passed in by another module, this range checks
 it and returns a valid (possibly default) shader_t to be used internally.
 ====================
 */
-shader_t *R_GetShaderByHandle_plus(qhandle_t hShader)
+shader_t *R_GetShaderByHandle(qhandle_t hShader)
 {
 	if (hShader < 0)
 	{
@@ -4312,7 +4312,7 @@ Dump information on all valid shaders to the console
 A second parameter will cause it to print in sorted order
 ===============
 */
-void R_ShaderList_f_plus(void)
+void R_ShaderList_f(void)
 {
 	int i;
 	int count;
@@ -4359,11 +4359,11 @@ void R_ShaderList_f_plus(void)
 			ri.Printf(PRINT_ALL, "  ");
 		}
 
-		if (sh->optimalStageIteratorFunc == RB_StageIteratorGeneric_plus)
+		if (sh->optimalStageIteratorFunc == RB_StageIteratorGeneric)
 		{
 			ri.Printf(PRINT_ALL, "gen ");
 		}
-		else if (sh->optimalStageIteratorFunc == RB_StageIteratorSky_plus)
+		else if (sh->optimalStageIteratorFunc == RB_StageIteratorSky)
 		{
 			ri.Printf(PRINT_ALL, "sky ");
 		}
@@ -4692,8 +4692,8 @@ CreateExternalShaders
 */
 static void CreateExternalShaders(void)
 {
-	tr.projectionShadowShader = R_FindShader_plus("projectionShadow", LIGHTMAP_NONE, true);
-	tr.flareShader = R_FindShader_plus("flareShader", LIGHTMAP_NONE, true);
+	tr.projectionShadowShader = R_FindShader("projectionShadow", LIGHTMAP_NONE, true);
+	tr.flareShader = R_FindShader("flareShader", LIGHTMAP_NONE, true);
 
 	// Hack to make fogging work correctly on flares. Fog colors are calculated
 	// in tr_flare.c already.
@@ -4708,7 +4708,7 @@ static void CreateExternalShaders(void)
 		}
 	}
 
-	tr.sunShader = R_FindShader_plus("sun", LIGHTMAP_NONE, true);
+	tr.sunShader = R_FindShader("sun", LIGHTMAP_NONE, true);
 }
 
 /*
@@ -4716,7 +4716,7 @@ static void CreateExternalShaders(void)
 R_InitShaders_plus
 ==================
 */
-void R_InitShaders_plus(void)
+void R_InitShaders(void)
 {
 	ri.Printf(PRINT_ALL, "Initializing Shaders\n");
 

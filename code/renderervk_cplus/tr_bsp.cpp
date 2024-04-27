@@ -22,7 +22,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // tr_map.c
 
 #include "tr_bsp.hpp"
-#include "q_shared.hpp"
 #include "tr_image.hpp"
 #include "vk.hpp"
 #include "tr_curve.hpp"
@@ -113,7 +112,7 @@ static void HSVtoRGB(float h, float s, float v, float rgb[3])
 R_ColorShiftLightingBytes_plus
 ===============
 */
-void R_ColorShiftLightingBytes_plus(const byte in[4], byte out[4], bool hasAlpha)
+void R_ColorShiftLightingBytes(const byte in[4], byte out[4], bool hasAlpha)
 {
 	int shift, r, g, b;
 
@@ -281,7 +280,7 @@ static float R_ProcessLightmap(byte *image, const byte *buf_p, float maxIntensit
 				for (x = 0; x < LIGHTMAP_SIZE; x++)
 				{
 					byte *dst = &image[((y + LIGHTMAP_BORDER) * LIGHTMAP_LEN + x + LIGHTMAP_BORDER) * 4];
-					R_ColorShiftLightingBytes_plus(buf_p, dst, false);
+					R_ColorShiftLightingBytes(buf_p, dst, false);
 					dst[3] = 255;
 					buf_p += 3;
 				}
@@ -296,7 +295,7 @@ static float R_ProcessLightmap(byte *image, const byte *buf_p, float maxIntensit
 				for (x = 0; x < LIGHTMAP_SIZE; x++)
 				{
 					byte *dst = &image[(y * LIGHTMAP_SIZE + x) * 4];
-					R_ColorShiftLightingBytes_plus(buf_p, dst, false);
+					R_ColorShiftLightingBytes(buf_p, dst, false);
 					dst[3] = 255;
 					buf_p += 3;
 				}
@@ -335,7 +334,7 @@ static int SetLightmapParams(int numLightmaps, int maxTextureSize)
 	return numLightmaps;
 }
 
-int R_GetLightmapCoords_plus(const int lightmapIndex, float *x, float *y)
+int R_GetLightmapCoords(const int lightmapIndex, float *x, float *y)
 {
 	const int lightmapNum = lightmapIndex / tr.lightmapMod;
 	const int cN = lightmapIndex % tr.lightmapMod;
@@ -375,7 +374,7 @@ static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 	for (offs = 0, i = 0; i < tr.numLightmaps; i++)
 	{
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOBORDER);
-		tr.lightmaps[i] = R_CreateImage_plus(va("*mergedLightmap%d", i), NULL, NULL,
+		tr.lightmaps[i] = R_CreateImage(va("*mergedLightmap%d", i), NULL, NULL,
 											 lightmapWidth, lightmapHeight, flag);
 
 		for (y = 0; y < lightmapCountY; y++)
@@ -390,7 +389,7 @@ static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 
 				R_ProcessLightmap(image, buf + offs, maxIntensity);
 
-				vk_upload_image_data_plus(tr.lightmaps[i], x * LIGHTMAP_LEN, y * LIGHTMAP_LEN, LIGHTMAP_LEN, LIGHTMAP_LEN, 1, image, LIGHTMAP_LEN * LIGHTMAP_LEN * 4, true);
+				vk_upload_image_data(tr.lightmaps[i], x * LIGHTMAP_LEN, y * LIGHTMAP_LEN, LIGHTMAP_LEN, LIGHTMAP_LEN, 1, image, LIGHTMAP_LEN * LIGHTMAP_LEN * 4, true);
 
 				offs += LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3;
 			}
@@ -461,7 +460,7 @@ static void R_LoadLightmaps(const lump_t *l)
 	{
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOEDGE);
 		maxIntensity = R_ProcessLightmap(image, buf + i * LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3, maxIntensity);
-		tr.lightmaps[i] = R_CreateImage_plus(va("*lightmap%d", i), NULL, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
+		tr.lightmaps[i] = R_CreateImage(va("*lightmap%d", i), NULL, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
 											 flag);
 	}
 
@@ -478,7 +477,7 @@ This is called by the clipmodel subsystem so we can share the 1.8 megs of
 space in big maps...
 =================
 */
-void RE_SetWorldVisData_plus(const byte *vis)
+void RE_SetWorldVisData(const byte *vis)
 {
 	tr.externalVisData = vis;
 }
@@ -552,7 +551,7 @@ static shader_t *ShaderForShaderNum(const int shaderNum, int lightmapNum)
 		lightmapNum = LIGHTMAP_WHITEIMAGE;
 	}
 
-	shader = R_FindShader_plus(dsh->shader, lightmapNum, true);
+	shader = R_FindShader(dsh->shader, lightmapNum, true);
 
 	// if the shader had errors, just use default shader
 	if (shader->defaultShader)
@@ -668,7 +667,7 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	lightmapNum = LittleLong(ds->lightmapNum);
 	if (lightmapNum >= 0 && tr.mergeLightmaps)
 	{
-		lightmapNum = R_GetLightmapCoords_plus(lightmapNum, &lightmapX, &lightmapY);
+		lightmapNum = R_GetLightmapCoords(lightmapNum, &lightmapX, &lightmapY);
 	}
 	else
 	{
@@ -714,7 +713,7 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 			cv->points[i][3 + j] = LittleFloat(verts[i].st[j]);
 			cv->points[i][5 + j] = LittleFloat(verts[i].lightmap[j]);
 		}
-		R_ColorShiftLightingBytes_plus(verts[i].color.rgba, (byte *)&cv->points[i][7], true);
+		R_ColorShiftLightingBytes(verts[i].color.rgba, (byte *)&cv->points[i][7], true);
 		if (lightmapNum >= 0 && tr.mergeLightmaps)
 		{
 			// adjust lightmap coords
@@ -797,7 +796,7 @@ static void ParseMesh(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	lightmapNum = LittleLong(ds->lightmapNum);
 	if (lightmapNum >= 0 && tr.mergeLightmaps)
 	{
-		lightmapNum = R_GetLightmapCoords_plus(lightmapNum, &lightmapX, &lightmapY);
+		lightmapNum = R_GetLightmapCoords(lightmapNum, &lightmapX, &lightmapY);
 	}
 	else
 	{
@@ -835,7 +834,7 @@ static void ParseMesh(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 			points[i].st[j] = LittleFloat(verts[i].st[j]);
 			points[i].lightmap[j] = LittleFloat(verts[i].lightmap[j]);
 		}
-		R_ColorShiftLightingBytes_plus(verts[i].color.rgba, points[i].color.rgba, true);
+		R_ColorShiftLightingBytes(verts[i].color.rgba, points[i].color.rgba, true);
 		if (lightmapNum >= 0 && tr.mergeLightmaps)
 		{
 			// adjust lightmap coords
@@ -845,7 +844,7 @@ static void ParseMesh(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	}
 
 	// pre-tesseleate
-	grid = R_SubdividePatchToGrid_plus(width, height, points);
+	grid = R_SubdividePatchToGrid(width, height, points);
 	surf->data = (surfaceType_t *)grid;
 
 	// copy the level of detail origin, which is the center
@@ -881,7 +880,7 @@ static void ParseTriSurf(const dsurface_t *ds, const drawVert_t *verts, msurface
 	lightmapNum = LittleLong(ds->lightmapNum);
 	if (lightmapNum >= 0 && tr.mergeLightmaps)
 	{
-		lightmapNum = R_GetLightmapCoords_plus(lightmapNum, &lightmapX, &lightmapY);
+		lightmapNum = R_GetLightmapCoords(lightmapNum, &lightmapX, &lightmapY);
 	}
 	else
 	{
@@ -923,7 +922,7 @@ static void ParseTriSurf(const dsurface_t *ds, const drawVert_t *verts, msurface
 			tri->verts[i].lightmap[j] = LittleFloat(verts[i].lightmap[j]);
 		}
 
-		R_ColorShiftLightingBytes_plus(verts[i].color.rgba, tri->verts[i].color.rgba, true);
+		R_ColorShiftLightingBytes(verts[i].color.rgba, tri->verts[i].color.rgba, true);
 		if (lightmapNum >= 0 && tr.mergeLightmaps)
 		{
 			// adjust lightmap coords
@@ -1289,7 +1288,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						row = grid2->height - 1;
 					else
 						row = 0;
-					grid2 = R_GridInsertColumn_plus(grid2, l + 1, row,
+					grid2 = R_GridInsertColumn(grid2, l + 1, row,
 											   grid1->verts[k + 1 + offset1].xyz, grid1->widthLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1339,7 +1338,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						column = grid2->width - 1;
 					else
 						column = 0;
-					grid2 = R_GridInsertRow_plus(grid2, l + 1, column,
+					grid2 = R_GridInsertRow(grid2, l + 1, column,
 											grid1->verts[k + 1 + offset1].xyz, grid1->widthLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1402,7 +1401,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						row = grid2->height - 1;
 					else
 						row = 0;
-					grid2 = R_GridInsertColumn_plus(grid2, l + 1, row,
+					grid2 = R_GridInsertColumn(grid2, l + 1, row,
 											   grid1->verts[grid1->width * (k + 1) + offset1].xyz, grid1->heightLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1452,7 +1451,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						column = grid2->width - 1;
 					else
 						column = 0;
-					grid2 = R_GridInsertRow_plus(grid2, l + 1, column,
+					grid2 = R_GridInsertRow(grid2, l + 1, column,
 											grid1->verts[grid1->width * (k + 1) + offset1].xyz, grid1->heightLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1516,7 +1515,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						row = grid2->height - 1;
 					else
 						row = 0;
-					grid2 = R_GridInsertColumn_plus(grid2, l + 1, row,
+					grid2 = R_GridInsertColumn(grid2, l + 1, row,
 											   grid1->verts[k - 1 + offset1].xyz, grid1->widthLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1566,7 +1565,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						column = grid2->width - 1;
 					else
 						column = 0;
-					grid2 = R_GridInsertRow_plus(grid2, l + 1, column,
+					grid2 = R_GridInsertRow(grid2, l + 1, column,
 											grid1->verts[k - 1 + offset1].xyz, grid1->widthLodError[k + 1]);
 					if (!grid2)
 						break;
@@ -1631,7 +1630,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						row = grid2->height - 1;
 					else
 						row = 0;
-					grid2 = R_GridInsertColumn_plus(grid2, l + 1, row,
+					grid2 = R_GridInsertColumn(grid2, l + 1, row,
 											   grid1->verts[grid1->width * (k - 1) + offset1].xyz, grid1->heightLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1681,7 +1680,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						column = grid2->width - 1;
 					else
 						column = 0;
-					grid2 = R_GridInsertRow_plus(grid2, l + 1, column,
+					grid2 = R_GridInsertRow(grid2, l + 1, column,
 											grid1->verts[grid1->width * (k - 1) + offset1].xyz, grid1->heightLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1801,7 +1800,7 @@ static void R_MovePatchSurfacesToHunk(void)
 		hunkgrid->heightLodError = static_cast<float *>(ri.Hunk_Alloc(grid->height * 4, h_low));
 		Com_Memcpy(hunkgrid->heightLodError, grid->heightLodError, grid->height * 4);
 
-		R_FreeSurfaceGridMesh_plus(grid);
+		R_FreeSurfaceGridMesh(grid);
 
 		s_worldData.surfaces[i].data = reinterpret_cast<surfaceType_t *>(hunkgrid);
 	}
@@ -1906,7 +1905,7 @@ static void R_LoadSubmodels(const lump_t *l)
 	{
 		model_t *model;
 
-		model = R_AllocModel_plus();
+		model = R_AllocModel();
 
 		if (model == NULL)
 		{
@@ -2034,7 +2033,7 @@ replaces some buggy map shaders
 */
 static void R_ReplaceMapShaders(dshader_t *out, int count)
 {
-	if (Q_stricmp_plus(s_worldData.baseName, "mapel4b") == 0 && count == 86)
+	if (Q_stricmp(s_worldData.baseName, "mapel4b") == 0 && count == 86)
 	{
 		if (crc32_buffer((const byte *)out, count * sizeof(*out)) == 0x1593623C)
 		{
@@ -2254,7 +2253,7 @@ static void R_LoadFogs(const lump_t *l, const lump_t *brushesLump, const lump_t 
 		out->bounds[1][2] = s_worldData.planes[planeNum].dist;
 
 		// get information from the shader for fog parameters
-		shader = R_FindShader_plus(fogs->shader, LIGHTMAP_NONE, true);
+		shader = R_FindShader(fogs->shader, LIGHTMAP_NONE, true);
 
 		VectorCopy(shader->fogParms.color, fogColor);
 
@@ -2352,8 +2351,8 @@ static void R_LoadLightGrid(const lump_t *l)
 	// deal with overbright bits
 	for (i = 0; i < numGridPoints; i++)
 	{
-		R_ColorShiftLightingBytes_plus(&w->lightGridData[i * 8], &w->lightGridData[i * 8], false);
-		R_ColorShiftLightingBytes_plus(&w->lightGridData[i * 8 + 3], &w->lightGridData[i * 8 + 3], false);
+		R_ColorShiftLightingBytes(&w->lightGridData[i * 8], &w->lightGridData[i * 8], false);
+		R_ColorShiftLightingBytes(&w->lightGridData[i * 8 + 3], &w->lightGridData[i * 8 + 3], false);
 	}
 }
 
@@ -2421,7 +2420,7 @@ static void R_LoadEntities(const lump_t *l)
 			*vs++ = '\0';
 			if (r_vertexLight->integer && tr.vertexLightingAllowed)
 			{
-				RE_RemapShader_plus(value, s, "0");
+				RE_RemapShader(value, s, "0");
 			}
 			continue;
 		}
@@ -2436,11 +2435,11 @@ static void R_LoadEntities(const lump_t *l)
 				break;
 			}
 			*vs++ = '\0';
-			RE_RemapShader_plus(value, s, "0");
+			RE_RemapShader(value, s, "0");
 			continue;
 		}
 		// check for a different grid size
-		if (!Q_stricmp_plus(keyname, "gridsize"))
+		if (!Q_stricmp(keyname, "gridsize"))
 		{
 			// sscanf(value, "%f %f %f", &w->lightGridSize[0], &w->lightGridSize[1], &w->lightGridSize[2] );
 			Com_Split(value, v, 3, ' ');
@@ -2457,7 +2456,7 @@ static void R_LoadEntities(const lump_t *l)
 RE_GetEntityToken
 =================
 */
-bool RE_GetEntityToken_plus(char *buffer, int size)
+bool RE_GetEntityToken(char *buffer, int size)
 {
 	const char *s;
 
@@ -2481,7 +2480,7 @@ RE_LoadWorldMap
 Called directly from cgame
 =================
 */
-void RE_LoadWorldMap_plus(const char *name)
+void RE_LoadWorldMap(const char *name)
 {
 	int i;
 	int32_t size;
@@ -2573,7 +2572,7 @@ void RE_LoadWorldMap_plus(const char *name)
 	R_LoadLightGrid(&header->lumps[LUMP_LIGHTGRID]);
 
 #ifdef USE_VBO
-	R_BuildWorldVBO_plus(s_worldData.surfaces, s_worldData.numsurfaces);
+	R_BuildWorldVBO(s_worldData.surfaces, s_worldData.numsurfaces);
 #endif
 
 	tr.mapLoading = false;

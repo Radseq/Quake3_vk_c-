@@ -9,7 +9,7 @@ extern "C"
 #include "../qcommon/q_shared.h"
 #include "tr_public.hpp"
 
-    void R_LoadJPG_plus(const char *filename, unsigned char **pic, int *width, int *height);
+    void R_LoadJPG(const char *filename, unsigned char **pic, int *width, int *height);
 
 #ifdef __cplusplus
 }

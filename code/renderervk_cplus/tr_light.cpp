@@ -41,7 +41,7 @@ Used by both the front end (for DlightBmodel) and
 the back end (before doing the lighting calculation)
 ===============
 */
-void R_TransformDlights_plus(int count, dlight_t *dl, orientationr_t *ort)
+void R_TransformDlights(int count, dlight_t *dl, orientationr_t *ort)
 {
     int i;
     vec3_t temp, temp2;
@@ -70,7 +70,7 @@ R_DlightBmodel
 Determine which dynamic lights may effect this bmodel
 =============
 */
-void R_DlightBmodel_plus(bmodel_t *bmodel)
+void R_DlightBmodel(bmodel_t *bmodel)
 {
     int i, j;
     const dlight_t *dl;
@@ -78,7 +78,7 @@ void R_DlightBmodel_plus(bmodel_t *bmodel)
     msurface_t *surf;
 
     // transform all the lights
-    R_TransformDlights_plus(tr.refdef.num_dlights, tr.refdef.dlights, &tr.ort);
+    R_TransformDlights(tr.refdef.num_dlights, tr.refdef.dlights, &tr.ort);
 
     mask = 0;
     for (i = 0; i < tr.refdef.num_dlights; i++)
@@ -253,10 +253,10 @@ static void R_SetupEntityLightingGrid(trRefEntity_t *ent)
     VectorScale(ent->ambientLight, r_ambientScale->value, ent->ambientLight);
     VectorScale(ent->directedLight, r_directedScale->value, ent->directedLight);
 
-    VectorNormalize2_plus(direction, ent->lightDir);
+    VectorNormalize2(direction, ent->lightDir);
 }
 
-int R_LightForPoint_plus(vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir)
+int R_LightForPoint(vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir)
 {
     trRefEntity_t ent;
 
@@ -313,7 +313,7 @@ Calculates all the lighting values that will be used
 by the Calc_* functions
 =================
 */
-void R_SetupEntityLighting_plus(const trRefdef_t *refdef, trRefEntity_t *ent)
+void R_SetupEntityLighting(const trRefdef_t *refdef, trRefEntity_t *ent)
 {
     int i;
     const dlight_t *dl;
@@ -390,7 +390,7 @@ void R_SetupEntityLighting_plus(const trRefdef_t *refdef, trRefEntity_t *ent)
                 if (dl->linear) // no support for linear lights atm
                     continue;
                 VectorSubtract(dl->origin, lightOrigin, dir);
-                d = VectorNormalize_plus(dir);
+                d = VectorNormalize(dir);
                 power = DLIGHT_AT_RADIUS * (dl->radius * dl->radius);
                 if (d < DLIGHT_MINIMUM_RADIUS)
                 {
@@ -407,7 +407,7 @@ void R_SetupEntityLighting_plus(const trRefdef_t *refdef, trRefEntity_t *ent)
         {
             dl = &refdef->dlights[i];
             VectorSubtract(dl->origin, lightOrigin, dir);
-            d = VectorNormalize_plus(dir);
+            d = VectorNormalize(dir);
 
             power = DLIGHT_AT_RADIUS * (dl->radius * dl->radius);
             if (d < DLIGHT_MINIMUM_RADIUS)
@@ -441,7 +441,7 @@ void R_SetupEntityLighting_plus(const trRefdef_t *refdef, trRefEntity_t *ent)
     ((byte *)&ent->ambientLightInt)[3] = 0xff;
 
     // transform the direction to local space
-    VectorNormalize_plus(lightDir);
+    VectorNormalize(lightDir);
     ent->lightDir[0] = DotProduct(lightDir, ent->e.axis[0]);
     ent->lightDir[1] = DotProduct(lightDir, ent->e.axis[1]);
     ent->lightDir[2] = DotProduct(lightDir, ent->e.axis[2]);
@@ -449,7 +449,7 @@ void R_SetupEntityLighting_plus(const trRefdef_t *refdef, trRefEntity_t *ent)
 #ifdef USE_PMLIGHT
     if (r_shadows->integer == 2 && r_dlightMode->integer == 2)
     {
-        VectorNormalize_plus(shadowLightDir);
+        VectorNormalize(shadowLightDir);
         ent->shadowLightDir[0] = DotProduct(shadowLightDir, ent->e.axis[0]);
         ent->shadowLightDir[1] = DotProduct(shadowLightDir, ent->e.axis[1]);
         ent->shadowLightDir[2] = DotProduct(shadowLightDir, ent->e.axis[2]);

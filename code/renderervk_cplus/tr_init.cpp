@@ -250,7 +250,7 @@ static void InitOpenGL(void)
 			}
 		}
 
-		vk_initialize_plus();
+		vk_initialize();
 
 		glConfig.deviceSupportsGamma = false;
 
@@ -270,12 +270,12 @@ static void InitOpenGL(void)
 	if (!vk.active)
 	{
 		// might happen after REF_KEEP_WINDOW
-		vk_initialize_plus();
+		vk_initialize();
 		gls.initTime = ri.Milliseconds();
 	}
 	if (vk.active)
 	{
-		vk_init_descriptors_plus();
+		vk_init_descriptors();
 	}
 	else
 	{
@@ -349,7 +349,7 @@ static byte *RB_ReadPixels(int width, int height, size_t *offset, int *padlen)
 	buffer = reinterpret_cast<byte *>(ri.Hunk_AllocateTempMemory(width * height * 4 + *offset + bufAlign - 1));
 	bufstart = reinterpret_cast<byte *>(PADP((intptr_t)buffer + *offset, bufAlign));
 
-	vk_read_pixels_plus(bufstart, width, height);
+	vk_read_pixels(bufstart, width, height);
 
 	*offset = bufstart - buffer;
 	*padlen = PAD(linelen, packAlign) - linelen;
@@ -411,7 +411,7 @@ void RB_TakeScreenshot(int x, int y, int width, int height, const char *fileName
 	memcount = linelen * height;
 
 	// gamma correction
-	R_GammaCorrect_plus(allbuf + offset, memcount);
+	R_GammaCorrect(allbuf + offset, memcount);
 
 	ri.FS_WriteFile(fileName, buffer, memcount + header_size);
 
@@ -433,7 +433,7 @@ void RB_TakeScreenshotJPEG(int x, int y, int width, int height, const char *file
 	memcount = (width * 3 + padlen) * height;
 
 	// gamma correction
-	R_GammaCorrect_plus(buffer + offset, memcount);
+	R_GammaCorrect(buffer + offset, memcount);
 
 	ri.CL_SaveJPG(fileName, r_screenshotJpegQuality->integer, width, height, buffer + offset, padlen);
 	ri.Hunk_FreeTempMemory(buffer);
@@ -554,7 +554,7 @@ void RB_TakeScreenshotBMP(int x, int y, int width, int height, const char *fileN
 	FillBMPHeader(buffer - header_size, width, height, memcount, header_size);
 
 	// gamma correction
-	R_GammaCorrect_plus(buffer, memcount);
+	R_GammaCorrect(buffer, memcount);
 
 	if (clipboardOnly)
 	{
@@ -654,7 +654,7 @@ static void R_LevelShot(void)
 	}
 
 	// gamma correction
-	R_GammaCorrect_plus(buffer + 18, 128 * 128 * 3);
+	R_GammaCorrect(buffer + 18, 128 * 128 * 3);
 
 	ri.FS_WriteFile(checkname, buffer, 128 * 128 * 3 + 18);
 
@@ -683,7 +683,7 @@ static void R_ScreenShot_f(void)
 	int typeMask;
 	const char *ext;
 
-	if (ri.CL_IsMinimized() && !RE_CanMinimize_plus())
+	if (ri.CL_IsMinimized() && !RE_CanMinimize())
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: unable to take screenshot when minimized because FBO is not available/enabled.\n");
 		return;
@@ -695,12 +695,12 @@ static void R_ScreenShot_f(void)
 		return;
 	}
 
-	if (Q_stricmp_plus(ri.Cmd_Argv(0), "screenshotJPEG") == 0)
+	if (Q_stricmp(ri.Cmd_Argv(0), "screenshotJPEG") == 0)
 	{
 		typeMask = SCREENSHOT_JPG;
 		ext = "jpg";
 	}
-	else if (Q_stricmp_plus(ri.Cmd_Argv(0), "screenshotBMP") == 0)
+	else if (Q_stricmp(ri.Cmd_Argv(0), "screenshotBMP") == 0)
 	{
 		typeMask = SCREENSHOT_BMP;
 		ext = "bmp";
@@ -797,12 +797,12 @@ const void *RB_TakeVideoFrameCmd(const void *data)
 
 	cBuf = reinterpret_cast<byte *>(PADP(cmd->captureBuffer, packAlign));
 
-	vk_read_pixels_plus(cBuf, cmd->width, cmd->height);
+	vk_read_pixels(cBuf, cmd->width, cmd->height);
 
 	memcount = padwidth * cmd->height;
 
 	// gamma correction
-	R_GammaCorrect_plus(cBuf, memcount);
+	R_GammaCorrect(cBuf, memcount);
 
 	if (cmd->motionJpeg)
 	{
@@ -851,7 +851,7 @@ const void *RB_TakeVideoFrameCmd(const void *data)
 */
 static void GL_SetDefaultState(void)
 {
-	TextureMode_plus(r_textureMode->string);
+	TextureMode(r_textureMode->string);
 	glState.glStateBits = GLS_DEPTHTEST_DISABLE | GLS_DEPTHMASK_TRUE;
 }
 
@@ -901,16 +901,16 @@ static void GfxInfo(void)
 	ri.Printf(PRINT_ALL, "VK_MAX_TEXTURE_UNITS: %d\n", glConfig.numTextureUnits);
 
 	ri.Printf(PRINT_ALL, "\nPIXELFORMAT: color(%d-bits) Z(%d-bit) stencil(%d-bits)\n", glConfig.colorBits, glConfig.depthBits, glConfig.stencilBits);
-	ri.Printf(PRINT_ALL, " presentation: %s\n", vk_format_string_plus(vk.present_format.format));
+	ri.Printf(PRINT_ALL, " presentation: %s\n", vk_format_string(vk.present_format.format));
 	if (vk.color_format != vk.present_format.format)
 	{
-		ri.Printf(PRINT_ALL, " color: %s\n", vk_format_string_plus(vk.color_format));
+		ri.Printf(PRINT_ALL, " color: %s\n", vk_format_string(vk.color_format));
 	}
 	if (vk.capture_format != vk.present_format.format || vk.capture_format != vk.color_format)
 	{
-		ri.Printf(PRINT_ALL, " capture: %s\n", vk_format_string_plus(vk.capture_format));
+		ri.Printf(PRINT_ALL, " capture: %s\n", vk_format_string(vk.capture_format));
 	}
-	ri.Printf(PRINT_ALL, " depth: %s\n", vk_format_string_plus(vk.depth_format));
+	ri.Printf(PRINT_ALL, " depth: %s\n", vk_format_string(vk.depth_format));
 
 	if (glConfig.isFullscreen)
 	{
@@ -1003,7 +1003,7 @@ RE_SyncRender
 static void RE_SyncRender(void)
 {
 	if (vk.device)
-		vk_wait_idle_plus();
+		vk_wait_idle();
 }
 
 /*
@@ -1014,10 +1014,10 @@ R_Register
 static void R_Register(void)
 {
 	// make sure all the commands added here are also removed in R_Shutdown
-	ri.Cmd_AddCommand("imagelist", R_ImageList_f_plus);
-	ri.Cmd_AddCommand("shaderlist", R_ShaderList_f_plus);
-	ri.Cmd_AddCommand("skinlist", R_SkinList_f_plus);
-	ri.Cmd_AddCommand("modellist", R_Modellist_f_plus);
+	ri.Cmd_AddCommand("imagelist", R_ImageList_f);
+	ri.Cmd_AddCommand("shaderlist", R_ShaderList_f);
+	ri.Cmd_AddCommand("skinlist", R_SkinList_f);
+	ri.Cmd_AddCommand("modellist", R_Modellist_f);
 	ri.Cmd_AddCommand("screenshot", R_ScreenShot_f);
 	ri.Cmd_AddCommand("screenshotJPEG", R_ScreenShot_f);
 	ri.Cmd_AddCommand("screenshotBMP", R_ScreenShot_f);
@@ -1427,7 +1427,7 @@ void R_Init(void)
 		}
 	}
 
-	R_InitFogTable_plus();
+	R_InitFogTable();
 
 	NoiseInit();
 
@@ -1441,23 +1441,23 @@ void R_Init(void)
 	backEndData->polys = (srfPoly_t *)((char *)ptr + sizeof(*backEndData));
 	backEndData->polyVerts = (polyVert_t *)((char *)ptr + sizeof(*backEndData) + sizeof(srfPoly_t) * max_polys);
 
-	R_InitNextFrame_plus();
+	R_InitNextFrame();
 
 	InitOpenGL();
 
-	R_InitImages_plus();
+	R_InitImages();
 
 	VarInfo();
 
-	vk_create_pipelines_plus();
+	vk_create_pipelines();
 
-	R_InitShaders_plus();
+	R_InitShaders();
 
-	R_InitSkins_plus();
+	R_InitSkins();
 
-	R_ModelInit_plus();
+	R_ModelInit();
 
-	R_InitFreeType_plus();
+	R_InitFreeType();
 
 	ri.Printf(PRINT_ALL, "----- finished R_Init -----\n");
 }
@@ -1485,11 +1485,11 @@ static void RE_Shutdown(refShutdownCode_t code)
 	if (tr.registered)
 	{
 		// R_IssuePendingRenderCommands();
-		R_DeleteTextures_plus();
-		vk_release_resources_plus();
+		R_DeleteTextures();
+		vk_release_resources();
 	}
 
-	R_DoneFreeType_plus();
+	R_DoneFreeType();
 
 	if (r_device->modified)
 	{
@@ -1499,7 +1499,7 @@ static void RE_Shutdown(refShutdownCode_t code)
 	// shut down platform specific OpenGL/Vulkan stuff
 	if (code != REF_KEEP_CONTEXT)
 	{
-		vk_shutdown_plus(code);
+		vk_shutdown(code);
 
 		Com_Memset(&glState, 0, sizeof(glState));
 
@@ -1525,7 +1525,7 @@ Touch all images to make sure they are resident
 */
 static void RE_EndRegistration(void)
 {
-	vk_wait_idle_plus();
+	vk_wait_idle();
 	// command buffer is not in recording state at this stage
 	// so we can't issue RB_ShowImages() there
 }
@@ -1554,50 +1554,50 @@ refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp)
 
 	re.Shutdown = RE_Shutdown;
 
-	re.BeginRegistration = RE_BeginRegistration_plus;
-	re.RegisterModel = RE_RegisterModel_plus;
-	re.RegisterSkin = RE_RegisterSkin_plus;
-	re.RegisterShader = RE_RegisterShader_plus;
-	re.RegisterShaderNoMip = RE_RegisterShaderNoMip_plus;
-	re.LoadWorld = RE_LoadWorldMap_plus;
-	re.SetWorldVisData = RE_SetWorldVisData_plus;
+	re.BeginRegistration = RE_BeginRegistration;
+	re.RegisterModel = RE_RegisterModel;
+	re.RegisterSkin = RE_RegisterSkin;
+	re.RegisterShader = RE_RegisterShader;
+	re.RegisterShaderNoMip = RE_RegisterShaderNoMip;
+	re.LoadWorld = RE_LoadWorldMap;
+	re.SetWorldVisData = RE_SetWorldVisData;
 	re.EndRegistration = RE_EndRegistration;
 
-	re.BeginFrame = RE_BeginFrame_plus;
-	re.EndFrame = RE_EndFrame_plus;
+	re.BeginFrame = RE_BeginFrame;
+	re.EndFrame = RE_EndFrame;
 
-	re.MarkFragments = R_MarkFragments_plus;
-	re.LerpTag = R_LerpTag_plus;
-	re.ModelBounds = R_ModelBounds_plus;
+	re.MarkFragments = R_MarkFragments;
+	re.LerpTag = R_LerpTag;
+	re.ModelBounds = R_ModelBounds;
 
-	re.ClearScene = RE_ClearScene_plus;
-	re.AddRefEntityToScene = RE_AddRefEntityToScene_plus;
-	re.AddPolyToScene = RE_AddPolyToScene_plus;
-	re.LightForPoint = R_LightForPoint_plus;
-	re.AddLightToScene = RE_AddLightToScene_plus;
-	re.AddAdditiveLightToScene = RE_AddAdditiveLightToScene_plus;
-	re.AddLinearLightToScene = RE_AddLinearLightToScene_plus;
+	re.ClearScene = RE_ClearScene;
+	re.AddRefEntityToScene = RE_AddRefEntityToScene;
+	re.AddPolyToScene = RE_AddPolyToScene;
+	re.LightForPoint = R_LightForPoint;
+	re.AddLightToScene = RE_AddLightToScene;
+	re.AddAdditiveLightToScene = RE_AddAdditiveLightToScene;
+	re.AddLinearLightToScene = RE_AddLinearLightToScene;
 
-	re.RenderScene = RE_RenderScene_plus;
+	re.RenderScene = RE_RenderScene;
 
-	re.SetColor = RE_SetColor_plus;
-	re.DrawStretchPic = RE_StretchPic_plus;
-	re.DrawStretchRaw = RE_StretchRaw_plus;
-	re.UploadCinematic = RE_UploadCinematic_plus;
+	re.SetColor = RE_SetColor;
+	re.DrawStretchPic = RE_StretchPic;
+	re.DrawStretchRaw = RE_StretchRaw;
+	re.UploadCinematic = RE_UploadCinematic;
 
-	re.RegisterFont = RE_RegisterFont_plus;
-	re.RemapShader = RE_RemapShader_plus;
-	re.GetEntityToken = RE_GetEntityToken_plus;
-	re.inPVS = R_inPVS_plus;
+	re.RegisterFont = RE_RegisterFont;
+	re.RemapShader = RE_RemapShader;
+	re.GetEntityToken = RE_GetEntityToken;
+	re.inPVS = R_inPVS;
 
-	re.TakeVideoFrame = RE_TakeVideoFrame_plus;
-	re.SetColorMappings = R_SetColorMappings_plus;
+	re.TakeVideoFrame = RE_TakeVideoFrame;
+	re.SetColorMappings = R_SetColorMappings;
 
-	re.ThrottleBackend = RE_ThrottleBackend_plus;
-	re.FinishBloom = RE_FinishBloom_plus;
-	re.CanMinimize = RE_CanMinimize_plus;
-	re.GetConfig = RE_GetConfig_plus;
-	re.VertexLighting = RE_VertexLighting_plus;
+	re.ThrottleBackend = RE_ThrottleBackend;
+	re.FinishBloom = RE_FinishBloom;
+	re.CanMinimize = RE_CanMinimize;
+	re.GetConfig = RE_GetConfig;
+	re.VertexLighting = RE_VertexLighting;
 	re.SyncRender = RE_SyncRender;
 
 	return &re;

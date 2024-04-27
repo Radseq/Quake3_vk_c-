@@ -52,7 +52,7 @@ down as it changes visibility.  This involves scene to scene state, unlike almos
 all other aspects of the renderer, and is complicated by the fact that a single
 frame may have multiple scenes.
 
-RB_RenderFlares_plus() will be called once per view (twice in a mirrored scene, potentially
+RB_RenderFlares() will be called once per view (twice in a mirrored scene, potentially
 up to five or more times in a frame with 3D status bar icons).
 
 =============================================================================
@@ -93,7 +93,7 @@ static flare_t *r_activeFlares, *r_inactiveFlares;
 R_ClearFlares_plus
 ==================
 */
-void R_ClearFlares_plus(void)
+void R_ClearFlares(void)
 {
 	int i;
 
@@ -134,7 +134,7 @@ RB_AddFlare_plus
 This is called at surface tesselation time
 ==================
 */
-void RB_AddFlare_plus(void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t normal)
+void RB_AddFlare(void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t normal)
 {
 	int i;
 	flare_t *f;
@@ -158,7 +158,7 @@ void RB_AddFlare_plus(void *surface, int fogNum, vec3_t point, vec3_t color, vec
 
 	// if the point is off the screen, don't bother adding it
 	// calculate screen coordinates and depth
-	R_TransformModelToClip_plus(point, backEnd.ort.modelMatrix, backEnd.viewParms.projectionMatrix, eye, clip);
+	R_TransformModelToClip(point, backEnd.ort.modelMatrix, backEnd.viewParms.projectionMatrix, eye, clip);
 
 	// check to see if the point is completely off screen
 	for (i = 0; i < 3; i++)
@@ -169,7 +169,7 @@ void RB_AddFlare_plus(void *surface, int fogNum, vec3_t point, vec3_t color, vec
 		}
 	}
 
-	R_TransformClipToWindow_plus(clip, &backEnd.viewParms, normalized, window);
+	R_TransformClipToWindow(clip, &backEnd.viewParms, normalized, window);
 
 	if (window[0] < 0 || window[0] >= backEnd.viewParms.viewportWidth || window[1] < 0 || window[1] >= backEnd.viewParms.viewportHeight)
 	{
@@ -231,7 +231,7 @@ void RB_AddFlare_plus(void *surface, int fogNum, vec3_t point, vec3_t color, vec
 RB_AddDlightFlares_plus
 ==================
 */
-void RB_AddDlightFlares_plus(void)
+void RB_AddDlightFlares(void)
 {
 	dlight_t *l;
 	int i, j, k;
@@ -276,7 +276,7 @@ void RB_AddDlightFlares_plus(void)
 		else
 			j = 0;
 
-		RB_AddFlare_plus((void *)l, j, l->origin, l->color, NULL);
+		RB_AddFlare((void *)l, j, l->origin, l->color, NULL);
 	}
 }
 
@@ -357,7 +357,7 @@ static void RB_TestFlare(flare_t *f)
 
 	m = vk_ortho(backEnd.viewParms.viewportX, backEnd.viewParms.viewportX + backEnd.viewParms.viewportWidth,
 				 backEnd.viewParms.viewportY, backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight, 0, 1);
-	vk_update_mvp_plus(m);
+	vk_update_mvp(m);
 
 	tess.xyz[0][0] = f->windowX;
 	tess.xyz[0][1] = f->windowY;
@@ -368,16 +368,16 @@ static void RB_TestFlare(flare_t *f)
 	tess.vboIndex = 0;
 #endif
 	// render test dot
-	vk_reset_descriptor_plus(VK_DESC_STORAGE);
-	vk_update_descriptor_plus(VK_DESC_STORAGE, vk.storage.descriptor);
-	vk_update_descriptor_offset_plus(VK_DESC_STORAGE, offset);
+	vk_reset_descriptor(VK_DESC_STORAGE);
+	vk_update_descriptor(VK_DESC_STORAGE, vk.storage.descriptor);
+	vk_update_descriptor_offset(VK_DESC_STORAGE, offset);
 
-	vk_bind_pipeline_plus(vk.dot_pipeline);
-	vk_bind_geometry_plus(TESS_XYZ);
-	vk_draw_geometry_plus(DEPTH_RANGE_NORMAL, false);
+	vk_bind_pipeline(vk.dot_pipeline);
+	vk_bind_geometry(TESS_XYZ);
+	vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
 
 	// Com_Memcpy( vk_world.modelview_transform, modelMatrix_original, sizeof( modelMatrix_original ) );
-	// vk_update_mvp_plus( NULL );
+	// vk_update_mvp( NULL );
 
 	if (visible)
 	{
@@ -471,23 +471,23 @@ static void RB_RenderFlare(flare_t *f)
 		VectorCopy(f->origin, tess.xyz[0]);
 		tess.fogNum = f->fogNum;
 
-		RB_CalcModulateColorsByFog_plus(fogFactors);
+		RB_CalcModulateColorsByFog(fogFactors);
 
 		// We don't need to render the flare if colors are 0 anyways.
 		if (!(fogFactors[0] || fogFactors[1] || fogFactors[2]))
 			return;
 	}
 
-	RB_BeginSurface_plus(tr.flareShader, f->fogNum);
+	RB_BeginSurface(tr.flareShader, f->fogNum);
 
 	c.rgba[0] = color[0] * fogFactors[0];
 	c.rgba[1] = color[1] * fogFactors[1];
 	c.rgba[2] = color[2] * fogFactors[2];
 	c.rgba[3] = 255;
 
-	RB_AddQuadStamp2_plus(f->windowX - size, f->windowY - size, size * 2, size * 2, 0, 0, 1, 1, c);
+	RB_AddQuadStamp2(f->windowX - size, f->windowY - size, size * 2, size * 2, 0, 0, 1, 1, c);
 
-	RB_EndSurface_plus();
+	RB_EndSurface();
 }
 
 /*
@@ -506,7 +506,7 @@ when occluded by something in the main view, and portal flares that should
 extend past the portal edge will be overwritten.
 ==================
 */
-void RB_RenderFlares_plus(void)
+void RB_RenderFlares(void)
 {
 	flare_t *f;
 	flare_t **prev;
@@ -533,7 +533,7 @@ void RB_RenderFlares_plus(void)
 	backEnd.currentEntity = &tr.worldEntity;
 	backEnd.ort = backEnd.viewParms.world;
 
-	// RB_AddDlightFlares_plus();
+	// RB_AddDlightFlares();
 
 	// perform z buffer readback on each flare in this view
 	draw = false;
@@ -588,7 +588,7 @@ void RB_RenderFlares_plus(void)
 				 backEnd.viewParms.viewportY, backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight, 0.0, 1.0);
 #endif
 
-	vk_update_mvp_plus(m);
+	vk_update_mvp(m);
 
 	for (f = r_activeFlares; f; f = f->next)
 	{
@@ -599,5 +599,5 @@ void RB_RenderFlares_plus(void)
 	}
 
 	// Com_Memcpy( vk_world.modelview_transform, modelMatrix_original, sizeof( modelMatrix_original ) );
-	// vk_update_mvp_plus( NULL );
+	// vk_update_mvp( NULL );
 }

@@ -55,7 +55,7 @@ R_CullLocalBox_plus
 Returns CULL_IN, CULL_CLIP, ort CULL_OUT
 =================
 */
-int R_CullLocalBox_plus(const vec3_t bounds[2])
+int R_CullLocalBox(const vec3_t bounds[2])
 {
 	int i, j;
 	vec3_t transformed[8];
@@ -125,19 +125,19 @@ int R_CullLocalBox_plus(const vec3_t bounds[2])
 /*
 ** R_CullLocalPointAndRadius_plus
 */
-int R_CullLocalPointAndRadius_plus(const vec3_t pt, float radius)
+int R_CullLocalPointAndRadius(const vec3_t pt, float radius)
 {
 	vec3_t transformed;
 
-	R_LocalPointToWorld_plus(pt, transformed);
+	R_LocalPointToWorld(pt, transformed);
 
-	return R_CullPointAndRadius_plus(transformed, radius);
+	return R_CullPointAndRadius(transformed, radius);
 }
 
 /*
 ** R_CullPointAndRadius_plus
 */
-int R_CullPointAndRadius_plus(const vec3_t pt, float radius)
+int R_CullPointAndRadius(const vec3_t pt, float radius)
 {
 	if (r_nocull->integer)
 	{
@@ -173,7 +173,7 @@ int R_CullPointAndRadius_plus(const vec3_t pt, float radius)
 	return CULL_IN; // completely inside frustum
 }
 
-int R_CullDlight_plus(const dlight_t *dl)
+int R_CullDlight(const dlight_t *dl)
 {
 	int i;
 	float dist, dist2;
@@ -231,7 +231,7 @@ static void R_LocalNormalToWorld(const vec3_t local, vec3_t world)
 R_LocalPointToWorld_plus
 =================
 */
-void R_LocalPointToWorld_plus(const vec3_t local, vec3_t world)
+void R_LocalPointToWorld(const vec3_t local, vec3_t world)
 {
 	world[0] = local[0] * tr.ort.axis[0][0] + local[1] * tr.ort.axis[1][0] + local[2] * tr.ort.axis[2][0] + tr.ort.origin[0];
 	world[1] = local[0] * tr.ort.axis[0][1] + local[1] * tr.ort.axis[1][1] + local[2] * tr.ort.axis[2][1] + tr.ort.origin[1];
@@ -243,7 +243,7 @@ void R_LocalPointToWorld_plus(const vec3_t local, vec3_t world)
 R_WorldToLocal_plus
 =================
 */
-void R_WorldToLocal_plus(const vec3_t world, vec3_t local)
+void R_WorldToLocal(const vec3_t world, vec3_t local)
 {
 	local[0] = DotProduct(world, tr.ort.axis[0]);
 	local[1] = DotProduct(world, tr.ort.axis[1]);
@@ -255,7 +255,7 @@ void R_WorldToLocal_plus(const vec3_t world, vec3_t local)
 R_TransformModelToClip_plus
 ==========================
 */
-void R_TransformModelToClip_plus(const vec3_t src, const float *modelMatrix, const float *projectionMatrix,
+void R_TransformModelToClip(const vec3_t src, const float *modelMatrix, const float *projectionMatrix,
 								 vec4_t eye, vec4_t dst)
 {
 	int i;
@@ -303,7 +303,7 @@ static void R_TransformModelToClipMVP(const vec3_t src, const float *mvp, vec4_t
 R_TransformClipToWindow_plus
 ==========================
 */
-void R_TransformClipToWindow_plus(const vec4_t clip, const viewParms_t *view, vec4_t normalized, vec4_t window)
+void R_TransformClipToWindow(const vec4_t clip, const viewParms_t *view, vec4_t normalized, vec4_t window)
 {
 	normalized[0] = clip[0] / clip[3];
 	normalized[1] = clip[1] / clip[3];
@@ -322,7 +322,7 @@ void R_TransformClipToWindow_plus(const vec4_t clip, const viewParms_t *view, ve
 myGlMultMatrix_plus
 ==========================
 */
-void myGlMultMatrix_plus(const float *a, const float *b, float *out)
+void myGlMultMatrix(const float *a, const float *b, float *out)
 {
 	int i, j;
 
@@ -345,7 +345,7 @@ Does NOT produce any GL calls
 Called by both the front end and the back end
 =================
 */
-void R_RotateForEntity_plus(const trRefEntity_t *ent, const viewParms_t *viewParms,
+void R_RotateForEntity(const trRefEntity_t *ent, const viewParms_t *viewParms,
 							orientationr_t *ort)
 {
 	float glMatrix[16];
@@ -384,7 +384,7 @@ void R_RotateForEntity_plus(const trRefEntity_t *ent, const viewParms_t *viewPar
 	glMatrix[11] = 0;
 	glMatrix[15] = 1;
 
-	myGlMultMatrix_plus(glMatrix, viewParms->world.modelMatrix, ort->modelMatrix);
+	myGlMultMatrix(glMatrix, viewParms->world.modelMatrix, ort->modelMatrix);
 
 	// calculate the viewer origin in the model's space
 	// needed for fog, specular, and environment mapping
@@ -456,7 +456,7 @@ static void R_RotateForViewer(void)
 
 	// convert from our coordinate system (looking down X)
 	// to OpenGL's coordinate system (looking down -Z)
-	myGlMultMatrix_plus(viewerMatrix, s_flipMatrix, tr.ort.modelMatrix);
+	myGlMultMatrix(viewerMatrix, s_flipMatrix, tr.ort.modelMatrix);
 
 	tr.viewParms.world = tr.ort;
 }
@@ -579,7 +579,7 @@ static void R_SetupFrustum(viewParms_t *dest, float xmin, float xmax, float ymax
 R_SetupProjection_plus
 ===============
 */
-void R_SetupProjection_plus(viewParms_t *dest, float zProj, bool computeFrustum)
+void R_SetupProjection(viewParms_t *dest, float zProj, bool computeFrustum)
 {
 	float xmin, xmax, ymin, ymax;
 	float width, height, stereoSep = r_stereoSeparation->value;
@@ -806,7 +806,7 @@ static bool R_GetPortalOrientations(const drawSurf_t *drawSurf, int entityNum,
 		tr.currentEntity = &tr.refdef.entities[entityNum];
 
 		// get the orientation of the entity
-		R_RotateForEntity_plus(tr.currentEntity, &tr.viewParms, &tr.ort);
+		R_RotateForEntity(tr.currentEntity, &tr.viewParms, &tr.ort);
 
 		// rotate the plane, but keep the non-rotated version for matching
 		// against the portalSurface entities
@@ -936,7 +936,7 @@ static bool IsMirror(const drawSurf_t *drawSurf, int entityNum)
 		tr.currentEntity = &tr.refdef.entities[entityNum];
 
 		// get the orientation of the entity
-		R_RotateForEntity_plus(tr.currentEntity, &tr.viewParms, &tr.ort);
+		R_RotateForEntity(tr.currentEntity, &tr.viewParms, &tr.ort);
 
 		// rotate the plane, but keep the non-rotated version for matching
 		// against the portalSurface entities
@@ -1002,8 +1002,8 @@ static bool SurfIsOffscreen(const drawSurf_t *drawSurf, bool *isMirror)
 
 	R_RotateForViewer();
 
-	R_DecomposeSort_plus(drawSurf->sort, &entityNum, &shader, &fogNum, &dlighted);
-	RB_BeginSurface_plus(shader, fogNum);
+	R_DecomposeSort(drawSurf->sort, &entityNum, &shader, &fogNum, &dlighted);
+	RB_BeginSurface(shader, fogNum);
 #ifdef USE_VBO
 	tess.allowVBO = false;
 #endif
@@ -1017,7 +1017,7 @@ static bool SurfIsOffscreen(const drawSurf_t *drawSurf, bool *isMirror)
 		int j;
 		unsigned int pointFlags = 0;
 
-		R_TransformModelToClip_plus(tess.xyz[i], tr.ort.modelMatrix, tr.viewParms.projectionMatrix, eye, clip);
+		R_TransformModelToClip(tess.xyz[i], tr.ort.modelMatrix, tr.viewParms.projectionMatrix, eye, clip);
 
 		for (j = 0; j < 3; j++)
 		{
@@ -1106,7 +1106,7 @@ static void R_GetModelViewBounds(int *mins, int *maxs)
 	maxn[0] = maxn[1] = -1.0;
 
 	// premultiply
-	myGlMultMatrix_plus(tr.ort.modelMatrix, tr.viewParms.projectionMatrix, mvp);
+	myGlMultMatrix(tr.ort.modelMatrix, tr.viewParms.projectionMatrix, mvp);
 
 	for (i = 0; i < tess.numVertexes; i++)
 	{
@@ -1262,7 +1262,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t *drawSurf, int entityNum)
 	// OPTIMIZE: restrict the viewport on the mirrored view
 
 	// render the mirror view
-	R_RenderView_plus(&newParms);
+	R_RenderView(&newParms);
 
 	tr.viewParms = oldParms;
 
@@ -1480,7 +1480,7 @@ static void R_SortLitsurfs(dlight_t *dl)
 R_AddLitSurf_plus
 =================
 */
-void R_AddLitSurf_plus(surfaceType_t *surface, shader_t *shader, int fogIndex)
+void R_AddLitSurf(surfaceType_t *surface, shader_t *shader, int fogIndex)
 {
 	struct litSurf_s *litsurf;
 
@@ -1508,7 +1508,7 @@ void R_AddLitSurf_plus(surfaceType_t *surface, shader_t *shader, int fogIndex)
 R_DecomposeLitSort_plus
 =================
 */
-void R_DecomposeLitSort_plus(unsigned sort, int *entityNum, shader_t **shader, int *fogNum)
+void R_DecomposeLitSort(unsigned sort, int *entityNum, shader_t **shader, int *fogNum)
 {
 	*fogNum = (sort >> QSORT_FOGNUM_SHIFT) & FOGNUM_MASK;
 	*shader = tr.sortedShaders[(sort >> QSORT_SHADERNUM_SHIFT) & SHADERNUM_MASK];
@@ -1524,7 +1524,7 @@ void R_DecomposeLitSort_plus(unsigned sort, int *entityNum, shader_t **shader, i
 R_AddDrawSurf_plus
 =================
 */
-void R_AddDrawSurf_plus(surfaceType_t *surface, shader_t *shader,
+void R_AddDrawSurf(surfaceType_t *surface, shader_t *shader,
 						int fogIndex, int dlightMap)
 {
 	int index;
@@ -1544,7 +1544,7 @@ void R_AddDrawSurf_plus(surfaceType_t *surface, shader_t *shader,
 R_DecomposeSort_plus
 =================
 */
-void R_DecomposeSort_plus(unsigned sort, int *entityNum, shader_t **shader,
+void R_DecomposeSort(unsigned sort, int *entityNum, shader_t **shader,
 						  int *fogNum, int *dlightMap)
 {
 	*fogNum = (sort >> QSORT_FOGNUM_SHIFT) & FOGNUM_MASK;
@@ -1570,7 +1570,7 @@ static void R_SortDrawSurfs(drawSurf_t *drawSurfs, int numDrawSurfs)
 	if (numDrawSurfs < 1)
 	{
 		// we still need to add it for hyperspace cases
-		R_AddDrawSurfCmd_plus(drawSurfs, numDrawSurfs);
+		R_AddDrawSurfCmd(drawSurfs, numDrawSurfs);
 		return;
 	}
 
@@ -1581,7 +1581,7 @@ static void R_SortDrawSurfs(drawSurf_t *drawSurfs, int numDrawSurfs)
 	// may cause another view to be rendered first
 	for (i = 0; i < numDrawSurfs; i++)
 	{
-		R_DecomposeSort_plus((drawSurfs + i)->sort, &entityNum, &shader, &fogNum, &dlighted);
+		R_DecomposeSort((drawSurfs + i)->sort, &entityNum, &shader, &fogNum, &dlighted);
 
 		if (shader->sort > SS_PORTAL)
 		{
@@ -1628,7 +1628,7 @@ static void R_SortDrawSurfs(drawSurf_t *drawSurfs, int numDrawSurfs)
 	}
 #endif // USE_PMLIGHT
 
-	R_AddDrawSurfCmd_plus(drawSurfs, numDrawSurfs);
+	R_AddDrawSurfCmd(drawSurfs, numDrawSurfs);
 }
 
 /*
@@ -1684,41 +1684,41 @@ static void R_AddEntitySurfaces(void)
 			{
 				continue;
 			}
-			shader = R_GetShaderByHandle_plus(ent->e.customShader);
-			R_AddDrawSurf_plus(&entitySurface, shader, R_SpriteFogNum(ent), 0);
+			shader = R_GetShaderByHandle(ent->e.customShader);
+			R_AddDrawSurf(&entitySurface, shader, R_SpriteFogNum(ent), 0);
 			break;
 
 		case RT_MODEL:
 			// we must set up parts of tr.ort for model culling
-			R_RotateForEntity_plus(ent, &tr.viewParms, &tr.ort);
+			R_RotateForEntity(ent, &tr.viewParms, &tr.ort);
 
-			tr.currentModel = R_GetModelByHandle_plus(ent->e.hModel);
+			tr.currentModel = R_GetModelByHandle(ent->e.hModel);
 			if (!tr.currentModel)
 			{
-				R_AddDrawSurf_plus(&entitySurface, tr.defaultShader, 0, 0);
+				R_AddDrawSurf(&entitySurface, tr.defaultShader, 0, 0);
 			}
 			else
 			{
 				switch (tr.currentModel->type)
 				{
 				case MOD_MESH:
-					R_AddMD3Surfaces_plus(ent);
+					R_AddMD3Surfaces(ent);
 					break;
 				case MOD_MDR:
-					R_MDRAddAnimSurfaces_plus(ent);
+					R_MDRAddAnimSurfaces(ent);
 					break;
 				case MOD_IQM:
-					R_AddIQMSurfaces_plus(ent);
+					R_AddIQMSurfaces(ent);
 					break;
 				case MOD_BRUSH:
-					R_AddBrushModelSurfaces_plus(ent);
+					R_AddBrushModelSurfaces(ent);
 					break;
 				case MOD_BAD: // null model axis
 					if ((ent->e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE))
 					{
 						break;
 					}
-					R_AddDrawSurf_plus(&entitySurface, tr.defaultShader, 0, 0);
+					R_AddDrawSurf(&entitySurface, tr.defaultShader, 0, 0);
 					break;
 				default:
 					ri.Error(ERR_DROP, "R_AddEntitySurfaces: Bad modeltype");
@@ -1739,9 +1739,9 @@ R_GenerateDrawSurfs
 */
 static void R_GenerateDrawSurfs(void)
 {
-	R_AddWorldSurfaces_plus();
+	R_AddWorldSurfaces();
 
-	R_AddPolygonSurfaces_plus();
+	R_AddPolygonSurfaces();
 
 	// set the projection matrix with the minimum zfar
 	// now that we have the world bounded
@@ -1766,7 +1766,7 @@ A view may be either the actual camera view,
 ort a mirror / remote location
 ================
 */
-void R_RenderView_plus(const viewParms_t *parms)
+void R_RenderView(const viewParms_t *parms)
 {
 	int firstDrawSurf;
 	int numDrawSurfs;
@@ -1787,7 +1787,7 @@ void R_RenderView_plus(const viewParms_t *parms)
 	// set viewParms.world
 	R_RotateForViewer();
 
-	R_SetupProjection_plus(&tr.viewParms, r_zproj->value, true);
+	R_SetupProjection(&tr.viewParms, r_zproj->value, true);
 
 	R_GenerateDrawSurfs();
 
