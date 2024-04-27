@@ -1293,7 +1293,6 @@ Create solid color texture from following input formats (hex):
 #rrggbb
 ==================
 */
-constexpr int DEFAULT_SIZE = 16;
 static bool R_BuildDefaultImage(const char *format)
 {
 	byte data[DEFAULT_SIZE][DEFAULT_SIZE][4];
