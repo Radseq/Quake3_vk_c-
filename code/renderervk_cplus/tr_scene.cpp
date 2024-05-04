@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_scene.hpp"
 #include "tr_main.hpp"
 #include "tr_shader.hpp"
+#include <cstring>
 
 int r_numdlights;
 
@@ -398,28 +399,20 @@ to handle mirrors,
 */
 void RE_RenderScene(const refdef_t *fd)
 {
-	renderCommand_t lastRenderCommand;
-	viewParms_t parms;
-	int startTime;
-
-	if (!tr.registered)
-	{
+	if (!tr.registered || r_norefresh->integer)
 		return;
-	}
 
-	if (r_norefresh->integer)
-	{
-		return;
-	}
-
-	startTime = ri.Milliseconds();
+	int startTime = ri.Milliseconds();
 
 	if (!tr.world && !(fd->rdflags & RDF_NOWORLDMODEL))
 	{
 		ri.Error(ERR_DROP, "R_RenderScene: NULL worldmodel");
 	}
 
-	Com_Memcpy(tr.refdef.text, fd->text, sizeof(tr.refdef.text));
+	renderCommand_t lastRenderCommand;
+	viewParms_t parms;
+
+	std::memcpy(tr.refdef.text, fd->text, sizeof(tr.refdef.text));
 
 	tr.refdef.x = fd->x;
 	tr.refdef.y = fd->y;
@@ -428,10 +421,8 @@ void RE_RenderScene(const refdef_t *fd)
 	tr.refdef.fov_x = fd->fov_x;
 	tr.refdef.fov_y = fd->fov_y;
 
-	VectorCopy(fd->vieworg, tr.refdef.vieworg);
-	VectorCopy(fd->viewaxis[0], tr.refdef.viewaxis[0]);
-	VectorCopy(fd->viewaxis[1], tr.refdef.viewaxis[1]);
-	VectorCopy(fd->viewaxis[2], tr.refdef.viewaxis[2]);
+	std::memcpy(tr.refdef.vieworg, fd->vieworg, sizeof(tr.refdef.vieworg));
+	std::memcpy(tr.refdef.viewaxis, fd->viewaxis, sizeof(tr.refdef.viewaxis));
 
 	tr.refdef.time = fd->time;
 	tr.refdef.rdflags = fd->rdflags;
@@ -460,8 +451,7 @@ void RE_RenderScene(const refdef_t *fd)
 	}
 
 	// derived info
-
-	tr.refdef.floatTime = (double)tr.refdef.time * 0.001; // -EC-: cast to double
+	tr.refdef.floatTime = static_cast<double>(tr.refdef.time) * 0.001; // -EC-: cast to double
 
 	tr.refdef.numDrawSurfs = r_firstSceneDrawSurf;
 	tr.refdef.drawSurfs = backEndData->drawSurfs;
@@ -501,7 +491,7 @@ void RE_RenderScene(const refdef_t *fd)
 	// The refdef takes 0-at-the-top y coordinates, so
 	// convert to GL's 0-at-the-bottom space
 	//
-	Com_Memset(&parms, 0, sizeof(parms));
+	std::memset(&parms, 0, sizeof(parms));
 	parms.viewportX = tr.refdef.x;
 	parms.viewportY = glConfig.vidHeight - (tr.refdef.y + tr.refdef.height);
 	parms.viewportWidth = tr.refdef.width;
@@ -524,12 +514,11 @@ void RE_RenderScene(const refdef_t *fd)
 
 	parms.stereoFrame = tr.refdef.stereoFrame;
 
-	VectorCopy(fd->vieworg, parms.ort.origin);
-	VectorCopy(fd->viewaxis[0], parms.ort.axis[0]);
-	VectorCopy(fd->viewaxis[1], parms.ort.axis[1]);
-	VectorCopy(fd->viewaxis[2], parms.ort.axis[2]);
+	std::memcpy(parms.ort.origin, fd->vieworg, sizeof(parms.ort.origin));
+	std::memcpy(parms.ort.axis, fd->viewaxis, sizeof(parms.ort.axis));
+	std::memcpy(parms.pvsOrigin, fd->vieworg, sizeof(parms.pvsOrigin));
 
-	VectorCopy(fd->vieworg, parms.pvsOrigin);
+	//VectorCopy(fd->vieworg, parms.pvsOrigin);
 
 	lastRenderCommand = static_cast<renderCommand_t>(tr.lastRenderCommand);
 	tr.drawSurfCmd = NULL;
@@ -542,7 +531,7 @@ void RE_RenderScene(const refdef_t *fd)
 		if (lastRenderCommand == RC_DRAW_BUFFER)
 		{
 			// duplicate all views, including portals
-			drawSurfsCommand_t *cmd, *src = NULL;
+			drawSurfsCommand_t *cmd, *src = nullptr;
 			int i;
 
 			for (i = 0; i < tr.numDrawSurfCmds; i++)

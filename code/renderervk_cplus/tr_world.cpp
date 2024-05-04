@@ -762,9 +762,6 @@ static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned
 
 	{
 		// leaf node, so add mark surfaces
-		int c;
-		msurface_t *surf, **mark;
-
 		tr.pc.c_leafs++;
 
 		// add to z buffer bounds
@@ -795,15 +792,14 @@ static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned
 		}
 
 		// add the individual surfaces
-		mark = node->firstmarksurface;
-		c = node->nummarksurfaces;
-		while (c--)
+		msurface_t **mark = node->firstmarksurface;
+
+		for (int i = 0; i < node->nummarksurfaces; ++i)
 		{
 			// the surface may have already been added if it
 			// spans multiple leafs
-			surf = *mark;
+			msurface_t *surf = mark[i];
 			R_AddWorldSurface(surf, dlightBits);
-			mark++;
 		}
 	}
 }
