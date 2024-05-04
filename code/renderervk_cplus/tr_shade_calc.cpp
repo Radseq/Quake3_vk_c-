@@ -27,8 +27,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_image.hpp"
 #include "tr_noise.hpp"
 
-#include <array>
-
 // -EC-: avoid using ri.ftol
 #define WAVEVALUE(table, base, amplitude, phase, freq) ((base) + table[(int64_t)((((phase) + tess.shaderTime * (freq)) * FUNCTABLE_SIZE)) & FUNCTABLE_MASK] * (amplitude))
 
@@ -443,12 +441,8 @@ Autosprite2Deform
 Autosprite2 will pivot a rectangular quad along the center of its long axis
 =====================
 */
-constexpr std::array<std::array<unsigned int, 2>, 6> edgeVerts = {{{0, 1},
-																   {0, 2},
-																   {0, 3},
-																   {1, 2},
-																   {1, 3},
-																   {2, 3}}};
+static constexpr unsigned int edgeVerts[6][2] = {
+	{0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}};
 
 static void Autosprite2Deform(void)
 {

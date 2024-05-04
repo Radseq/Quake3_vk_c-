@@ -22,7 +22,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shadows.hpp"
 #include "tr_backend.hpp"
 #include "vk.hpp"
-#include <array>
 
 /*
 
@@ -257,11 +256,11 @@ void RB_ShadowFinish(void)
 {
 	float tmp[16];
 	int i;
-	static constexpr std::array<vec3_t, 4> verts = {
-		{{-100, 100, -10},
-		 {100, 100, -10},
-		 {-100, -100, -10},
-		 {100, -100, -10}}};
+	static constexpr vec3_t verts[4] = {
+		{-100, 100, -10},
+		{100, 100, -10},
+		{-100, -100, -10},
+		{100, -100, -10}};
 
 	if (!backEnd.doneShadows)
 	{

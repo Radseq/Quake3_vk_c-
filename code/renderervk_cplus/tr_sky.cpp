@@ -27,8 +27,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_vbo.hpp"
 #include "vk.hpp"
 
-#include <array>
-
 #define SKY_SUBDIVISIONS 8
 #define HALF_SKY_SUBDIVISIONS (SKY_SUBDIVISIONS / 2)
 #define ON_EPSILON 0.1f // point on plane side epsilon
@@ -56,7 +54,7 @@ static float sky_mins[2][6], sky_maxs[2][6];
 static float sky_min, sky_max;
 static float sky_min_depth;
 
-constexpr std::array<int, 6> sky_texorder = {0, 2, 1, 3, 4, 5};
+constexpr int sky_texorder[6] = {0, 2, 1, 3, 4, 5};
 static vec3_t s_skyPoints[SKY_SUBDIVISIONS + 1][SKY_SUBDIVISIONS + 1];
 static float s_skyTexCoords[SKY_SUBDIVISIONS + 1][SKY_SUBDIVISIONS + 1][2];
 
