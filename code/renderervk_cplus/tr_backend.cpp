@@ -239,7 +239,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 			}
 #ifdef USE_PMLIGHT
 #define INSERT_POINT SS_FOG
-			if (backEnd.refdef.numLitSurfs && oldShaderSort < INSERT_POINT && shader->sort >= INSERT_POINT)
+			if (backEnd.refdef.numLitSurfs && oldShaderSort < static_cast<float>(INSERT_POINT) && shader->sort >= static_cast<float>(INSERT_POINT))
 			{
 				// RB_BeginDrawingLitSurfs(); // no need, already setup in RB_BeginDrawingView()
 				RB_LightingPass();

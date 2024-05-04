@@ -30,6 +30,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_scene.hpp"
 #include "tr_noise.hpp"
 #include "tr_local.hpp"
+#include "tr_shader.hpp"
+#include "tr_image.hpp"
+#include "tr_light.hpp"
+#include "tr_model.hpp"
 
 glconfig_t glConfig;
 

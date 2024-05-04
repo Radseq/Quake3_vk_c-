@@ -1,7 +1,6 @@
 #ifndef TR_IMAGE_PCX_HPP
 #define TR_IMAGE_PCX_HPP
 
-#include "../qcommon/q_shared.h"
 #include "tr_public.hpp"
 /*
 ========================================================================

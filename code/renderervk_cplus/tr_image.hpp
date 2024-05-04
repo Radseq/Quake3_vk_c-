@@ -1,12 +1,6 @@
 #ifndef TR_IMAGE_HPP
 #define TR_IMAGE_HPP
 
-
-#include "tr_image_bmp.hpp"
-#include "tr_image_jpg.hpp"
-#include "tr_image_png.hpp"
-#include "tr_image_tga.hpp"
-#include "tr_image_pcx.hpp"
 #include "tr_local.hpp"
 
 /*

@@ -25,6 +25,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_animation.hpp"
 #include "tr_scene.hpp"
 #include "vk_flares.hpp"
+#include "tr_model_iqm.hpp"
+#include "tr_shader.hpp"
 
 #include <functional>
 #include <string_view>

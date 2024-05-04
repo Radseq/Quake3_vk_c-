@@ -27,8 +27,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_model_iqm.hpp"
 #include "tr_scene.hpp"
 #include "tr_shade.hpp"
+#include "tr_shader.hpp"
 #include "tr_world.hpp"
 #include "tr_cmds.hpp"
+#include "tr_model.hpp"
 
 #include <string.h> // memcpy
 
@@ -256,7 +258,7 @@ R_TransformModelToClip_plus
 ==========================
 */
 void R_TransformModelToClip(const vec3_t src, const float *modelMatrix, const float *projectionMatrix,
-								 vec4_t eye, vec4_t dst)
+							vec4_t eye, vec4_t dst)
 {
 	int i;
 
@@ -346,7 +348,7 @@ Called by both the front end and the back end
 =================
 */
 void R_RotateForEntity(const trRefEntity_t *ent, const viewParms_t *viewParms,
-							orientationr_t *ort)
+					   orientationr_t *ort)
 {
 	float glMatrix[16];
 	vec3_t delta;
@@ -1525,7 +1527,7 @@ R_AddDrawSurf_plus
 =================
 */
 void R_AddDrawSurf(surfaceType_t *surface, shader_t *shader,
-						int fogIndex, int dlightMap)
+				   int fogIndex, int dlightMap)
 {
 	int index;
 
@@ -1545,7 +1547,7 @@ R_DecomposeSort_plus
 =================
 */
 void R_DecomposeSort(unsigned sort, int *entityNum, shader_t **shader,
-						  int *fogNum, int *dlightMap)
+					 int *fogNum, int *dlightMap)
 {
 	*fogNum = (sort >> QSORT_FOGNUM_SHIFT) & FOGNUM_MASK;
 	*shader = tr.sortedShaders[(sort >> QSORT_SHADERNUM_SHIFT) & SHADERNUM_MASK];
@@ -1583,13 +1585,13 @@ static void R_SortDrawSurfs(drawSurf_t *drawSurfs, int numDrawSurfs)
 	{
 		R_DecomposeSort((drawSurfs + i)->sort, &entityNum, &shader, &fogNum, &dlighted);
 
-		if (shader->sort > SS_PORTAL)
+		if (shader->sort > static_cast<float>(SS_PORTAL))
 		{
 			break;
 		}
 
 		// no shader should ever have this sort type
-		if (shader->sort == SS_BAD)
+		if (shader->sort == static_cast<float>(SS_BAD))
 		{
 			ri.Error(ERR_DROP, "Shader '%s'with sort == SS_BAD", shader->name);
 		}

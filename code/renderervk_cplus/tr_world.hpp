@@ -1,10 +1,6 @@
 #ifndef TR_WORLD_HPP
 #define TR_WORLD_HPP
 
-#include "tr_main.hpp"
-#include "tr_light.hpp"
-#include "tr_model.hpp"
-
 #include "tr_local.hpp"
 
 void R_AddWorldSurfaces();

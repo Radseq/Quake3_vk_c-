@@ -1,9 +1,6 @@
 #ifndef TR_SHADE_CALC_HPP
 #define TR_SHADE_CALC_HPP
 
-#include "tr_image.hpp"
-
-#include "tr_noise.hpp"
 #include "tr_local.hpp"
 
 void RB_CalcStretchTexCoords(const waveForm_t *wf, float *src, float *dst);

@@ -998,7 +998,7 @@ void RB_StageIteratorGeneric(void)
 #ifdef USE_PMLIGHT
 	if (r_dlightMode->integer == 0)
 #endif
-		if (tess.dlightBits && tess.shader->sort <= SS_OPAQUE && !(tess.shader->surfaceFlags & (SURF_NODLIGHT | SURF_SKY)))
+		if (tess.dlightBits && tess.shader->sort <= static_cast<float>(SS_OPAQUE) && !(tess.shader->surfaceFlags & (SURF_NODLIGHT | SURF_SKY)))
 		{
 			if (!fogCollapse)
 			{

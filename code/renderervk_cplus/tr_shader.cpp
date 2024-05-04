@@ -1181,7 +1181,7 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 		}
 	}
 
-	if (depthMaskExplicit && shader.sort == SS_BAD)
+	if (depthMaskExplicit && shader.sort == static_cast<float>(SS_BAD))
 	{
 		// fix decals on q3wcp18 and other maps
 		if (blendSrcBits == GLS_SRCBLEND_SRC_ALPHA && blendDstBits == GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA /*&& stage->rgbGen == CGEN_VERTEX*/)
@@ -1196,7 +1196,7 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 				// skip for q3wcp14 jumppads and similar
 				// q3wcp14 @ "textures/ctf_unified/bounce_blue" : AGEN_SKIP, CGEN_IDENTITY
 			}
-			shader.sort = shader.polygonOffset ? SS_DECAL : SS_OPAQUE + 0.01f;
+			shader.sort = shader.polygonOffset ? static_cast<float>(SS_DECAL) : static_cast<float>(SS_OPAQUE) + 0.01f;
 		}
 		else if (blendSrcBits == GLS_SRCBLEND_ZERO && blendDstBits == GLS_DSTBLEND_ONE_MINUS_SRC_COLOR && stage->bundle[0].rgbGen == CGEN_EXACT_VERTEX)
 		{
@@ -2533,7 +2533,7 @@ static void FindLightingStages(void)
 	shader.lightingStage = -1;
 	shader.lightingBundle = 0;
 
-	if (shader.isSky || (shader.surfaceFlags & (SURF_NODLIGHT | SURF_SKY)) || shader.sort == SS_ENVIRONMENT || shader.sort >= SS_FOG)
+	if (shader.isSky || (shader.surfaceFlags & (SURF_NODLIGHT | SURF_SKY)) || shader.sort == static_cast<float>(SS_ENVIRONMENT) || shader.sort >= static_cast<float>(SS_FOG))
 		return;
 
 	bundle = NULL;
@@ -2975,7 +2975,7 @@ static void VertexLightingCollapse(void)
 	bool vertexColors;
 
 	// if we aren't opaque, just use the first pass
-	if (shader.sort == SS_OPAQUE)
+	if (shader.sort == static_cast<float>(SS_OPAQUE))
 	{
 
 		// pick the best texture for the single pass
@@ -3201,7 +3201,7 @@ static shader_t *FinishShader(void)
 	//
 	// set polygon offset
 	//
-	if (shader.polygonOffset && shader.sort == SS_BAD)
+	if (shader.polygonOffset && shader.sort == static_cast<float>(SS_BAD))
 	{
 		shader.sort = SS_DECAL;
 	}
@@ -3327,7 +3327,7 @@ static shader_t *FinishShader(void)
 
 	// there are times when you will need to manually apply a sort to
 	// opaque alpha tested shaders that have later blend passes
-	if (shader.sort == SS_BAD)
+	if (shader.sort == static_cast<float>(SS_BAD))
 	{
 		if (colorBlend)
 		{
@@ -3423,7 +3423,7 @@ static shader_t *FinishShader(void)
 	if (stage == 0 && !shader.isSky)
 		shader.sort = SS_FOG;
 
-	if (shader.sort <= SS_OPAQUE)
+	if (shader.sort <= static_cast<float>(SS_OPAQUE))
 	{
 		shader.fogPass = FP_EQUAL;
 	}

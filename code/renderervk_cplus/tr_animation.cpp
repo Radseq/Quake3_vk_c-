@@ -26,6 +26,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_mesh.hpp"
 #include "tr_surface.hpp"
 #include "vk_vbo.hpp"
+#include "tr_light.hpp"
+#include "tr_main.hpp"
 
 /*
 
@@ -288,13 +290,13 @@ void R_MDRAddAnimSurfaces(trRefEntity_t *ent)
 		// we will add shadows even if the main object isn't visible in the view
 
 		// stencil shadows can't do personal models unless I polyhedron clip
-		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 && !(ent->e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == SS_OPAQUE)
+		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 && !(ent->e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == static_cast<float>(SS_OPAQUE))
 		{
 			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
-		if (r_shadows->integer == 3 && fogNum == 0 && (ent->e.renderfx & RF_SHADOW_PLANE) && shader->sort == SS_OPAQUE)
+		if (r_shadows->integer == 3 && fogNum == 0 && (ent->e.renderfx & RF_SHADOW_PLANE) && shader->sort == static_cast<float>(SS_OPAQUE))
 		{
 			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.projectionShadowShader, 0, 0);
 		}
