@@ -34,7 +34,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm> // for std::clamp
 #include <cstdint>	 // for std::uint32_t
-#include <array>
 #include <algorithm>
 
 // Note that the ordering indicates the order of preference used
@@ -62,25 +61,13 @@ constexpr int FOG_TABLE_SIZE_PLUS = 256;
 GLint gl_filter_min = GL_LINEAR_MIPMAP_NEAREST;
 GLint gl_filter_max = GL_LINEAR;
 
-constexpr std::array<textureMode_t, 6> modes = {{{"GL_NEAREST", GL_NEAREST, GL_NEAREST},
-												 {"GL_LINEAR", GL_LINEAR, GL_LINEAR},
-												 {"GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST},
-												 {"GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR},
-												 {"GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST},
-												 {"GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR}}};
-
-template <typename T, size_t N>
-constexpr size_t ARRAY_LEN2(const T (&)[N])
-{
-	return N;
-}
-
-// Template function to get the length of a std::array
-template <typename T, size_t N>
-constexpr size_t ARRAY_LEN2(const std::array<T, N> &)
-{
-	return N;
-}
+constexpr textureMode_t modes[6] = { // Texture modes
+	{"GL_NEAREST", GL_NEAREST, GL_NEAREST},
+	{"GL_LINEAR", GL_LINEAR, GL_LINEAR},
+	{"GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST},
+	{"GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR},
+	{"GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST},
+	{"GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR}};
 
 skin_t *R_GetSkinByHandle(qhandle_t hSkin)
 {
@@ -252,7 +239,7 @@ void R_SetColorMappings()
 
 	shift = tr.overbrightBits;
 
-	for (i = 0; i < ARRAY_LEN2(s_gammatable); i++)
+	for (i = 0; i < ARRAY_LEN(s_gammatable); i++)
 	{
 		if (g == 1.0f)
 		{
@@ -274,7 +261,7 @@ void R_SetColorMappings()
 		s_gammatable[i] = inf;
 	}
 
-	for (i = 0; i < ARRAY_LEN2(s_intensitytable); i++)
+	for (i = 0; i < ARRAY_LEN(s_intensitytable); i++)
 	{
 		j = i * r_intensity->value;
 		if (j > 255)
@@ -366,7 +353,7 @@ void TextureMode(const char *string)
 	int i;
 
 	mode = NULL;
-	for (i = 0; i < modes.size(); i++)
+	for (i = 0; i < ARRAY_LEN(modes); i++)
 	{
 		if (!Q_stricmp(modes[i].name, string))
 		{
@@ -529,7 +516,7 @@ static void R_BlendOverTexture(byte *data, int pixelCount, int mipLevel)
 	if (mipLevel <= 0)
 		return;
 
-	blend = blendColors[(mipLevel - 1) % ARRAY_LEN2(blendColors)];
+	blend = blendColors[(mipLevel - 1) % ARRAY_LEN(blendColors)];
 
 	inverseAlpha = 255 - blend[3];
 	premult[0] = blend[0] * blend[3];
@@ -567,7 +554,7 @@ static void ResampleTexture(unsigned *in, int inwidth, int inheight, unsigned *o
 	unsigned p2[MAX_TEXTURE_SIZE];
 	byte *pix1, *pix2, *pix3, *pix4;
 
-	if (outwidth > ARRAY_LEN2(p1))
+	if (outwidth > ARRAY_LEN(p1))
 		ri.Error(ERR_DROP, "ResampleTexture: max width");
 
 	fracstep = inwidth * 0x10000 / outwidth;
@@ -1450,8 +1437,8 @@ void R_InitImages(void)
 	for (i = 0; i < 256; i++)
 		s_gammatable_linear[i] = (unsigned char)i;
 
-	// memset(hashTable, 0, sizeof(hashTable));
-	std::fill(std::begin(hashTable), std::end(hashTable), nullptr);
+	memset(hashTable, 0, sizeof(hashTable));
+	// std::fill(std::begin(hashTable), std::end(hashTable), nullptr);
 
 	// build brightness translation tables
 	R_SetColorMappings();
