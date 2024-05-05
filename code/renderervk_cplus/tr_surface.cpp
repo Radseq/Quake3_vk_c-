@@ -419,7 +419,7 @@ RB_SurfaceBeam
 */
 static void RB_SurfaceBeam(void)
 {
-#define NUM_BEAM_SEGS 6
+	constexpr int NUM_BEAM_SEGS = 6;
 	const refEntity_t *e;
 	int i;
 	vec3_t perpvec;
@@ -1452,15 +1452,15 @@ static void RB_SurfaceSkip(void *surf)
 }
 
 void (*rb_surfaceTable[SF_NUM_SURFACE_TYPES])(void *) = {
-	(void (*)(void *))RB_SurfaceBad,		  // SF_BAD,
-	(void (*)(void *))RB_SurfaceSkip,		  // SF_SKIP,
-	(void (*)(void *))RB_SurfaceFace,		  // SF_FACE,
-	(void (*)(void *))RB_SurfaceGrid,		  // SF_GRID,
-	(void (*)(void *))RB_SurfaceTriangles,	  // SF_TRIANGLES,
-	(void (*)(void *))RB_SurfacePolychain,	  // SF_POLY,
-	(void (*)(void *))RB_SurfaceMesh,		  // SF_MD3,
-	(void (*)(void *))RB_MDRSurfaceAnim, 	  // SF_MDR,
-	(void (*)(void *))RB_IQMSurfaceAnim,	  // SF_IQM,
-	(void (*)(void *))RB_SurfaceFlare,		  // SF_FLARE,
-	(void (*)(void *))RB_SurfaceEntity		  // SF_ENTITY
+	(void (*)(void *))RB_SurfaceBad,	   // SF_BAD,
+	(void (*)(void *))RB_SurfaceSkip,	   // SF_SKIP,
+	(void (*)(void *))RB_SurfaceFace,	   // SF_FACE,
+	(void (*)(void *))RB_SurfaceGrid,	   // SF_GRID,
+	(void (*)(void *))RB_SurfaceTriangles, // SF_TRIANGLES,
+	(void (*)(void *))RB_SurfacePolychain, // SF_POLY,
+	(void (*)(void *))RB_SurfaceMesh,	   // SF_MD3,
+	(void (*)(void *))RB_MDRSurfaceAnim,   // SF_MDR,
+	(void (*)(void *))RB_IQMSurfaceAnim,   // SF_IQM,
+	(void (*)(void *))RB_SurfaceFlare,	   // SF_FLARE,
+	(void (*)(void *))RB_SurfaceEntity	   // SF_ENTITY
 };

@@ -46,7 +46,7 @@ extern "C"
 	// #define USE_TESS_NEEDS_ST2
 
 #include "../qcommon/q_shared.h"
-#include "../qcommon/qfiles.h"
+
 #include "../qcommon/qcommon.h"
 #include "tr_public.hpp"
 #include "tr_common.hpp"
@@ -446,10 +446,10 @@ extern "C"
 		float sort; // lower numbered shaders draw before higher numbered
 
 		bool defaultShader; // we want to return index 0 if the shader failed to
-								// load for some reason, but R_FindShader should
-								// still keep a name allocated for it, so if
-								// something calls RE_RegisterShader again with
-								// the same name, we don't try looking for it again
+							// load for some reason, but R_FindShader should
+							// still keep a name allocated for it, so if
+							// something calls RE_RegisterShader again with
+							// the same name, we don't try looking for it again
 
 		bool explicitlyDefined; // found in a .shader file
 
@@ -467,8 +467,8 @@ extern "C"
 
 		bool multitextureEnv; // if shader has multitexture stage(s)
 
-		cullType_t cullType;	// CT_FRONT_SIDED, CT_BACK_SIDED, or CT_TWO_SIDED
-		bool polygonOffset; // set for decals and other items that must be offset
+		cullType_t cullType; // CT_FRONT_SIDED, CT_BACK_SIDED, or CT_TWO_SIDED
+		bool polygonOffset;	 // set for decals and other items that must be offset
 
 		unsigned noMipMaps : 1; // for console fonts, 2D elements, etc.
 		unsigned noPicMip : 1;	// for images that must always be full resolution
@@ -648,7 +648,7 @@ extern "C"
 
 	typedef struct
 	{
-		orientationr_t ort ;
+		orientationr_t ort;
 		orientationr_t world;
 		vec3_t pvsOrigin; // may be different than or.origin for portals
 		portalView_t portalView;
@@ -1147,7 +1147,7 @@ the bits are allocated as follows:
 	{
 		trRefdef_t refdef;
 		viewParms_t viewParms;
-		orientationr_t ort ;
+		orientationr_t ort;
 		backEndCounters_t pc;
 		bool isHyperspace;
 		const trRefEntity_t *currentEntity;
@@ -1155,7 +1155,7 @@ the bits are allocated as follows:
 
 		bool projection2D; // if qtrue, drawstretchpic doesn't need to change modes
 		color4ub_t color2D;
-		bool doneSurfaces;	// done any 3d surfaces already
+		bool doneSurfaces;		// done any 3d surfaces already
 		trRefEntity_t entity2D; // currentEntity will point at this when doing 2D rendering
 
 		int screenshotMask; // tga | jpg | bmp
@@ -1245,7 +1245,7 @@ the bits are allocated as follows:
 		int identityLightByte; // identityLight * 255
 		int overbrightBits;	   // r_overbrightBits->integer, but set to 0 if no hw gamma
 
-		orientationr_t ort ; // for current entity
+		orientationr_t ort; // for current entity
 
 		trRefdef_t refdef;
 
@@ -1309,7 +1309,6 @@ the bits are allocated as follows:
 	extern glstatic_t gls;
 
 	// extern void myGlMultMatrix(const float *a, const float *b, float *out);
-
 
 	extern Vk_Instance vk;	  // shouldn't be cleared during ref re-init
 	extern Vk_World vk_world; // this data is cleared during ref re-init

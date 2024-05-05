@@ -29,7 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define MAX_VBO_STAGES MAX_SHADER_STAGES
 
-#define MIN_IBO_RUN 320
+constexpr int MIN_IBO_RUN = 320;
 
 //[ibo]: [index0][index1][index2]
 //[vbo]: [index0][vertex0...][index1][vertex1...][index2][vertex2...]

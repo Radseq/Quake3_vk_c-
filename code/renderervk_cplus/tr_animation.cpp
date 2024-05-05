@@ -445,7 +445,7 @@ void RB_MDRSurfaceAnim(mdrSurface_t *surface)
 	tess.numVertexes += surface->numVerts;
 }
 
-#define MC_SCALE_VECT (1.0f / 64)
+constexpr float MC_SCALE_VECT = (1.0f / 64);
 
 constexpr int MC_MASK_X = (1 << MC_BITS_X) - 1;
 constexpr int MC_MASK_Y = (1 << MC_BITS_Y) - 1;

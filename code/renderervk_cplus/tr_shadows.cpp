@@ -41,7 +41,7 @@ typedef struct
 	int facing;
 } edgeDef_t;
 
-#define MAX_EDGE_DEFS 32
+constexpr int MAX_EDGE_DEFS = 32;
 
 static edgeDef_t edgeDefs[SHADER_MAX_VERTEXES][MAX_EDGE_DEFS];
 static int numEdgeDefs[SHADER_MAX_VERTEXES];
