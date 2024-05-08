@@ -10,6 +10,13 @@
 
 #endif
 
+constexpr int MIN_SWAPCHAIN_IMAGES_IMM = 3;
+constexpr int MIN_SWAPCHAIN_IMAGES_FIFO = 3;
+constexpr int MIN_SWAPCHAIN_IMAGES_FIFO_0 = 4;
+constexpr int MIN_SWAPCHAIN_IMAGES_MAILBOX = 3;
+constexpr int VERTEX_BUFFER_SIZE = (4 * 1024 * 1024);
+constexpr int IMAGE_CHUNK_SIZE = (32 * 1024 * 1024);
+
 constexpr VkSampleCountFlagBits convertToVkSampleCountFlagBits(int sampleCountInt)
 {
 	switch (sampleCountInt)

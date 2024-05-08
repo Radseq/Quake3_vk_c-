@@ -5,6 +5,7 @@
 extern "C"
 {
 #endif
+
 #include "../renderervk_cplus/vulkan/vulkan.h"
 #include "tr_common.hpp"
 #include "tr_local.hpp"
@@ -14,29 +15,8 @@ extern "C"
 #define USE_PMLIGHT
 #define USE_LEGACY_DLIGHTS
 
-#define MAX_SWAPCHAIN_IMAGES 8
-#define MIN_SWAPCHAIN_IMAGES_IMM 3
-#define MIN_SWAPCHAIN_IMAGES_FIFO 3
-#define MIN_SWAPCHAIN_IMAGES_FIFO_0 4
-#define MIN_SWAPCHAIN_IMAGES_MAILBOX 3
-
-#define MAX_VK_SAMPLERS 32
-#define MAX_VK_PIPELINES (1024 + 128)
-
-#define VERTEX_BUFFER_SIZE (4 * 1024 * 1024)
-#define IMAGE_CHUNK_SIZE (32 * 1024 * 1024)
-#define MAX_IMAGE_CHUNKS 48
-
-#define NUM_COMMAND_BUFFERS 2 // number of command buffers / render semaphores / framebuffer sets
-
 #define USE_REVERSED_DEPTH
-      // #define USE_BUFFER_CLEAR
-
-#define VK_NUM_BLOOM_PASSES 4
-
 #define USE_DEDICATED_ALLOCATION
-// #define MIN_IMAGE_ALIGN (128*1024)
-#define MAX_ATTACHMENTS_IN_POOL (8 + VK_NUM_BLOOM_PASSES * 2) // depth + msaa + msaa-resolve + depth-resolve + screenmap.msaa + screenmap.resolve + screenmap.depth + bloom_extract + blur pairs
 
 #define VK_DESC_STORAGE 0
 #define VK_DESC_UNIFORM 1
@@ -176,8 +156,6 @@ extern "C"
       uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def *def);
 
       VkPipeline vk_gen_pipeline(uint32_t index);
-      void vk_update_mvp(const float *m);
-
       void vk_bind_descriptor_sets(void);
       void vk_begin_post_bloom_render_pass(void);
       void vk_begin_bloom_extract_render_pass(void);
