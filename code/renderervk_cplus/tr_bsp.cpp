@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_vbo.hpp"
 #include "tr_shader.hpp"
 #include "tr_model.hpp"
+#include "q_math.hpp"
 
 static world_t s_worldData;
 static byte *fileBase;
@@ -375,7 +376,7 @@ static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 	{
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOBORDER);
 		tr.lightmaps[i] = R_CreateImage(va("*mergedLightmap%d", i), NULL, NULL,
-											 lightmapWidth, lightmapHeight, flag);
+										lightmapWidth, lightmapHeight, flag);
 
 		for (y = 0; y < lightmapCountY; y++)
 		{
@@ -461,7 +462,7 @@ static void R_LoadLightmaps(const lump_t *l)
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOEDGE);
 		maxIntensity = R_ProcessLightmap(image, buf + i * LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3, maxIntensity);
 		tr.lightmaps[i] = R_CreateImage(va("*lightmap%d", i), NULL, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
-											 flag);
+										flag);
 	}
 
 	// if ( r_lightmap->integer == 2 )	{
@@ -767,7 +768,7 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 #endif
 
 	cv->plane.dist = DotProduct(cv->points[0], cv->plane.normal);
-	SetPlaneSignbits(&cv->plane);
+	SetPlaneSignbits_plus(&cv->plane);
 	cv->plane.type = PlaneTypeForNormal(cv->plane.normal);
 
 	surf->data = (surfaceType_t *)cv;

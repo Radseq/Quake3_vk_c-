@@ -3418,7 +3418,7 @@ static void CL_InitRef( void ) {
 	rimp.VK_CreateSurface = VK_CreateSurface;
 #endif
 
-	ret = GetRefAPI( REF_API_VERSION, &rimp );
+	ret = GetRefAPI_c( REF_API_VERSION, &rimp );
 
 	Com_Printf( "-------------------------------\n");
 

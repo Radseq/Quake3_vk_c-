@@ -23,10 +23,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef TR_TYPES_HPP
 #define TR_TYPES_HPP
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
 
 #include "../qcommon/q_shared.h"
 
@@ -236,8 +232,6 @@ extern "C"
 #define OPENGL_DRIVER_NAME "libGL.so.1"
 #endif
 
-#ifdef __cplusplus
-}
-#endif
+
 
 #endif // TR_TYPES_HPP

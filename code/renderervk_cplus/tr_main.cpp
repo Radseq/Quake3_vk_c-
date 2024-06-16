@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_world.hpp"
 #include "tr_cmds.hpp"
 #include "tr_model.hpp"
+#include "q_math.hpp"
 
 #include <string.h> // memcpy
 
@@ -566,14 +567,14 @@ static void R_SetupFrustum(viewParms_t *dest, float xmin, float xmax, float ymax
 	{
 		dest->frustum[i].type = PLANE_NON_AXIAL;
 		dest->frustum[i].dist = DotProduct(ofsorigin, dest->frustum[i].normal);
-		SetPlaneSignbits(&dest->frustum[i]);
+		SetPlaneSignbits_plus(&dest->frustum[i]);
 	}
 
 	// near clipping plane
 	VectorCopy(dest->ort.axis[0], dest->frustum[4].normal);
 	dest->frustum[4].type = PLANE_NON_AXIAL;
 	dest->frustum[4].dist = DotProduct(ofsorigin, dest->frustum[4].normal) + r_znear->value;
-	SetPlaneSignbits(&dest->frustum[4]);
+	SetPlaneSignbits_plus(&dest->frustum[4]);
 }
 
 /*

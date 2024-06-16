@@ -238,4 +238,15 @@ extern refimport_t ri;
 
 refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp);
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+	refexport_t *GetRefAPI_c(int apiVersion, refimport_t *rimp);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif // TR_PUBLIC_HPP

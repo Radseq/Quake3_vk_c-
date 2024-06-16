@@ -2,6 +2,7 @@
 #define TR_WORLD_HPP
 
 #include "tr_local.hpp"
+#include "q_shared.hpp"
 
 void R_AddWorldSurfaces();
 

@@ -753,6 +753,8 @@ Q3RENDV_PLUS_OBJ = \
   $(B)/rendv_cplus/tr_image_jpg.o \
   $(B)/rendv_cplus/tr_init.o \
   $(B)/rendv_cplus/puff.o \
+  $(B)/rendv_cplus/q_shared.o \
+  $(B)/rendv_cplus/q_math.o \
 
 
 JPGOBJ = \

@@ -159,10 +159,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 //endianness
 short ShortSwap( short l );
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int LongSwap( int l );
+
+#ifdef __cplusplus
+}
+#endif
+
+
 float FloatSwap( const float *f );
 
 #include "q_platform.h"
+
+#include "q_shared_test.h"
 
 //=============================================================
 
@@ -211,7 +224,7 @@ int Q_longjmp_c(void *, int);
 #define Q_longjmp longjmp
 #endif
 
-typedef unsigned char byte;
+
 
 typedef enum { qfalse = 0, qtrue } qboolean;
 
@@ -220,15 +233,6 @@ typedef enum { qfalse = 0, qtrue } qboolean;
 	#define true 	1
 	#define false 	0
 #endif
-
-typedef union floatint_u
-{
-	int32_t i;
-	uint32_t u;
-	float f;
-	byte b[4];
-}
-floatint_t;
 
 typedef union {
 	byte rgba[4];
@@ -325,14 +329,6 @@ typedef enum {
 #undef ERR_FATAL			// this is be defined in malloc.h
 #endif
 
-// parameters to the main Error routine
-typedef enum {
-	ERR_FATAL,					// exit the entire game with a popup window
-	ERR_DROP,					// print to console and disconnect from game
-	ERR_SERVERDISCONNECT,		// don't kill server
-	ERR_DISCONNECT,				// client disconnected from the server
-	ERR_NEED_CD					// pop up the need-cd dialog
-} errorParm_t;
 
 
 // font rendering values used by ui and cgame
@@ -400,11 +396,7 @@ MATHLIB
 */
 
 
-typedef float vec_t;
-typedef vec_t vec2_t[2];
-typedef vec_t vec3_t[3];
-typedef vec_t vec4_t[4];
-typedef vec_t vec5_t[5];
+
 
 typedef vec_t quat_t[4];
 
@@ -746,26 +738,7 @@ void	COM_ParseWarning( const char *format, ... ) __attribute__ ((format (printf,
 
 char	*COM_ParseComplex( const char **data_p, bool allowLineBreak );
 
-typedef enum {
-	TK_GENEGIC = 0, // for single-char tokens
-	TK_STRING,
-	TK_QUOTED,
-	TK_EQ,
-	TK_NEQ,
-	TK_GT,
-	TK_GTE,
-	TK_LT,
-	TK_LTE,
-	TK_MATCH,
-	TK_OR,
-	TK_AND,
-	TK_SCOPE_OPEN,
-	TK_SCOPE_CLOSE,
-	TK_NEWLINE,
-	TK_EOF,
-} tokenType_t;
 
-extern tokenType_t com_tokentype;
 
 #define MAX_TOKENLENGTH		1024
 
@@ -796,7 +769,14 @@ void Parse1DMatrix( const char **buf_p, int x, float *m);
 void Parse2DMatrix( const char **buf_p, int y, int x, float *m);
 void Parse3DMatrix( const char **buf_p, int z, int y, int x, float *m);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 int QDECL Com_sprintf( char *dest, int size, const char *fmt, ... ) __attribute__ ((format (printf, 3, 4)));
+#ifdef __cplusplus
+}
+#endif
+
 
 const char *Com_SkipTokens( const char *s, int numTokens, const char *sep );
 const char *Com_SkipCharset( const char *s, const char *sep );
@@ -831,7 +811,17 @@ int Q_isalpha( int c );
 bool Q_streq( const char *s1, const char *s2 );
 
 // portable case insensitive compare
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int		Q_stricmp (const char *s1, const char *s2);
+void	Q_strncpyz( char *dest, const char *src, int destsize );
+
+#ifdef __cplusplus
+}
+#endif
+
 int		Q_strncmp (const char *s1, const char *s2, int n);
 int		Q_stricmpn (const char *s1, const char *s2, int n);
 char	*Q_strlwr( char *s1 );
@@ -842,7 +832,7 @@ bool Q_isanumber( const char *s );
 bool Q_isintegral( float f );
 
 // buffer size safe library replacements
-void	Q_strncpyz( char *dest, const char *src, int destsize );
+
 void	Q_strcat( char *dest, int size, const char *src );
 
 int     Q_replace( const char *str1, const char *str2, char *src, int max_len );
@@ -886,7 +876,7 @@ float	LittleFloat (const float *l);
 
 void	Swap_Init (void);
 */
-const char *QDECL va( const char *format, ... ) __attribute__ ((format( printf, 1, 2 )));
+
 
 #define TRUNCATE_LENGTH	64
 void Com_TruncateLongString( char *buffer, const char *s );
@@ -908,7 +898,16 @@ int Info_RemoveKey( char *s, const char *key );
 
 // this is only here so the functions in q_shared.c and bg_*.c can link
 void NORETURN FORMAT_PRINTF(2, 3) QDECL Com_Error( errorParm_t level, const char *fmt, ... );
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void FORMAT_PRINTF(1, 2) QDECL Com_Printf( const char *msg, ... );
+
+#ifdef __cplusplus
+}
+#endif
+
 
 
 /*
@@ -1039,15 +1038,6 @@ PlaneTypeForNormal
 
 #define PlaneTypeForNormal(x) (x[0] == 1.0 ? PLANE_X : (x[1] == 1.0 ? PLANE_Y : (x[2] == 1.0 ? PLANE_Z : PLANE_NON_AXIAL) ) )
 
-// plane_t structure
-// !!! if this is changed, it must be changed in asm code too !!!
-typedef struct cplane_s {
-	vec3_t	normal;
-	float	dist;
-	byte	type;			// for fast side tests: 0,1,2 = axial, 3 = nonaxial
-	byte	signbits;		// signx + (signy<<1) + (signz<<2), used as lookup during collision
-	byte	pad[2];
-} cplane_t;
 
 
 // a trace is returned when a box is swept through the world

@@ -1606,3 +1606,8 @@ refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp)
 
 	return &re;
 }
+
+refexport_t *GetRefAPI_c(int apiVersion, refimport_t *rimp)
+{
+	return GetRefAPI(apiVersion, rimp);
+}

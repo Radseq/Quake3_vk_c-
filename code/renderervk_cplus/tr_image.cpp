@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_image_png.hpp"
 #include "tr_image_tga.hpp"
 #include "tr_image_pcx.hpp"
+#include "../qcommon/q_shared_test.h"
 
 #define generateHashValue(fname) Com_GenerateHashValue((fname), FILE_HASH_SIZE)
 

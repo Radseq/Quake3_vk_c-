@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_main.hpp"
 #include "tr_light.hpp"
 #include "tr_model.hpp"
+#include "q_math.hpp"
 
 /*
 =================
@@ -660,7 +661,7 @@ static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned
 
 			if (planeBits & 1)
 			{
-				r = BoxOnPlaneSide(node->mins, node->maxs, &tr.viewParms.frustum[0]);
+				r = BoxOnPlaneSide_plus(node->mins, node->maxs, &tr.viewParms.frustum[0]);
 				if (r == 2)
 				{
 					return; // culled
@@ -673,7 +674,7 @@ static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned
 
 			if (planeBits & 2)
 			{
-				r = BoxOnPlaneSide(node->mins, node->maxs, &tr.viewParms.frustum[1]);
+				r = BoxOnPlaneSide_plus(node->mins, node->maxs, &tr.viewParms.frustum[1]);
 				if (r == 2)
 				{
 					return; // culled
@@ -686,7 +687,7 @@ static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned
 
 			if (planeBits & 4)
 			{
-				r = BoxOnPlaneSide(node->mins, node->maxs, &tr.viewParms.frustum[2]);
+				r = BoxOnPlaneSide_plus(node->mins, node->maxs, &tr.viewParms.frustum[2]);
 				if (r == 2)
 				{
 					return; // culled
@@ -699,7 +700,7 @@ static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned
 
 			if (planeBits & 8)
 			{
-				r = BoxOnPlaneSide(node->mins, node->maxs, &tr.viewParms.frustum[3]);
+				r = BoxOnPlaneSide_plus(node->mins, node->maxs, &tr.viewParms.frustum[3]);
 				if (r == 2)
 				{
 					return; // culled
