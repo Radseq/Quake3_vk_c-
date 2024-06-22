@@ -1,4 +1,4 @@
-#include "../renderervk_cplus/vulkan/vulkan.h"
+#include "vulkan/vulkan.h"
 
 #ifndef DEFINITIONS_HPP
 #define DEFINITIONS_HPP
@@ -184,8 +184,6 @@ typedef enum
     LINE_LIST,
     POINT_LIST
 } Vk_Primitive_Topology;
-
-
 
 typedef struct
 {

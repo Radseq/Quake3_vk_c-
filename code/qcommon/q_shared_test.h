@@ -51,6 +51,16 @@ typedef vec_t vec3_t[3];
 typedef vec_t vec4_t[4];
 typedef vec_t vec5_t[5];
 
+typedef int		qhandle_t;
+typedef int		sfxHandle_t;
+typedef int		fileHandle_t;
+typedef int		clipHandle_t;
+
+#define	MAX_MAP_AREA_BYTES		32		// bit vector of area visibility
+// the game guarantees that no string from the network will ever
+// exceed MAX_STRING_CHARS
+#define	MAX_STRING_CHARS	1024	// max length of a string passed to Cmd_TokenizeString
+#define	BIG_INFO_STRING		8192  // used for system info key only
 
 // plane_t structure
 // !!! if this is changed, it must be changed in asm code too !!!
@@ -100,6 +110,11 @@ typedef enum
 	TK_EOF,
 } tokenType_t;
 
+typedef union {
+	byte rgba[4];
+	unsigned int u32;
+} color4ub_t;
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -110,6 +125,9 @@ extern "C"
 	void NORETURN FORMAT_PRINTF(2, 3) QDECL Com_Error(errorParm_t level, const char *fmt, ...);
 	int QDECL Com_sprintf(char *dest, int size, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
 	const char *QDECL va(const char *format, ...) __attribute__((format(printf, 1, 2)));
+
+	int Q_stricmp(const char *s1, const char *s2);
+	void Q_strncpyz(char *dest, const char *src, int destsize);
 
 #ifdef __cplusplus
 }

@@ -234,16 +234,10 @@ typedef enum { qfalse = 0, qtrue } qboolean;
 	#define false 	0
 #endif
 
-typedef union {
-	byte rgba[4];
-	uint32_t u32;
-} color4ub_t;
 
 
-typedef int		qhandle_t;
-typedef int		sfxHandle_t;
-typedef int		fileHandle_t;
-typedef int		clipHandle_t;
+
+
 
 #define PAD(base, alignment)	(((base)+(alignment)-1) & ~((alignment)-1))
 #define PADLEN(base, alignment)	(PAD((base), (alignment)) - (base))
@@ -275,7 +269,6 @@ typedef int		clipHandle_t;
 
 // the game guarantees that no string from the network will ever
 // exceed MAX_STRING_CHARS
-#define	MAX_STRING_CHARS	1024	// max length of a string passed to Cmd_TokenizeString
 #define	MAX_STRING_TOKENS	1024	// max tokens resulting from Cmd_TokenizeString
 #define	MAX_TOKEN_CHARS		1024	// max length of an individual token
 
@@ -285,7 +278,7 @@ typedef int		clipHandle_t;
 
 #define MAX_USERINFO_LENGTH (MAX_INFO_STRING-13) // incl. length of 'connect ""' or 'userinfo ""' and reserving one byte to avoid q3msgboom
 													
-#define	BIG_INFO_STRING		8192  // used for system info key only
+
 #define	BIG_INFO_KEY		  8192
 #define	BIG_INFO_VALUE		8192
 
@@ -313,7 +306,6 @@ typedef enum {
 //
 // these aren't needed by any of the VMs.  put in another header?
 //
-#define	MAX_MAP_AREA_BYTES		32		// bit vector of area visibility
 
 
 // print levels from renderer (FIXME: set up for game / cgame?)
@@ -811,16 +803,6 @@ int Q_isalpha( int c );
 bool Q_streq( const char *s1, const char *s2 );
 
 // portable case insensitive compare
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-int		Q_stricmp (const char *s1, const char *s2);
-void	Q_strncpyz( char *dest, const char *src, int destsize );
-
-#ifdef __cplusplus
-}
-#endif
 
 int		Q_strncmp (const char *s1, const char *s2, int n);
 int		Q_stricmpn (const char *s1, const char *s2, int n);

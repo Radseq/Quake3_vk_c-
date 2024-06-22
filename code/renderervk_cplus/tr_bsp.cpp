@@ -309,19 +309,19 @@ static float R_ProcessLightmap(byte *image, const byte *buf_p, float maxIntensit
 
 static int SetLightmapParams(int numLightmaps, int maxTextureSize)
 {
-	lightmapWidth = log2pad(LIGHTMAP_LEN, 1);
-	lightmapHeight = log2pad(LIGHTMAP_LEN, 1);
+	lightmapWidth = log2pad_plus(LIGHTMAP_LEN, 1);
+	lightmapHeight = log2pad_plus(LIGHTMAP_LEN, 1);
 
 	lightmapCountX = 1;
 	lightmapCountY = 1;
 
 	while (lightmapWidth < maxTextureSize && lightmapCountX * lightmapCountY < numLightmaps)
 	{
-		lightmapWidth = log2pad(lightmapWidth + LIGHTMAP_LEN, 1);
+		lightmapWidth = log2pad_plus(lightmapWidth + LIGHTMAP_LEN, 1);
 		lightmapCountX = lightmapWidth / LIGHTMAP_LEN;
 		if (lightmapCountX * lightmapCountY >= numLightmaps)
 			break;
-		lightmapHeight = log2pad(lightmapHeight + LIGHTMAP_LEN, 1);
+		lightmapHeight = log2pad_plus(lightmapHeight + LIGHTMAP_LEN, 1);
 		lightmapCountY = lightmapHeight / LIGHTMAP_LEN;
 	}
 

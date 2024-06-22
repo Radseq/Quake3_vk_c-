@@ -3946,7 +3946,7 @@ void vk_initialize(void)
 	if (/*vk.fboActive &&*/ vk.msaaActive)
 	{
 		VkSampleCountFlags mask = vkMaxSamples;
-		vkSamples = convertToVkSampleCountFlagBits(std::max(log2pad(r_ext_multisample->integer, 1), static_cast<unsigned int>(VK_SAMPLE_COUNT_2_BIT)));
+		vkSamples = convertToVkSampleCountFlagBits(std::max(log2pad_plus(r_ext_multisample->integer, 1), static_cast<unsigned int>(VK_SAMPLE_COUNT_2_BIT)));
 		while (vkSamples > mask)
 		{
 			int shiftAmount = 1;
@@ -3974,7 +3974,7 @@ void vk_initialize(void)
 	// maxTextureSize must not exceed IMAGE_CHUNK_SIZE
 	maxSize = sqrtf(IMAGE_CHUNK_SIZE / 4);
 	// round down to next power of 2
-	glConfig.maxTextureSize = MIN(props.limits.maxImageDimension2D, log2pad(maxSize, 0));
+	glConfig.maxTextureSize = MIN(props.limits.maxImageDimension2D, log2pad_plus(maxSize, 0));
 
 	if (glConfig.maxTextureSize > MAX_TEXTURE_SIZE)
 		glConfig.maxTextureSize = MAX_TEXTURE_SIZE; // ResampleTexture() relies on that maximum
@@ -6887,7 +6887,7 @@ static void vk_bind_attr(int index, unsigned int item_size, const void *src)
 	if (offset + size > vk.geometry_buffer_size)
 	{
 		// schedule geometry buffer resize
-		vk.geometry_buffer_size_new = log2pad(offset + size, 1);
+		vk.geometry_buffer_size_new = log2pad_plus(offset + size, 1);
 	}
 	else
 	{
@@ -6907,7 +6907,7 @@ uint32_t vk_tess_index(uint32_t numIndexes, const void *src)
 	if (offset + size > vk.geometry_buffer_size)
 	{
 		// schedule geometry buffer resize
-		vk.geometry_buffer_size_new = log2pad(offset + size, 1);
+		vk.geometry_buffer_size_new = log2pad_plus(offset + size, 1);
 		return ~0U;
 	}
 	else

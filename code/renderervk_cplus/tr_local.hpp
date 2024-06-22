@@ -40,11 +40,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // #define USE_TESS_NEEDS_NORMAL
 // #define USE_TESS_NEEDS_ST2
 
-#include "../qcommon/q_shared.h"
-//#include "q_shared.hpp"
+#include "q_shared.hpp"
 
-
-#include "../qcommon/qcommon.h"
+#include "../qcommon/qfiles.h"
+#include "qcommon.hpp"
 #include "tr_public.hpp"
 #include "tr_common.hpp"
 #include "iqm.hpp"
