@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_main.hpp"
 #include "tr_shader.hpp"
 #include <cstring>
+#include "q_math.hpp"
 
 int r_numdlights;
 
@@ -41,6 +42,7 @@ static int r_numpolys;
 static int r_firstScenePoly;
 
 static int r_numpolyverts;
+
 
 /*
 ====================
@@ -518,7 +520,7 @@ void RE_RenderScene(const refdef_t *fd)
 	std::memcpy(parms.ort.axis, fd->viewaxis, sizeof(parms.ort.axis));
 	std::memcpy(parms.pvsOrigin, fd->vieworg, sizeof(parms.pvsOrigin));
 
-	//VectorCopy(fd->vieworg, parms.pvsOrigin);
+	// VectorCopy(fd->vieworg, parms.pvsOrigin);
 
 	lastRenderCommand = static_cast<renderCommand_t>(tr.lastRenderCommand);
 	tr.drawSurfCmd = NULL;

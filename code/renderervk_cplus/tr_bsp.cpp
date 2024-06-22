@@ -46,6 +46,8 @@ static int lightmapHeight;
 static int lightmapCountX;
 static int lightmapCountY;
 
+
+
 /*
 
 Loads and prepares a map file for scene rendering.

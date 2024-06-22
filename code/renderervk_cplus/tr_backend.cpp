@@ -895,6 +895,8 @@ static const void *RB_DrawBuffer(const void *data)
 	return (const void *)(cmd + 1);
 }
 
+
+
 /*
 ===============
 RB_ShowImages
@@ -908,6 +910,8 @@ Also called by RE_EndRegistration
 void RB_ShowImages(void)
 {
 	int i;
+
+vec4_t		colorBlack	= {0, 0, 0, 1};
 
 	if (!backEnd.projection2D)
 	{

@@ -1,10 +1,7 @@
 #ifndef VK_HPP
 #define VK_HPP
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+
 
 #include "../renderervk_cplus/vulkan/vulkan.h"
 #include "tr_common.hpp"
@@ -171,8 +168,6 @@ extern "C"
       extern Vk_Instance vk;    // shouldn't be cleared during ref re-init
       extern Vk_World vk_world; // this data is cleared during ref re-init
 
-#ifdef __cplusplus
-}
-#endif
+
 
 #endif // VK_HPP

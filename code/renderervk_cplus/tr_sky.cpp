@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_surface.hpp"
 #include "vk_vbo.hpp"
 #include "vk.hpp"
+#include "q_math.hpp"
 
 constexpr int SKY_SUBDIVISIONS = 8;
 constexpr int HALF_SKY_SUBDIVISIONS = (SKY_SUBDIVISIONS / 2);

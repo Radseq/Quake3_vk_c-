@@ -1,6 +1,7 @@
 #include "vk.hpp"
 #include <stdexcept>
 #include <algorithm>
+#include "q_math.hpp"
 
 #if defined(_DEBUG)
 #if defined(_WIN32)

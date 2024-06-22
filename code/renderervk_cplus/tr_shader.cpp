@@ -27,8 +27,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk.hpp"
 #include "tr_image.hpp"
 #include "../qcommon/q_shared_test.h"
+#include "q_math.hpp"
 
 #include <string_view>
+
+#define generateHashValue Com_GenerateHashValue
 
 static char *s_shaderText;
 

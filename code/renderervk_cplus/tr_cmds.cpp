@@ -201,6 +201,8 @@ void R_AddDrawSurfCmd(drawSurf_t *drawSurfs, int numDrawSurfs)
 	}
 }
 
+constexpr vec4_t		colorWhite	= {1, 1, 1, 1};
+
 /*
 =============
 RE_SetColor

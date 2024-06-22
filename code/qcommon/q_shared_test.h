@@ -43,6 +43,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define FORMAT_PRINTF(x, y) /* nothing */
 #endif
 
+#ifndef __cplusplus
+typedef unsigned char bool;
+#define true 1
+#define false 0
+#endif
+
 typedef unsigned char byte;
 
 typedef float vec_t;
@@ -51,16 +57,219 @@ typedef vec_t vec3_t[3];
 typedef vec_t vec4_t[4];
 typedef vec_t vec5_t[5];
 
-typedef int		qhandle_t;
-typedef int		sfxHandle_t;
-typedef int		fileHandle_t;
-typedef int		clipHandle_t;
+typedef int qhandle_t;
+typedef int sfxHandle_t;
+typedef int fileHandle_t;
+typedef int clipHandle_t;
 
-#define	MAX_MAP_AREA_BYTES		32		// bit vector of area visibility
+#define MAX_QPATH 64 // max length of a quake game pathname
+#ifdef PATH_MAX
+#define MAX_OSPATH PATH_MAX
+#else
+#define MAX_OSPATH 256 // max length of a filesystem pathname
+#endif
+
+#define MAX_CVAR_VALUE_STRING 256
+
+#define MAX_MAP_AREA_BYTES 32 // bit vector of area visibility
 // the game guarantees that no string from the network will ever
 // exceed MAX_STRING_CHARS
-#define	MAX_STRING_CHARS	1024	// max length of a string passed to Cmd_TokenizeString
-#define	BIG_INFO_STRING		8192  // used for system info key only
+#define MAX_STRING_CHARS 1024 // max length of a string passed to Cmd_TokenizeString
+#define BIG_INFO_STRING 8192  // used for system info key only
+
+#define PAD(base, alignment) (((base) + (alignment) - 1) & ~((alignment) - 1))
+#define PADLEN(base, alignment) (PAD((base), (alignment)) - (base))
+
+#define PADP(base, alignment) ((void *)PAD((intptr_t)(base), (alignment)))
+
+#define VectorSubtract(a, b, c) ((c)[0] = (a)[0] - (b)[0], (c)[1] = (a)[1] - (b)[1], (c)[2] = (a)[2] - (b)[2])
+#define Square(x) ((x) * (x))
+
+#define CIN_system 1
+#define CIN_loop 2
+#define CIN_hold 4
+#define CIN_silent 8
+#define CIN_shader 16
+
+#define PLANE_NON_AXIAL 3
+
+#ifndef MAX
+#define MAX(x,y) ((x)>(y)?(x):(y))
+#endif
+
+#ifndef MIN
+#define MIN(x,y) ((x)<(y)?(x):(y))
+#endif
+
+#define	MAX_QINT			0x7fffffff
+#define	MIN_QINT			(-MAX_QINT-1)
+
+/*
+==========================================================
+
+CVARS (console variables)
+
+Many variables can be used for cheating purposes, so when
+cheats is zero, force all unspecified variables to their
+default values.
+==========================================================
+*/
+
+#define	CVAR_ARCHIVE		0x0001	// set to cause it to be saved to vars.rc
+					// used for system variables, not for player
+					// specific configurations
+#define	CVAR_USERINFO		0x0002	// sent to server on connect or change
+#define	CVAR_SERVERINFO		0x0004	// sent in response to front end requests
+#define	CVAR_SYSTEMINFO		0x0008	// these cvars will be duplicated on all clients
+#define	CVAR_INIT			0x0010	// don't allow change from console at all,
+					// but can be set from the command line
+#define	CVAR_LATCH			0x0020	// will only change when C code next does
+					// a Cvar_Get(), so it can't be changed
+					// without proper initialization.  modified
+					// will be set, even though the value hasn't
+					// changed yet
+#define	CVAR_ROM			0x0040	// display only, cannot be set by user at all
+#define	CVAR_USER_CREATED	0x0080	// created by a set command
+#define	CVAR_TEMP			0x0100	// can be set even when cheats are disabled, but is not archived
+#define CVAR_CHEAT			0x0200	// can not be changed if cheats are disabled
+#define CVAR_NORESTART		0x0400	// do not clear when a cvar_restart is issued
+
+#define CVAR_SERVER_CREATED	0x0800	// cvar was created by a server the client connected to.
+#define CVAR_VM_CREATED		0x1000	// cvar was created exclusively in one of the VMs.
+#define CVAR_PROTECTED		0x2000	// prevent modifying this var from VMs or the server
+
+#define CVAR_NODEFAULT		0x4000	// do not write to config if matching with default value
+
+#define CVAR_PRIVATE		0x8000	// can't be read from VM
+
+#define CVAR_DEVELOPER		0x10000 // can be set only in developer mode
+#define CVAR_NOTABCOMPLETE	0x20000 // no tab completion in console
+
+#define CVAR_ARCHIVE_ND		(CVAR_ARCHIVE | CVAR_NODEFAULT)
+
+// These flags are only returned by the Cvar_Flags() function
+#define CVAR_MODIFIED		0x40000000	// Cvar was modified
+#define CVAR_NONEXISTENT	0x80000000	// Cvar doesn't exist.
+
+
+#define S_COLOR_YELLOW	"^3"
+#define S_COLOR_CYAN	"^5"
+
+
+/*
+=================
+PlaneTypeForNormal
+=================
+*/
+
+// plane types are used to speed some tests
+// 0-2 are axial planes
+#define	PLANE_X			0
+#define	PLANE_Y			1
+#define	PLANE_Z			2
+
+#define PlaneTypeForNormal(x) (x[0] == 1.0 ? PLANE_X : (x[1] == 1.0 ? PLANE_Y : (x[2] == 1.0 ? PLANE_Z : PLANE_NON_AXIAL)))
+
+/*
+** float Q_rsqrt( float number )
+*/
+float inline Q_rsqrt(float number)
+{
+#if defined(_MSC_SSE2)
+	float ret;
+	_mm_store_ss(&ret, _mm_rsqrt_ss(_mm_load_ss(&number)));
+	return ret;
+#elif defined(_GCC_SSE2)
+	/* writing it this way allows gcc to recognize that rsqrt can be used with -ffast-math */
+	return 1.0f / sqrtf(number);
+#else
+	floatint_t t;
+	float x2, y;
+	const float threehalfs = 1.5F;
+
+	x2 = number * 0.5F;
+	t.f = number;
+	t.i = 0x5f3759df - (t.i >> 1); // what the fuck?
+	y = t.f;
+	y = y * (threehalfs - (x2 * y * y)); // 1st iteration
+										 //	y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
+
+	return y;
+#endif
+}
+
+
+
+
+
+#if !defined(Q3_VM) || (defined(Q3_VM) && defined(__Q3_VM_MATH))
+static ID_INLINE int VectorCompare(const vec3_t v1, const vec3_t v2)
+{
+	if (v1[0] != v2[0] || v1[1] != v2[1] || v1[2] != v2[2])
+	{
+		return 0;
+	}
+	return 1;
+}
+
+static ID_INLINE vec_t VectorLength(const vec3_t v)
+{
+	return (vec_t)sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+}
+
+static ID_INLINE vec_t VectorLengthSquared(const vec3_t v)
+{
+	return (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+}
+
+static ID_INLINE vec_t Distance(const vec3_t p1, const vec3_t p2)
+{
+	vec3_t v;
+
+	VectorSubtract(p2, p1, v);
+	return VectorLength(v);
+}
+
+static ID_INLINE vec_t DistanceSquared(const vec3_t p1, const vec3_t p2)
+{
+	vec3_t v;
+
+	VectorSubtract(p2, p1, v);
+	return v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+}
+
+static ID_INLINE void VectorInverse(vec3_t v)
+{
+	v[0] = -v[0];
+	v[1] = -v[1];
+	v[2] = -v[2];
+}
+
+static ID_INLINE void CrossProduct(const vec3_t v1, const vec3_t v2, vec3_t cross)
+{
+	cross[0] = v1[1] * v2[2] - v1[2] * v2[1];
+	cross[1] = v1[2] * v2[0] - v1[0] * v2[2];
+	cross[2] = v1[0] * v2[1] - v1[1] * v2[0];
+}
+
+#else
+int VectorCompare(const vec3_t v1, const vec3_t v2);
+
+vec_t VectorLength(const vec3_t v);
+
+vec_t VectorLengthSquared(const vec3_t v);
+
+vec_t Distance(const vec3_t p1, const vec3_t p2);
+
+vec_t DistanceSquared(const vec3_t p1, const vec3_t p2);
+
+void VectorNormalizeFast(vec3_t v);
+
+void VectorInverse(vec3_t v);
+
+void CrossProduct(const vec3_t v1, const vec3_t v2, vec3_t cross);
+
+#endif
 
 // plane_t structure
 // !!! if this is changed, it must be changed in asm code too !!!
@@ -110,10 +319,111 @@ typedef enum
 	TK_EOF,
 } tokenType_t;
 
-typedef union {
+typedef union
+{
 	byte rgba[4];
 	unsigned int u32;
 } color4ub_t;
+
+typedef enum
+{
+	PRINT_ALL,
+	PRINT_DEVELOPER, // only print when "developer 1"
+	PRINT_WARNING,
+	PRINT_ERROR
+} printParm_t;
+
+typedef enum
+{
+	h_high,
+	h_low,
+	h_dontcare
+} ha_pref;
+
+typedef enum
+{
+	CV_NONE = 0,
+	CV_FLOAT,
+	CV_INTEGER,
+	CV_FSPATH,
+	CV_MAX,
+} cvarValidator_t;
+
+typedef enum
+{
+	CVG_NONE = 0,
+	CVG_RENDERER,
+	CVG_SERVER,
+	CVG_MAX,
+} cvarGroup_t;
+
+// nothing outside the Cvar_*() functions should modify these fields!
+typedef struct cvar_s cvar_t;
+
+struct cvar_s
+{
+	char *name;
+	char *string;
+	char *resetString;	 // cvar_restart will reset to this value
+	char *latchedString; // for CVAR_LATCH vars
+	int flags;
+	bool modified;		   // set each time the cvar is changed
+	int modificationCount; // incremented each time the cvar is changed
+	float value;		   // Q_atof( string )
+	int integer;		   // atoi( string )
+	cvarValidator_t validator;
+	char *mins;
+	char *maxs;
+	char *description;
+
+	cvar_t *next;
+	cvar_t *prev;
+	cvar_t *hashNext;
+	cvar_t *hashPrev;
+	int hashIndex;
+	cvarGroup_t group; // to track changes
+};
+
+// parameters for command buffer stuffing
+typedef enum
+{
+	EXEC_NOW, // don't return until completed, a VM should NEVER use this,
+			  // because some commands might cause the VM to be unloaded...
+	EXEC_INSERT, // insert at current position, but don't run yet
+	EXEC_APPEND	 // add to end of the command buffer (normal case)
+} cbufExec_t;
+
+// real time
+//=============================================
+
+typedef struct qtime_s
+{
+	int tm_sec;	  /* seconds after the minute - [0,59] */
+	int tm_min;	  /* minutes after the hour - [0,59] */
+	int tm_hour;  /* hours since midnight - [0,23] */
+	int tm_mday;  /* day of the month - [1,31] */
+	int tm_mon;	  /* months since January - [0,11] */
+	int tm_year;  /* years since 1900 */
+	int tm_wday;  /* days since Sunday - [0,6] */
+	int tm_yday;  /* days since January 1 - [0,365] */
+	int tm_isdst; /* daylight savings time flag */
+} qtime_t;
+
+// cinematic states
+typedef enum
+{
+	FMV_IDLE,
+	FMV_PLAY, // play
+	FMV_EOF,  // all other conditions, i.e. stop/EOF/abort
+	FMV_ID_BLT,
+	FMV_ID_IDLE,
+	FMV_LOOPED,
+	FMV_ID_WAIT
+} e_status;
+
+
+extern	vec4_t		colorBlack;
+extern	const vec3_t	vec3_origin;
 
 #ifdef __cplusplus
 extern "C"

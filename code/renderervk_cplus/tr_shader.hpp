@@ -12,8 +12,6 @@ return a hash value for the filename
 #warning TODO: check if long is ok here
 #endif
 
-#define generateHashValue Com_GenerateHashValue
-
 typedef struct
 {
     int blendA;

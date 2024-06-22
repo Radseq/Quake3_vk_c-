@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shadows.hpp"
 #include "vk_vbo.hpp"
 #include "vk.hpp"
+#include "q_math.hpp"
 
 shaderCommands_t tess;
 
