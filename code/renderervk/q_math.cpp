@@ -342,7 +342,7 @@ bool PlaneFromPoints(vec4_t plane, const vec3_t a, const vec3_t b, const vec3_t 
 
 	VectorSubtract(b, a, d1);
 	VectorSubtract(c, a, d2);
-	CrossProduct_plus(d2, d1, plane);
+	CrossProduct(d2, d1, plane);
 	if (VectorNormalize(plane) == 0)
 	{
 		return false;
@@ -376,7 +376,7 @@ void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point,
 	vf[2] = dir[2];
 
 	PerpendicularVector(vr, dir);
-	CrossProduct_plus(vr, vf, vup);
+	CrossProduct(vr, vf, vup);
 
 	m[0][0] = vr[0];
 	m[1][0] = vr[1];
@@ -438,7 +438,7 @@ void RotateAroundDirection(vec3_t axis[3], float yaw)
 	}
 
 	// cross to get axis[2]
-	CrossProduct_plus(axis[0], axis[1], axis[2]);
+	CrossProduct(axis[0], axis[1], axis[2]);
 }
 
 void vectoangles(const vec3_t value1, vec3_t angles)
@@ -568,7 +568,7 @@ void MakeNormalVectors(const vec3_t forward, vec3_t right, vec3_t up)
 	d = DotProduct(right, forward);
 	VectorMA(right, -d, forward, right);
 	VectorNormalize(right);
-	CrossProduct_plus(right, forward, up);
+	CrossProduct(right, forward, up);
 }
 
 void VectorRotate(const vec3_t in, const vec3_t matrix[3], vec3_t out)
@@ -704,7 +704,7 @@ BoxOnPlaneSide
 Returns 1, 2, or 1 + 2
 ==================
 */
-int BoxOnPlaneSide_plus(vec3_t emins, vec3_t emaxs, struct cplane_s *p)
+int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, struct cplane_s *p)
 {
 	float dist[2];
 	int sides, b, i;
@@ -758,7 +758,7 @@ float RadiusFromBounds(const vec3_t mins, const vec3_t maxs)
 		corner[i] = a > b ? a : b;
 	}
 
-	return VectorLength_plus(corner);
+	return VectorLength(corner);
 }
 
 void ClearBounds(vec3_t mins, vec3_t maxs)
@@ -1148,7 +1148,7 @@ float Q_acos(float c)
 }
 #endif
 
-void SetPlaneSignbits_plus(cplane_t *out)
+void SetPlaneSignbits(cplane_t *out)
 {
 	int bits, j;
 

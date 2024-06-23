@@ -692,7 +692,7 @@ static void BuildSkyTexCoords(void)
 }
 
 /*
-** R_InitSkyTexCoords_plus
+** R_InitSkyTexCoords
 ** Called when a sky shader is parsed
 */
 void R_InitSkyTexCoords(float heightCloud)
@@ -763,7 +763,7 @@ void R_InitSkyTexCoords(float heightCloud)
 //======================================================================================
 
 /*
-** RB_DrawSun_plus
+** RB_DrawSun
 */
 void RB_DrawSun(float scale, shader_t *shader)
 {
@@ -803,7 +803,7 @@ void RB_DrawSun(float scale, shader_t *shader)
 
 /*
 ================
-RB_StageIteratorSky_plus
+RB_StageIteratorSky
 
 All of the visible sky triangles are in tess
 

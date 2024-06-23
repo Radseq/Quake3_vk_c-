@@ -226,7 +226,7 @@ static constexpr int numModelLoaders = sizeof(modelLoaders) / sizeof(modelExtToL
 //===============================================================================
 
 /*
-** R_GetModelByHandle_plus
+** R_GetModelByHandle
 */
 model_t *R_GetModelByHandle(qhandle_t index)
 {
@@ -246,7 +246,7 @@ model_t *R_GetModelByHandle(qhandle_t index)
 //===============================================================================
 
 /*
-** R_AllocModel_plus
+** R_AllocModel
 */
 model_t *R_AllocModel(void)
 {
@@ -267,7 +267,7 @@ model_t *R_AllocModel(void)
 
 /*
 ====================
-RE_RegisterModel_plus
+RE_RegisterModel
 
 Loads in a model for the given name
 
@@ -290,7 +290,7 @@ qhandle_t RE_RegisterModel(const char *name)
 
 	if (!name || !name[0])
 	{
-		ri.Printf(PRINT_ALL, "RE_RegisterModel_plus: NULL name\n");
+		ri.Printf(PRINT_ALL, "RE_RegisterModel: NULL name\n");
 		return 0;
 	}
 
@@ -320,7 +320,7 @@ qhandle_t RE_RegisterModel(const char *name)
 
 	if ((mod = R_AllocModel()) == NULL)
 	{
-		ri.Printf(PRINT_WARNING, "RE_RegisterModel_plus: R_AllocModel() failed for '%s'\n", name);
+		ri.Printf(PRINT_WARNING, "RE_RegisterModel: R_AllocModel() failed for '%s'\n", name);
 		return 0;
 	}
 
@@ -993,7 +993,7 @@ static bool R_LoadMDR(model_t *mod, void *buffer, int filesize, const char *mod_
 //=============================================================================
 
 /*
-** RE_BeginRegistration_plus
+** RE_BeginRegistration
 */
 void RE_BeginRegistration(glconfig_t *glconfigOut)
 {
@@ -1015,7 +1015,7 @@ void RE_BeginRegistration(glconfig_t *glconfigOut)
 
 /*
 ===============
-R_ModelInit_plus
+R_ModelInit
 ===============
 */
 void R_ModelInit(void)
@@ -1031,7 +1031,7 @@ void R_ModelInit(void)
 
 /*
 ================
-R_Modellist_f_plus
+R_Modellist_f
 ================
 */
 void R_Modellist_f(void)
@@ -1139,7 +1139,7 @@ static md3Tag_t *R_GetAnimTag(mdrHeader_t *mod, int framenum, const char *tagNam
 
 /*
 ================
-R_LerpTag_plus
+R_LerpTag
 ================
 */
 int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame,
@@ -1201,7 +1201,7 @@ int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame
 
 /*
 ====================
-R_ModelBounds_plus
+R_ModelBounds
 ====================
 */
 void R_ModelBounds(qhandle_t handle, vec3_t mins, vec3_t maxs)

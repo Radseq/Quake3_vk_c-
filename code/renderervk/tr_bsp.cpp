@@ -770,7 +770,7 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 #endif
 
 	cv->plane.dist = DotProduct(cv->points[0], cv->plane.normal);
-	SetPlaneSignbits_plus(&cv->plane);
+	SetPlaneSignbits(&cv->plane);
 	cv->plane.type = PlaneTypeForNormal(cv->plane.normal);
 
 	surf->data = (surfaceType_t *)cv;

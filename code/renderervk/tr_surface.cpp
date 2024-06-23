@@ -48,7 +48,7 @@ use the shader system.
 
 /*
 ==============
-RB_CheckOverflow_plus
+RB_CheckOverflow
 ==============
 */
 void RB_CheckOverflow(int verts, int indexes)
@@ -62,12 +62,12 @@ void RB_CheckOverflow(int verts, int indexes)
 
 	if (verts >= SHADER_MAX_VERTEXES)
 	{
-		ri.Error(ERR_DROP, "RB_CheckOverflow_plus: verts > MAX (%d > %d)", verts, SHADER_MAX_VERTEXES);
+		ri.Error(ERR_DROP, "RB_CheckOverflow: verts > MAX (%d > %d)", verts, SHADER_MAX_VERTEXES);
 	}
 
 	if (indexes >= SHADER_MAX_INDEXES)
 	{
-		ri.Error(ERR_DROP, "RB_CheckOverflow_plus: indices > MAX (%d > %d)", indexes, SHADER_MAX_INDEXES);
+		ri.Error(ERR_DROP, "RB_CheckOverflow: indices > MAX (%d > %d)", indexes, SHADER_MAX_INDEXES);
 	}
 
 	RB_BeginSurface(tess.shader, tess.fogNum);
@@ -75,7 +75,7 @@ void RB_CheckOverflow(int verts, int indexes)
 
 /*
 ==============
-RB_AddQuadStampExt_plus
+RB_AddQuadStampExt
 ==============
 */
 void RB_AddQuadStampExt(const vec3_t origin, const vec3_t left, const vec3_t up, color4ub_t color, float s1, float t1, float s2, float t2)
@@ -212,7 +212,7 @@ void RB_AddQuadStamp2(float x, float y, float w, float h, float s1, float t1, fl
 
 /*
 ==============
-RB_AddQuadStamp_plus
+RB_AddQuadStamp
 ==============
 */
 void RB_AddQuadStamp(const vec3_t origin, const vec3_t left, const vec3_t up, color4ub_t color)

@@ -131,7 +131,7 @@ static void R_CalcShadowEdges(void)
 
 /*
 =================
-RB_ShadowTessEnd_plus
+RB_ShadowTessEnd
 
 triangleFromEdge[ v1 ][ v2 ]
 
@@ -244,7 +244,7 @@ void RB_ShadowTessEnd(void)
 
 /*
 =================
-RB_ShadowFinish_plus
+RB_ShadowFinish
 
 Darken everything that is is a shadow volume.
 We have to delay this until everything has been shadowed,
@@ -311,7 +311,7 @@ void RB_ShadowFinish(void)
 
 /*
 =================
-RB_ProjectionShadowDeform_plus
+RB_ProjectionShadowDeform
 
 =================
 */

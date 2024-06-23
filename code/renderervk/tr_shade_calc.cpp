@@ -86,7 +86,7 @@ static float EvalWaveFormClamped(const waveForm_t *wf)
 }
 
 /*
-** RB_CalcStretchTexCoords_plus
+** RB_CalcStretchTexCoords
 */
 void RB_CalcStretchTexCoords(const waveForm_t *wf, float *src, float *dst)
 {
@@ -566,7 +566,7 @@ static void Autosprite2Deform(void)
 
 /*
 =====================
-RB_DeformTessGeometry_plus
+RB_DeformTessGeometry
 
 =====================
 */
@@ -627,7 +627,7 @@ COLORS
 */
 
 /*
-** RB_CalcColorFromEntity_plus
+** RB_CalcColorFromEntity
 */
 void RB_CalcColorFromEntity(unsigned char *dstColors)
 {
@@ -646,7 +646,7 @@ void RB_CalcColorFromEntity(unsigned char *dstColors)
 }
 
 /*
-** RB_CalcColorFromOneMinusEntity_plus
+** RB_CalcColorFromOneMinusEntity
 */
 void RB_CalcColorFromOneMinusEntity(unsigned char *dstColors)
 {
@@ -669,7 +669,7 @@ void RB_CalcColorFromOneMinusEntity(unsigned char *dstColors)
 }
 
 /*
-** RB_CalcAlphaFromEntity_plus
+** RB_CalcAlphaFromEntity
 */
 void RB_CalcAlphaFromEntity(unsigned char *dstColors)
 {
@@ -687,7 +687,7 @@ void RB_CalcAlphaFromEntity(unsigned char *dstColors)
 }
 
 /*
-** RB_CalcAlphaFromOneMinusEntity_plus
+** RB_CalcAlphaFromOneMinusEntity
 */
 void RB_CalcAlphaFromOneMinusEntity(unsigned char *dstColors)
 {
@@ -705,7 +705,7 @@ void RB_CalcAlphaFromOneMinusEntity(unsigned char *dstColors)
 }
 
 /*
-** RB_CalcWaveColor_plus
+** RB_CalcWaveColor
 */
 void RB_CalcWaveColor(const waveForm_t *wf, unsigned char *dstColors)
 {
@@ -740,7 +740,7 @@ void RB_CalcWaveColor(const waveForm_t *wf, unsigned char *dstColors)
 }
 
 /*
-** RB_CalcWaveAlpha_plus
+** RB_CalcWaveAlpha
 */
 void RB_CalcWaveAlpha(const waveForm_t *wf, unsigned char *dstColors)
 {
@@ -759,7 +759,7 @@ void RB_CalcWaveAlpha(const waveForm_t *wf, unsigned char *dstColors)
 }
 
 /*
-** RB_CalcModulateColorsByFog_plus
+** RB_CalcModulateColorsByFog
 */
 void RB_CalcModulateColorsByFog(unsigned char *colors)
 {
@@ -781,7 +781,7 @@ void RB_CalcModulateColorsByFog(unsigned char *colors)
 }
 
 /*
-** RB_CalcModulateAlphasByFog_plus
+** RB_CalcModulateAlphasByFog
 */
 void RB_CalcModulateAlphasByFog(unsigned char *colors)
 {
@@ -801,7 +801,7 @@ void RB_CalcModulateAlphasByFog(unsigned char *colors)
 }
 
 /*
-** RB_CalcModulateRGBAsByFog_plus
+** RB_CalcModulateRGBAsByFog
 */
 void RB_CalcModulateRGBAsByFog(unsigned char *colors)
 {
@@ -833,7 +833,7 @@ TEX COORDS
 
 /*
 ========================
-RB_CalcFogTexCoords_plus
+RB_CalcFogTexCoords
 
 To do the clipped fog plane really correctly, we should use
 projected textures, but I don't trust the drivers and it
@@ -937,7 +937,7 @@ void RB_CalcFogTexCoords(float *st)
 
 /*
 ========================
-RB_CalcFogProgramParms_plus
+RB_CalcFogProgramParms
 ========================
 */
 const fogProgramParms_t *RB_CalcFogProgramParms(void)
@@ -1031,7 +1031,7 @@ static void RB_CalcEnvironmentTexCoordsFPscr(float *st)
 
 /*
 ========================
-RB_CalcEnvironmentTexCoordsFP_plus
+RB_CalcEnvironmentTexCoordsFP
 
 Special version for first-person models, borrowed from OpenArena
 ========================
@@ -1085,7 +1085,7 @@ void RB_CalcEnvironmentTexCoordsFP(float *st, int screenMap)
 }
 
 /*
-** RB_CalcEnvironmentTexCoords_plus
+** RB_CalcEnvironmentTexCoords
 */
 void RB_CalcEnvironmentTexCoords(float *st)
 {
@@ -1114,7 +1114,7 @@ void RB_CalcEnvironmentTexCoords(float *st)
 }
 
 /*
-** RB_CalcTurbulentTexCoords_plus
+** RB_CalcTurbulentTexCoords
 */
 void RB_CalcTurbulentTexCoords(const waveForm_t *wf, float *src, float *dst)
 {
@@ -1131,7 +1131,7 @@ void RB_CalcTurbulentTexCoords(const waveForm_t *wf, float *src, float *dst)
 }
 
 /*
-** RB_CalcScaleTexCoords_plus
+** RB_CalcScaleTexCoords
 */
 void RB_CalcScaleTexCoords(const float scale[2], float *src, float *dst)
 {
@@ -1145,7 +1145,7 @@ void RB_CalcScaleTexCoords(const float scale[2], float *src, float *dst)
 }
 
 /*
-** RB_CalcScrollTexCoords_plus
+** RB_CalcScrollTexCoords
 */
 void RB_CalcScrollTexCoords(const float scrollSpeed[2], float *src, float *dst)
 {
@@ -1171,7 +1171,7 @@ void RB_CalcScrollTexCoords(const float scrollSpeed[2], float *src, float *dst)
 }
 
 /*
-** RB_CalcTransformTexCoords_plus
+** RB_CalcTransformTexCoords
 */
 void RB_CalcTransformTexCoords(const texModInfo_t *tmi, float *src, float *dst)
 {
@@ -1188,7 +1188,7 @@ void RB_CalcTransformTexCoords(const texModInfo_t *tmi, float *src, float *dst)
 }
 
 /*
-** RB_CalcRotateTexCoords_plus
+** RB_CalcRotateTexCoords
 */
 void RB_CalcRotateTexCoords(float degsPerSecond, float *src, float *dst)
 {
@@ -1216,7 +1216,7 @@ void RB_CalcRotateTexCoords(float degsPerSecond, float *src, float *dst)
 }
 
 /*
-** RB_CalcSpecularAlpha_plus
+** RB_CalcSpecularAlpha
 **
 ** Calculates specular coefficient and places it in the alpha channel
 */
@@ -1281,7 +1281,7 @@ void RB_CalcSpecularAlpha(unsigned char *alphas)
 }
 
 /*
-** RB_CalcDiffuseColor_plus
+** RB_CalcDiffuseColor
 **
 ** The basic vertex lighting calc
 */

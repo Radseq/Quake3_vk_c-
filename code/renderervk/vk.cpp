@@ -6319,7 +6319,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def *def, renderPass_t renderPassIn
 		rasterization_state.cullMode = (def->mirror ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_FRONT_BIT);
 		break;
 	default:
-		ri.Error(ERR_DROP, "create_pipeline_plus: invalid face culling mode %i\n", def->face_culling);
+		ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode %i\n", def->face_culling);
 		break;
 	}
 
@@ -6446,7 +6446,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def *def, renderPass_t renderPassIn
 			attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
 			break;
 		default:
-			ri.Error(ERR_DROP, "create_pipeline_plus: invalid src blend state bits\n");
+			ri.Error(ERR_DROP, "create_pipeline: invalid src blend state bits\n");
 			break;
 		}
 		switch (state_bits & GLS_DSTBLEND_BITS)
@@ -6476,7 +6476,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def *def, renderPass_t renderPassIn
 			attachment_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
 			break;
 		default:
-			ri.Error(ERR_DROP, "create_pipeline_plus: invalid dst blend state bits\n");
+			ri.Error(ERR_DROP, "create_pipeline: invalid dst blend state bits\n");
 			break;
 		}
 

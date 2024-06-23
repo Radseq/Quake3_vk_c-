@@ -132,12 +132,12 @@ static void R_IssueRenderCommands(void)
 
 /*
 ============
-R_GetCommandBuffer_plusReserved
+R_GetCommandBufferReserved
 
 make sure there is enough command space
 ============
 */
-static void *R_GetCommandBuffer_plusReserved(int bytes, int reservedBytes)
+static void *R_GetCommandBufferReserved(int bytes, int reservedBytes)
 {
 	renderCommandList_t *cmdList;
 
@@ -149,7 +149,7 @@ static void *R_GetCommandBuffer_plusReserved(int bytes, int reservedBytes)
 	{
 		if (bytes > MAX_RENDER_COMMANDS - sizeof(int))
 		{
-			ri.Error(ERR_FATAL, "R_GetCommandBuffer_plus: bad size %i", bytes);
+			ri.Error(ERR_FATAL, "R_GetCommandBuffer: bad size %i", bytes);
 		}
 		// if we run out of room, just start dropping commands
 		return NULL;
@@ -162,14 +162,14 @@ static void *R_GetCommandBuffer_plusReserved(int bytes, int reservedBytes)
 
 /*
 =============
-R_GetCommandBuffer_plus
+R_GetCommandBuffer
 returns NULL if there is not enough space for important commands
 =============
 */
 void *R_GetCommandBuffer(int bytes)
 {
 	tr.lastRenderCommand = RC_END_OF_LIST;
-	return R_GetCommandBuffer_plusReserved(bytes, PAD(sizeof(swapBuffersCommand_t), sizeof(void *)));
+	return R_GetCommandBufferReserved(bytes, PAD(sizeof(swapBuffersCommand_t), sizeof(void *)));
 }
 
 /*
@@ -420,7 +420,7 @@ void RE_EndFrame(int *frontEndMsec, int *backEndMsec)
 		return;
 	}
 
-	cmd = static_cast<swapBuffersCommand_t *>(R_GetCommandBuffer_plusReserved(sizeof(*cmd), 0));
+	cmd = static_cast<swapBuffersCommand_t *>(R_GetCommandBufferReserved(sizeof(*cmd), 0));
 	if (!cmd)
 	{
 		return;

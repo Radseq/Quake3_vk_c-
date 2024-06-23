@@ -111,18 +111,6 @@ int LongSwap(int l);
 unsigned int crc32_buffer(const byte *buf, unsigned int len);
 unsigned long Com_GenerateHashValue(const char *fname, const unsigned int size);
 
-static inline void CrossProduct_plus(const vec3_t v1, const vec3_t v2, vec3_t cross)
-{
-  cross[0] = v1[1] * v2[2] - v1[2] * v2[1];
-  cross[1] = v1[2] * v2[0] - v1[0] * v2[2];
-  cross[2] = v1[0] * v2[1] - v1[1] * v2[0];
-}
-
-static inline vec_t VectorLength_plus(const vec3_t v)
-{
-  return (vec_t)sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-}
-
 typedef struct
 {
   int height;      // number of scan lines

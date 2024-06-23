@@ -46,7 +46,7 @@ static int r_numpolyverts;
 
 /*
 ====================
-R_InitNextFrame_plus
+R_InitNextFrame
 
 ====================
 */
@@ -74,7 +74,7 @@ void R_InitNextFrame(void)
 
 /*
 ====================
-RE_ClearScene_plus
+RE_ClearScene
 
 ====================
 */
@@ -95,7 +95,7 @@ DISCRETE POLYS
 
 /*
 =====================
-R_AddPolygonSurfaces_plus
+R_AddPolygonSurfaces
 
 Adds all the scene's polys into this view's drawsurf list
 =====================
@@ -118,7 +118,7 @@ void R_AddPolygonSurfaces(void)
 
 /*
 =====================
-RE_AddPolyToScene_plus
+RE_AddPolyToScene
 
 =====================
 */
@@ -136,7 +136,7 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 	}
 #if 0
 	if ( !hShader ) {
-		ri.Printf( PRINT_WARNING, "WARNING: RE_AddPolyToScene_plus: NULL poly shader\n");
+		ri.Printf( PRINT_WARNING, "WARNING: RE_AddPolyToScene: NULL poly shader\n");
 		return;
 	}
 #endif
@@ -150,7 +150,7 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 			since we don't plan on changing the const and making for room for those effects
 			simply cut this message to developer only
 			*/
-			ri.Printf(PRINT_DEVELOPER, "WARNING: RE_AddPolyToScene_plus: r_max_polys or r_max_polyverts reached\n");
+			ri.Printf(PRINT_DEVELOPER, "WARNING: RE_AddPolyToScene: r_max_polys or r_max_polyverts reached\n");
 			return;
 		}
 
@@ -220,7 +220,7 @@ static int isnan_fp(const float *f)
 
 /*
 =====================
-RE_AddRefEntityToScene_plus
+RE_AddRefEntityToScene
 =====================
 */
 void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
@@ -231,7 +231,7 @@ void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
 	}
 	if (r_numentities >= MAX_REFENTITIES)
 	{
-		ri.Printf(PRINT_DEVELOPER, "RE_AddRefEntityToScene_plus: Dropping refEntity, reached MAX_REFENTITIES\n");
+		ri.Printf(PRINT_DEVELOPER, "RE_AddRefEntityToScene: Dropping refEntity, reached MAX_REFENTITIES\n");
 		return;
 	}
 	if (isnan_fp(&ent->origin[0]) || isnan_fp(&ent->origin[1]) || isnan_fp(&ent->origin[2]))
@@ -240,13 +240,13 @@ void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
 		if (first_time)
 		{
 			first_time = false;
-			ri.Printf(PRINT_WARNING, "RE_AddRefEntityToScene_plus passed a refEntity which has an origin with a NaN component\n");
+			ri.Printf(PRINT_WARNING, "RE_AddRefEntityToScene passed a refEntity which has an origin with a NaN component\n");
 		}
 		return;
 	}
 	if ((unsigned)ent->reType >= RT_MAX_REF_ENTITY_TYPE)
 	{
-		ri.Error(ERR_DROP, "RE_AddRefEntityToScene_plus: bad reType %i", ent->reType);
+		ri.Error(ERR_DROP, "RE_AddRefEntityToScene: bad reType %i", ent->reType);
 	}
 
 	backEndData->entities[r_numentities].e = *ent;
@@ -310,7 +310,7 @@ static void RE_AddDynamicLightToScene(const vec3_t org, float intensity, float r
 
 /*
 =====================
-RE_AddLinearLightToScene_plus
+RE_AddLinearLightToScene
 =====================
 */
 void RE_AddLinearLightToScene(const vec3_t start, const vec3_t end, float intensity, float r, float g, float b)
@@ -366,7 +366,7 @@ void RE_AddLinearLightToScene(const vec3_t start, const vec3_t end, float intens
 
 /*
 =====================
-RE_AddLightToScene_plus
+RE_AddLightToScene
 
 =====================
 */
@@ -377,7 +377,7 @@ void RE_AddLightToScene(const vec3_t org, float intensity, float r, float g, flo
 
 /*
 =====================
-RE_AddAdditiveLightToScene_plus
+RE_AddAdditiveLightToScene
 
 =====================
 */
@@ -390,7 +390,7 @@ void *R_GetCommandBuffer(int bytes);
 
 /*
 @@@@@@@@@@@@@@@@@@@@@
-RE_RenderScene_plus
+RE_RenderScene
 
 Draw a 3D view into a part of the window, then return
 to 2D drawing.

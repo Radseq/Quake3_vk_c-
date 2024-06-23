@@ -53,7 +53,7 @@ refimport_t ri;
 
 /*
 =================
-R_CullLocalBox_plus
+R_CullLocalBox
 
 Returns CULL_IN, CULL_CLIP, ort CULL_OUT
 =================
@@ -126,7 +126,7 @@ int R_CullLocalBox(const vec3_t bounds[2])
 }
 
 /*
-** R_CullLocalPointAndRadius_plus
+** R_CullLocalPointAndRadius
 */
 int R_CullLocalPointAndRadius(const vec3_t pt, float radius)
 {
@@ -138,7 +138,7 @@ int R_CullLocalPointAndRadius(const vec3_t pt, float radius)
 }
 
 /*
-** R_CullPointAndRadius_plus
+** R_CullPointAndRadius
 */
 int R_CullPointAndRadius(const vec3_t pt, float radius)
 {
@@ -231,7 +231,7 @@ static void R_LocalNormalToWorld(const vec3_t local, vec3_t world)
 
 /*
 =================
-R_LocalPointToWorld_plus
+R_LocalPointToWorld
 =================
 */
 void R_LocalPointToWorld(const vec3_t local, vec3_t world)
@@ -243,7 +243,7 @@ void R_LocalPointToWorld(const vec3_t local, vec3_t world)
 
 /*
 =================
-R_WorldToLocal_plus
+R_WorldToLocal
 =================
 */
 void R_WorldToLocal(const vec3_t world, vec3_t local)
@@ -255,7 +255,7 @@ void R_WorldToLocal(const vec3_t world, vec3_t local)
 
 /*
 ==========================
-R_TransformModelToClip_plus
+R_TransformModelToClip
 ==========================
 */
 void R_TransformModelToClip(const vec3_t src, const float *modelMatrix, const float *projectionMatrix,
@@ -303,7 +303,7 @@ static void R_TransformModelToClipMVP(const vec3_t src, const float *mvp, vec4_t
 
 /*
 ==========================
-R_TransformClipToWindow_plus
+R_TransformClipToWindow
 ==========================
 */
 void R_TransformClipToWindow(const vec4_t clip, const viewParms_t *view, vec4_t normalized, vec4_t window)
@@ -322,7 +322,7 @@ void R_TransformClipToWindow(const vec4_t clip, const viewParms_t *view, vec4_t 
 
 /*
 ==========================
-myGlMultMatrix_plus
+myGlMultMatrix
 ==========================
 */
 void myGlMultMatrix(const float *a, const float *b, float *out)
@@ -341,7 +341,7 @@ void myGlMultMatrix(const float *a, const float *b, float *out)
 
 /*
 =================
-R_RotateForEntity_plus
+R_RotateForEntity
 
 Generates an orientation for an entity and viewParms
 Does NOT produce any GL calls
@@ -567,19 +567,19 @@ static void R_SetupFrustum(viewParms_t *dest, float xmin, float xmax, float ymax
 	{
 		dest->frustum[i].type = PLANE_NON_AXIAL;
 		dest->frustum[i].dist = DotProduct(ofsorigin, dest->frustum[i].normal);
-		SetPlaneSignbits_plus(&dest->frustum[i]);
+		SetPlaneSignbits(&dest->frustum[i]);
 	}
 
 	// near clipping plane
 	VectorCopy(dest->ort.axis[0], dest->frustum[4].normal);
 	dest->frustum[4].type = PLANE_NON_AXIAL;
 	dest->frustum[4].dist = DotProduct(ofsorigin, dest->frustum[4].normal) + r_znear->value;
-	SetPlaneSignbits_plus(&dest->frustum[4]);
+	SetPlaneSignbits(&dest->frustum[4]);
 }
 
 /*
 ===============
-R_SetupProjection_plus
+R_SetupProjection
 ===============
 */
 void R_SetupProjection(viewParms_t *dest, float zProj, bool computeFrustum)
@@ -1480,7 +1480,7 @@ static void R_SortLitsurfs(dlight_t *dl)
 
 /*
 =================
-R_AddLitSurf_plus
+R_AddLitSurf
 =================
 */
 void R_AddLitSurf(surfaceType_t *surface, shader_t *shader, int fogIndex)
@@ -1508,7 +1508,7 @@ void R_AddLitSurf(surfaceType_t *surface, shader_t *shader, int fogIndex)
 
 /*
 =================
-R_DecomposeLitSort_plus
+R_DecomposeLitSort
 =================
 */
 void R_DecomposeLitSort(unsigned sort, int *entityNum, shader_t **shader, int *fogNum)
@@ -1524,7 +1524,7 @@ void R_DecomposeLitSort(unsigned sort, int *entityNum, shader_t **shader, int *f
 
 /*
 =================
-R_AddDrawSurf_plus
+R_AddDrawSurf
 =================
 */
 void R_AddDrawSurf(surfaceType_t *surface, shader_t *shader,
@@ -1544,7 +1544,7 @@ void R_AddDrawSurf(surfaceType_t *surface, shader_t *shader,
 
 /*
 =================
-R_DecomposeSort_plus
+R_DecomposeSort
 =================
 */
 void R_DecomposeSort(unsigned sort, int *entityNum, shader_t **shader,
@@ -1763,7 +1763,7 @@ static void R_GenerateDrawSurfs(void)
 
 /*
 ================
-R_RenderView_plus
+R_RenderView
 
 A view may be either the actual camera view,
 ort a mirror / remote location

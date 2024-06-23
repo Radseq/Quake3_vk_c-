@@ -754,7 +754,7 @@ void VBO_Cleanup(void)
 
 /*
 =============
-qsort_int_plus
+qsort_int
 =============
 */
 void qsort_int(int *arr, const int n)

@@ -92,7 +92,7 @@ static flare_t *r_activeFlares, *r_inactiveFlares;
 
 /*
 ==================
-R_ClearFlares_plus
+R_ClearFlares
 ==================
 */
 void R_ClearFlares(void)
@@ -131,7 +131,7 @@ static flare_t *R_SearchFlare(void *surface)
 
 /*
 ==================
-RB_AddFlare_plus
+RB_AddFlare
 
 This is called at surface tesselation time
 ==================
@@ -230,7 +230,7 @@ void RB_AddFlare(void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t n
 
 /*
 ==================
-RB_AddDlightFlares_plus
+RB_AddDlightFlares
 ==================
 */
 void RB_AddDlightFlares(void)
@@ -494,7 +494,7 @@ static void RB_RenderFlare(flare_t *f)
 
 /*
 ==================
-RB_RenderFlares_plus
+RB_RenderFlares
 
 Because flares are simulating an occular effect, they should be drawn after
 everything (all views) in the entire frame has been drawn.

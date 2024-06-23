@@ -561,7 +561,7 @@ static void R_RecursiveLightNode(const mnode_t *node)
 
 /*
 =================
-R_AddBrushModelSurfaces_plus
+R_AddBrushModelSurfaces
 =================
 */
 void R_AddBrushModelSurfaces(trRefEntity_t *ent)
@@ -661,7 +661,7 @@ static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned
 
 			if (planeBits & 1)
 			{
-				r = BoxOnPlaneSide_plus(node->mins, node->maxs, &tr.viewParms.frustum[0]);
+				r = BoxOnPlaneSide(node->mins, node->maxs, &tr.viewParms.frustum[0]);
 				if (r == 2)
 				{
 					return; // culled
@@ -674,7 +674,7 @@ static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned
 
 			if (planeBits & 2)
 			{
-				r = BoxOnPlaneSide_plus(node->mins, node->maxs, &tr.viewParms.frustum[1]);
+				r = BoxOnPlaneSide(node->mins, node->maxs, &tr.viewParms.frustum[1]);
 				if (r == 2)
 				{
 					return; // culled
@@ -687,7 +687,7 @@ static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned
 
 			if (planeBits & 4)
 			{
-				r = BoxOnPlaneSide_plus(node->mins, node->maxs, &tr.viewParms.frustum[2]);
+				r = BoxOnPlaneSide(node->mins, node->maxs, &tr.viewParms.frustum[2]);
 				if (r == 2)
 				{
 					return; // culled
@@ -700,7 +700,7 @@ static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned
 
 			if (planeBits & 8)
 			{
-				r = BoxOnPlaneSide_plus(node->mins, node->maxs, &tr.viewParms.frustum[3]);
+				r = BoxOnPlaneSide(node->mins, node->maxs, &tr.viewParms.frustum[3]);
 				if (r == 2)
 				{
 					return; // culled
@@ -863,7 +863,7 @@ static const byte *R_ClusterPVS(int cluster)
 
 /*
 =================
-R_inPVS_plus
+R_inPVS
 =================
 */
 bool R_inPVS(const vec3_t p1, const vec3_t p2)
@@ -976,7 +976,7 @@ static void R_MarkLeaves(void)
 
 /*
 =============
-R_AddWorldSurfaces_plus
+R_AddWorldSurfaces
 =============
 */
 void R_AddWorldSurfaces(void)
@@ -1020,7 +1020,7 @@ void R_AddWorldSurfaces(void)
 #endif // USE_LEGACY_DLIGHTS
 
 	// "transform" all the dlights so that dl->transformed is actually populated
-	// (even though HERE it's == dl->origin) so we can always use R_LightCullBounds_plus
+	// (even though HERE it's == dl->origin) so we can always use R_LightCullBounds
 	// instead of having copypasted versions for both world and local cases
 
 	R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.viewParms.world);

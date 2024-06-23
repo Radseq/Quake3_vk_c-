@@ -9,8 +9,8 @@ void PerpendicularVector(vec3_t dst, const vec3_t src);
 void MatrixMultiply(float in1[3][3], float in2[3][3], float out[3][3]);
 void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
 float Q_fabs(float f);
-void SetPlaneSignbits_plus(struct cplane_s *out);
-int BoxOnPlaneSide_plus(vec3_t emins, vec3_t emaxs, struct cplane_s *plane);
+void SetPlaneSignbits(struct cplane_s *out);
+int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, struct cplane_s *plane);
 void AxisClear(vec3_t axis[3]);
 float Q_atof(const char *str);
 void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point,

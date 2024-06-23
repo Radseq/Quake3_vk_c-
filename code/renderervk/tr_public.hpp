@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef TR_PUBLIC_HPP
 #define TR_PUBLIC_HPP
 
+#include "q_shared.hpp"
 #include "tr_types.hpp"
 #include "../renderervk/vulkan/vulkan.h"
 

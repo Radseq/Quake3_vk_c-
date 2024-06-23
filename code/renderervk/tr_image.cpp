@@ -57,8 +57,6 @@ static image_t *hashTable[FILE_HASH_SIZE];
 
 static const int numImageLoaders = ARRAY_LEN(imageLoaders);
 
-constexpr int FOG_TABLE_SIZE_PLUS = 256;
-
 GLint gl_filter_min = GL_LINEAR_MIPMAP_NEAREST;
 GLint gl_filter_max = GL_LINEAR;
 
@@ -100,9 +98,9 @@ void R_InitFogTable()
 {
 	constexpr float Exponent = 0.5f;
 
-	for (int i = 0; i < FOG_TABLE_SIZE_PLUS; ++i)
+	for (int i = 0; i < FOG_TABLE_SIZE; ++i)
 	{
-		float i_normalized = static_cast<float>(i) / (FOG_TABLE_SIZE_PLUS - 1);
+		float i_normalized = static_cast<float>(i) / (FOG_TABLE_SIZE - 1);
 		tr.fogTable[i] = std::pow(i_normalized, Exponent);
 	}
 }
@@ -136,7 +134,7 @@ float R_FogFactor(float s, float t)
 	s = std::clamp(s * Interpolation_Scale, 0.0f, 1.0f);
 
 	// Lookup fog value
-	std::uint32_t index = static_cast<std::uint32_t>(s * (FOG_TABLE_SIZE_PLUS - 1));
+	std::uint32_t index = static_cast<std::uint32_t>(s * (FOG_TABLE_SIZE - 1));
 	return tr.fogTable[index];
 }
 
@@ -942,7 +940,7 @@ static void upload_vk_image(image_t *image, byte *pic)
 
 /*
 ================
-R_CreateImage_plus
+R_CreateImage
 
 This is the only way any image_t are created
 Picture data may be modified in-place during mipmap processing
@@ -958,7 +956,7 @@ image_t *R_CreateImage(const char *name, const char *name2, byte *pic, int width
 	namelen = (int)strlen(name) + 1;
 	if (namelen > MAX_QPATH)
 	{
-		ri.Error(ERR_DROP, "R_CreateImage_plus: \"%s\" is too long", name);
+		ri.Error(ERR_DROP, "R_CreateImage: \"%s\" is too long", name);
 	}
 
 	if (name2 && Q_stricmp(name, name2) != 0)
@@ -974,7 +972,7 @@ image_t *R_CreateImage(const char *name, const char *name2, byte *pic, int width
 
 	if (tr.numImages == MAX_DRAWIMAGES)
 	{
-		ri.Error(ERR_DROP, "R_CreateImage_plus: MAX_DRAWIMAGES hit");
+		ri.Error(ERR_DROP, "R_CreateImage: MAX_DRAWIMAGES hit");
 	}
 
 	image = static_cast<image_t *>(ri.Hunk_Alloc(sizeof(*image) + namelen + namelen2, h_low));

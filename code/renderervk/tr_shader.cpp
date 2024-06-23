@@ -88,7 +88,7 @@ void RE_RemapShader(const char *shaderName, const char *newShaderName, const cha
 	}
 	if (sh == NULL || sh == tr.defaultShader)
 	{
-		ri.Printf(PRINT_WARNING, "WARNING: RE_RemapShader_plus: shader %s not found\n", shaderName);
+		ri.Printf(PRINT_WARNING, "WARNING: RE_RemapShader: shader %s not found\n", shaderName);
 		return;
 	}
 
@@ -101,7 +101,7 @@ void RE_RemapShader(const char *shaderName, const char *newShaderName, const cha
 
 	if (sh2 == NULL || sh2 == tr.defaultShader)
 	{
-		ri.Printf(PRINT_WARNING, "WARNING: RE_RemapShader_plus: new shader %s not found\n", newShaderName);
+		ri.Printf(PRINT_WARNING, "WARNING: RE_RemapShader: new shader %s not found\n", newShaderName);
 		return;
 	}
 
@@ -689,7 +689,7 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 
 				if (!stage->bundle[0].image[0])
 				{
-					ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile_plus could not find '%s' in shader '%s'\n", token, shader.name);
+					ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token, shader.name);
 					return false;
 				}
 			}
@@ -735,7 +735,7 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 			stage->bundle[0].image[0] = R_FindImageFile(token, flags);
 			if (!stage->bundle[0].image[0])
 			{
-				ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile_plus could not find '%s' in shader '%s'\n", token, shader.name);
+				ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token, shader.name);
 				return false;
 			}
 		}
@@ -782,7 +782,7 @@ static bool ParseStage(shaderStage_t *stage, const char **text)
 					stage->bundle[0].image[num] = R_FindImageFile(token, flags);
 					if (!stage->bundle[0].image[num])
 					{
-						ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile_plus could not find '%s' in shader '%s'\n", token, shader.name);
+						ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token, shader.name);
 						return false;
 					}
 					stage->bundle[0].numImageAnimations++;
@@ -3888,7 +3888,7 @@ static const char *FindShaderInShaderText(const char *shadername)
 
 /*
 ==================
-R_FindShaderByName_plus
+R_FindShaderByName
 
 Will always return a valid shader, but it might be the
 default shader if the real one can't be found.
@@ -3916,7 +3916,7 @@ shader_t *R_FindShaderByName(const char *name)
 	{
 		// NOTE: if there was no shader or image available with the name strippedName
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
-		// have to check all default shaders otherwise for every call to R_FindShader_plus
+		// have to check all default shaders otherwise for every call to R_FindShader
 		// with that same strippedName a new default shader is created.
 		if (Q_stricmp(sh->name, strippedName) == 0)
 		{
@@ -3996,7 +3996,7 @@ static void R_CreateDefaultShading(image_t *image)
 
 /*
 ===============
-R_FindShader_plus
+R_FindShader
 
 Will always return a valid shader, but it might be the
 default shader if the real one can't be found.
@@ -4059,7 +4059,7 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 	{
 		// NOTE: if there was no shader or image available with the name strippedName
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
-		// have to check all default shaders otherwise for every call to R_FindShader_plus
+		// have to check all default shaders otherwise for every call to R_FindShader
 		// with that same strippedName a new default shader is created.
 		if ((sh->lightmapSearchIndex == lightmapIndex || sh->defaultShader) && !Q_stricmp(sh->name, strippedName))
 		{
@@ -4155,7 +4155,7 @@ qhandle_t RE_RegisterShaderFromImage(const char *name, int lightmapIndex, image_
 	{
 		// NOTE: if there was no shader or image available with the name strippedName
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
-		// have to check all default shaders otherwise for every call to R_FindShader_plus
+		// have to check all default shaders otherwise for every call to R_FindShader
 		// with that same strippedName a new default shader is created.
 		if ((sh->lightmapSearchIndex == lightmapIndex || sh->defaultShader) && !Q_stricmp(sh->name, name))
 		{
@@ -4184,7 +4184,7 @@ qhandle_t RE_RegisterShaderFromImage(const char *name, int lightmapIndex, image_
 
 /*
 ====================
-RE_RegisterShaderLightMap_plus
+RE_RegisterShaderLightMap
 
 This is the exported shader entry point for the rest of the system
 It will always return an index that will be valid.
@@ -4206,9 +4206,9 @@ qhandle_t RE_RegisterShaderLightMap(const char *name, int lightmapIndex)
 	sh = R_FindShader(name, lightmapIndex, true);
 
 	// we want to return 0 if the shader failed to
-	// load for some reason, but R_FindShader_plus should
+	// load for some reason, but R_FindShader should
 	// still keep a name allocated for it, so if
-	// something calls RE_RegisterShader_plus again with
+	// something calls RE_RegisterShader again with
 	// the same name, we don't try looking for it again
 	if (sh->defaultShader)
 	{
@@ -4220,7 +4220,7 @@ qhandle_t RE_RegisterShaderLightMap(const char *name, int lightmapIndex)
 
 /*
 ====================
-RE_RegisterShader_plus
+RE_RegisterShader
 
 This is the exported shader entry point for the rest of the system
 It will always return an index that will be valid.
@@ -4248,9 +4248,9 @@ qhandle_t RE_RegisterShader(const char *name)
 	sh = R_FindShader(name, LIGHTMAP_2D, true);
 
 	// we want to return 0 if the shader failed to
-	// load for some reason, but R_FindShader_plus should
+	// load for some reason, but R_FindShader should
 	// still keep a name allocated for it, so if
-	// something calls RE_RegisterShader_plus again with
+	// something calls RE_RegisterShader again with
 	// the same name, we don't try looking for it again
 	if (sh->defaultShader)
 	{
@@ -4262,7 +4262,7 @@ qhandle_t RE_RegisterShader(const char *name)
 
 /*
 ====================
-RE_RegisterShaderNoMip_plus
+RE_RegisterShaderNoMip
 
 For menu graphics that should never be picmiped
 ====================
@@ -4280,9 +4280,9 @@ qhandle_t RE_RegisterShaderNoMip(const char *name)
 	sh = R_FindShader(name, LIGHTMAP_2D, false);
 
 	// we want to return 0 if the shader failed to
-	// load for some reason, but R_FindShader_plus should
+	// load for some reason, but R_FindShader should
 	// still keep a name allocated for it, so if
-	// something calls RE_RegisterShader_plus again with
+	// something calls RE_RegisterShader again with
 	// the same name, we don't try looking for it again
 	if (sh->defaultShader)
 	{
@@ -4294,7 +4294,7 @@ qhandle_t RE_RegisterShaderNoMip(const char *name)
 
 /*
 ====================
-R_GetShaderByHandle_plus
+R_GetShaderByHandle
 
 When a handle is passed in by another module, this range checks
 it and returns a valid (possibly default) shader_t to be used internally.
@@ -4304,12 +4304,12 @@ shader_t *R_GetShaderByHandle(qhandle_t hShader)
 {
 	if (hShader < 0)
 	{
-		ri.Printf(PRINT_WARNING, "R_GetShaderByHandle_plus: out of range hShader '%d'\n", hShader);
+		ri.Printf(PRINT_WARNING, "R_GetShaderByHandle: out of range hShader '%d'\n", hShader);
 		return tr.defaultShader;
 	}
 	if (hShader >= tr.numShaders)
 	{
-		ri.Printf(PRINT_WARNING, "R_GetShaderByHandle_plus: out of range hShader '%d'\n", hShader);
+		ri.Printf(PRINT_WARNING, "R_GetShaderByHandle: out of range hShader '%d'\n", hShader);
 		return tr.defaultShader;
 	}
 	return tr.shaders[hShader];
@@ -4317,7 +4317,7 @@ shader_t *R_GetShaderByHandle(qhandle_t hShader)
 
 /*
 ===============
-R_ShaderList_f_plus
+R_ShaderList_f
 
 Dump information on all valid shaders to the console
 A second parameter will cause it to print in sorted order
@@ -4724,7 +4724,7 @@ static void CreateExternalShaders(void)
 
 /*
 ==================
-R_InitShaders_plus
+R_InitShaders
 ==================
 */
 void R_InitShaders(void)
