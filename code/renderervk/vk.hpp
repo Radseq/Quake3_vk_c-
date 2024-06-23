@@ -3,7 +3,7 @@
 
 
 
-#include "../renderervk_cplus/vulkan/vulkan.h"
+#include "../renderervk/vulkan/vulkan.h"
 #include "tr_common.hpp"
 #include "tr_local.hpp"
 #include "definitions.hpp"

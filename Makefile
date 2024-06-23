@@ -37,6 +37,7 @@ USE_SYSTEM_VORBIS = 0
 
 USE_VULKAN       = 1
 USE_VULKAN_API   = 1
+USE_RENDERER_DLOPEN = 1
 
 # valid options: vulkan
 RENDERER_DEFAULT = vulkan
@@ -47,8 +48,8 @@ DNAME            = quake3e.ded
 RENDERER_PREFIX  = $(CNAME)
 
 CXX = g++
-CXXFLAGS = -std=c++23 -O3
-CXXFLAGS_DEBUG = -std=c++23 -Wall -Wextra -O0 -g
+CXXFLAGS = -std=c++23 -O3 -fPIC
+CXXFLAGS_DEBUG = -std=c++23 -Wall -Wextra -O0 -g -fPIC
 
 ifeq ($(V),1)
 echo_cmd=@:
@@ -71,6 +72,7 @@ endif
 ifeq ($(COMPILE_PLATFORM),darwin)
   USE_SDL=1
   USE_LOCAL_HEADERS=1
+  USE_RENDERER_DLOPEN = 0
 endif
 
 ifeq ($(COMPILE_PLATFORM),cygwin)
@@ -165,6 +167,12 @@ ifndef USE_SYSTEM_VORBIS
   USE_SYSTEM_VORBIS=1
 endif
 
+ifeq ($(USE_RENDERER_DLOPEN),0)
+  ifeq ($(RENDERER_DEFAULT),vulkan)
+    USE_VULKAN=1
+  endif
+endif
+
 ifneq ($(USE_VULKAN),0)
   USE_VULKAN_API=1
 endif
@@ -179,7 +187,6 @@ CDIR=$(MOUNT_DIR)/client
 SDIR=$(MOUNT_DIR)/server
 # RCDIR=$(MOUNT_DIR)/renderercommon
 RVDIR=$(MOUNT_DIR)/renderervk
-RV_PLUS_DIR=$(MOUNT_DIR)/renderervk_cplus
 SDLDIR=$(MOUNT_DIR)/sdl
 SDLHDIR=$(MOUNT_DIR)/libsdl/include/SDL2
 
@@ -275,6 +282,12 @@ endif
 
 ifneq ($(HAVE_VM_COMPILED),true)
   BASE_CFLAGS += -DNO_VM_COMPILED
+endif
+
+ifneq ($(USE_RENDERER_DLOPEN),0)
+  BASE_CFLAGS += -DUSE_RENDERER_DLOPEN
+  BASE_CFLAGS += -DRENDERER_PREFIX=\\\"$(RENDERER_PREFIX)\\\"
+  BASE_CFLAGS += -DRENDERER_DEFAULT="$(RENDERER_DEFAULT)"
 endif
 
 ifdef DEFAULT_BASEDIR
@@ -495,8 +508,6 @@ else
 
   BASE_CFLAGS += -I/usr/include -I/usr/local/include
 
- # BASE_CFLAGS += RENDV_CPLUS_LIB_OBJS
-
   OPTIMIZE = -O2 -fvisibility=hidden
 
   ifeq ($(ARCH),x86_64)
@@ -579,13 +590,22 @@ endif
 
 ifneq ($(BUILD_CLIENT),0)
   TARGETS += $(B)/$(TARGET_CLIENT)
+  ifneq ($(USE_RENDERER_DLOPEN),0)
+    ifeq ($(USE_VULKAN),1)
+      TARGETS += $(B)/$(TARGET_RENDV)
+    endif
+  endif
 endif
 
 ifeq ($(USE_CCACHE),1)
   CC := ccache $(CC)
 endif
 
-RENDCFLAGS=$(NOTSHLIBCFLAGS)
+ifneq ($(USE_RENDERER_DLOPEN),0)
+    RENDCFLAGS=$(SHLIBCFLAGS)
+else
+    RENDCFLAGS=$(NOTSHLIBCFLAGS)
+endif
 
 define DO_CC
 $(echo_cmd) "CC $<"
@@ -640,11 +660,17 @@ default: release
 all: debug release
 
 debug:
-	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(CXXFLAGS_DEBUG) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS) -lstdc++" V=$(V)
+	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS) -lstdc++" V=$(V)
 
 release:
-	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(CXXFLAGS) $(RELEASE_CFLAGS)" LDFLAGS="$(LDFLAGS) -lstdc++" V=$(V)
+	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" LDFLAGS="$(LDFLAGS) -lstdc++" V=$(V)
 
+
+# debug:
+# 	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS)" V=$(V)
+
+# release:
+# 	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" V=$(V)
 
 define ADD_COPY_TARGET
 TARGETS += $2
@@ -705,7 +731,6 @@ makedirs:
 	@if [ ! -d $(B)/client ];then $(MKDIR) $(B)/client;fi
 	@if [ ! -d $(B)/client/jpeg ];then $(MKDIR) $(B)/client/jpeg;fi
 	@if [ ! -d $(B)/rendv ];then $(MKDIR) $(B)/rendv;fi
-	@if [ ! -d $(B)/rendv_cplus ];then $(MKDIR) $(B)/rendv_cplus;fi
 ifeq ($(USE_SYSTEM_OGG),0)
 	@if [ ! -d $(B)/client/ogg ];then $(MKDIR) $(B)/client/ogg;fi
 endif
@@ -720,42 +745,48 @@ endif
 # CLIENT/SERVER
 #############################################################################
 
-Q3RENDV_PLUS_OBJ = \
-  $(B)/rendv_cplus/tr_noise.o \
-  $(B)/rendv_cplus/tr_world.o \
-  $(B)/rendv_cplus/tr_light.o \
-  $(B)/rendv_cplus/tr_main.o \
-  $(B)/rendv_cplus/vk_flares.o \
-  $(B)/rendv_cplus/tr_shade.o \
-  $(B)/rendv_cplus/tr_shade_calc.o \
-  $(B)/rendv_cplus/tr_surface.o \
-  $(B)/rendv_cplus/tr_model.o \
-  $(B)/rendv_cplus/tr_model_iqm.o \
-  $(B)/rendv_cplus/tr_shader.o \
-  $(B)/rendv_cplus/tr_image.o \
-  $(B)/rendv_cplus/tr_mesh.o \
-  $(B)/rendv_cplus/tr_scene.o \
-  $(B)/rendv_cplus/tr_marks.o \
-  $(B)/rendv_cplus/tr_animation.o \
-  $(B)/rendv_cplus/tr_backend.o \
-  $(B)/rendv_cplus/tr_curve.o \
-  $(B)/rendv_cplus/tr_font.o \
-  $(B)/rendv_cplus/tr_shadows.o \
-  $(B)/rendv_cplus/tr_cmds.o \
-  $(B)/rendv_cplus/tr_image_bmp.o \
-  $(B)/rendv_cplus/tr_image_pcx.o \
-  $(B)/rendv_cplus/tr_image_png.o \
-  $(B)/rendv_cplus/tr_image_tga.o \
-  $(B)/rendv_cplus/vk_vbo.o \
-  $(B)/rendv_cplus/tr_sky.o \
-  $(B)/rendv_cplus/tr_bsp.o \
-  $(B)/rendv_cplus/vk.o \
-  $(B)/rendv_cplus/tr_image_jpg.o \
-  $(B)/rendv_cplus/tr_init.o \
-  $(B)/rendv_cplus/puff.o \
-  $(B)/rendv_cplus/q_shared.o \
-  $(B)/rendv_cplus/q_math.o \
+Q3RENDVOBJ = \
+  $(B)/rendv/tr_noise.o \
+  $(B)/rendv/tr_world.o \
+  $(B)/rendv/tr_light.o \
+  $(B)/rendv/tr_main.o \
+  $(B)/rendv/vk_flares.o \
+  $(B)/rendv/tr_shade.o \
+  $(B)/rendv/tr_shade_calc.o \
+  $(B)/rendv/tr_surface.o \
+  $(B)/rendv/tr_model.o \
+  $(B)/rendv/tr_model_iqm.o \
+  $(B)/rendv/tr_shader.o \
+  $(B)/rendv/tr_image.o \
+  $(B)/rendv/tr_mesh.o \
+  $(B)/rendv/tr_scene.o \
+  $(B)/rendv/tr_marks.o \
+  $(B)/rendv/tr_animation.o \
+  $(B)/rendv/tr_backend.o \
+  $(B)/rendv/tr_curve.o \
+  $(B)/rendv/tr_font.o \
+  $(B)/rendv/tr_shadows.o \
+  $(B)/rendv/tr_cmds.o \
+  $(B)/rendv/tr_image_bmp.o \
+  $(B)/rendv/tr_image_pcx.o \
+  $(B)/rendv/tr_image_png.o \
+  $(B)/rendv/tr_image_tga.o \
+  $(B)/rendv/vk_vbo.o \
+  $(B)/rendv/tr_sky.o \
+  $(B)/rendv/tr_bsp.o \
+  $(B)/rendv/vk.o \
+  $(B)/rendv/tr_image_jpg.o \
+  $(B)/rendv/tr_init.o \
+  $(B)/rendv/puff.o \
+  $(B)/rendv/q_shared.o \
+  $(B)/rendv/q_math.o \
 
+# ifneq ($(USE_RENDERER_DLOPEN), 0)
+#   Q3RENDVOBJ += \
+#     $(B)/rendv/q_shared.o \
+#     $(B)/rendv/puff.o \
+#     $(B)/rendv/q_math.o
+# endif
 
 JPGOBJ = \
   $(B)/client/jpeg/jaricom.o \
@@ -939,9 +970,10 @@ ifeq ($(USE_OGG_VORBIS),1)
     $(B)/client/snd_codec_ogg.o
 endif
 
-ifeq ($(USE_VULKAN),1)
-  Q3OBJ += $(Q3RENDV_PLUS_OBJ)
-  Q3OBJ += $(Q3RENDVOBJ)
+ifneq ($(USE_RENDERER_DLOPEN),1)
+  ifeq ($(USE_VULKAN),1)
+    Q3OBJ += $(Q3RENDVOBJ)
+  endif
 endif
 
 ifeq ($(ARCH),x86)
@@ -1039,6 +1071,12 @@ $(B)/$(TARGET_CLIENT): $(Q3OBJ)
 	$(echo_cmd) "LD $@"
 	$(Q)$(CC) -o $@ $(Q3OBJ) $(CLIENT_LDFLAGS) \
 		$(LDFLAGS)
+
+	
+# modular renderers
+$(B)/$(TARGET_RENDV): $(Q3RENDVOBJ)
+	$(echo_cmd) "LD $@"
+	$(Q)$(CXX) -o $@ $(Q3RENDVOBJ) $(SHLIBCFLAGS) $(SHLIBLDFLAGS)
 
 #############################################################################
 # DEDICATED SERVER
@@ -1174,14 +1212,11 @@ $(B)/client/vorbis/%.o: $(VORBISDIR)/lib/%.c
 $(B)/client/%.o: $(SDLDIR)/%.c
 	$(DO_CC)
 
-$(B)/rendv/%.o: $(RVDIR)/%.c
-	$(DO_REND_CC)
-
-$(B)/rendv_cplus/%.o: $(RV_PLUS_DIR)/%.cpp
+$(B)/rendv/%.o: $(RVDIR)/%.cpp
 	$(DO_REND_PLUS_CC)
 
-# $(B)/rendv/%.o: $(RCDIR)/%.c
-# 	$(DO_REND_CC)
+$(B)/rendv/%.o: $(RCDIR)/%.cpp
+	$(DO_REND_PLUS_CC)
 
 $(B)/rendv/%.o: $(CMDIR)/%.c
 	$(DO_REND_CC)
