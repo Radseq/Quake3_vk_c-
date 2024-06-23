@@ -11,26 +11,6 @@
 
 #include <string.h>
 
-#if defined(_WIN32)
-#if !defined(_MSC_VER)
-// use GCC/Clang functions
-#define Q_setjmp __builtin_setjmp
-#define Q_longjmp __builtin_longjmp
-#elif idx64 && (_MSC_VER >= 1910)
-// use custom setjmp()/longjmp() implementations
-#define Q_setjmp Q_setjmp_c
-#define Q_longjmp Q_longjmp_c
-int Q_setjmp_c(void *);
-int Q_longjmp_c(void *, int);
-#else // !idx64 || MSVC<2017
-#define Q_setjmp setjmp
-#define Q_longjmp longjmp
-#endif
-#else // !_WIN32
-#define Q_setjmp setjmp
-#define Q_longjmp longjmp
-#endif
-
 #ifdef __GNUC__
 #define QALIGN(x) __attribute__((aligned(x)))
 #else
@@ -76,30 +56,14 @@ extern const unsigned char locase[256];
 #define NUMVERTEXNORMALS 162
 
 #define COLOR_WHITE '7'
-#define ColorIndex(c) (((c) - '0') & 7)
 
 typedef unsigned char byte;
+typedef vec_t quat_t[4];
 
 #define ARRAY_LEN(x) (sizeof(x) / sizeof(*(x)))
-#define DEG2RAD(a) (((a) * M_PI) / 180.0F)
-#define RAD2DEG(a) (((a) * 180.0f) / M_PI)
 
 #define MAX_UINT ((unsigned)(~0))
 
-#define DotProduct(x, y) ((x)[0] * (y)[0] + (x)[1] * (y)[1] + (x)[2] * (y)[2])
-
-#define VectorAdd(a, b, c) ((c)[0] = (a)[0] + (b)[0], (c)[1] = (a)[1] + (b)[1], (c)[2] = (a)[2] + (b)[2])
-#define VectorCopy(a, b) ((b)[0] = (a)[0], (b)[1] = (a)[1], (b)[2] = (a)[2])
-#define VectorScale(v, s, o) ((o)[0] = (v)[0] * (s), (o)[1] = (v)[1] * (s), (o)[2] = (v)[2] * (s))
-#define VectorMA(v, s, b, o) ((o)[0] = (v)[0] + (b)[0] * (s), (o)[1] = (v)[1] + (b)[1] * (s), (o)[2] = (v)[2] + (b)[2] * (s))
-
-#define DotProduct4(a, b) ((a)[0] * (b)[0] + (a)[1] * (b)[1] + (a)[2] * (b)[2] + (a)[3] * (b)[3])
-#define VectorScale4(a, b, c) ((c)[0] = (a)[0] * (b), (c)[1] = (a)[1] * (b), (c)[2] = (a)[2] * (b), (c)[3] = (a)[3] * (b))
-#define VectorClear(a) ((a)[0] = (a)[1] = (a)[2] = 0)
-#define VectorNegate(a, b) ((b)[0] = -(a)[0], (b)[1] = -(a)[1], (b)[2] = -(a)[2])
-#define VectorSet(v, x, y, z) ((v)[0] = (x), (v)[1] = (y), (v)[2] = (z))
-#define Vector4Set(v, x, y, z, w) ((v)[0] = (x), (v)[1] = (y), (v)[2] = (z), v[3] = (w))
-#define Vector4Copy(a, b) ((b)[0] = (a)[0], (b)[1] = (a)[1], (b)[2] = (a)[2], (b)[3] = (a)[3])
 #define LUMA(red, green, blue) (0.2126f * (red) + 0.7152f * (green) + 0.0722f * (blue))
 #define LERP(a, b, w) ((a) * (1.0f - (w)) + (b) * (w))
 #define QuatCopy(a, b) ((b)[0] = (a)[0], (b)[1] = (a)[1], (b)[2] = (a)[2], (b)[3] = (a)[3])
@@ -114,8 +78,6 @@ typedef struct
   int firstPoint;
   int numPoints;
 } markFragment_t;
-
-typedef vec_t quat_t[4];
 
 typedef struct
 {

@@ -104,24 +104,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define Q_EXPORT
 #endif
 
-#if defined(__GNUC__) || defined(__clang__)
-#define NORETURN __attribute__((noreturn))
-#define NORETURN_PTR __attribute__((noreturn))
-#elif defined(_MSC_VER)
-#define NORETURN __declspec(noreturn)
-// __declspec doesn't work on function pointers
-#define NORETURN_PTR /* nothing */
-#else
-#define NORETURN /* nothing */
-#define NORETURN_PTR /* nothing */
-#endif
-
-#if defined(__GNUC__) || defined(__clang__)
-#define FORMAT_PRINTF(x, y) __attribute__((format (printf, x, y)))
-#else
-#define FORMAT_PRINTF(x, y) /* nothing */
-#endif
-
 /**********************************************************************
   VM Considerations
 
@@ -196,25 +178,6 @@ float FloatSwap( const float *f );
 	#endif
 #endif
 
-#if defined (_WIN32)
-#if !defined(_MSC_VER)
-// use GCC/Clang functions
-#define Q_setjmp __builtin_setjmp
-#define Q_longjmp __builtin_longjmp
-#elif idx64 && (_MSC_VER >= 1910)
-// use custom setjmp()/longjmp() implementations
-#define Q_setjmp Q_setjmp_c
-#define Q_longjmp Q_longjmp_c
-int Q_setjmp_c(void *);
-int Q_longjmp_c(void *, int);
-#else // !idx64 || MSVC<2017
-#define Q_setjmp setjmp
-#define Q_longjmp longjmp
-#endif
-#else // !_WIN32
-#define Q_setjmp setjmp
-#define Q_longjmp longjmp
-#endif
 
 
 
@@ -411,7 +374,7 @@ extern	vec4_t		colorDkGrey;
 #define COLOR_CYAN		'5'
 #define COLOR_MAGENTA	'6'
 #define COLOR_WHITE		'7'
-#define ColorIndex(c)	( ( (c) - '0' ) & 7 )
+
 
 #define S_COLOR_BLACK	"^0"
 #define S_COLOR_RED		"^1"
@@ -427,9 +390,6 @@ extern int ColorIndexFromChar( char ccode );
 
 #define	MAKERGB( v, r, g, b ) v[0]=r;v[1]=g;v[2]=b
 #define	MAKERGBA( v, r, g, b, a ) v[0]=r;v[1]=g;v[2]=b;v[3]=a
-
-#define DEG2RAD( a ) ( ( (a) * M_PI ) / 180.0F )
-#define RAD2DEG( a ) ( ( (a) * 180.0f ) / M_PI )
 
 struct cplane_s;
 
@@ -460,15 +420,7 @@ void ByteToDir( int b, vec3_t dir );
 
 #if	1
 
-#define DotProduct(x,y)			((x)[0]*(y)[0]+(x)[1]*(y)[1]+(x)[2]*(y)[2])
-#define VectorSubtract(a,b,c)	((c)[0]=(a)[0]-(b)[0],(c)[1]=(a)[1]-(b)[1],(c)[2]=(a)[2]-(b)[2])
-#define VectorAdd(a,b,c)		((c)[0]=(a)[0]+(b)[0],(c)[1]=(a)[1]+(b)[1],(c)[2]=(a)[2]+(b)[2])
-#define VectorCopy(a,b)			((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2])
-#define	VectorScale(v, s, o)	((o)[0]=(v)[0]*(s),(o)[1]=(v)[1]*(s),(o)[2]=(v)[2]*(s))
-#define	VectorMA(v, s, b, o)	((o)[0]=(v)[0]+(b)[0]*(s),(o)[1]=(v)[1]+(b)[1]*(s),(o)[2]=(v)[2]+(b)[2]*(s))
 
-#define DotProduct4(a,b)		((a)[0]*(b)[0] + (a)[1]*(b)[1] + (a)[2]*(b)[2] + (a)[3]*(b)[3])
-#define VectorScale4(a,b,c)		((c)[0]=(a)[0]*(b),(c)[1]=(a)[1]*(b),(c)[2]=(a)[2]*(b),(c)[3]=(a)[3]*(b))
 
 #else
 
@@ -492,11 +444,6 @@ typedef struct {
 #endif
 #endif
 
-#define VectorClear(a)			((a)[0]=(a)[1]=(a)[2]=0)
-#define VectorNegate(a,b)		((b)[0]=-(a)[0],(b)[1]=-(a)[1],(b)[2]=-(a)[2])
-#define VectorSet(v, x, y, z)	((v)[0]=(x), (v)[1]=(y), (v)[2]=(z))
-#define Vector4Set(v,x,y,z,w)	((v)[0]=(x), (v)[1]=(y), (v)[2]=(z), v[3]=(w))
-#define Vector4Copy(a,b)		((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2],(b)[3]=(a)[3])
 
 #define Byte4Copy(a,b)			((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2],(b)[3]=(a)[3])
 

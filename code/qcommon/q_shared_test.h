@@ -25,6 +25,26 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define QDECL
 
+#if defined(_WIN32)
+#if !defined(_MSC_VER)
+// use GCC/Clang functions
+#define Q_setjmp __builtin_setjmp
+#define Q_longjmp __builtin_longjmp
+#elif idx64 && (_MSC_VER >= 1910)
+// use custom setjmp()/longjmp() implementations
+#define Q_setjmp Q_setjmp_c
+#define Q_longjmp Q_longjmp_c
+int Q_setjmp_c(void *);
+int Q_longjmp_c(void *, int);
+#else // !idx64 || MSVC<2017
+#define Q_setjmp setjmp
+#define Q_longjmp longjmp
+#endif
+#else // !_WIN32
+#define Q_setjmp setjmp
+#define Q_longjmp longjmp
+#endif
+
 #if defined(__GNUC__) || defined(__clang__)
 #define NORETURN __attribute__((noreturn))
 #define NORETURN_PTR __attribute__((noreturn))
@@ -94,15 +114,15 @@ typedef int clipHandle_t;
 #define PLANE_NON_AXIAL 3
 
 #ifndef MAX
-#define MAX(x,y) ((x)>(y)?(x):(y))
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
 #endif
 
 #ifndef MIN
-#define MIN(x,y) ((x)<(y)?(x):(y))
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
 #endif
 
-#define	MAX_QINT			0x7fffffff
-#define	MIN_QINT			(-MAX_QINT-1)
+#define MAX_QINT 0x7fffffff
+#define MIN_QINT (-MAX_QINT - 1)
 
 /*
 ==========================================================
@@ -115,46 +135,44 @@ default values.
 ==========================================================
 */
 
-#define	CVAR_ARCHIVE		0x0001	// set to cause it to be saved to vars.rc
-					// used for system variables, not for player
-					// specific configurations
-#define	CVAR_USERINFO		0x0002	// sent to server on connect or change
-#define	CVAR_SERVERINFO		0x0004	// sent in response to front end requests
-#define	CVAR_SYSTEMINFO		0x0008	// these cvars will be duplicated on all clients
-#define	CVAR_INIT			0x0010	// don't allow change from console at all,
-					// but can be set from the command line
-#define	CVAR_LATCH			0x0020	// will only change when C code next does
-					// a Cvar_Get(), so it can't be changed
-					// without proper initialization.  modified
-					// will be set, even though the value hasn't
-					// changed yet
-#define	CVAR_ROM			0x0040	// display only, cannot be set by user at all
-#define	CVAR_USER_CREATED	0x0080	// created by a set command
-#define	CVAR_TEMP			0x0100	// can be set even when cheats are disabled, but is not archived
-#define CVAR_CHEAT			0x0200	// can not be changed if cheats are disabled
-#define CVAR_NORESTART		0x0400	// do not clear when a cvar_restart is issued
+#define CVAR_ARCHIVE 0x0001		 // set to cause it to be saved to vars.rc
+								 // used for system variables, not for player
+								 // specific configurations
+#define CVAR_USERINFO 0x0002	 // sent to server on connect or change
+#define CVAR_SERVERINFO 0x0004	 // sent in response to front end requests
+#define CVAR_SYSTEMINFO 0x0008	 // these cvars will be duplicated on all clients
+#define CVAR_INIT 0x0010		 // don't allow change from console at all,
+								 // but can be set from the command line
+#define CVAR_LATCH 0x0020		 // will only change when C code next does
+								 // a Cvar_Get(), so it can't be changed
+								 // without proper initialization.  modified
+								 // will be set, even though the value hasn't
+								 // changed yet
+#define CVAR_ROM 0x0040			 // display only, cannot be set by user at all
+#define CVAR_USER_CREATED 0x0080 // created by a set command
+#define CVAR_TEMP 0x0100		 // can be set even when cheats are disabled, but is not archived
+#define CVAR_CHEAT 0x0200		 // can not be changed if cheats are disabled
+#define CVAR_NORESTART 0x0400	 // do not clear when a cvar_restart is issued
 
-#define CVAR_SERVER_CREATED	0x0800	// cvar was created by a server the client connected to.
-#define CVAR_VM_CREATED		0x1000	// cvar was created exclusively in one of the VMs.
-#define CVAR_PROTECTED		0x2000	// prevent modifying this var from VMs or the server
+#define CVAR_SERVER_CREATED 0x0800 // cvar was created by a server the client connected to.
+#define CVAR_VM_CREATED 0x1000	   // cvar was created exclusively in one of the VMs.
+#define CVAR_PROTECTED 0x2000	   // prevent modifying this var from VMs or the server
 
-#define CVAR_NODEFAULT		0x4000	// do not write to config if matching with default value
+#define CVAR_NODEFAULT 0x4000 // do not write to config if matching with default value
 
-#define CVAR_PRIVATE		0x8000	// can't be read from VM
+#define CVAR_PRIVATE 0x8000 // can't be read from VM
 
-#define CVAR_DEVELOPER		0x10000 // can be set only in developer mode
-#define CVAR_NOTABCOMPLETE	0x20000 // no tab completion in console
+#define CVAR_DEVELOPER 0x10000	   // can be set only in developer mode
+#define CVAR_NOTABCOMPLETE 0x20000 // no tab completion in console
 
-#define CVAR_ARCHIVE_ND		(CVAR_ARCHIVE | CVAR_NODEFAULT)
+#define CVAR_ARCHIVE_ND (CVAR_ARCHIVE | CVAR_NODEFAULT)
 
 // These flags are only returned by the Cvar_Flags() function
-#define CVAR_MODIFIED		0x40000000	// Cvar was modified
-#define CVAR_NONEXISTENT	0x80000000	// Cvar doesn't exist.
+#define CVAR_MODIFIED 0x40000000	// Cvar was modified
+#define CVAR_NONEXISTENT 0x80000000 // Cvar doesn't exist.
 
-
-#define S_COLOR_YELLOW	"^3"
-#define S_COLOR_CYAN	"^5"
-
+#define S_COLOR_YELLOW "^3"
+#define S_COLOR_CYAN "^5"
 
 /*
 =================
@@ -164,9 +182,9 @@ PlaneTypeForNormal
 
 // plane types are used to speed some tests
 // 0-2 are axial planes
-#define	PLANE_X			0
-#define	PLANE_Y			1
-#define	PLANE_Z			2
+#define PLANE_X 0
+#define PLANE_Y 1
+#define PLANE_Z 2
 
 #define PlaneTypeForNormal(x) (x[0] == 1.0 ? PLANE_X : (x[1] == 1.0 ? PLANE_Y : (x[2] == 1.0 ? PLANE_Z : PLANE_NON_AXIAL)))
 
@@ -198,9 +216,25 @@ float inline Q_rsqrt(float number)
 #endif
 }
 
+#define ColorIndex(c)	( ( (c) - '0' ) & 7 )
 
+#define DEG2RAD( a ) ( ( (a) * M_PI ) / 180.0F )
 
+#define Vector4Copy(a, b) ((b)[0] = (a)[0], (b)[1] = (a)[1], (b)[2] = (a)[2], (b)[3] = (a)[3])
+#define Vector4Set(v, x, y, z, w) ((v)[0] = (x), (v)[1] = (y), (v)[2] = (z), v[3] = (w))
+#define VectorSet(v, x, y, z) ((v)[0] = (x), (v)[1] = (y), (v)[2] = (z))
+#define VectorNegate(a, b) ((b)[0] = -(a)[0], (b)[1] = -(a)[1], (b)[2] = -(a)[2])
+#define VectorClear(a) ((a)[0] = (a)[1] = (a)[2] = 0)
 
+#define VectorScale4(a, b, c) ((c)[0] = (a)[0] * (b), (c)[1] = (a)[1] * (b), (c)[2] = (a)[2] * (b), (c)[3] = (a)[3] * (b))
+#define DotProduct(x, y) ((x)[0] * (y)[0] + (x)[1] * (y)[1] + (x)[2] * (y)[2])
+
+#define VectorAdd(a, b, c) ((c)[0] = (a)[0] + (b)[0], (c)[1] = (a)[1] + (b)[1], (c)[2] = (a)[2] + (b)[2])
+#define VectorCopy(a, b) ((b)[0] = (a)[0], (b)[1] = (a)[1], (b)[2] = (a)[2])
+#define VectorScale(v, s, o) ((o)[0] = (v)[0] * (s), (o)[1] = (v)[1] * (s), (o)[2] = (v)[2] * (s))
+#define VectorMA(v, s, b, o) ((o)[0] = (v)[0] + (b)[0] * (s), (o)[1] = (v)[1] + (b)[1] * (s), (o)[2] = (v)[2] + (b)[2] * (s))
+
+#define DotProduct4(a, b) ((a)[0] * (b)[0] + (a)[1] * (b)[1] + (a)[2] * (b)[2] + (a)[3] * (b)[3])
 
 #if !defined(Q3_VM) || (defined(Q3_VM) && defined(__Q3_VM_MATH))
 static ID_INLINE int VectorCompare(const vec3_t v1, const vec3_t v2)
@@ -421,9 +455,8 @@ typedef enum
 	FMV_ID_WAIT
 } e_status;
 
-
-extern	vec4_t		colorBlack;
-extern	const vec3_t	vec3_origin;
+extern vec4_t colorBlack;
+extern const vec3_t vec3_origin;
 
 #ifdef __cplusplus
 extern "C"
