@@ -206,11 +206,11 @@ static qhandle_t R_RegisterIQM(const char *name, model_t *mod)
 	return mod->index;
 }
 
-struct modelExtToLoaderMap_t
+typedef struct
 {
-    const char* ext;
-    std::function<qhandle_t(const char*, model_t*)> ModelLoader;
-};
+	const char *ext;
+	qhandle_t (*ModelLoader)( const char *, model_t * );
+} modelExtToLoaderMap_t;
 
 // Note that the ordering indicates the order of preference used
 // when there are multiple models of different formats available

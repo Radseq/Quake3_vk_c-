@@ -23,7 +23,87 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef __Q_SHARED_H_TEST
 #define __Q_SHARED_H_TEST
 
-#define QDECL
+// Ignore __attribute__ on non-gcc/clang platforms
+#if !defined(__GNUC__) && !defined(__clang__)
+#ifndef __attribute__
+#define __attribute__(x)
+#endif
+#endif
+
+#ifdef __GNUC__
+#define UNUSED_VAR __attribute__((unused))
+#else
+#define UNUSED_VAR
+#endif
+
+#if (defined _MSC_VER)
+#define Q_EXPORT __declspec(dllexport)
+#elif (defined __SUNPRO_C)
+#define Q_EXPORT __global
+#elif ((__GNUC__ >= 3) && (!__EMX__) && (!sun))
+#define Q_EXPORT __attribute__((visibility("default")))
+#else
+#define Q_EXPORT
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define NORETURN __attribute__((noreturn))
+#define NORETURN_PTR __attribute__((noreturn))
+#elif defined(_MSC_VER)
+#define NORETURN __declspec(noreturn)
+// __declspec doesn't work on function pointers
+#define NORETURN_PTR /* nothing */
+#else
+#define NORETURN	 /* nothing */
+#define NORETURN_PTR /* nothing */
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define FORMAT_PRINTF(x, y) __attribute__((format(printf, x, y)))
+#else
+#define FORMAT_PRINTF(x, y) /* nothing */
+#endif
+
+/**********************************************************************
+  VM Considerations
+
+  The VM can not use the standard system headers because we aren't really
+  using the compiler they were meant for.  We use bg_lib.h which contains
+  prototypes for the functions we define for our own use in bg_lib.c.
+
+  When writing mods, please add needed headers HERE, do not start including
+  stuff like <stdio.h> in the various .c files that make up each of the VMs
+  since you will be including system headers files can will have issues.
+
+  Remember, if you use a C library function that is not defined in bg_lib.c,
+  you will have to add your own version for support in the VM.
+
+ **********************************************************************/
+
+#ifdef Q3_VM
+typedef int intptr_t;
+#else
+#if defined(_MSC_VER) && !defined(__clang__)
+typedef __int64 int64_t;
+typedef __int32 int32_t;
+typedef __int16 int16_t;
+typedef __int8 int8_t;
+typedef unsigned __int64 uint64_t;
+typedef unsigned __int32 uint32_t;
+typedef unsigned __int16 uint16_t;
+typedef unsigned __int8 uint8_t;
+#else
+#include <stdint.h>
+#endif
+
+#ifdef _WIN32
+// vsnprintf is ISO/IEC 9899:1999
+// abstracting this to make it portable
+int Q_vsnprintf(char *str, size_t size, const char *format, va_list ap);
+#else
+#define Q_vsnprintf vsnprintf
+#endif
+#endif
 
 #if defined(_WIN32)
 #if !defined(_MSC_VER)
@@ -45,22 +125,10 @@ int Q_longjmp_c(void *, int);
 #define Q_longjmp longjmp
 #endif
 
-#if defined(__GNUC__) || defined(__clang__)
-#define NORETURN __attribute__((noreturn))
-#define NORETURN_PTR __attribute__((noreturn))
-#elif defined(_MSC_VER)
-#define NORETURN __declspec(noreturn)
-// __declspec doesn't work on function pointers
-#define NORETURN_PTR /* nothing */
+#ifdef __GNUC__
+#define QALIGN(x) __attribute__((aligned(x)))
 #else
-#define NORETURN	 /* nothing */
-#define NORETURN_PTR /* nothing */
-#endif
-
-#if defined(__GNUC__) || defined(__clang__)
-#define FORMAT_PRINTF(x, y) __attribute__((format(printf, x, y)))
-#else
-#define FORMAT_PRINTF(x, y) /* nothing */
+#define QALIGN(x)
 #endif
 
 #ifndef __cplusplus
@@ -188,6 +256,7 @@ PlaneTypeForNormal
 
 #define PlaneTypeForNormal(x) (x[0] == 1.0 ? PLANE_X : (x[1] == 1.0 ? PLANE_Y : (x[2] == 1.0 ? PLANE_Z : PLANE_NON_AXIAL)))
 
+
 /*
 ** float Q_rsqrt( float number )
 */
@@ -216,9 +285,9 @@ float inline Q_rsqrt(float number)
 #endif
 }
 
-#define ColorIndex(c)	( ( (c) - '0' ) & 7 )
+#define ColorIndex(c) (((c) - '0') & 7)
 
-#define DEG2RAD( a ) ( ( (a) * M_PI ) / 180.0F )
+#define DEG2RAD(a) (((a) * M_PI) / 180.0F)
 
 #define Vector4Copy(a, b) ((b)[0] = (a)[0], (b)[1] = (a)[1], (b)[2] = (a)[2], (b)[3] = (a)[3])
 #define Vector4Set(v, x, y, z, w) ((v)[0] = (x), (v)[1] = (y), (v)[2] = (z), v[3] = (w))

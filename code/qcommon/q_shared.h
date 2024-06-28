@@ -81,28 +81,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //#pragma intrinsic( memset, memcpy )
 #endif
 
-//Ignore __attribute__ on non-gcc/clang platforms
-#if !defined(__GNUC__) && !defined(__clang__)
-#ifndef __attribute__
-#define __attribute__(x)
-#endif
-#endif
 
-#ifdef __GNUC__
-#define UNUSED_VAR __attribute__((unused))
-#else
-#define UNUSED_VAR
-#endif
-
-#if (defined _MSC_VER)
-#define Q_EXPORT __declspec(dllexport)
-#elif (defined __SUNPRO_C)
-#define Q_EXPORT __global
-#elif ((__GNUC__ >= 3) && (!__EMX__) && (!sun))
-#define Q_EXPORT __attribute__((visibility("default")))
-#else
-#define Q_EXPORT
-#endif
 
 /**********************************************************************
   VM Considerations
@@ -153,51 +132,9 @@ float FloatSwap( const float *f );
 
 //=============================================================
 
-#ifdef Q3_VM
-	typedef int intptr_t;
-#else
-	#if defined (_MSC_VER) && !defined(__clang__)
-		typedef __int64 int64_t;
-		typedef __int32 int32_t;
-		typedef __int16 int16_t;
-		typedef __int8 int8_t;
-		typedef unsigned __int64 uint64_t;
-		typedef unsigned __int32 uint32_t;
-		typedef unsigned __int16 uint16_t;
-		typedef unsigned __int8 uint8_t;
-	#else
-		#include <stdint.h>
-	#endif
-
-	#ifdef _WIN32
-		// vsnprintf is ISO/IEC 9899:1999
-		// abstracting this to make it portable
-		int Q_vsnprintf( char *str, size_t size, const char *format, va_list ap );
-	#else
-		#define Q_vsnprintf vsnprintf
-	#endif
-#endif
-
-
 
 
 typedef enum { qfalse = 0, qtrue } qboolean;
-
-
-
-
-
-
-
-#ifdef __GNUC__
-#define QALIGN(x) __attribute__((aligned(x)))
-#else
-#define QALIGN(x)
-#endif
-
-#ifndef NULL
-#define NULL ((void *)0)
-#endif
 
 
 
