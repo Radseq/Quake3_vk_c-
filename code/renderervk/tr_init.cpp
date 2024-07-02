@@ -1558,6 +1558,8 @@ static void RE_EndRegistration(void)
 	// so we can't issue RB_ShowImages() there
 }
 
+extern "C" {
+
 #ifdef USE_RENDERER_DLOPEN
 Q_EXPORT refexport_t* QDECL GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 #else
@@ -1628,8 +1630,9 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 
 	return &re;
 }
-
-refexport_t *GetRefAPI_cplus(int apiVersion, refimport_t *rimp)
-{
-	return GetRefAPI(apiVersion, rimp);
 }
+
+// refexport_t *GetRefAPI_cplus(int apiVersion, refimport_t *rimp)
+// {
+// 	return GetRefAPI(apiVersion, rimp);
+// }

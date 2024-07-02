@@ -44,7 +44,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "../qcommon/qfiles.h"
 #include "qcommon.hpp"
-#include "tr_public.hpp"
+#include "../qcommon/tr_public.h"
 #include "tr_common.hpp"
 #include "iqm.hpp"
 #include "definitions.hpp"

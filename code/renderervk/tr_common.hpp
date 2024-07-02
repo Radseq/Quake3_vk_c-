@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define USE_VULKAN
 
 #include "q_shared.hpp"
-#include "tr_public.hpp"
+#include "../qcommon/tr_public.h"
 
 #define MAX_TEXTURE_UNITS 8
 

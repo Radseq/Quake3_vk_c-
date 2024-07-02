@@ -28,6 +28,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define XSTRING(x)	STRING(x)
 #define STRING(x)	#x
 
+// TTimo
+// centralized and cleaned, that's the max string you can send to a Com_Printf / Com_DPrintf (above gets truncated)
+// bump to 8192 as 4096 may be not enough to print some data like gl extensions - CE
+#define	MAXPRINTMSG	8192
+
 // AVI files have the start of pixel lines 4 byte-aligned
 #define AVI_LINE_PADDING 4
 

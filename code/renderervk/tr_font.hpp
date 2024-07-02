@@ -1,7 +1,7 @@
 #ifndef TR_FONT_HPP
 #define TR_FONT_HPP
 
-#include "tr_public.hpp"
+#include "../qcommon/tr_public.h"
 
 extern void R_IssuePendingRenderCommands(void);
 

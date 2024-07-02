@@ -22,8 +22,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef TR_PUBLIC_HPP
 #define TR_PUBLIC_HPP
 
-#include "q_shared.hpp"
-#include "tr_types.hpp"
+#include "q_shared.h"
+#include "tr_types.h"
 #include "../renderervk/vulkan/vulkan.h"
 
 #define REF_API_VERSION 8
@@ -237,16 +237,16 @@ extern refimport_t ri;
 // If the module can't init to a valid rendering state, NULL will be
 // returned.
 
-#ifdef USE_RENDERER_DLOPEN
-typedef refexport_t *(QDECL *GetRefAPI_t)(int apiVersion, refimport_t *rimp);
-#else
-refexport_t *GetRefAPI_cplus(int apiVersion, refimport_t *rimp);
-#endif
+// #ifdef USE_RENDERER_DLOPEN
+// typedef refexport_t *(QDECL *GetRefAPI_t)(int apiVersion, refimport_t *rimp);
+// #else
+// refexport_t *GetRefAPI_cplus(int apiVersion, refimport_t *rimp);
+// #endif
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
+
 #ifdef USE_RENDERER_DLOPEN
 	typedef refexport_t *(QDECL *GetRefAPI_t)(int apiVersion, refimport_t *rimp);
 #else

@@ -3,7 +3,7 @@
 
 // #include <cstdint>
 #include <math.h>
-#include "q_platform.hpp"
+#include "../qcommon/q_platform.h"
 
 #include "../qcommon/surfaceflags.h" // shared with the q3map utility
 
@@ -45,8 +45,6 @@ int Q_vsnprintf(char *str, size_t size, const char *format, va_list ap);
 #define Com_Memset memset
 #define Com_Memcpy memcpy
 
-extern const unsigned char locase[256];
-
 // angle indexes
 #define PITCH 0 // up / down
 #define YAW 1   // left / right
@@ -71,19 +69,6 @@ typedef vec_t quat_t[4];
 #ifndef SGN
 #define SGN(x) (((x) >= 0) ? !!(x) : -1)
 #endif
-
-// markfragments are returned by R_MarkFragments()
-typedef struct
-{
-  int firstPoint;
-  int numPoints;
-} markFragment_t;
-
-typedef struct
-{
-  vec3_t origin;
-  vec3_t axis[3];
-} orientation_t;
 
 char *Q_strlwr(char *s1);
 const char *COM_GetExtension(const char *name);
@@ -110,35 +95,5 @@ int LongSwap(int l);
 
 unsigned int crc32_buffer(const byte *buf, unsigned int len);
 unsigned long Com_GenerateHashValue(const char *fname, const unsigned int size);
-
-typedef struct
-{
-  int height;      // number of scan lines
-  int top;         // top of glyph in buffer
-  int bottom;      // bottom of glyph in buffer
-  int pitch;       // width for copying
-  int xSkip;       // x adjustment
-  int imageWidth;  // width of actual image
-  int imageHeight; // height of actual image
-  float s;         // x offset in image where glyph starts
-  float t;         // y offset in image where glyph starts
-  float s2;
-  float t2;
-  qhandle_t glyph; // handle to the shader with the glyph
-  char shaderName[32];
-} glyphInfo_t;
-
-#define MAX_QPATH 64 // max length of a quake game pathname
-#define GLYPH_START 0
-#define GLYPH_END 255
-
-#define GLYPHS_PER_FONT GLYPH_END - GLYPH_START + 1
-
-typedef struct
-{
-  glyphInfo_t glyphs[GLYPHS_PER_FONT];
-  float glyphScale;
-  char name[MAX_QPATH];
-} fontInfo_t;
 
 #endif // Q_SHARED_HPP

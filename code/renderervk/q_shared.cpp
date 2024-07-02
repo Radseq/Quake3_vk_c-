@@ -77,6 +77,8 @@ static char com_parsename[MAX_TOKEN_CHARS];
 static int com_tokenline;
 static int com_lines;
 
+// for complex parser
+
 void COM_BeginParseSession(const char *name)
 {
     com_lines = 1;

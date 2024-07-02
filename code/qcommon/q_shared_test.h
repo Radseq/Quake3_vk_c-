@@ -256,7 +256,6 @@ PlaneTypeForNormal
 
 #define PlaneTypeForNormal(x) (x[0] == 1.0 ? PLANE_X : (x[1] == 1.0 ? PLANE_Y : (x[2] == 1.0 ? PLANE_Z : PLANE_NON_AXIAL)))
 
-
 /*
 ** float Q_rsqrt( float number )
 */
@@ -527,19 +526,65 @@ typedef enum
 extern vec4_t colorBlack;
 extern const vec3_t vec3_origin;
 
+// markfragments are returned by R_MarkFragments()
+typedef struct
+{
+	int firstPoint;
+	int numPoints;
+} markFragment_t;
+
+typedef struct
+{
+	vec3_t origin;
+	vec3_t axis[3];
+} orientation_t;
+
+typedef struct
+{
+	int height;		 // number of scan lines
+	int top;		 // top of glyph in buffer
+	int bottom;		 // bottom of glyph in buffer
+	int pitch;		 // width for copying
+	int xSkip;		 // x adjustment
+	int imageWidth;	 // width of actual image
+	int imageHeight; // height of actual image
+	float s;		 // x offset in image where glyph starts
+	float t;		 // y offset in image where glyph starts
+	float s2;
+	float t2;
+	qhandle_t glyph; // handle to the shader with the glyph
+	char shaderName[32];
+} glyphInfo_t;
+
+#define MAX_QPATH 64 // max length of a quake game pathname
+#define GLYPH_START 0
+#define GLYPH_END 255
+
+#define GLYPHS_PER_FONT GLYPH_END - GLYPH_START + 1
+
+typedef struct
+{
+	glyphInfo_t glyphs[GLYPHS_PER_FONT];
+	float glyphScale;
+	char name[MAX_QPATH];
+} fontInfo_t;
+
+extern const byte locase[256];
+extern tokenType_t com_tokentype;
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-	extern tokenType_t com_tokentype;
+	Q_EXPORT void NORETURN FORMAT_PRINTF(2, 3) QDECL Com_Error(errorParm_t level, const char *fmt, ...);
+	Q_EXPORT int QDECL Com_sprintf(char *dest, int size, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
+	Q_EXPORT const char *QDECL va(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
-	void NORETURN FORMAT_PRINTF(2, 3) QDECL Com_Error(errorParm_t level, const char *fmt, ...);
-	int QDECL Com_sprintf(char *dest, int size, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
-	const char *QDECL va(const char *format, ...) __attribute__((format(printf, 1, 2)));
+	Q_EXPORT int Q_stricmp(const char *s1, const char *s2);
+	Q_EXPORT void Q_strncpyz(char *dest, const char *src, int destsize);
 
-	int Q_stricmp(const char *s1, const char *s2);
-	void Q_strncpyz(char *dest, const char *src, int destsize);
+	Q_EXPORT void AddPointToBounds(const vec3_t v, vec3_t mins, vec3_t maxs);
 
 #ifdef __cplusplus
 }
