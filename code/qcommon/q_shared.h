@@ -629,6 +629,9 @@ bool Info_ValidateKeyValue( const char *s );
 const char *Info_NextPair( const char *s, char *key, char *value );
 int Info_RemoveKey( char *s, const char *key );
 
+extern tokenType_t com_tokentype;
+extern const byte locase[256];
+
 // this is only here so the functions in q_shared.c and bg_*.c can link
 void NORETURN FORMAT_PRINTF(2, 3) QDECL Com_Error( errorParm_t level, const char *fmt, ... );
 #ifdef __cplusplus

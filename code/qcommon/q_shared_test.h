@@ -569,9 +569,6 @@ typedef struct
 	char name[MAX_QPATH];
 } fontInfo_t;
 
-extern const byte locase[256];
-extern tokenType_t com_tokentype;
-
 #ifdef __cplusplus
 extern "C"
 {

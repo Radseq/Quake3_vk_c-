@@ -45,6 +45,9 @@ int Q_vsnprintf(char *str, size_t size, const char *format, va_list ap);
 #define Com_Memset memset
 #define Com_Memcpy memcpy
 
+extern tokenType_t com_tokentype;
+extern const byte locase[256];
+
 // angle indexes
 #define PITCH 0 // up / down
 #define YAW 1   // left / right

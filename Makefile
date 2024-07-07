@@ -37,7 +37,7 @@ USE_SYSTEM_VORBIS = 0
 
 USE_VULKAN       = 1
 USE_VULKAN_API   = 1
-USE_RENDERER_DLOPEN = 0
+USE_RENDERER_DLOPEN = 1
 
 # valid options: vulkan
 RENDERER_DEFAULT = vulkan
@@ -662,7 +662,7 @@ default: release
 all: debug release
 
 debug:
-	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS)" V=$(V)
+	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS) -lstdc++" V=$(V)
 
 release:
 	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS)" V=$(V)
