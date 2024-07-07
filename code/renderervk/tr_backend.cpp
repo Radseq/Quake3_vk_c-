@@ -269,7 +269,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
 				// set up the transformation matrix
-				R_RotateForEntity(backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
+				R_RotateForEntity(*backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
 				// set up the dynamic lighting if needed
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
@@ -442,7 +442,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
 				// set up the transformation matrix
-				R_RotateForEntity(backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
+				R_RotateForEntity(*backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
 
 				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
 				{

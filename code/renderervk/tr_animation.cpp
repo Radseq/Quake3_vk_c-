@@ -47,7 +47,7 @@ frame.
 R_MDRCullModel
 =============
 */
-static int R_MDRCullModel(mdrHeader_t *header, const trRefEntity_t *ent)
+static int R_MDRCullModel(mdrHeader_t *header, const trRefEntity_t &ent)
 {
 	vec3_t bounds[2];
 	mdrFrame_t *oldFrame, *newFrame;
@@ -56,13 +56,13 @@ static int R_MDRCullModel(mdrHeader_t *header, const trRefEntity_t *ent)
 	frameSize = (size_t)(&((mdrFrame_t *)0)->bones[header->numBones]);
 
 	// compute frame pointers
-	newFrame = (mdrFrame_t *)((byte *)header + header->ofsFrames + frameSize * ent->e.frame);
-	oldFrame = (mdrFrame_t *)((byte *)header + header->ofsFrames + frameSize * ent->e.oldframe);
+	newFrame = (mdrFrame_t *)((byte *)header + header->ofsFrames + frameSize * ent.e.frame);
+	oldFrame = (mdrFrame_t *)((byte *)header + header->ofsFrames + frameSize * ent.e.oldframe);
 
 	// cull bounding sphere ONLY if this is not an upscaled entity
-	if (!ent->e.nonNormalizedAxes)
+	if (!ent.e.nonNormalizedAxes)
 	{
-		if (ent->e.frame == ent->e.oldframe)
+		if (ent.e.frame == ent.e.oldframe)
 		{
 			switch (R_CullLocalPointAndRadius(newFrame->localOrigin, newFrame->radius))
 			{
@@ -143,7 +143,7 @@ static int R_MDRCullModel(mdrHeader_t *header, const trRefEntity_t *ent)
 R_MDRComputeFogNum
 =================
 */
-static int R_MDRComputeFogNum(mdrHeader_t *header, const trRefEntity_t *ent)
+static int R_MDRComputeFogNum(mdrHeader_t *header, const trRefEntity_t &ent)
 {
 	if (tr.refdef.rdflags & RDF_NOWORLDMODEL)
 	{
@@ -158,8 +158,8 @@ static int R_MDRComputeFogNum(mdrHeader_t *header, const trRefEntity_t *ent)
 	int frameSize = (size_t)(&((mdrFrame_t *)0)->bones[header->numBones]);
 
 	// FIXME: non-normalized axis issues
-	mdrFrame = (mdrFrame_t *)((byte *)header + header->ofsFrames + frameSize * ent->e.frame);
-	VectorAdd(ent->e.origin, mdrFrame->localOrigin, localOrigin);
+	mdrFrame = (mdrFrame_t *)((byte *)header + header->ofsFrames + frameSize * ent.e.frame);
+	VectorAdd(ent.e.origin, mdrFrame->localOrigin, localOrigin);
 	for (i = 1; i < tr.world->numfogs; i++)
 	{
 		fog = &tr.world->fogs[i];
@@ -191,7 +191,7 @@ R_MDRAddAnimSurfaces
 
 // much stuff in there is just copied from R_AddMd3Surfaces in tr_mesh.c
 
-void R_MDRAddAnimSurfaces(trRefEntity_t *ent)
+void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 {
 	mdrHeader_t *header;
 	mdrSurface_t *surface;
@@ -206,12 +206,12 @@ void R_MDRAddAnimSurfaces(trRefEntity_t *ent)
 
 	header = (mdrHeader_t *)tr.currentModel->modelData;
 
-	personalModel = (ent->e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE);
+	personalModel = (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE);
 
-	if (ent->e.renderfx & RF_WRAP_FRAMES)
+	if (ent.e.renderfx & RF_WRAP_FRAMES)
 	{
-		ent->e.frame %= header->numFrames;
-		ent->e.oldframe %= header->numFrames;
+		ent.e.frame %= header->numFrames;
+		ent.e.oldframe %= header->numFrames;
 	}
 
 	//
@@ -220,12 +220,12 @@ void R_MDRAddAnimSurfaces(trRefEntity_t *ent)
 	// when the surfaces are rendered, they don't need to be
 	// range checked again.
 	//
-	if ((ent->e.frame >= header->numFrames) || (ent->e.frame < 0) || (ent->e.oldframe >= header->numFrames) || (ent->e.oldframe < 0))
+	if ((ent.e.frame >= header->numFrames) || (ent.e.frame < 0) || (ent.e.oldframe >= header->numFrames) || (ent.e.oldframe < 0))
 	{
 		ri.Printf(PRINT_DEVELOPER, "R_MDRAddAnimSurfaces: no such frame %d to %d for '%s'\n",
-				  ent->e.oldframe, ent->e.frame, tr.currentModel->name);
-		ent->e.frame = 0;
-		ent->e.oldframe = 0;
+				  ent.e.oldframe, ent.e.frame, tr.currentModel->name);
+		ent.e.frame = 0;
+		ent.e.oldframe = 0;
 	}
 
 	//
@@ -266,11 +266,11 @@ void R_MDRAddAnimSurfaces(trRefEntity_t *ent)
 	for (i = 0; i < lod->numSurfaces; i++)
 	{
 
-		if (ent->e.customShader)
-			shader = R_GetShaderByHandle(ent->e.customShader);
-		else if (ent->e.customSkin > 0 && ent->e.customSkin < tr.numSkins)
+		if (ent.e.customShader)
+			shader = R_GetShaderByHandle(ent.e.customShader);
+		else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
 		{
-			skin = R_GetSkinByHandle(ent->e.customSkin);
+			skin = R_GetSkinByHandle(ent.e.customSkin);
 			shader = tr.defaultShader;
 
 			for (j = 0; j < skin->numSurfaces; j++)
@@ -290,13 +290,13 @@ void R_MDRAddAnimSurfaces(trRefEntity_t *ent)
 		// we will add shadows even if the main object isn't visible in the view
 
 		// stencil shadows can't do personal models unless I polyhedron clip
-		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 && !(ent->e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == static_cast<float>(SS_OPAQUE))
+		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 && !(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == static_cast<float>(SS_OPAQUE))
 		{
 			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
-		if (r_shadows->integer == 3 && fogNum == 0 && (ent->e.renderfx & RF_SHADOW_PLANE) && shader->sort == static_cast<float>(SS_OPAQUE))
+		if (r_shadows->integer == 3 && fogNum == 0 && (ent.e.renderfx & RF_SHADOW_PLANE) && shader->sort == static_cast<float>(SS_OPAQUE))
 		{
 			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.projectionShadowShader, 0, 0);
 		}

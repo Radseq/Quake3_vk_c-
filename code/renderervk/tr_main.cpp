@@ -348,24 +348,24 @@ Does NOT produce any GL calls
 Called by both the front end and the back end
 =================
 */
-void R_RotateForEntity(const trRefEntity_t *ent, const viewParms_t *viewParms,
+void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t *viewParms,
 					   orientationr_t *ort)
 {
 	float glMatrix[16];
 	vec3_t delta;
 	float axisLength;
 
-	if (ent->e.reType != RT_MODEL)
+	if (ent.e.reType != RT_MODEL)
 	{
 		*ort = viewParms->world;
 		return;
 	}
 
-	VectorCopy(ent->e.origin, ort->origin);
+	VectorCopy(ent.e.origin, ort->origin);
 
-	VectorCopy(ent->e.axis[0], ort->axis[0]);
-	VectorCopy(ent->e.axis[1], ort->axis[1]);
-	VectorCopy(ent->e.axis[2], ort->axis[2]);
+	VectorCopy(ent.e.axis[0], ort->axis[0]);
+	VectorCopy(ent.e.axis[1], ort->axis[1]);
+	VectorCopy(ent.e.axis[2], ort->axis[2]);
 
 	glMatrix[0] = ort->axis[0][0];
 	glMatrix[4] = ort->axis[1][0];
@@ -394,9 +394,9 @@ void R_RotateForEntity(const trRefEntity_t *ent, const viewParms_t *viewParms,
 	VectorSubtract(viewParms->ort.origin, ort->origin, delta);
 
 	// compensate for scale in the axes if necessary
-	if (ent->e.nonNormalizedAxes)
+	if (ent.e.nonNormalizedAxes)
 	{
-		axisLength = VectorLength(ent->e.axis[0]);
+		axisLength = VectorLength(ent.e.axis[0]);
 		if (!axisLength)
 		{
 			axisLength = 0;
@@ -809,7 +809,7 @@ static bool R_GetPortalOrientations(const drawSurf_t *drawSurf, int entityNum,
 		tr.currentEntity = &tr.refdef.entities[entityNum];
 
 		// get the orientation of the entity
-		R_RotateForEntity(tr.currentEntity, &tr.viewParms, &tr.ort);
+		R_RotateForEntity(*tr.currentEntity, &tr.viewParms, &tr.ort);
 
 		// rotate the plane, but keep the non-rotated version for matching
 		// against the portalSurface entities
@@ -939,7 +939,7 @@ static bool IsMirror(const drawSurf_t *drawSurf, int entityNum)
 		tr.currentEntity = &tr.refdef.entities[entityNum];
 
 		// get the orientation of the entity
-		R_RotateForEntity(tr.currentEntity, &tr.viewParms, &tr.ort);
+		R_RotateForEntity(*tr.currentEntity, &tr.viewParms, &tr.ort);
 
 		// rotate the plane, but keep the non-rotated version for matching
 		// against the portalSurface entities
@@ -1279,7 +1279,7 @@ R_SpriteFogNum
 See if a sprite is inside a fog volume
 =================
 */
-static int R_SpriteFogNum(const trRefEntity_t *ent)
+static int R_SpriteFogNum(const trRefEntity_t &ent)
 {
 	int i, j;
 	const fog_t *fog;
@@ -1289,7 +1289,7 @@ static int R_SpriteFogNum(const trRefEntity_t *ent)
 		return 0;
 	}
 
-	if (ent->e.renderfx & RF_CROSSHAIR)
+	if (ent.e.renderfx & RF_CROSSHAIR)
 	{
 		return 0;
 	}
@@ -1299,11 +1299,11 @@ static int R_SpriteFogNum(const trRefEntity_t *ent)
 		fog = &tr.world->fogs[i];
 		for (j = 0; j < 3; j++)
 		{
-			if (ent->e.origin[j] - ent->e.radius >= fog->bounds[1][j])
+			if (ent.e.origin[j] - ent.e.radius >= fog->bounds[1][j])
 			{
 				break;
 			}
-			if (ent->e.origin[j] + ent->e.radius <= fog->bounds[0][j])
+			if (ent.e.origin[j] + ent.e.radius <= fog->bounds[0][j])
 			{
 				break;
 			}
@@ -1641,8 +1641,8 @@ R_AddEntitySurfaces
 */
 static void R_AddEntitySurfaces(void)
 {
-	trRefEntity_t *ent;
 	shader_t *shader;
+	trRefEntity_t *ent;
 
 	if (!r_drawentities->integer)
 	{
@@ -1688,12 +1688,12 @@ static void R_AddEntitySurfaces(void)
 				continue;
 			}
 			shader = R_GetShaderByHandle(ent->e.customShader);
-			R_AddDrawSurf(&entitySurface, shader, R_SpriteFogNum(ent), 0);
+			R_AddDrawSurf(&entitySurface, shader, R_SpriteFogNum(*ent), 0);
 			break;
 
 		case RT_MODEL:
 			// we must set up parts of tr.ort for model culling
-			R_RotateForEntity(ent, &tr.viewParms, &tr.ort);
+			R_RotateForEntity(*ent, &tr.viewParms, &tr.ort);
 
 			tr.currentModel = R_GetModelByHandle(ent->e.hModel);
 			if (!tr.currentModel)
@@ -1705,16 +1705,16 @@ static void R_AddEntitySurfaces(void)
 				switch (tr.currentModel->type)
 				{
 				case MOD_MESH:
-					R_AddMD3Surfaces(ent);
+					R_AddMD3Surfaces(*ent);
 					break;
 				case MOD_MDR:
-					R_MDRAddAnimSurfaces(ent);
+					R_MDRAddAnimSurfaces(*ent);
 					break;
 				case MOD_IQM:
-					R_AddIQMSurfaces(ent);
+					R_AddIQMSurfaces(*ent);
 					break;
 				case MOD_BRUSH:
-					R_AddBrushModelSurfaces(ent);
+					R_AddBrushModelSurfaces(*ent);
 					break;
 				case MOD_BAD: // null model axis
 					if ((ent->e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE))

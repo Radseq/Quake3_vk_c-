@@ -5,7 +5,7 @@
 
 void R_AddWorldSurfaces();
 
-void R_AddBrushModelSurfaces(trRefEntity_t *ent);
+void R_AddBrushModelSurfaces(trRefEntity_t &ent);
 bool R_inPVS(const vec3_t p1, const vec3_t p2);
 
 #ifdef USE_PMLIGHT

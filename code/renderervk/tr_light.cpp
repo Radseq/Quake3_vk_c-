@@ -131,7 +131,7 @@ void R_DlightBmodel(bmodel_t *bmodel)
 }
 #endif // USE_LEGACY_DLIGHTS
 
-static void R_SetupEntityLightingGrid(trRefEntity_t *ent)
+static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
 {
     vec3_t lightOrigin;
     int pos[3];
@@ -142,16 +142,16 @@ static void R_SetupEntityLightingGrid(trRefEntity_t *ent)
     vec3_t direction;
     float totalFactor;
 
-    if (ent->e.renderfx & RF_LIGHTING_ORIGIN)
+    if (ent.e.renderfx & RF_LIGHTING_ORIGIN)
     {
         // separate lightOrigins are needed so an object that is
         // sinking into the ground can still be lit, and so
         // multi-part models can be lit identically
-        VectorCopy(ent->e.lightingOrigin, lightOrigin);
+        VectorCopy(ent.e.lightingOrigin, lightOrigin);
     }
     else
     {
-        VectorCopy(ent->e.origin, lightOrigin);
+        VectorCopy(ent.e.origin, lightOrigin);
     }
 
     VectorSubtract(lightOrigin, tr.world->lightGridOrigin, lightOrigin);
@@ -172,8 +172,8 @@ static void R_SetupEntityLightingGrid(trRefEntity_t *ent)
         }
     }
 
-    VectorClear(ent->ambientLight);
-    VectorClear(ent->directedLight);
+    VectorClear(ent.ambientLight);
+    VectorClear(ent.directedLight);
     VectorClear(direction);
 
     assert(tr.world->lightGridData); // NULL with -nolight maps
@@ -221,13 +221,13 @@ static void R_SetupEntityLightingGrid(trRefEntity_t *ent)
         }
         totalFactor += factor;
 
-        ent->ambientLight[0] += factor * data[0];
-        ent->ambientLight[1] += factor * data[1];
-        ent->ambientLight[2] += factor * data[2];
+        ent.ambientLight[0] += factor * data[0];
+        ent.ambientLight[1] += factor * data[1];
+        ent.ambientLight[2] += factor * data[2];
 
-        ent->directedLight[0] += factor * data[3];
-        ent->directedLight[1] += factor * data[4];
-        ent->directedLight[2] += factor * data[5];
+        ent.directedLight[0] += factor * data[3];
+        ent.directedLight[1] += factor * data[4];
+        ent.directedLight[2] += factor * data[5];
 
         lat = data[7];
         lng = data[6];
@@ -248,14 +248,14 @@ static void R_SetupEntityLightingGrid(trRefEntity_t *ent)
     if (totalFactor > 0 && totalFactor < 0.99)
     {
         totalFactor = 1.0f / totalFactor;
-        VectorScale(ent->ambientLight, totalFactor, ent->ambientLight);
-        VectorScale(ent->directedLight, totalFactor, ent->directedLight);
+        VectorScale(ent.ambientLight, totalFactor, ent.ambientLight);
+        VectorScale(ent.directedLight, totalFactor, ent.directedLight);
     }
 
-    VectorScale(ent->ambientLight, r_ambientScale->value, ent->ambientLight);
-    VectorScale(ent->directedLight, r_directedScale->value, ent->directedLight);
+    VectorScale(ent.ambientLight, r_ambientScale->value, ent.ambientLight);
+    VectorScale(ent.directedLight, r_directedScale->value, ent.directedLight);
 
-    VectorNormalize2(direction, ent->lightDir);
+    VectorNormalize2(direction, ent.lightDir);
 }
 
 int R_LightForPoint(vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir)
@@ -267,7 +267,7 @@ int R_LightForPoint(vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec
 
     Com_Memset(&ent, 0, sizeof(ent));
     VectorCopy(point, ent.e.origin);
-    R_SetupEntityLightingGrid(&ent);
+    R_SetupEntityLightingGrid(ent);
     VectorCopy(ent.ambientLight, ambientLight);
     VectorCopy(ent.directedLight, directedLight);
     VectorCopy(ent.lightDir, lightDir);
@@ -275,33 +275,33 @@ int R_LightForPoint(vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec
     return true;
 }
 
-static void LogLight(const trRefEntity_t *ent)
+static void LogLight(const trRefEntity_t &ent)
 {
     int max1, max2;
 
-    if (!(ent->e.renderfx & RF_FIRST_PERSON))
+    if (!(ent.e.renderfx & RF_FIRST_PERSON))
     {
         return;
     }
 
-    max1 = ent->ambientLight[0];
-    if (ent->ambientLight[1] > max1)
+    max1 = ent.ambientLight[0];
+    if (ent.ambientLight[1] > max1)
     {
-        max1 = ent->ambientLight[1];
+        max1 = ent.ambientLight[1];
     }
-    else if (ent->ambientLight[2] > max1)
+    else if (ent.ambientLight[2] > max1)
     {
-        max1 = ent->ambientLight[2];
+        max1 = ent.ambientLight[2];
     }
 
-    max2 = ent->directedLight[0];
-    if (ent->directedLight[1] > max2)
+    max2 = ent.directedLight[0];
+    if (ent.directedLight[1] > max2)
     {
-        max2 = ent->directedLight[1];
+        max2 = ent.directedLight[1];
     }
-    else if (ent->directedLight[2] > max2)
+    else if (ent.directedLight[2] > max2)
     {
-        max2 = ent->directedLight[2];
+        max2 = ent.directedLight[2];
     }
 
     ri.Printf(PRINT_ALL, "amb:%i  dir:%i\n", max1, max2);
@@ -315,7 +315,7 @@ Calculates all the lighting values that will be used
 by the Calc_* functions
 =================
 */
-void R_SetupEntityLighting(const trRefdef_t *refdef, trRefEntity_t *ent)
+void R_SetupEntityLighting(const trRefdef_t *refdef, trRefEntity_t &ent)
 {
     int i;
     const dlight_t *dl;
@@ -329,25 +329,25 @@ void R_SetupEntityLighting(const trRefdef_t *refdef, trRefEntity_t *ent)
 #endif
 
     // lighting calculations
-    if (ent->lightingCalculated)
+    if (ent.lightingCalculated)
     {
         return;
     }
-    ent->lightingCalculated = true;
+    ent.lightingCalculated = true;
 
     //
     // trace a sample point down to find ambient light
     //
-    if (ent->e.renderfx & RF_LIGHTING_ORIGIN)
+    if (ent.e.renderfx & RF_LIGHTING_ORIGIN)
     {
         // separate lightOrigins are needed so an object that is
         // sinking into the ground can still be lit, and so
         // multi-part models can be lit identically
-        VectorCopy(ent->e.lightingOrigin, lightOrigin);
+        VectorCopy(ent.e.lightingOrigin, lightOrigin);
     }
     else
     {
-        VectorCopy(ent->e.origin, lightOrigin);
+        VectorCopy(ent.e.origin, lightOrigin);
     }
 
     // if NOWORLDMODEL, only use dynamic lights (menu system, etc)
@@ -357,27 +357,27 @@ void R_SetupEntityLighting(const trRefdef_t *refdef, trRefEntity_t *ent)
     }
     else
     {
-        ent->ambientLight[0] = ent->ambientLight[1] =
-            ent->ambientLight[2] = tr.identityLight * 150;
-        ent->directedLight[0] = ent->directedLight[1] =
-            ent->directedLight[2] = tr.identityLight * 150;
-        VectorCopy(tr.sunDirection, ent->lightDir);
+        ent.ambientLight[0] = ent.ambientLight[1] =
+            ent.ambientLight[2] = tr.identityLight * 150;
+        ent.directedLight[0] = ent.directedLight[1] =
+            ent.directedLight[2] = tr.identityLight * 150;
+        VectorCopy(tr.sunDirection, ent.lightDir);
     }
 
     // bonus items and view weapons have a fixed minimum add
     if (1 /* ent->e.renderfx & RF_MINLIGHT */)
     {
         // give everything a minimum light add
-        ent->ambientLight[0] += tr.identityLight * 32;
-        ent->ambientLight[1] += tr.identityLight * 32;
-        ent->ambientLight[2] += tr.identityLight * 32;
+        ent.ambientLight[0] += tr.identityLight * 32;
+        ent.ambientLight[1] += tr.identityLight * 32;
+        ent.ambientLight[2] += tr.identityLight * 32;
     }
 
     //
     // modify the light by dynamic lights
     //
-    d = VectorLength(ent->directedLight);
-    VectorScale(ent->lightDir, d, lightDir);
+    d = VectorLength(ent.directedLight);
+    VectorScale(ent.lightDir, d, lightDir);
 #ifdef USE_PMLIGHT
     if (r_dlightMode->integer == 2)
     {
@@ -418,16 +418,16 @@ void R_SetupEntityLighting(const trRefdef_t *refdef, trRefEntity_t *ent)
             }
             d = power / (d * d);
 
-            VectorMA(ent->directedLight, d, dl->color, ent->directedLight);
+            VectorMA(ent.directedLight, d, dl->color, ent.directedLight);
             VectorMA(lightDir, d, dir, lightDir);
         }
 
     // clamp ambient
     for (i = 0; i < 3; i++)
     {
-        if (ent->ambientLight[i] > tr.identityLightByte)
+        if (ent.ambientLight[i] > tr.identityLightByte)
         {
-            ent->ambientLight[i] = tr.identityLightByte;
+            ent.ambientLight[i] = tr.identityLightByte;
         }
     }
 
@@ -437,24 +437,24 @@ void R_SetupEntityLighting(const trRefdef_t *refdef, trRefEntity_t *ent)
     }
 
     // save out the byte packet version
-    ((byte *)&ent->ambientLightInt)[0] = myftol(ent->ambientLight[0]); // -EC-: don't use ri.ftol to avoid precision losses
-    ((byte *)&ent->ambientLightInt)[1] = myftol(ent->ambientLight[1]);
-    ((byte *)&ent->ambientLightInt)[2] = myftol(ent->ambientLight[2]);
-    ((byte *)&ent->ambientLightInt)[3] = 0xff;
+    ((byte *)&ent.ambientLightInt)[0] = myftol(ent.ambientLight[0]); // -EC-: don't use ri.ftol to avoid precision losses
+    ((byte *)&ent.ambientLightInt)[1] = myftol(ent.ambientLight[1]);
+    ((byte *)&ent.ambientLightInt)[2] = myftol(ent.ambientLight[2]);
+    ((byte *)&ent.ambientLightInt)[3] = 0xff;
 
     // transform the direction to local space
     VectorNormalize(lightDir);
-    ent->lightDir[0] = DotProduct(lightDir, ent->e.axis[0]);
-    ent->lightDir[1] = DotProduct(lightDir, ent->e.axis[1]);
-    ent->lightDir[2] = DotProduct(lightDir, ent->e.axis[2]);
+    ent.lightDir[0] = DotProduct(lightDir, ent.e.axis[0]);
+    ent.lightDir[1] = DotProduct(lightDir, ent.e.axis[1]);
+    ent.lightDir[2] = DotProduct(lightDir, ent.e.axis[2]);
 
 #ifdef USE_PMLIGHT
     if (r_shadows->integer == 2 && r_dlightMode->integer == 2)
     {
         VectorNormalize(shadowLightDir);
-        ent->shadowLightDir[0] = DotProduct(shadowLightDir, ent->e.axis[0]);
-        ent->shadowLightDir[1] = DotProduct(shadowLightDir, ent->e.axis[1]);
-        ent->shadowLightDir[2] = DotProduct(shadowLightDir, ent->e.axis[2]);
+        ent.shadowLightDir[0] = DotProduct(shadowLightDir, ent.e.axis[0]);
+        ent.shadowLightDir[1] = DotProduct(shadowLightDir, ent.e.axis[1]);
+        ent.shadowLightDir[2] = DotProduct(shadowLightDir, ent.e.axis[2]);
     }
 #endif
 }

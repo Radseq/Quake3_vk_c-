@@ -564,14 +564,14 @@ static void R_RecursiveLightNode(const mnode_t *node)
 R_AddBrushModelSurfaces
 =================
 */
-void R_AddBrushModelSurfaces(trRefEntity_t *ent)
+void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 {
 	bmodel_t *bmodel;
 	int clip;
 	const model_t *pModel;
 	uint32_t i;
 
-	pModel = R_GetModelByHandle(ent->e.hModel);
+	pModel = R_GetModelByHandle(ent.e.hModel);
 
 	bmodel = pModel->bmodel;
 
