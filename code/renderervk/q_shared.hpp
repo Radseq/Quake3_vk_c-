@@ -61,8 +61,6 @@ extern const byte locase[256];
 typedef unsigned char byte;
 typedef vec_t quat_t[4];
 
-#define ARRAY_LEN(x) (sizeof(x) / sizeof(*(x)))
-
 #define MAX_UINT ((unsigned)(~0))
 
 #define LUMA(red, green, blue) (0.2126f * (red) + 0.7152f * (green) + 0.0722f * (blue))

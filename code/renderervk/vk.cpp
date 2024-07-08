@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include "q_math.hpp"
+#include "utils.hpp"
 
 #if defined(_DEBUG)
 #if defined(_WIN32)
@@ -338,7 +339,7 @@ static VkFlags get_composite_alpha( VkCompositeAlphaFlagsKHR flags )
 	};
 	int i;
 
-	for ( i = 1; i < ARRAY_LEN( compositeFlags ); i++ ) {
+	for ( i = 1; i < arrayLen( compositeFlags ); i++ ) {
 		if ( flags & compositeFlags[i] ) {
 			return compositeFlags[i];
 		}
@@ -902,7 +903,7 @@ static void vk_create_render_passes(void)
 		VK_CHECK(qvkCreateRenderPass(device, &desc, NULL, &vk.render_pass.bloom_extract));
 		SET_OBJECT_NAME(vk.render_pass.bloom_extract, "render pass - bloom_extract", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
 
-		for (i = 0; i < ARRAY_LEN(vk.render_pass.blur); i++)
+		for (i = 0; i < arrayLen(vk.render_pass.blur); i++)
 		{
 			VK_CHECK(qvkCreateRenderPass(device, &desc, NULL, &vk.render_pass.blur[i]));
 			SET_OBJECT_NAME(vk.render_pass.blur[i], va("render pass - blur %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
@@ -1346,7 +1347,7 @@ static VkFormat get_depth_format(VkPhysicalDevice physical_device)
 		formats[1] = VK_FORMAT_D32_SFLOAT;
 		glConfig.stencilBits = 0;
 	}
-	for (i = 0; i < static_cast<int>(ARRAY_LEN(formats)); i++)
+	for (i = 0; i < static_cast<int>(arrayLen(formats)); i++)
 	{
 		qvkGetPhysicalDeviceFormatProperties(physical_device, formats[i], &props);
 		if ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0)
@@ -1420,7 +1421,7 @@ static void get_present_format(int present_bits, VkFormat *bgr, VkFormat *rgb)
 
 	sel = NULL;
 	pf = present_formats;
-	for (i = 0; i < ARRAY_LEN(present_formats); i++, pf++)
+	for (i = 0; i < arrayLen(present_formats); i++, pf++)
 	{
 		if (pf->bits <= present_bits)
 		{
@@ -2411,7 +2412,7 @@ static void vk_update_attachment_descriptors(void)
 		if (r_bloom->integer)
 		{
 			uint32_t i;
-			for (i = 0; i < ARRAY_LEN(vk.bloom_image_descriptor); i++)
+			for (i = 0; i < arrayLen(vk.bloom_image_descriptor); i++)
 			{
 				info.imageView = vk.bloom_image_view[i];
 				desc.dstSet = vk.bloom_image_descriptor[i];
@@ -2482,7 +2483,7 @@ void vk_init_descriptors(void)
 
 		if (r_bloom->integer)
 		{
-			for (i = 0; i < ARRAY_LEN(vk.bloom_image_descriptor); i++)
+			for (i = 0; i < arrayLen(vk.bloom_image_descriptor); i++)
 			{
 				VK_CHECK(qvkAllocateDescriptorSets(vk.device, &alloc, &vk.bloom_image_descriptor[i]));
 			}
@@ -3190,7 +3191,7 @@ void vk_update_post_process_pipelines(void)
 
 			vk_create_post_process_pipeline(1, width, height); // bloom extraction
 
-			for (i = 0; i < ARRAY_LEN(vk.blur_pipeline); i += 2)
+			for (i = 0; i < arrayLen(vk.blur_pipeline); i += 2)
 			{
 				width /= 2;
 				height /= 2;
@@ -3242,9 +3243,9 @@ static void vk_alloc_attachments(void)
 		return;
 	}
 
-	if (vk.image_memory_count >= ARRAY_LEN(vk.image_memory))
+	if (vk.image_memory_count >= arrayLen(vk.image_memory))
 	{
-		ri.Error(ERR_DROP, "vk.image_memory_count == %i", (int)ARRAY_LEN(vk.image_memory));
+		ri.Error(ERR_DROP, "vk.image_memory_count == %i", (int)arrayLen(vk.image_memory));
 	}
 
 	memoryTypeBits = ~0U;
@@ -3352,7 +3353,7 @@ static void vk_alloc_attachments(void)
 
 static void vk_add_attachment_desc(VkImage desc, VkImageView *image_view, VkImageUsageFlags usage, VkMemoryRequirements *reqs, VkFormat image_format, VkImageAspectFlags aspect_flags, VkImageLayout image_layout)
 {
-	if (num_attachments >= ARRAY_LEN(attachments))
+	if (num_attachments >= arrayLen(attachments))
 	{
 		ri.Error(ERR_FATAL, "Attachments array overflow");
 	}
@@ -3499,7 +3500,7 @@ static void vk_create_attachments(void)
 			create_color_attachment(width, height, VK_SAMPLE_COUNT_1_BIT, vk.bloom_format,
 									usage, &vk.bloom_image[0], &vk.bloom_image_view[0], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, false);
 
-			for (i = 1; i < ARRAY_LEN(vk.bloom_image); i += 2)
+			for (i = 1; i < arrayLen(vk.bloom_image); i += 2)
 			{
 				width /= 2;
 				height /= 2;
@@ -3565,7 +3566,7 @@ static void vk_create_attachments(void)
 	SET_OBJECT_NAME(vk.capture.image, "capture image", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 	SET_OBJECT_NAME(vk.capture.image_view, "capture image view", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 
-	for (i = 0; i < ARRAY_LEN(vk.bloom_image); i++)
+	for (i = 0; i < arrayLen(vk.bloom_image); i++)
 	{
 		SET_OBJECT_NAME(vk.bloom_image[i], va("bloom attachment %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
 		SET_OBJECT_NAME(vk.bloom_image_view[i], va("bloom attachment %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
@@ -3680,7 +3681,7 @@ static void vk_create_framebuffers(void)
 
 			SET_OBJECT_NAME(vk.framebuffers.bloom_extract, "framebuffer - bloom extraction", VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT);
 
-			for (n = 0; n < ARRAY_LEN(vk.framebuffers.blur); n += 2)
+			for (n = 0; n < arrayLen(vk.framebuffers.blur); n += 2)
 			{
 				width /= 2;
 				height /= 2;
@@ -3791,7 +3792,7 @@ static void vk_destroy_framebuffers(void)
 		vk.framebuffers.capture = VK_NULL_HANDLE;
 	}
 
-	for (n = 0; n < ARRAY_LEN(vk.framebuffers.blur); n++)
+	for (n = 0; n < arrayLen(vk.framebuffers.blur); n++)
 	{
 		if (vk.framebuffers.blur[n] != VK_NULL_HANDLE)
 		{
@@ -4131,7 +4132,7 @@ void vk_initialize(void)
 		pool_size[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
 		pool_size[2].descriptorCount = 1;
 
-		for (i = 0, maxSets = 0; i < ARRAY_LEN(pool_size); i++)
+		for (i = 0, maxSets = 0; i < arrayLen(pool_size); i++)
 		{
 			maxSets += pool_size[i].descriptorCount;
 		}
@@ -4140,7 +4141,7 @@ void vk_initialize(void)
 		desc.pNext = NULL;
 		desc.flags = 0;
 		desc.maxSets = maxSets;
-		desc.poolSizeCount = ARRAY_LEN(pool_size);
+		desc.poolSizeCount = arrayLen(pool_size);
 		desc.pPoolSizes = pool_size;
 
 		VK_CHECK(qvkCreateDescriptorPool(vk.device, &desc, NULL, &vk.descriptor_pool));
@@ -4272,7 +4273,7 @@ static void vk_destroy_attachments(void)
 
 	if (vk.bloom_image[0])
 	{
-		for (i = 0; i < ARRAY_LEN(vk.bloom_image); i++)
+		for (i = 0; i < arrayLen(vk.bloom_image); i++)
 		{
 			qvkDestroyImage(vk.device, vk.bloom_image[i], NULL);
 			qvkDestroyImageView(vk.device, vk.bloom_image_view[i], NULL);
@@ -4358,7 +4359,7 @@ static void vk_destroy_render_passes(void)
 		vk.render_pass.bloom_extract = VK_NULL_HANDLE;
 	}
 
-	for (i = 0; i < ARRAY_LEN(vk.render_pass.blur); i++)
+	for (i = 0; i < arrayLen(vk.render_pass.blur); i++)
 	{
 		if (vk.render_pass.blur[i] != VK_NULL_HANDLE)
 		{
@@ -4439,7 +4440,7 @@ static void vk_destroy_pipelines(bool resetCounter)
 		vk.bloom_blend_pipeline = VK_NULL_HANDLE;
 	}
 
-	for (i = 0; i < ARRAY_LEN(vk.blur_pipeline); i++)
+	for (i = 0; i < arrayLen(vk.blur_pipeline); i++)
 	{
 		if (vk.blur_pipeline[i] != VK_NULL_HANDLE)
 		{
@@ -4904,7 +4905,7 @@ void vk_upload_image_data(image_t *image, int x, int y, int width, int height, i
 
 		buffer_size += width * height * bpp;
 
-		if (num_regions >= mipmaps || (width == 1 && height == 1) || num_regions >= ARRAY_LEN(regions))
+		if (num_regions >= mipmaps || (width == 1 && height == 1) || num_regions >= arrayLen(regions))
 			break;
 
 		x >>= 1;
@@ -6514,13 +6515,13 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def *def, renderPass_t renderPassIn
 	dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 	dynamic_state.pNext = NULL;
 	dynamic_state.flags = 0;
-	dynamic_state.dynamicStateCount = ARRAY_LEN(dynamic_state_array);
+	dynamic_state.dynamicStateCount = arrayLen(dynamic_state_array);
 	dynamic_state.pDynamicStates = dynamic_state_array;
 
 	create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	create_info.pNext = NULL;
 	create_info.flags = 0;
-	create_info.stageCount = ARRAY_LEN(shader_stages);
+	create_info.stageCount = arrayLen(shader_stages);
 	create_info.pStages = shader_stages;
 	create_info.pVertexInputState = &vertex_input_state;
 	create_info.pInputAssemblyState = &input_assembly_state;
@@ -8010,7 +8011,7 @@ bool vk_bloom(void)
 
 		// blend downscaled buffers to main fbo
 		qvkCmdBindPipeline(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.bloom_blend_pipeline);
-		qvkCmdBindDescriptorSets(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout_blend, 0, ARRAY_LEN(dset), dset, 0, NULL);
+		qvkCmdBindDescriptorSets(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout_blend, 0, arrayLen(dset), dset, 0, NULL);
 		qvkCmdDraw(vk.cmd->command_buffer, 4, 1, 0, 0);
 	}
 

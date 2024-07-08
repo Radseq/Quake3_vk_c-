@@ -315,7 +315,7 @@ Calculates all the lighting values that will be used
 by the Calc_* functions
 =================
 */
-void R_SetupEntityLighting(const trRefdef_t *refdef, trRefEntity_t &ent)
+void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
 {
     int i;
     const dlight_t *dl;
@@ -351,7 +351,7 @@ void R_SetupEntityLighting(const trRefdef_t *refdef, trRefEntity_t &ent)
     }
 
     // if NOWORLDMODEL, only use dynamic lights (menu system, etc)
-    if (!(refdef->rdflags & RDF_NOWORLDMODEL) && tr.world->lightGridData)
+    if (!(refdef.rdflags & RDF_NOWORLDMODEL) && tr.world->lightGridData)
     {
         R_SetupEntityLightingGrid(ent);
     }
@@ -386,9 +386,9 @@ void R_SetupEntityLighting(const trRefdef_t *refdef, trRefEntity_t &ent)
         VectorCopy(lightDir, shadowLightDir);
         if (r_shadows->integer == 2)
         {
-            for (i = 0; i < refdef->num_dlights; i++)
+            for (i = 0; i < refdef.num_dlights; i++)
             {
-                dl = &refdef->dlights[i];
+                dl = &refdef.dlights[i];
                 if (dl->linear) // no support for linear lights atm
                     continue;
                 VectorSubtract(dl->origin, lightOrigin, dir);
@@ -405,9 +405,9 @@ void R_SetupEntityLighting(const trRefdef_t *refdef, trRefEntity_t &ent)
     }     // if ( r_dlightMode->integer == 2 )
     else
 #endif
-        for (i = 0; i < refdef->num_dlights; i++)
+        for (i = 0; i < refdef.num_dlights; i++)
         {
-            dl = &refdef->dlights[i];
+            dl = &refdef.dlights[i];
             VectorSubtract(dl->origin, lightOrigin, dir);
             d = VectorNormalize(dir);
 

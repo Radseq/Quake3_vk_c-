@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_image.hpp"
 #include "../qcommon/q_shared_test.h"
 #include "q_math.hpp"
+#include "utils.hpp"
 
 #include <string_view>
 
@@ -1602,7 +1603,7 @@ surfaceparm <name>
 static void ParseSurfaceParm(const char **text)
 {
 	const char *token;
-	int numInfoParms = ARRAY_LEN(infoParms);
+	int numInfoParms = arrayLen(infoParms);
 	int i;
 
 	token = COM_ParseExt(text, false);
@@ -1863,7 +1864,7 @@ static void FinishStage(shaderStage_t *stage)
 		return;
 	}
 
-	for (i = 0; i < ARRAY_LEN(stage->bundle); i++)
+	for (i = 0; i < arrayLen(stage->bundle); i++)
 	{
 		textureBundle_t *bundle = &stage->bundle[i];
 		// offset lightmap coordinates

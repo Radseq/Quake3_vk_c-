@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shadows.hpp"
 #include "tr_backend.hpp"
 #include "vk.hpp"
+#include "utils.hpp"
 
 /*
 
@@ -103,7 +104,7 @@ static void R_CalcShadowEdges(void)
 			// triangle, it is a sil edge
 			if (sil_edge)
 			{
-				if (tess.numIndexes > ARRAY_LEN(tess.indexes) - 6)
+				if (tess.numIndexes > arrayLen(tess.indexes) - 6)
 				{
 					i = tess.numVertexes;
 					break;

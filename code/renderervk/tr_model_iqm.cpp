@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_light.hpp"
 #include "tr_image.hpp"
 #include "q_math.hpp"
+#include "utils.hpp"
 
 #define LL(x) x = LittleLong(x)
 
@@ -188,7 +189,7 @@ void R_AddIQMSurfaces(trRefEntity_t &ent)
 	//
 	if (!personalModel || r_shadows->integer > 1)
 	{
-		R_SetupEntityLighting(&tr.refdef, ent);
+		R_SetupEntityLighting(tr.refdef, ent);
 	}
 
 	//
@@ -224,18 +225,18 @@ void R_AddIQMSurfaces(trRefEntity_t &ent)
 		// stencil shadows can't do personal models unless I polyhedron clip
 		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 && !(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == static_cast<float>(SS_OPAQUE))
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.shadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
 		if (r_shadows->integer == 3 && fogNum == 0 && (ent.e.renderfx & RF_SHADOW_PLANE) && shader->sort == static_cast<float>(SS_OPAQUE))
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.projectionShadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.projectionShadowShader, 0, 0);
 		}
 
 		if (!personalModel)
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), shader, fogNum, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *shader, fogNum, 0);
 			tr.needScreenMap |= shader->hasScreenMap;
 		}
 
@@ -579,7 +580,7 @@ void RB_IQMSurfaceAnim(const surfaceType_t *surface)
 				vtxMat[10] = blendWeights[0] * poseMats[12 * data->influenceBlendIndexes[4 * influence + 0] + 10];
 				vtxMat[11] = blendWeights[0] * poseMats[12 * data->influenceBlendIndexes[4 * influence + 0] + 11];
 
-				for (j = 1; j < ARRAY_LEN(blendWeights); j++)
+				for (j = 1; j < arrayLen(blendWeights); j++)
 				{
 					if (blendWeights[j] <= 0.0f)
 					{
@@ -860,7 +861,7 @@ bool R_LoadIQM(model_t *mod, void *buffer, int filesize, const char *mod_name)
 		return false;
 	}
 
-	for (i = 0; i < ARRAY_LEN(vertexArrayFormat); i++)
+	for (i = 0; i < arrayLen(vertexArrayFormat); i++)
 	{
 		vertexArrayFormat[i] = -1;
 	}
@@ -924,7 +925,7 @@ bool R_LoadIQM(model_t *mod, void *buffer, int filesize, const char *mod_name)
 				break;
 			}
 
-			if (vertexarray->type < ARRAY_LEN(vertexArrayFormat))
+			if (vertexarray->type < arrayLen(vertexArrayFormat))
 			{
 				vertexArrayFormat[vertexarray->type] = vertexarray->format;
 			}
@@ -1418,7 +1419,7 @@ bool R_LoadIQM(model_t *mod, void *buffer, int filesize, const char *mod_name)
 			int n;
 
 			// skip disabled arrays
-			if (vertexarray->type < ARRAY_LEN(vertexArrayFormat) && vertexArrayFormat[vertexarray->type] == -1)
+			if (vertexarray->type < arrayLen(vertexArrayFormat) && vertexArrayFormat[vertexarray->type] == -1)
 				continue;
 
 			// total number of values

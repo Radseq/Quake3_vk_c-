@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_image_tga.hpp"
 #include "tr_image_pcx.hpp"
 #include "../qcommon/q_shared_test.h"
+#include "utils.hpp"
 
 #define generateHashValue(fname) Com_GenerateHashValue((fname), FILE_HASH_SIZE)
 
@@ -55,7 +56,7 @@ static unsigned char s_gammatable_linear[256];
 constexpr int FILE_HASH_SIZE = 1024;
 static image_t *hashTable[FILE_HASH_SIZE];
 
-static const int numImageLoaders = ARRAY_LEN(imageLoaders);
+static const int numImageLoaders = arrayLen(imageLoaders);
 
 GLint gl_filter_min = GL_LINEAR_MIPMAP_NEAREST;
 GLint gl_filter_max = GL_LINEAR;
@@ -238,7 +239,7 @@ void R_SetColorMappings()
 
 	shift = tr.overbrightBits;
 
-	for (i = 0; i < ARRAY_LEN(s_gammatable); i++)
+	for (i = 0; i < arrayLen(s_gammatable); i++)
 	{
 		if (g == 1.0f)
 		{
@@ -260,7 +261,7 @@ void R_SetColorMappings()
 		s_gammatable[i] = inf;
 	}
 
-	for (i = 0; i < ARRAY_LEN(s_intensitytable); i++)
+	for (i = 0; i < arrayLen(s_intensitytable); i++)
 	{
 		j = i * r_intensity->value;
 		if (j > 255)
@@ -352,7 +353,7 @@ void TextureMode(const char *string)
 	int i;
 
 	mode = NULL;
-	for (i = 0; i < ARRAY_LEN(modes); i++)
+	for (i = 0; i < arrayLen(modes); i++)
 	{
 		if (!Q_stricmp(modes[i].name, string))
 		{
@@ -515,7 +516,7 @@ static void R_BlendOverTexture(byte *data, int pixelCount, int mipLevel)
 	if (mipLevel <= 0)
 		return;
 
-	blend = blendColors[(mipLevel - 1) % ARRAY_LEN(blendColors)];
+	blend = blendColors[(mipLevel - 1) % arrayLen(blendColors)];
 
 	inverseAlpha = 255 - blend[3];
 	premult[0] = blend[0] * blend[3];
@@ -553,7 +554,7 @@ static void ResampleTexture(unsigned *in, int inwidth, int inheight, unsigned *o
 	unsigned p2[MAX_TEXTURE_SIZE];
 	byte *pix1, *pix2, *pix3, *pix4;
 
-	if (outwidth > ARRAY_LEN(p1))
+	if (outwidth > arrayLen(p1))
 		ri.Error(ERR_DROP, "ResampleTexture: max width");
 
 	fracstep = inwidth * 0x10000 / outwidth;
@@ -1418,7 +1419,7 @@ static void R_CreateBuiltinImages(void)
 
 	tr.identityLightImage = R_CreateImage("*identityLight", NULL, (byte *)data, 8, 8, IMGFLAG_NONE);
 
-	// for ( x = 0; x < ARRAY_LEN2( tr.scratchImage ); x++ ) {
+	// for ( x = 0; x < arrayLen2( tr.scratchImage ); x++ ) {
 	//  scratchimage is usually used for cinematic drawing
 	// tr.scratchImage[x] = R_CreateImage( "*scratch", (byte*)data, DEFAULT_SIZE, DEFAULT_SIZE,
 	//	IMGFLAG_PICMIP | IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB );

@@ -362,19 +362,19 @@ that is touched by one or more dlights, so try to throw out
 more dlights if possible.
 ====================
 */
-static int R_DlightSurface(msurface_t *surf, int dlightBits)
+static int R_DlightSurface(msurface_t &surf, int dlightBits)
 {
-	if (*surf->data == SF_FACE)
+	if (*surf.data == SF_FACE)
 	{
-		dlightBits = R_DlightFace((srfSurfaceFace_t *)surf->data, dlightBits);
+		dlightBits = R_DlightFace((srfSurfaceFace_t *)surf.data, dlightBits);
 	}
-	else if (*surf->data == SF_GRID)
+	else if (*surf.data == SF_GRID)
 	{
-		dlightBits = R_DlightGrid((srfGridMesh_t *)surf->data, dlightBits);
+		dlightBits = R_DlightGrid((srfGridMesh_t *)surf.data, dlightBits);
 	}
-	else if (*surf->data == SF_TRIANGLES)
+	else if (*surf.data == SF_TRIANGLES)
 	{
-		dlightBits = R_DlightTrisurf((srfTriangles_t *)surf->data, dlightBits);
+		dlightBits = R_DlightTrisurf((srfTriangles_t *)surf.data, dlightBits);
 	}
 	else
 	{
@@ -417,7 +417,7 @@ static void R_AddWorldSurface(msurface_t *surf, int dlightBits)
 #endif
 	{
 		surf->vcVisible = tr.viewCount;
-		R_AddDrawSurf(surf->data, surf->shader, surf->fogIndex, 0);
+		R_AddDrawSurf(*surf->data, *surf->shader, surf->fogIndex, 0);
 		return;
 	}
 #endif // USE_PMLIGHT
@@ -426,11 +426,11 @@ static void R_AddWorldSurface(msurface_t *surf, int dlightBits)
 	// check for dlighting
 	if (dlightBits)
 	{
-		dlightBits = R_DlightSurface(surf, dlightBits);
+		dlightBits = R_DlightSurface(*surf, dlightBits);
 		dlightBits = (dlightBits != 0);
 	}
 
-	R_AddDrawSurf(surf->data, surf->shader, surf->fogIndex, dlightBits);
+	R_AddDrawSurf(*surf->data, *surf->shader, surf->fogIndex, dlightBits);
 #endif // USE_LEGACY_DLIGHTS
 }
 
@@ -472,7 +472,7 @@ static void R_AddLitSurface(msurface_t *surf, const dlight_t *light)
 		return;
 	}
 
-	R_AddLitSurf(surf->data, surf->shader, surf->fogIndex);
+	R_AddLitSurf(surf->data, *surf->shader, surf->fogIndex);
 }
 
 static void R_RecursiveLightNode(const mnode_t *node)
@@ -594,7 +594,7 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 			R_AddWorldSurface(bmodel->firstSurface + s, 0);
 		}
 
-		R_SetupEntityLighting(&tr.refdef, ent);
+		R_SetupEntityLighting(tr.refdef, ent);
 
 		R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.ort);
 
@@ -616,7 +616,7 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 #endif // USE_PMLIGHT
 
 #ifdef USE_LEGACY_DLIGHTS
-	R_SetupEntityLighting(&tr.refdef, ent);
+	R_SetupEntityLighting(tr.refdef, ent);
 	R_DlightBmodel(bmodel);
 
 	for (i = 0; i < bmodel->numSurfaces; i++)
@@ -1028,7 +1028,7 @@ void R_AddWorldSurfaces(void)
 	{
 		dl = &tr.viewParms.dlights[i];
 		dl->head = dl->tail = NULL;
-		if (R_CullDlight(dl) == CULL_OUT)
+		if (R_CullDlight(*dl) == CULL_OUT)
 		{
 			tr.pc.c_light_cull_out++;
 			continue;

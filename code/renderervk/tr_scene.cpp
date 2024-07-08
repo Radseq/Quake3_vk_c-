@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shader.hpp"
 #include <cstring>
 #include "q_math.hpp"
+#include "utils.hpp"
 
 int r_numdlights;
 
@@ -112,7 +113,7 @@ void R_AddPolygonSurfaces(void)
 	for (i = 0, poly = tr.refdef.polys; i < tr.refdef.numPolys; i++, poly++)
 	{
 		sh = R_GetShaderByHandle(poly->hShader);
-		R_AddDrawSurf(reinterpret_cast<surfaceType_t *>((void *)poly), sh, poly->fogIndex, 0);
+		R_AddDrawSurf(const_cast<surfaceType_t &>(reinterpret_cast<const surfaceType_t &>(*poly)), *sh, poly->fogIndex, 0);
 	}
 }
 
@@ -269,7 +270,7 @@ static void RE_AddDynamicLightToScene(const vec3_t org, float intensity, float r
 	{
 		return;
 	}
-	if (r_numdlights >= ARRAY_LEN(backEndData->dlights))
+	if (r_numdlights >= arrayLen(backEndData->dlights))
 	{
 		return;
 	}
@@ -325,7 +326,7 @@ void RE_AddLinearLightToScene(const vec3_t start, const vec3_t end, float intens
 	{
 		return;
 	}
-	if (r_numdlights >= ARRAY_LEN(backEndData->dlights))
+	if (r_numdlights >= arrayLen(backEndData->dlights))
 	{
 		return;
 	}

@@ -3,9 +3,9 @@
 
 #include "tr_local.hpp"
 
-void R_AddDrawSurf(surfaceType_t *surface, shader_t *shader,
+void R_AddDrawSurf(surfaceType_t &surface, shader_t &shader,
                    int fogIndex, int dlightMap);
-int R_CullDlight(const dlight_t *dl);
+int R_CullDlight(const dlight_t &dl);
 int R_CullLocalBox(const vec3_t bounds[2]);
 
 int R_CullLocalPointAndRadius(const vec3_t pt, float radius);
@@ -29,7 +29,7 @@ void R_WorldToLocal(const vec3_t world, vec3_t local);
 
 // Philip Erdelsky gets all the credit for this one...
 
-void R_AddLitSurf(surfaceType_t *surface, shader_t *shader, int fogIndex);
+void R_AddLitSurf(surfaceType_t *surface, shader_t &shader, int fogIndex);
 
 void R_DecomposeLitSort(unsigned sort, int *entityNum, shader_t **shader, int *fogNum);
 

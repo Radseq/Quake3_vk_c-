@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_image.hpp"
 #include "tr_light.hpp"
 #include "q_math.hpp"
+#include "utils.hpp"
 
 static float ProjectRadius(float r, vec3_t location)
 {
@@ -300,7 +301,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 #ifdef USE_PMLIGHT
 	dlight_t *dl;
 	int n;
-	dlight_t *dlights[ARRAY_LEN(backEndData->dlights)];
+	dlight_t *dlights[arrayLen(backEndData->dlights)];
 	int numDlights;
 #endif
 
@@ -350,7 +351,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	//
 	if (!personalModel || r_shadows->integer > 1)
 	{
-		R_SetupEntityLighting(&tr.refdef, ent);
+		R_SetupEntityLighting(tr.refdef, ent);
 	}
 
 #ifdef USE_PMLIGHT
@@ -426,19 +427,19 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 		// stencil shadows can't do personal models unless I polyhedron clip
 		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 && !(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == static_cast<float>(SS_OPAQUE))
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.shadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
 		if (r_shadows->integer == 3 && fogNum == 0 && (ent.e.renderfx & RF_SHADOW_PLANE) && shader->sort == static_cast<float>(SS_OPAQUE))
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), tr.projectionShadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.projectionShadowShader, 0, 0);
 		}
 
 		// don't add third_person objects if not viewing through a portal
 		if (!personalModel)
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t *>(surface), shader, fogNum, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *shader, fogNum, 0);
 			tr.needScreenMap |= shader->hasScreenMap;
 		}
 
@@ -449,7 +450,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 			{
 				dl = dlights[n];
 				tr.light = dl;
-				R_AddLitSurf(reinterpret_cast<surfaceType_t *>(surface), shader, fogNum);
+				R_AddLitSurf(reinterpret_cast<surfaceType_t *>(surface), *shader, fogNum);
 			}
 		}
 #endif

@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_cmds.hpp"
 #include "tr_model.hpp"
 #include "q_math.hpp"
+#include "utils.hpp"
 
 #include <string.h> // memcpy
 
@@ -176,7 +177,7 @@ int R_CullPointAndRadius(const vec3_t pt, float radius)
 	return CULL_IN; // completely inside frustum
 }
 
-int R_CullDlight(const dlight_t *dl)
+int R_CullDlight(const dlight_t &dl)
 {
 	int i;
 	float dist, dist2;
@@ -186,16 +187,16 @@ int R_CullDlight(const dlight_t *dl)
 	if (r_nocull->integer)
 		return CULL_CLIP;
 
-	if (dl->linear)
+	if (dl.linear)
 	{
 		for (i = 0; i < 4; i++)
 		{
 			frust = &tr.viewParms.frustum[i];
-			dist = DotProduct(dl->transformed, frust->normal) - frust->dist;
-			dist2 = DotProduct(dl->transformed2, frust->normal) - frust->dist;
-			if (dist < -dl->radius && dist2 < -dl->radius)
+			dist = DotProduct(dl.transformed, frust->normal) - frust->dist;
+			dist2 = DotProduct(dl.transformed2, frust->normal) - frust->dist;
+			if (dist < -dl.radius && dist2 < -dl.radius)
 				return CULL_OUT;
-			else if (dist <= dl->radius || dist2 <= dl->radius)
+			else if (dist <= dl.radius || dist2 <= dl.radius)
 				mightBeClipped = true;
 		}
 	}
@@ -204,10 +205,10 @@ int R_CullDlight(const dlight_t *dl)
 		for (i = 0; i < 4; i++)
 		{
 			frust = &tr.viewParms.frustum[i];
-			dist = DotProduct(dl->transformed, frust->normal) - frust->dist;
-			if (dist < -dl->radius)
+			dist = DotProduct(dl.transformed, frust->normal) - frust->dist;
+			if (dist < -dl.radius)
 				return CULL_OUT;
-			else if (dist <= dl->radius)
+			else if (dist <= dl.radius)
 				mightBeClipped = true;
 		}
 
@@ -1232,7 +1233,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t *drawSurf, int entityNum)
 
 #ifdef USE_PMLIGHT
 	// create dedicated set for each view
-	if (r_numdlights + oldParms.num_dlights <= ARRAY_LEN(backEndData->dlights))
+	if (r_numdlights + oldParms.num_dlights <= arrayLen(backEndData->dlights))
 	{
 		int i;
 		newParms.dlights = oldParms.dlights + oldParms.num_dlights;
@@ -1483,18 +1484,18 @@ static void R_SortLitsurfs(dlight_t *dl)
 R_AddLitSurf
 =================
 */
-void R_AddLitSurf(surfaceType_t *surface, shader_t *shader, int fogIndex)
+void R_AddLitSurf(surfaceType_t *surface, shader_t &shader, int fogIndex)
 {
 	struct litSurf_s *litsurf;
 
-	if (tr.refdef.numLitSurfs >= ARRAY_LEN(backEndData->litSurfs))
+	if (tr.refdef.numLitSurfs >= arrayLen(backEndData->litSurfs))
 		return;
 
 	tr.pc.c_lit_surfs++;
 
 	litsurf = &tr.refdef.litSurfs[tr.refdef.numLitSurfs++];
 
-	litsurf->sort = (shader->sortedIndex << QSORT_SHADERNUM_SHIFT) | tr.shiftedEntityNum | (fogIndex << QSORT_FOGNUM_SHIFT);
+	litsurf->sort = (shader.sortedIndex << QSORT_SHADERNUM_SHIFT) | tr.shiftedEntityNum | (fogIndex << QSORT_FOGNUM_SHIFT);
 	litsurf->surface = surface;
 
 	if (!tr.light->head)
@@ -1527,7 +1528,7 @@ void R_DecomposeLitSort(unsigned sort, int *entityNum, shader_t **shader, int *f
 R_AddDrawSurf
 =================
 */
-void R_AddDrawSurf(surfaceType_t *surface, shader_t *shader,
+void R_AddDrawSurf(surfaceType_t &surface, shader_t &shader,
 				   int fogIndex, int dlightMap)
 {
 	int index;
@@ -1537,8 +1538,8 @@ void R_AddDrawSurf(surfaceType_t *surface, shader_t *shader,
 	index = tr.refdef.numDrawSurfs & DRAWSURF_MASK;
 	// the sort data is packed into a single 32 bit value so it can be
 	// compared quickly during the qsorting process
-	tr.refdef.drawSurfs[index].sort = (shader->sortedIndex << QSORT_SHADERNUM_SHIFT) | tr.shiftedEntityNum | (fogIndex << QSORT_FOGNUM_SHIFT) | (int)dlightMap;
-	tr.refdef.drawSurfs[index].surface = surface;
+	tr.refdef.drawSurfs[index].sort = (shader.sortedIndex << QSORT_SHADERNUM_SHIFT) | tr.shiftedEntityNum | (fogIndex << QSORT_FOGNUM_SHIFT) | (int)dlightMap;
+	tr.refdef.drawSurfs[index].surface = &surface;
 	tr.refdef.numDrawSurfs++;
 }
 
@@ -1642,7 +1643,6 @@ R_AddEntitySurfaces
 static void R_AddEntitySurfaces(void)
 {
 	shader_t *shader;
-	trRefEntity_t *ent;
 
 	if (!r_drawentities->integer)
 	{
@@ -1653,9 +1653,10 @@ static void R_AddEntitySurfaces(void)
 		 tr.currentEntityNum < tr.refdef.num_entities;
 		 tr.currentEntityNum++)
 	{
-		ent = tr.currentEntity = &tr.refdef.entities[tr.currentEntityNum];
+		tr.currentEntity = &tr.refdef.entities[tr.currentEntityNum];
+		trRefEntity_t &ent = *tr.currentEntity;
 #ifdef USE_LEGACY_DLIGHTS
-		ent->needDlights = 0;
+		ent.needDlights = 0;
 #endif
 		// preshift the value we are going to OR into the drawsurf sort
 		tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
@@ -1665,13 +1666,13 @@ static void R_AddEntitySurfaces(void)
 		// we don't want the hacked first person weapon position showing in
 		// mirrors, because the true body position will already be drawn
 		//
-		if ((ent->e.renderfx & RF_FIRST_PERSON) && (tr.viewParms.portalView != PV_NONE))
+		if ((ent.e.renderfx & RF_FIRST_PERSON) && (tr.viewParms.portalView != PV_NONE))
 		{
 			continue;
 		}
 
 		// simple generated models, like sprites and beams, are not culled
-		switch (ent->e.reType)
+		switch (ent.e.reType)
 		{
 		case RT_PORTALSURFACE:
 			break; // don't draw anything
@@ -1683,45 +1684,45 @@ static void R_AddEntitySurfaces(void)
 			// self blood sprites, talk balloons, etc should not be drawn in the primary
 			// view.  We can't just do this check for all entities, because md3
 			// entities may still want to cast shadows from them
-			if ((ent->e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE))
+			if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE))
 			{
 				continue;
 			}
-			shader = R_GetShaderByHandle(ent->e.customShader);
-			R_AddDrawSurf(&entitySurface, shader, R_SpriteFogNum(*ent), 0);
+			shader = R_GetShaderByHandle(ent.e.customShader);
+			R_AddDrawSurf(entitySurface, *shader, R_SpriteFogNum(ent), 0);
 			break;
 
 		case RT_MODEL:
 			// we must set up parts of tr.ort for model culling
-			R_RotateForEntity(*ent, &tr.viewParms, &tr.ort);
+			R_RotateForEntity(ent, &tr.viewParms, &tr.ort);
 
-			tr.currentModel = R_GetModelByHandle(ent->e.hModel);
+			tr.currentModel = R_GetModelByHandle(ent.e.hModel);
 			if (!tr.currentModel)
 			{
-				R_AddDrawSurf(&entitySurface, tr.defaultShader, 0, 0);
+				R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
 			}
 			else
 			{
 				switch (tr.currentModel->type)
 				{
 				case MOD_MESH:
-					R_AddMD3Surfaces(*ent);
+					R_AddMD3Surfaces(ent);
 					break;
 				case MOD_MDR:
-					R_MDRAddAnimSurfaces(*ent);
+					R_MDRAddAnimSurfaces(ent);
 					break;
 				case MOD_IQM:
-					R_AddIQMSurfaces(*ent);
+					R_AddIQMSurfaces(ent);
 					break;
 				case MOD_BRUSH:
-					R_AddBrushModelSurfaces(*ent);
+					R_AddBrushModelSurfaces(ent);
 					break;
 				case MOD_BAD: // null model axis
-					if ((ent->e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE))
+					if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE))
 					{
 						break;
 					}
-					R_AddDrawSurf(&entitySurface, tr.defaultShader, 0, 0);
+					R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
 					break;
 				default:
 					ri.Error(ERR_DROP, "R_AddEntitySurfaces: Bad modeltype");

@@ -1,4 +1,5 @@
 #include "q_shared.hpp"
+#include "utils.hpp"
 
 /*
 ============================================================================
@@ -265,7 +266,7 @@ const char *COM_ParseExt(const char **data_p, bool allowLineBreaks)
             {
                 com_lines++;
             }
-            if (len < ARRAY_LEN(com_token) - 1)
+            if (len < arrayLen(com_token) - 1)
             {
                 com_token[len] = c;
                 len++;
@@ -276,7 +277,7 @@ const char *COM_ParseExt(const char **data_p, bool allowLineBreaks)
     // parse a regular word
     do
     {
-        if (len < ARRAY_LEN(com_token) - 1)
+        if (len < arrayLen(com_token) - 1)
         {
             com_token[len] = c;
             len++;
