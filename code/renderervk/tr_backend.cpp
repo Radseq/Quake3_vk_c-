@@ -833,7 +833,7 @@ static const void *RB_DrawSurfs(const void *data)
 
 	if (r_drawSun->integer)
 	{
-		RB_DrawSun(0.1f, tr.sunShader);
+		RB_DrawSun(0.1f, *tr.sunShader);
 	}
 
 	// darken down any stencil shadows

@@ -431,7 +431,6 @@ static void VBO_AddStageTxCoords(vbo_t *vbo, const int stage, const shaderComman
 
 void VBO_PushData(int itemIndex, shaderCommands_t *input)
 {
-	const shaderStage_t *pStage;
 	vbo_t *vbo = &world_vbo;
 	vbo_item_t *vi = vbo->items + itemIndex;
 	int i;
@@ -440,39 +439,39 @@ void VBO_PushData(int itemIndex, shaderCommands_t *input)
 
 	for (i = 0; i < MAX_VBO_STAGES; i++)
 	{
-		pStage = input->xstages[i];
-		if (!pStage)
+		const shaderStage_t &pStage = *input->xstages[i];
+		if (!&pStage)
 			break;
 
-		if (pStage->tessFlags & TESS_RGBA0)
+		if (pStage.tessFlags & TESS_RGBA0)
 		{
 			R_ComputeColors(0, tess.svars.colors[0], pStage);
 			VBO_AddStageColors(vbo, i, input, 0);
 		}
-		if (pStage->tessFlags & TESS_RGBA1)
+		if (pStage.tessFlags & TESS_RGBA1)
 		{
 			R_ComputeColors(1, tess.svars.colors[1], pStage);
 			VBO_AddStageColors(vbo, i, input, 1);
 		}
-		if (pStage->tessFlags & TESS_RGBA2)
+		if (pStage.tessFlags & TESS_RGBA2)
 		{
 			R_ComputeColors(2, tess.svars.colors[2], pStage);
 			VBO_AddStageColors(vbo, i, input, 2);
 		}
 
-		if (pStage->tessFlags & TESS_ST0)
+		if (pStage.tessFlags & TESS_ST0)
 		{
-			R_ComputeTexCoords(0, &pStage->bundle[0]);
+			R_ComputeTexCoords(0, pStage.bundle[0]);
 			VBO_AddStageTxCoords(vbo, i, input, 0);
 		}
-		if (pStage->tessFlags & TESS_ST1)
+		if (pStage.tessFlags & TESS_ST1)
 		{
-			R_ComputeTexCoords(1, &pStage->bundle[1]);
+			R_ComputeTexCoords(1, pStage.bundle[1]);
 			VBO_AddStageTxCoords(vbo, i, input, 1);
 		}
-		if (pStage->tessFlags & TESS_ST2)
+		if (pStage.tessFlags & TESS_ST2)
 		{
-			R_ComputeTexCoords(2, &pStage->bundle[2]);
+			R_ComputeTexCoords(2, pStage.bundle[2]);
 			VBO_AddStageTxCoords(vbo, i, input, 2);
 		}
 	}

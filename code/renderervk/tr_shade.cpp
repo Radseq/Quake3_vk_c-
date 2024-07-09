@@ -118,7 +118,7 @@ void RB_BeginSurface(shader_t *shader, int fogNum)
 	}
 }
 
-void R_ComputeTexCoords(const int b, const textureBundle_t *bundle)
+void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 {
 	int i;
 	int tm;
@@ -132,7 +132,7 @@ void R_ComputeTexCoords(const int b, const textureBundle_t *bundle)
 	//
 	// generate the texture coordinates
 	//
-	switch (bundle->tcGen)
+	switch (bundle.tcGen)
 	{
 	case TCGEN_IDENTITY:
 		src = tess.texCoords00;
@@ -146,8 +146,8 @@ void R_ComputeTexCoords(const int b, const textureBundle_t *bundle)
 	case TCGEN_VECTOR:
 		for (i = 0; i < tess.numVertexes; i++)
 		{
-			dst[i][0] = DotProduct(tess.xyz[i], bundle->tcGenVectors[0]);
-			dst[i][1] = DotProduct(tess.xyz[i], bundle->tcGenVectors[1]);
+			dst[i][0] = DotProduct(tess.xyz[i], bundle.tcGenVectors[0]);
+			dst[i][1] = DotProduct(tess.xyz[i], bundle.tcGenVectors[1]);
 		}
 		break;
 	case TCGEN_FOG:
@@ -157,7 +157,7 @@ void R_ComputeTexCoords(const int b, const textureBundle_t *bundle)
 		RB_CalcEnvironmentTexCoords((float *)dst);
 		break;
 	case TCGEN_ENVIRONMENT_MAPPED_FP:
-		RB_CalcEnvironmentTexCoordsFP((float *)dst, bundle->isScreenMap);
+		RB_CalcEnvironmentTexCoordsFP((float *)dst, bundle.isScreenMap);
 		break;
 	case TCGEN_BAD:
 		return;
@@ -166,16 +166,16 @@ void R_ComputeTexCoords(const int b, const textureBundle_t *bundle)
 	//
 	// alter texture coordinates
 	//
-	for (tm = 0; tm < bundle->numTexMods; tm++)
+	for (tm = 0; tm < bundle.numTexMods; tm++)
 	{
-		switch (bundle->texMods[tm].type)
+		switch (bundle.texMods[tm].type)
 		{
 		case TMOD_NONE:
 			tm = TR_MAX_TEXMODS; // break out of for loop
 			break;
 
 		case TMOD_TURBULENT:
-			RB_CalcTurbulentTexCoords(&bundle->texMods[tm].wave, (float *)src, (float *)dst);
+			RB_CalcTurbulentTexCoords(&bundle.texMods[tm].wave, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
@@ -185,20 +185,20 @@ void R_ComputeTexCoords(const int b, const textureBundle_t *bundle)
 			break;
 
 		case TMOD_SCROLL:
-			RB_CalcScrollTexCoords(bundle->texMods[tm].scroll, (float *)src, (float *)dst);
+			RB_CalcScrollTexCoords(bundle.texMods[tm].scroll, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
 		case TMOD_SCALE:
-			RB_CalcScaleTexCoords(bundle->texMods[tm].scale, (float *)src, (float *)dst);
+			RB_CalcScaleTexCoords(bundle.texMods[tm].scale, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
 		case TMOD_OFFSET:
 			for (i = 0; i < tess.numVertexes; i++)
 			{
-				dst[i][0] = src[i][0] + bundle->texMods[tm].offset[0];
-				dst[i][1] = src[i][1] + bundle->texMods[tm].offset[1];
+				dst[i][0] = src[i][0] + bundle.texMods[tm].offset[0];
+				dst[i][1] = src[i][1] + bundle.texMods[tm].offset[1];
 			}
 			src = dst;
 			break;
@@ -206,8 +206,8 @@ void R_ComputeTexCoords(const int b, const textureBundle_t *bundle)
 		case TMOD_SCALE_OFFSET:
 			for (i = 0; i < tess.numVertexes; i++)
 			{
-				dst[i][0] = (src[i][0] * bundle->texMods[tm].scale[0]) + bundle->texMods[tm].offset[0];
-				dst[i][1] = (src[i][1] * bundle->texMods[tm].scale[1]) + bundle->texMods[tm].offset[1];
+				dst[i][0] = (src[i][0] * bundle.texMods[tm].scale[0]) + bundle.texMods[tm].offset[0];
+				dst[i][1] = (src[i][1] * bundle.texMods[tm].scale[1]) + bundle.texMods[tm].offset[1];
 			}
 			src = dst;
 			break;
@@ -215,29 +215,29 @@ void R_ComputeTexCoords(const int b, const textureBundle_t *bundle)
 		case TMOD_OFFSET_SCALE:
 			for (i = 0; i < tess.numVertexes; i++)
 			{
-				dst[i][0] = (src[i][0] + bundle->texMods[tm].offset[0]) * bundle->texMods[tm].scale[0];
-				dst[i][1] = (src[i][1] + bundle->texMods[tm].offset[1]) * bundle->texMods[tm].scale[1];
+				dst[i][0] = (src[i][0] + bundle.texMods[tm].offset[0]) * bundle.texMods[tm].scale[0];
+				dst[i][1] = (src[i][1] + bundle.texMods[tm].offset[1]) * bundle.texMods[tm].scale[1];
 			}
 			src = dst;
 			break;
 
 		case TMOD_STRETCH:
-			RB_CalcStretchTexCoords(&bundle->texMods[tm].wave, (float *)src, (float *)dst);
+			RB_CalcStretchTexCoords(&bundle.texMods[tm].wave, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
 		case TMOD_TRANSFORM:
-			RB_CalcTransformTexCoords(&bundle->texMods[tm], (float *)src, (float *)dst);
+			RB_CalcTransformTexCoords(&bundle.texMods[tm], (float *)src, (float *)dst);
 			src = dst;
 			break;
 
 		case TMOD_ROTATE:
-			RB_CalcRotateTexCoords(bundle->texMods[tm].rotateSpeed, (float *)src, (float *)dst);
+			RB_CalcRotateTexCoords(bundle.texMods[tm].rotateSpeed, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
 		default:
-			ri.Error(ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'", bundle->texMods[tm].type, tess.shader->name);
+			ri.Error(ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'", bundle.texMods[tm].type, tess.shader->name);
 			break;
 		}
 	}
@@ -245,25 +245,25 @@ void R_ComputeTexCoords(const int b, const textureBundle_t *bundle)
 	tess.svars.texcoordPtr[b] = src;
 }
 
-void VK_SetFogParams(vkUniform_t *uniform, int *fogStage)
+void VK_SetFogParams(vkUniform_t &uniform, int *fogStage)
 {
 	if (tess.fogNum && tess.shader->fogPass)
 	{
 		const fogProgramParms_t *fp = RB_CalcFogProgramParms();
 		// vertex data
-		Vector4Copy(fp->fogDistanceVector, uniform->fogDistanceVector);
-		Vector4Copy(fp->fogDepthVector, uniform->fogDepthVector);
-		uniform->fogEyeT[0] = fp->eyeT;
+		Vector4Copy(fp->fogDistanceVector, uniform.fogDistanceVector);
+		Vector4Copy(fp->fogDepthVector, uniform.fogDepthVector);
+		uniform.fogEyeT[0] = fp->eyeT;
 		if (fp->eyeOutside)
 		{
-			uniform->fogEyeT[1] = 0.0; // fog eye out
+			uniform.fogEyeT[1] = 0.0; // fog eye out
 		}
 		else
 		{
-			uniform->fogEyeT[1] = 1.0; // fog eye in
+			uniform.fogEyeT[1] = 1.0; // fog eye in
 		}
 		// fragment data
-		Vector4Copy(fp->fogColor, uniform->fogColor);
+		Vector4Copy(fp->fogColor, uniform.fogColor);
 		*fogStage = 1;
 	}
 	else
@@ -272,7 +272,7 @@ void VK_SetFogParams(vkUniform_t *uniform, int *fogStage)
 	}
 }
 
-void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t *pStage)
+void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 {
 	int i;
 
@@ -282,7 +282,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t *pStage)
 	//
 	// rgbGen
 	//
-	switch (pStage->bundle[b].rgbGen)
+	switch (pStage.bundle[b].rgbGen)
 	{
 	case CGEN_IDENTITY:
 		Com_Memset(dest, 0xff, tess.numVertexes * 4);
@@ -300,7 +300,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t *pStage)
 	case CGEN_CONST:
 		for (i = 0; i < tess.numVertexes; i++)
 		{
-			dest[i] = pStage->bundle[b].constantColor;
+			dest[i] = pStage.bundle[b].constantColor;
 		}
 		break;
 	case CGEN_VERTEX:
@@ -350,7 +350,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t *pStage)
 	}
 	break;
 	case CGEN_WAVEFORM:
-		RB_CalcWaveColor(&pStage->bundle[b].rgbWave, dest->rgba);
+		RB_CalcWaveColor(&pStage.bundle[b].rgbWave, dest->rgba);
 		break;
 	case CGEN_ENTITY:
 		RB_CalcColorFromEntity(dest->rgba);
@@ -363,13 +363,13 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t *pStage)
 	//
 	// alphaGen
 	//
-	switch (pStage->bundle[b].alphaGen)
+	switch (pStage.bundle[b].alphaGen)
 	{
 	case AGEN_SKIP:
 		break;
 	case AGEN_IDENTITY:
-		if ((pStage->bundle[b].rgbGen == CGEN_VERTEX && tr.identityLight != 1) ||
-			pStage->bundle[b].rgbGen != CGEN_VERTEX)
+		if ((pStage.bundle[b].rgbGen == CGEN_VERTEX && tr.identityLight != 1) ||
+			pStage.bundle[b].rgbGen != CGEN_VERTEX)
 		{
 			for (i = 0; i < tess.numVertexes; i++)
 			{
@@ -380,11 +380,11 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t *pStage)
 	case AGEN_CONST:
 		for (i = 0; i < tess.numVertexes; i++)
 		{
-			dest[i].rgba[3] = pStage->bundle[b].constantColor.rgba[3];
+			dest[i].rgba[3] = pStage.bundle[b].constantColor.rgba[3];
 		}
 		break;
 	case AGEN_WAVEFORM:
-		RB_CalcWaveAlpha(&pStage->bundle[b].alphaWave, dest->rgba);
+		RB_CalcWaveAlpha(&pStage.bundle[b].alphaWave, dest->rgba);
 		break;
 	case AGEN_LIGHTING_SPECULAR:
 		RB_CalcSpecularAlpha(dest->rgba);
@@ -438,7 +438,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t *pStage)
 	//
 	if (tess.fogNum)
 	{
-		switch (pStage->bundle[b].adjustColorsForFog)
+		switch (pStage.bundle[b].adjustColorsForFog)
 		{
 		case ACFF_MODULATE_RGB:
 			RB_CalcModulateColorsByFog(dest->rgba);
@@ -455,7 +455,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t *pStage)
 	}
 }
 
-uint32_t VK_PushUniform(const vkUniform_t *uniform)
+uint32_t VK_PushUniform(const vkUniform_t &uniform)
 {
 	const uint32_t offset = vk.cmd->uniform_read_offset = PAD(vk.cmd->vertex_buffer_offset, vk.uniform_alignment);
 
@@ -463,7 +463,7 @@ uint32_t VK_PushUniform(const vkUniform_t *uniform)
 		return ~0U;
 
 	// push uniform
-	Com_Memcpy(vk.cmd->vertex_buffer_ptr + offset, uniform, sizeof(*uniform));
+	Com_Memcpy(vk.cmd->vertex_buffer_ptr + offset, &uniform, sizeof(uniform));
 	vk.cmd->vertex_buffer_offset = offset + vk.uniform_item_size;
 
 	vk_reset_descriptor(VK_DESC_UNIFORM);
@@ -568,11 +568,11 @@ void VK_LightingPass(void)
 	{
 
 		// fog parameters
-		VK_SetFogParams(&uniform, &fog_stage);
+		VK_SetFogParams(uniform, &fog_stage);
 		// light parameters
 		VK_SetLightParams(&uniform, tess.light);
 
-		uniform_offset = VK_PushUniform(&uniform);
+		uniform_offset = VK_PushUniform(uniform);
 
 		tess.dlightUpdateParams = false;
 	}
@@ -613,7 +613,7 @@ void VK_LightingPass(void)
 	if (tess.vboIndex == 0)
 #endif
 	{
-		R_ComputeTexCoords(tess.shader->lightingBundle, &pStage->bundle[tess.shader->lightingBundle]);
+		R_ComputeTexCoords(tess.shader->lightingBundle, pStage->bundle[tess.shader->lightingBundle]);
 	}
 
 	vk_bind_pipeline(pipeline);
@@ -625,7 +625,6 @@ void VK_LightingPass(void)
 
 static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogCollapse)
 {
-	const shaderStage_t *pStage;
 	int tess_flags;
 	int stage;
 	uint32_t i;
@@ -642,7 +641,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 #ifdef USE_FOG_COLLAPSE
 	if (fogCollapse)
 	{
-		VK_SetFogParams(&uniform, &fog_stage);
+		VK_SetFogParams(uniform, &fog_stage);
 		VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
 		vk_update_descriptor(VK_DESC_FOG_COLLAPSE, tr.fogImage->descriptor);
 		pushUniform = true;
@@ -661,25 +660,25 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 
 	for (stage = 0; stage < MAX_SHADER_STAGES; stage++)
 	{
-		pStage = tess.xstages[stage];
-		if (!pStage)
+		const shaderStage_t &pStage = *tess.xstages[stage];
+		if (!&pStage)
 			break;
 
 #ifdef USE_VBO
 		tess.vboStage = stage;
 #endif
 
-		tess_flags |= pStage->tessFlags;
+		tess_flags |= pStage.tessFlags;
 
-		for (i = 0; i < pStage->numTexBundles; i++)
+		for (i = 0; i < pStage.numTexBundles; i++)
 		{
-			if (pStage->bundle[i].image[0] != NULL)
+			if (pStage.bundle[i].image[0] != NULL)
 			{
 				SelectTexture(i);
-				R_BindAnimatedImage(&pStage->bundle[i]);
+				R_BindAnimatedImage(&pStage.bundle[i]);
 				if (tess_flags & (TESS_ST0 << i))
 				{
-					R_ComputeTexCoords(i, &pStage->bundle[i]);
+					R_ComputeTexCoords(i, pStage.bundle[i]);
 				}
 				if (tess_flags & (TESS_RGBA0 << i))
 				{
@@ -690,7 +689,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 					uniform.ent.color[i][0] = backEnd.currentEntity->e.shader.rgba[0] / 255.0;
 					uniform.ent.color[i][1] = backEnd.currentEntity->e.shader.rgba[1] / 255.0;
 					uniform.ent.color[i][2] = backEnd.currentEntity->e.shader.rgba[2] / 255.0;
-					uniform.ent.color[i][3] = pStage->bundle[i].alphaGen == AGEN_IDENTITY ? 1.0 : (backEnd.currentEntity->e.shader.rgba[3] / 255.0);
+					uniform.ent.color[i][3] = pStage.bundle[i].alphaGen == AGEN_IDENTITY ? 1.0 : (backEnd.currentEntity->e.shader.rgba[3] / 255.0);
 					pushUniform = true;
 				}
 			}
@@ -699,12 +698,12 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 		if (pushUniform)
 		{
 			pushUniform = false;
-			VK_PushUniform(&uniform);
+			VK_PushUniform(uniform);
 		}
 
 		SelectTexture(0);
 
-		if (r_lightmap->integer && pStage->bundle[1].lightmap != LIGHTMAP_INDEX_NONE)
+		if (r_lightmap->integer && pStage.bundle[1].lightmap != LIGHTMAP_INDEX_NONE)
 		{
 			// SelectTexture( 0 );
 			Bind(tr.whiteImage); // replace diffuse texture with a white one thus effectively render only lightmap
@@ -712,36 +711,36 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 
 		if (backEnd.viewParms.portalView == PV_MIRROR)
 		{
-			pipeline = pStage->vk_mirror_pipeline[fog_stage];
+			pipeline = pStage.vk_mirror_pipeline[fog_stage];
 		}
 		else
 		{
-			pipeline = pStage->vk_pipeline[fog_stage];
+			pipeline = pStage.vk_pipeline[fog_stage];
 		}
 
 		vk_bind_pipeline(pipeline);
 		vk_bind_geometry(tess_flags);
 		vk_draw_geometry(tess.depthRange, true);
 
-		if (pStage->depthFragment)
+		if (pStage.depthFragment)
 		{
 			if (backEnd.viewParms.portalView == PV_MIRROR)
-				pipeline = pStage->vk_mirror_pipeline_df;
+				pipeline = pStage.vk_mirror_pipeline_df;
 			else
-				pipeline = pStage->vk_pipeline_df;
+				pipeline = pStage.vk_pipeline_df;
 			vk_bind_pipeline(pipeline);
 			vk_draw_geometry(tess.depthRange, true);
 		}
 
 		// allow skipping out to show just lightmaps during development
-		if (r_lightmap->integer && (pStage->bundle[0].lightmap != LIGHTMAP_INDEX_NONE || pStage->bundle[1].lightmap != LIGHTMAP_INDEX_NONE))
+		if (r_lightmap->integer && (pStage.bundle[0].lightmap != LIGHTMAP_INDEX_NONE || pStage.bundle[1].lightmap != LIGHTMAP_INDEX_NONE))
 			break;
 
 		tess_flags = 0;
 	}
 	if (pushUniform)
 	{
-		VK_PushUniform(&uniform);
+		VK_PushUniform(uniform);
 	}
 	if (tess_flags) // fog-only shaders?
 		vk_bind_geometry(tess_flags);
@@ -937,8 +936,8 @@ static void RB_FogPass(bool rebindIndex)
 	{
 		vk_bind_index();
 	}
-	VK_SetFogParams(&uniform, &fog_stage);
-	VK_PushUniform(&uniform);
+	VK_SetFogParams(uniform, &fog_stage);
+	VK_PushUniform(uniform);
 	vk_update_descriptor(VK_DESC_FOG_ONLY, tr.fogImage->descriptor);
 	vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
 #else

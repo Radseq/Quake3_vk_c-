@@ -621,7 +621,7 @@ endef
 
 define DO_REND_PLUS_CC
 $(echo_cmd) "REND_C++ $<"
-$(Q)$(CXX) -std=c++23 -g $(CFLAGS) $(RENDCFLAGS) -o $@ -c $<
+$(Q)$(CXX) -std=c++23 $(CFLAGS) $(RENDCFLAGS) -o $@ -c $<
 endef
 
 define DO_REF_STR
@@ -665,7 +665,7 @@ debug:
 	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS) -lstdc++" V=$(V)
 
 release:
-	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS)" V=$(V)
+	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" LDFLAGS="-rdynamic -lm" V=$(V)
 
 define ADD_COPY_TARGET
 TARGETS += $2
@@ -1071,7 +1071,7 @@ $(B)/$(TARGET_CLIENT): $(Q3OBJ)
 # modular renderers
 $(B)/$(TARGET_RENDV): $(Q3RENDVOBJ)
 	$(echo_cmd) "LD $@"
-	$(Q)$(CXX) -std=c++23 -g -o $@ $(Q3RENDVOBJ) $(SHLIBCFLAGS) $(SHLIBLDFLAGS)
+	$(Q)$(CXX) -std=c++23 -o $@ $(Q3RENDVOBJ) $(SHLIBCFLAGS) $(SHLIBLDFLAGS)
 
 #############################################################################
 # DEDICATED SERVER

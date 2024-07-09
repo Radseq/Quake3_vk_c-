@@ -765,7 +765,7 @@ void R_InitSkyTexCoords(float heightCloud)
 /*
 ** RB_DrawSun
 */
-void RB_DrawSun(float scale, shader_t *shader)
+void RB_DrawSun(float scale, shader_t &shader)
 {
 	float size;
 	float dist;
@@ -791,7 +791,7 @@ void RB_DrawSun(float scale, shader_t *shader)
 	// farthest depth range
 	tess.depthRange = DEPTH_RANGE_ONE;
 
-	RB_BeginSurface(shader, 0);
+	RB_BeginSurface(&shader, 0);
 
 	RB_AddQuadStamp(origin, vec1, vec2, sunColor);
 
