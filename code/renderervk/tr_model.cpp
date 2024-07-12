@@ -192,7 +192,7 @@ static qhandle_t R_RegisterIQM(const char *name, model_t *mod)
 		return 0;
 	}
 
-	loaded = R_LoadIQM(mod, buf.u, filesize, name);
+	loaded = R_LoadIQM(*mod, buf.u, filesize, name);
 
 	ri.FS_FreeFile(buf.v);
 
@@ -1161,7 +1161,7 @@ int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame
 		}
 		else if (model->type == MOD_IQM)
 		{
-			return R_IQMLerpTag(tag, reinterpret_cast<iqmData_t *>(model->modelData),
+			return R_IQMLerpTag(tag, reinterpret_cast<iqmData_t &>(model->modelData),
 								startFrame, endFrame,
 								frac, tagName);
 		}

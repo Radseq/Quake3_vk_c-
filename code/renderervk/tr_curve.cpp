@@ -43,22 +43,22 @@ srfGridMesh_t *R_SubdividePatchToGrid( int width, int height,
 LerpDrawVert
 ============
 */
-static void LerpDrawVert(drawVert_t *a, drawVert_t *b, drawVert_t *out)
+static void LerpDrawVert(drawVert_t &a, drawVert_t &b, drawVert_t &out)
 {
-	out->xyz[0] = 0.5f * (a->xyz[0] + b->xyz[0]);
-	out->xyz[1] = 0.5f * (a->xyz[1] + b->xyz[1]);
-	out->xyz[2] = 0.5f * (a->xyz[2] + b->xyz[2]);
+	out.xyz[0] = 0.5f * (a.xyz[0] + b.xyz[0]);
+	out.xyz[1] = 0.5f * (a.xyz[1] + b.xyz[1]);
+	out.xyz[2] = 0.5f * (a.xyz[2] + b.xyz[2]);
 
-	out->st[0] = 0.5f * (a->st[0] + b->st[0]);
-	out->st[1] = 0.5f * (a->st[1] + b->st[1]);
+	out.st[0] = 0.5f * (a.st[0] + b.st[0]);
+	out.st[1] = 0.5f * (a.st[1] + b.st[1]);
 
-	out->lightmap[0] = 0.5f * (a->lightmap[0] + b->lightmap[0]);
-	out->lightmap[1] = 0.5f * (a->lightmap[1] + b->lightmap[1]);
+	out.lightmap[0] = 0.5f * (a.lightmap[0] + b.lightmap[0]);
+	out.lightmap[1] = 0.5f * (a.lightmap[1] + b.lightmap[1]);
 
-	out->color.rgba[0] = (a->color.rgba[0] + b->color.rgba[0]) >> 1;
-	out->color.rgba[1] = (a->color.rgba[1] + b->color.rgba[1]) >> 1;
-	out->color.rgba[2] = (a->color.rgba[2] + b->color.rgba[2]) >> 1;
-	out->color.rgba[3] = (a->color.rgba[3] + b->color.rgba[3]) >> 1;
+	out.color.rgba[0] = (a.color.rgba[0] + b.color.rgba[0]) >> 1;
+	out.color.rgba[1] = (a.color.rgba[1] + b.color.rgba[1]) >> 1;
+	out.color.rgba[2] = (a.color.rgba[2] + b.color.rgba[2]) >> 1;
+	out.color.rgba[3] = (a.color.rgba[3] + b.color.rgba[3]) >> 1;
 }
 
 /*
@@ -303,9 +303,9 @@ static void PutPointsOnCurve(drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE],
 	{
 		for (j = 1; j < height; j += 2)
 		{
-			LerpDrawVert(&ctrl[j][i], &ctrl[j + 1][i], &prev);
-			LerpDrawVert(&ctrl[j][i], &ctrl[j - 1][i], &next);
-			LerpDrawVert(&prev, &next, &ctrl[j][i]);
+			LerpDrawVert(ctrl[j][i], ctrl[j + 1][i], prev);
+			LerpDrawVert(ctrl[j][i], ctrl[j - 1][i], next);
+			LerpDrawVert(prev, next, ctrl[j][i]);
 		}
 	}
 
@@ -313,9 +313,9 @@ static void PutPointsOnCurve(drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE],
 	{
 		for (i = 1; i < width; i += 2)
 		{
-			LerpDrawVert(&ctrl[j][i], &ctrl[j][i + 1], &prev);
-			LerpDrawVert(&ctrl[j][i], &ctrl[j][i - 1], &next);
-			LerpDrawVert(&prev, &next, &ctrl[j][i]);
+			LerpDrawVert(ctrl[j][i], ctrl[j][i + 1], prev);
+			LerpDrawVert(ctrl[j][i], ctrl[j][i - 1], next);
+			LerpDrawVert(prev, next, ctrl[j][i]);
 		}
 	}
 }
@@ -382,11 +382,11 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh(int width, int height,
 	return grid;
 }
 
-void R_FreeSurfaceGridMesh(srfGridMesh_t *grid)
+void R_FreeSurfaceGridMesh(srfGridMesh_t &grid)
 {
-	ri.Free(grid->widthLodError);
-	ri.Free(grid->heightLodError);
-	ri.Free(grid);
+	ri.Free(grid.widthLodError);
+	ri.Free(grid.heightLodError);
+	ri.Free(&grid);
 }
 
 /*
@@ -496,9 +496,9 @@ srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
 			width += 2;
 			for (i = 0; i < height; i++)
 			{
-				LerpDrawVert(&ctrl[i][j], &ctrl[i][j + 1], &prev);
-				LerpDrawVert(&ctrl[i][j + 1], &ctrl[i][j + 2], &next);
-				LerpDrawVert(&prev, &next, &mid);
+				LerpDrawVert(ctrl[i][j], ctrl[i][j + 1], prev);
+				LerpDrawVert(ctrl[i][j + 1], ctrl[i][j + 2], next);
+				LerpDrawVert(prev, next, mid);
 
 				for (k = width - 1; k > j + 3; k--)
 				{
@@ -583,7 +583,7 @@ srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
 R_GridInsertColumn
 ===============
 */
-srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t *grid, int column, int row, vec3_t point, float loderror)
+srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, int column, int row, vec3_t point, float loderror)
 {
 	int i, j;
 	int width, height, oldwidth;
@@ -593,49 +593,49 @@ srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t *grid, int column, int row, vec3
 	vec3_t lodOrigin;
 
 	oldwidth = 0;
-	width = grid->width + 1;
+	width = grid.width + 1;
 	if (width > MAX_GRID_SIZE)
 		return NULL;
-	height = grid->height;
+	height = grid.height;
 	for (i = 0; i < width; i++)
 	{
 		if (i == column)
 		{
 			// insert new column
-			for (j = 0; j < grid->height; j++)
+			for (j = 0; j < grid.height; j++)
 			{
-				LerpDrawVert(&grid->verts[j * grid->width + i - 1], &grid->verts[j * grid->width + i], &ctrl[j][i]);
+				LerpDrawVert(grid.verts[j * grid.width + i - 1], grid.verts[j * grid.width + i], ctrl[j][i]);
 				if (j == row)
 					VectorCopy(point, ctrl[j][i].xyz);
 			}
 			errorTable[0][i] = loderror;
 			continue;
 		}
-		errorTable[0][i] = grid->widthLodError[oldwidth];
-		for (j = 0; j < grid->height; j++)
+		errorTable[0][i] = grid.widthLodError[oldwidth];
+		for (j = 0; j < grid.height; j++)
 		{
-			ctrl[j][i] = grid->verts[j * grid->width + oldwidth];
+			ctrl[j][i] = grid.verts[j * grid.width + oldwidth];
 		}
 		oldwidth++;
 	}
-	for (j = 0; j < grid->height; j++)
+	for (j = 0; j < grid.height; j++)
 	{
-		errorTable[1][j] = grid->heightLodError[j];
+		errorTable[1][j] = grid.heightLodError[j];
 	}
 	// put all the approximating points on the curve
 	// PutPointsOnCurve( ctrl, width, height );
 	// calculate normals
 	MakeMeshNormals(width, height, ctrl);
 
-	VectorCopy(grid->lodOrigin, lodOrigin);
-	lodRadius = grid->lodRadius;
+	VectorCopy(grid.lodOrigin, lodOrigin);
+	lodRadius = grid.lodRadius;
 	// free the old grid
 	R_FreeSurfaceGridMesh(grid);
 	// create a new grid
-	grid = R_CreateSurfaceGridMesh(width, height, ctrl, errorTable);
-	grid->lodRadius = lodRadius;
-	VectorCopy(lodOrigin, grid->lodOrigin);
-	return grid;
+	grid = *R_CreateSurfaceGridMesh(width, height, ctrl, errorTable);
+	grid.lodRadius = lodRadius;
+	VectorCopy(lodOrigin, grid.lodOrigin);
+	return &grid;
 }
 
 /*
@@ -643,7 +643,7 @@ srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t *grid, int column, int row, vec3
 R_GridInsertRow
 ===============
 */
-srfGridMesh_t *R_GridInsertRow(srfGridMesh_t *grid, int row, int column, vec3_t point, float loderror)
+srfGridMesh_t *R_GridInsertRow(srfGridMesh_t &grid, int row, int column, vec3_t point, float loderror)
 {
 	int i, j;
 	int width, height, oldheight;
@@ -653,8 +653,8 @@ srfGridMesh_t *R_GridInsertRow(srfGridMesh_t *grid, int row, int column, vec3_t 
 	vec3_t lodOrigin;
 
 	oldheight = 0;
-	width = grid->width;
-	height = grid->height + 1;
+	width = grid.width;
+	height = grid.height + 1;
 	if (height > MAX_GRID_SIZE)
 		return NULL;
 	for (i = 0; i < height; i++)
@@ -662,38 +662,38 @@ srfGridMesh_t *R_GridInsertRow(srfGridMesh_t *grid, int row, int column, vec3_t 
 		if (i == row)
 		{
 			// insert new row
-			for (j = 0; j < grid->width; j++)
+			for (j = 0; j < grid.width; j++)
 			{
-				LerpDrawVert(&grid->verts[(i - 1) * grid->width + j], &grid->verts[i * grid->width + j], &ctrl[i][j]);
+				LerpDrawVert(grid.verts[(i - 1) * grid.width + j], grid.verts[i * grid.width + j], ctrl[i][j]);
 				if (j == column)
 					VectorCopy(point, ctrl[i][j].xyz);
 			}
 			errorTable[1][i] = loderror;
 			continue;
 		}
-		errorTable[1][i] = grid->heightLodError[oldheight];
-		for (j = 0; j < grid->width; j++)
+		errorTable[1][i] = grid.heightLodError[oldheight];
+		for (j = 0; j < grid.width; j++)
 		{
-			ctrl[i][j] = grid->verts[oldheight * grid->width + j];
+			ctrl[i][j] = grid.verts[oldheight * grid.width + j];
 		}
 		oldheight++;
 	}
-	for (j = 0; j < grid->width; j++)
+	for (j = 0; j < grid.width; j++)
 	{
-		errorTable[0][j] = grid->widthLodError[j];
+		errorTable[0][j] = grid.widthLodError[j];
 	}
 	// put all the approximating points on the curve
 	// PutPointsOnCurve( ctrl, width, height );
 	// calculate normals
 	MakeMeshNormals(width, height, ctrl);
 
-	VectorCopy(grid->lodOrigin, lodOrigin);
-	lodRadius = grid->lodRadius;
+	VectorCopy(grid.lodOrigin, lodOrigin);
+	lodRadius = grid.lodRadius;
 	// free the old grid
 	R_FreeSurfaceGridMesh(grid);
 	// create a new grid
-	grid = R_CreateSurfaceGridMesh(width, height, ctrl, errorTable);
-	grid->lodRadius = lodRadius;
-	VectorCopy(lodOrigin, grid->lodOrigin);
-	return grid;
+	grid = *R_CreateSurfaceGridMesh(width, height, ctrl, errorTable);
+	grid.lodRadius = lodRadius;
+	VectorCopy(lodOrigin, grid.lodOrigin);
+	return &grid;
 }

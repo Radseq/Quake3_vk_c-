@@ -982,19 +982,19 @@ R_MergedWidthPoints
 returns true if there are grid points merged on a width edge
 =================
 */
-static bool R_MergedWidthPoints(const srfGridMesh_t *grid, int offset)
+static bool R_MergedWidthPoints(const srfGridMesh_t &grid, int offset)
 {
 	int i, j;
 
-	for (i = 1; i < grid->width - 1; i++)
+	for (i = 1; i < grid.width - 1; i++)
 	{
-		for (j = i + 1; j < grid->width - 1; j++)
+		for (j = i + 1; j < grid.width - 1; j++)
 		{
-			if (fabs(grid->verts[i + offset].xyz[0] - grid->verts[j + offset].xyz[0]) > .1)
+			if (fabs(grid.verts[i + offset].xyz[0] - grid.verts[j + offset].xyz[0]) > .1)
 				continue;
-			if (fabs(grid->verts[i + offset].xyz[1] - grid->verts[j + offset].xyz[1]) > .1)
+			if (fabs(grid.verts[i + offset].xyz[1] - grid.verts[j + offset].xyz[1]) > .1)
 				continue;
-			if (fabs(grid->verts[i + offset].xyz[2] - grid->verts[j + offset].xyz[2]) > .1)
+			if (fabs(grid.verts[i + offset].xyz[2] - grid.verts[j + offset].xyz[2]) > .1)
 				continue;
 			return true;
 		}
@@ -1009,19 +1009,19 @@ R_MergedHeightPoints
 returns true if there are grid points merged on a height edge
 =================
 */
-static bool R_MergedHeightPoints(const srfGridMesh_t *grid, int offset)
+static bool R_MergedHeightPoints(const srfGridMesh_t &grid, int offset)
 {
 	int i, j;
 
-	for (i = 1; i < grid->height - 1; i++)
+	for (i = 1; i < grid.height - 1; i++)
 	{
-		for (j = i + 1; j < grid->height - 1; j++)
+		for (j = i + 1; j < grid.height - 1; j++)
 		{
-			if (fabs(grid->verts[grid->width * i + offset].xyz[0] - grid->verts[grid->width * j + offset].xyz[0]) > .1)
+			if (fabs(grid.verts[grid.width * i + offset].xyz[0] - grid.verts[grid.width * j + offset].xyz[0]) > .1)
 				continue;
-			if (fabs(grid->verts[grid->width * i + offset].xyz[1] - grid->verts[grid->width * j + offset].xyz[1]) > .1)
+			if (fabs(grid.verts[grid.width * i + offset].xyz[1] - grid.verts[grid.width * j + offset].xyz[1]) > .1)
 				continue;
-			if (fabs(grid->verts[grid->width * i + offset].xyz[2] - grid->verts[grid->width * j + offset].xyz[2]) > .1)
+			if (fabs(grid.verts[grid.width * i + offset].xyz[2] - grid.verts[grid.width * j + offset].xyz[2]) > .1)
 				continue;
 			return true;
 		}
@@ -1072,7 +1072,7 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 				offset1 = (grid1->height - 1) * grid1->width;
 			else
 				offset1 = 0;
-			if (R_MergedWidthPoints(grid1, offset1))
+			if (R_MergedWidthPoints(*grid1, offset1))
 				continue;
 			for (k = 1; k < grid1->width - 1; k++)
 			{
@@ -1083,7 +1083,7 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 						offset2 = (grid2->height - 1) * grid2->width;
 					else
 						offset2 = 0;
-					if (R_MergedWidthPoints(grid2, offset2))
+					if (R_MergedWidthPoints(*grid2, offset2))
 						continue;
 					for (l = 1; l < grid2->width - 1; l++)
 					{
@@ -1106,7 +1106,7 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 						offset2 = grid2->width - 1;
 					else
 						offset2 = 0;
-					if (R_MergedHeightPoints(grid2, offset2))
+					if (R_MergedHeightPoints(*grid2, offset2))
 						continue;
 					for (l = 1; l < grid2->height - 1; l++)
 					{
@@ -1131,7 +1131,7 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 				offset1 = grid1->width - 1;
 			else
 				offset1 = 0;
-			if (R_MergedHeightPoints(grid1, offset1))
+			if (R_MergedHeightPoints(*grid1, offset1))
 				continue;
 			for (k = 1; k < grid1->height - 1; k++)
 			{
@@ -1142,7 +1142,7 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 						offset2 = (grid2->height - 1) * grid2->width;
 					else
 						offset2 = 0;
-					if (R_MergedWidthPoints(grid2, offset2))
+					if (R_MergedWidthPoints(*grid2, offset2))
 						continue;
 					for (l = 1; l < grid2->width - 1; l++)
 					{
@@ -1165,7 +1165,7 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 						offset2 = grid2->width - 1;
 					else
 						offset2 = 0;
-					if (R_MergedHeightPoints(grid2, offset2))
+					if (R_MergedHeightPoints(*grid2, offset2))
 						continue;
 					for (l = 1; l < grid2->height - 1; l++)
 					{
@@ -1243,7 +1243,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 			offset1 = (grid1->height - 1) * grid1->width;
 		else
 			offset1 = 0;
-		if (R_MergedWidthPoints(grid1, offset1))
+		if (R_MergedWidthPoints(*grid1, offset1))
 			continue;
 		for (k = 0; k < grid1->width - 2; k += 2)
 		{
@@ -1291,7 +1291,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						row = grid2->height - 1;
 					else
 						row = 0;
-					grid2 = R_GridInsertColumn(grid2, l + 1, row,
+					grid2 = R_GridInsertColumn(*grid2, l + 1, row,
 											   grid1->verts[k + 1 + offset1].xyz, grid1->widthLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1341,7 +1341,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						column = grid2->width - 1;
 					else
 						column = 0;
-					grid2 = R_GridInsertRow(grid2, l + 1, column,
+					grid2 = R_GridInsertRow(*grid2, l + 1, column,
 											grid1->verts[k + 1 + offset1].xyz, grid1->widthLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1357,7 +1357,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 			offset1 = grid1->width - 1;
 		else
 			offset1 = 0;
-		if (R_MergedHeightPoints(grid1, offset1))
+		if (R_MergedHeightPoints(*grid1, offset1))
 			continue;
 		for (k = 0; k < grid1->height - 2; k += 2)
 		{
@@ -1404,7 +1404,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						row = grid2->height - 1;
 					else
 						row = 0;
-					grid2 = R_GridInsertColumn(grid2, l + 1, row,
+					grid2 = R_GridInsertColumn(*grid2, l + 1, row,
 											   grid1->verts[grid1->width * (k + 1) + offset1].xyz, grid1->heightLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1454,7 +1454,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						column = grid2->width - 1;
 					else
 						column = 0;
-					grid2 = R_GridInsertRow(grid2, l + 1, column,
+					grid2 = R_GridInsertRow(*grid2, l + 1, column,
 											grid1->verts[grid1->width * (k + 1) + offset1].xyz, grid1->heightLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1470,7 +1470,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 			offset1 = (grid1->height - 1) * grid1->width;
 		else
 			offset1 = 0;
-		if (R_MergedWidthPoints(grid1, offset1))
+		if (R_MergedWidthPoints(*grid1, offset1))
 			continue;
 		for (k = grid1->width - 1; k > 1; k -= 2)
 		{
@@ -1518,7 +1518,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						row = grid2->height - 1;
 					else
 						row = 0;
-					grid2 = R_GridInsertColumn(grid2, l + 1, row,
+					grid2 = R_GridInsertColumn(*grid2, l + 1, row,
 											   grid1->verts[k - 1 + offset1].xyz, grid1->widthLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1568,7 +1568,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						column = grid2->width - 1;
 					else
 						column = 0;
-					grid2 = R_GridInsertRow(grid2, l + 1, column,
+					grid2 = R_GridInsertRow(*grid2, l + 1, column,
 											grid1->verts[k - 1 + offset1].xyz, grid1->widthLodError[k + 1]);
 					if (!grid2)
 						break;
@@ -1586,7 +1586,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 			offset1 = grid1->width - 1;
 		else
 			offset1 = 0;
-		if (R_MergedHeightPoints(grid1, offset1))
+		if (R_MergedHeightPoints(*grid1, offset1))
 			continue;
 		for (k = grid1->height - 1; k > 1; k -= 2)
 		{
@@ -1633,7 +1633,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						row = grid2->height - 1;
 					else
 						row = 0;
-					grid2 = R_GridInsertColumn(grid2, l + 1, row,
+					grid2 = R_GridInsertColumn(*grid2, l + 1, row,
 											   grid1->verts[grid1->width * (k - 1) + offset1].xyz, grid1->heightLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1683,7 +1683,7 @@ static int R_StitchPatches(int grid1num, int grid2num)
 						column = grid2->width - 1;
 					else
 						column = 0;
-					grid2 = R_GridInsertRow(grid2, l + 1, column,
+					grid2 = R_GridInsertRow(*grid2, l + 1, column,
 											grid1->verts[grid1->width * (k - 1) + offset1].xyz, grid1->heightLodError[k + 1]);
 					grid2->lodStitched = false;
 					s_worldData.surfaces[grid2num].data = reinterpret_cast<surfaceType_t *>(grid2);
@@ -1783,25 +1783,25 @@ R_MovePatchSurfacesToHunk
 static void R_MovePatchSurfacesToHunk(void)
 {
 	int i, size;
-	srfGridMesh_t *grid, *hunkgrid;
+	srfGridMesh_t *hunkgrid;
 
 	for (i = 0; i < s_worldData.numsurfaces; i++)
 	{
 		//
-		grid = (srfGridMesh_t *)s_worldData.surfaces[i].data;
+		srfGridMesh_t &grid = (srfGridMesh_t &)s_worldData.surfaces[i].data;
 		// if this surface is not a grid
-		if (grid->surfaceType != SF_GRID)
+		if (grid.surfaceType != SF_GRID)
 			continue;
 		//
-		size = (grid->width * grid->height - 1) * sizeof(drawVert_t) + sizeof(*grid);
+		size = (grid.width * grid.height - 1) * sizeof(drawVert_t) + sizeof(grid);
 		hunkgrid = static_cast<srfGridMesh_t *>(ri.Hunk_Alloc(size, h_low));
-		Com_Memcpy(hunkgrid, grid, size);
+		Com_Memcpy(hunkgrid, &grid, size);
 
-		hunkgrid->widthLodError = static_cast<float *>(ri.Hunk_Alloc(grid->width * 4, h_low));
-		Com_Memcpy(hunkgrid->widthLodError, grid->widthLodError, grid->width * 4);
+		hunkgrid->widthLodError = static_cast<float *>(ri.Hunk_Alloc(grid.width * 4, h_low));
+		Com_Memcpy(hunkgrid->widthLodError, grid.widthLodError, grid.width * 4);
 
-		hunkgrid->heightLodError = static_cast<float *>(ri.Hunk_Alloc(grid->height * 4, h_low));
-		Com_Memcpy(hunkgrid->heightLodError, grid->heightLodError, grid->height * 4);
+		hunkgrid->heightLodError = static_cast<float *>(ri.Hunk_Alloc(grid.height * 4, h_low));
+		Com_Memcpy(hunkgrid->heightLodError, grid.heightLodError, grid.height * 4);
 
 		R_FreeSurfaceGridMesh(grid);
 
