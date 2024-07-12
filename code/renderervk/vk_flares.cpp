@@ -171,7 +171,7 @@ void RB_AddFlare(void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t n
 		}
 	}
 
-	R_TransformClipToWindow(clip, &backEnd.viewParms, normalized, window);
+	R_TransformClipToWindow(clip, backEnd.viewParms, normalized, window);
 
 	if (window[0] < 0 || window[0] >= backEnd.viewParms.viewportWidth || window[1] < 0 || window[1] >= backEnd.viewParms.viewportHeight)
 	{

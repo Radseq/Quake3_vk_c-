@@ -307,14 +307,14 @@ static void R_TransformModelToClipMVP(const vec3_t src, const float *mvp, vec4_t
 R_TransformClipToWindow
 ==========================
 */
-void R_TransformClipToWindow(const vec4_t clip, const viewParms_t *view, vec4_t normalized, vec4_t window)
+void R_TransformClipToWindow(const vec4_t clip, const viewParms_t &view, vec4_t normalized, vec4_t window)
 {
 	normalized[0] = clip[0] / clip[3];
 	normalized[1] = clip[1] / clip[3];
 	normalized[2] = (clip[2] + clip[3]) / (2 * clip[3]);
 
-	window[0] = 0.5f * (1.0f + normalized[0]) * view->viewportWidth;
-	window[1] = 0.5f * (1.0f + normalized[1]) * view->viewportHeight;
+	window[0] = 0.5f * (1.0f + normalized[0]) * view.viewportWidth;
+	window[1] = 0.5f * (1.0f + normalized[1]) * view.viewportHeight;
 	window[2] = normalized[2];
 
 	window[0] = (int)(window[0] + 0.5);
@@ -790,18 +790,17 @@ be moving and rotating.
 Returns true if it should be mirrored
 =================
 */
-static bool R_GetPortalOrientations(const drawSurf_t *drawSurf, int entityNum,
-									orientation_t *surface, orientation_t *camera,
+static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
+									orientation_t &surface, orientation_t &camera,
 									vec3_t pvsOrigin, portalView_t *portalView)
 {
 	int i;
 	cplane_t originalPlane, plane;
-	trRefEntity_t *e;
 	float d;
 	vec3_t transformed;
 
 	// create plane axis for the portal we are seeing
-	R_PlaneForSurface(drawSurf->surface, &originalPlane);
+	R_PlaneForSurface(drawSurf.surface, &originalPlane);
 
 	// rotate the plane if necessary
 	if (entityNum != REFENTITYNUM_WORLD)
@@ -825,40 +824,40 @@ static bool R_GetPortalOrientations(const drawSurf_t *drawSurf, int entityNum,
 		plane = originalPlane;
 	}
 
-	VectorCopy(plane.normal, surface->axis[0]);
-	PerpendicularVector(surface->axis[1], surface->axis[0]);
-	CrossProduct(surface->axis[0], surface->axis[1], surface->axis[2]);
+	VectorCopy(plane.normal, surface.axis[0]);
+	PerpendicularVector(surface.axis[1], surface.axis[0]);
+	CrossProduct(surface.axis[0], surface.axis[1], surface.axis[2]);
 
 	// locate the portal entity closest to this plane.
 	// origin will be the origin of the portal, origin2 will be
 	// the origin of the camera
 	for (i = 0; i < tr.refdef.num_entities; i++)
 	{
-		e = &tr.refdef.entities[i];
-		if (e->e.reType != RT_PORTALSURFACE)
+		trRefEntity_t &tre = tr.refdef.entities[i];
+		if (tre.e.reType != RT_PORTALSURFACE)
 		{
 			continue;
 		}
 
-		d = DotProduct(e->e.origin, originalPlane.normal) - originalPlane.dist;
+		d = DotProduct(tre.e.origin, originalPlane.normal) - originalPlane.dist;
 		if (d > 64 || d < -64)
 		{
 			continue;
 		}
 
 		// get the pvsOrigin from the entity
-		VectorCopy(e->e.oldorigin, pvsOrigin);
+		VectorCopy(tre.e.oldorigin, pvsOrigin);
 
 		// if the entity is just a mirror, don't use as a camera point
-		if (e->e.oldorigin[0] == e->e.origin[0] &&
-			e->e.oldorigin[1] == e->e.origin[1] &&
-			e->e.oldorigin[2] == e->e.origin[2])
+		if (tre.e.oldorigin[0] == tre.e.origin[0] &&
+			tre.e.oldorigin[1] == tre.e.origin[1] &&
+			tre.e.oldorigin[2] == tre.e.origin[2])
 		{
-			VectorScale(plane.normal, plane.dist, surface->origin);
-			VectorCopy(surface->origin, camera->origin);
-			VectorSubtract(vec3_origin, surface->axis[0], camera->axis[0]);
-			VectorCopy(surface->axis[1], camera->axis[1]);
-			VectorCopy(surface->axis[2], camera->axis[2]);
+			VectorScale(plane.normal, plane.dist, surface.origin);
+			VectorCopy(surface.origin, camera.origin);
+			VectorSubtract(vec3_origin, surface.axis[0], camera.axis[0]);
+			VectorCopy(surface.axis[1], camera.axis[1]);
+			VectorCopy(surface.axis[2], camera.axis[2]);
 
 			*portalView = PV_MIRROR;
 			return true;
@@ -866,43 +865,43 @@ static bool R_GetPortalOrientations(const drawSurf_t *drawSurf, int entityNum,
 
 		// project the origin onto the surface plane to get
 		// an origin point we can rotate around
-		d = DotProduct(e->e.origin, plane.normal) - plane.dist;
-		VectorMA(e->e.origin, -d, surface->axis[0], surface->origin);
+		d = DotProduct(tre.e.origin, plane.normal) - plane.dist;
+		VectorMA(tre.e.origin, -d, surface.axis[0], surface.origin);
 
 		// now get the camera origin and orientation
-		VectorCopy(e->e.oldorigin, camera->origin);
-		AxisCopy(e->e.axis, camera->axis);
-		VectorSubtract(vec3_origin, camera->axis[0], camera->axis[0]);
-		VectorSubtract(vec3_origin, camera->axis[1], camera->axis[1]);
+		VectorCopy(tre.e.oldorigin, camera.origin);
+		AxisCopy(tre.e.axis, camera.axis);
+		VectorSubtract(vec3_origin, camera.axis[0], camera.axis[0]);
+		VectorSubtract(vec3_origin, camera.axis[1], camera.axis[1]);
 
 		// optionally rotate
-		if (e->e.oldframe)
+		if (tre.e.oldframe)
 		{
 			// if a speed is specified
-			if (e->e.frame)
+			if (tre.e.frame)
 			{
 				// continuous rotate
-				d = (tr.refdef.time / 1000.0f) * e->e.frame;
-				VectorCopy(camera->axis[1], transformed);
-				RotatePointAroundVector(camera->axis[1], camera->axis[0], transformed, d);
-				CrossProduct(camera->axis[0], camera->axis[1], camera->axis[2]);
+				d = (tr.refdef.time / 1000.0f) * tre.e.frame;
+				VectorCopy(camera.axis[1], transformed);
+				RotatePointAroundVector(camera.axis[1], camera.axis[0], transformed, d);
+				CrossProduct(camera.axis[0], camera.axis[1], camera.axis[2]);
 			}
 			else
 			{
 				// bobbing rotate, with skinNum being the rotation offset
 				d = sin(tr.refdef.time * 0.003f);
-				d = e->e.skinNum + d * 4;
-				VectorCopy(camera->axis[1], transformed);
-				RotatePointAroundVector(camera->axis[1], camera->axis[0], transformed, d);
-				CrossProduct(camera->axis[0], camera->axis[1], camera->axis[2]);
+				d = tre.e.skinNum + d * 4;
+				VectorCopy(camera.axis[1], transformed);
+				RotatePointAroundVector(camera.axis[1], camera.axis[0], transformed, d);
+				CrossProduct(camera.axis[0], camera.axis[1], camera.axis[2]);
 			}
 		}
-		else if (e->e.skinNum)
+		else if (tre.e.skinNum)
 		{
-			d = e->e.skinNum;
-			VectorCopy(camera->axis[1], transformed);
-			RotatePointAroundVector(camera->axis[1], camera->axis[0], transformed, d);
-			CrossProduct(camera->axis[0], camera->axis[1], camera->axis[2]);
+			d = tre.e.skinNum;
+			VectorCopy(camera.axis[1], transformed);
+			RotatePointAroundVector(camera.axis[1], camera.axis[0], transformed, d);
+			CrossProduct(camera.axis[0], camera.axis[1], camera.axis[2]);
 		}
 
 		*portalView = PV_PORTAL;
@@ -923,7 +922,7 @@ static bool R_GetPortalOrientations(const drawSurf_t *drawSurf, int entityNum,
 	return false;
 }
 
-static bool IsMirror(const drawSurf_t *drawSurf, int entityNum)
+static bool IsMirror(const drawSurf_t &drawSurf, int entityNum)
 {
 	int i;
 	cplane_t originalPlane, plane;
@@ -931,7 +930,7 @@ static bool IsMirror(const drawSurf_t *drawSurf, int entityNum)
 	float d;
 
 	// create plane axis for the portal we are seeing
-	R_PlaneForSurface(drawSurf->surface, &originalPlane);
+	R_PlaneForSurface(drawSurf.surface, &originalPlane);
 
 	// rotate the plane if necessary
 	if (entityNum != REFENTITYNUM_WORLD)
@@ -990,7 +989,7 @@ static bool IsMirror(const drawSurf_t *drawSurf, int entityNum)
 **
 ** Determines if a surface is completely offscreen.
 */
-static bool SurfIsOffscreen(const drawSurf_t *drawSurf, bool *isMirror)
+static bool SurfIsOffscreen(const drawSurf_t &drawSurf, bool *isMirror)
 {
 	float shortest = 100000000;
 	int entityNum;
@@ -1006,7 +1005,7 @@ static bool SurfIsOffscreen(const drawSurf_t *drawSurf, bool *isMirror)
 
 	R_RotateForViewer();
 
-	R_DecomposeSort(drawSurf->sort, &entityNum, &shader, &fogNum, &dlighted);
+	R_DecomposeSort(drawSurf.sort, &entityNum, &shader, &fogNum, &dlighted);
 	RB_BeginSurface(*shader, fogNum);
 #ifdef USE_VBO
 	tess.allowVBO = false;
@@ -1014,7 +1013,7 @@ static bool SurfIsOffscreen(const drawSurf_t *drawSurf, bool *isMirror)
 #ifdef USE_TESS_NEEDS_NORMAL
 	tess.needsNormal = true;
 #endif
-	rb_surfaceTable[*drawSurf->surface](drawSurf->surface);
+	rb_surfaceTable[*drawSurf.surface](drawSurf.surface);
 
 	for (i = 0; i < tess.numVertexes; i++)
 	{
@@ -1189,7 +1188,7 @@ Returns true if another view has been rendered
 ========================
 */
 extern int r_numdlights;
-static bool R_MirrorViewBySurface(const drawSurf_t *drawSurf, int entityNum)
+static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, int entityNum)
 {
 	viewParms_t newParms;
 	viewParms_t oldParms;
@@ -1225,7 +1224,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t *drawSurf, int entityNum)
 	newParms = tr.viewParms;
 	newParms.portalView = PV_NONE;
 
-	if (!R_GetPortalOrientations(drawSurf, entityNum, &surface, &camera,
+	if (!R_GetPortalOrientations(drawSurf, entityNum, surface, camera,
 								 newParms.pvsOrigin, &newParms.portalView))
 	{
 		return false; // bad portal, no portalentity
@@ -1266,7 +1265,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t *drawSurf, int entityNum)
 	// OPTIMIZE: restrict the viewport on the mirrored view
 
 	// render the mirror view
-	R_RenderView(&newParms);
+	R_RenderView(newParms);
 
 	tr.viewParms = oldParms;
 
@@ -1388,7 +1387,7 @@ typedef struct litSurf_tape_s
 
 // Philip Erdelsky gets all the credit for this one...
 
-static void R_SortLitsurfs(dlight_t *dl)
+static void R_SortLitsurfs(dlight_t &dl)
 {
 	litSurf_tape_t tape[4];
 	int base;
@@ -1408,7 +1407,7 @@ static void R_SortLitsurfs(dlight_t *dl)
 	tape[0].first = tape[1].first = NULL;
 
 	base = 0;
-	p = dl->head;
+	p = dl.head;
 
 	while (p)
 	{
@@ -1476,7 +1475,7 @@ static void R_SortLitsurfs(dlight_t *dl)
 	if (tape[base].count > 1)
 		tape[base].last->next = NULL;
 
-	dl->head = tape[base].first;
+	dl.head = tape[base].first;
 }
 
 /*
@@ -1562,7 +1561,7 @@ void R_DecomposeSort(unsigned sort, int *entityNum, shader_t **shader,
 R_SortDrawSurfs
 =================
 */
-static void R_SortDrawSurfs(drawSurf_t *drawSurfs, int numDrawSurfs)
+static void R_SortDrawSurfs(drawSurf_t &drawSurfs, int numDrawSurfs)
 {
 	shader_t *shader;
 	int fogNum;
@@ -1574,18 +1573,18 @@ static void R_SortDrawSurfs(drawSurf_t *drawSurfs, int numDrawSurfs)
 	if (numDrawSurfs < 1)
 	{
 		// we still need to add it for hyperspace cases
-		R_AddDrawSurfCmd(*drawSurfs, numDrawSurfs);
+		R_AddDrawSurfCmd(drawSurfs, numDrawSurfs);
 		return;
 	}
 
 	// sort the drawsurfs by sort type, then orientation, then shader
-	R_RadixSort(drawSurfs, numDrawSurfs);
+	R_RadixSort(&drawSurfs, numDrawSurfs);
 
 	// check for any pass through drawing, which
 	// may cause another view to be rendered first
 	for (i = 0; i < numDrawSurfs; i++)
 	{
-		R_DecomposeSort((drawSurfs + i)->sort, &entityNum, &shader, &fogNum, &dlighted);
+		R_DecomposeSort(((&drawSurfs) + i)->sort, &entityNum, &shader, &fogNum, &dlighted);
 
 		if (shader->sort > static_cast<float>(SS_PORTAL))
 		{
@@ -1599,7 +1598,7 @@ static void R_SortDrawSurfs(drawSurf_t *drawSurfs, int numDrawSurfs)
 		}
 
 		// if the mirror was completely clipped away, we may need to check another surface
-		if (R_MirrorViewBySurface((drawSurfs + i), entityNum))
+		if (R_MirrorViewBySurface(*((&drawSurfs) + i), entityNum))
 		{
 			// this is a debug option to see exactly what is being mirrored
 			if (r_portalOnly->integer)
@@ -1626,13 +1625,13 @@ static void R_SortDrawSurfs(drawSurf_t *drawSurfs, int numDrawSurfs)
 			dl = &tr.refdef.dlights[i];
 			if (dl->head)
 			{
-				R_SortLitsurfs(dl);
+				R_SortLitsurfs(*dl);
 			}
 		}
 	}
 #endif // USE_PMLIGHT
 
-	R_AddDrawSurfCmd(*drawSurfs, numDrawSurfs);
+	R_AddDrawSurfCmd(drawSurfs, numDrawSurfs);
 }
 
 /*
@@ -1770,19 +1769,19 @@ A view may be either the actual camera view,
 ort a mirror / remote location
 ================
 */
-void R_RenderView(const viewParms_t *parms)
+void R_RenderView(const viewParms_t &parms)
 {
 	int firstDrawSurf;
 	int numDrawSurfs;
 
-	if (parms->viewportWidth <= 0 || parms->viewportHeight <= 0)
+	if (parms.viewportWidth <= 0 || parms.viewportHeight <= 0)
 	{
 		return;
 	}
 
 	tr.viewCount++;
 
-	tr.viewParms = *parms;
+	tr.viewParms = parms;
 	tr.viewParms.frameSceneNum = tr.frameSceneNum;
 	tr.viewParms.frameCount = tr.frameCount;
 
@@ -1804,5 +1803,5 @@ void R_RenderView(const viewParms_t *parms)
 		numDrawSurfs = MAX_DRAWSURFS;
 	}
 
-	R_SortDrawSurfs(tr.refdef.drawSurfs + firstDrawSurf, numDrawSurfs - firstDrawSurf);
+	R_SortDrawSurfs(*(tr.refdef.drawSurfs + firstDrawSurf), numDrawSurfs - firstDrawSurf);
 }

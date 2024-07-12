@@ -13,7 +13,7 @@ int R_CullLocalPointAndRadius(const vec3_t pt, float radius);
 void R_TransformModelToClip(const vec3_t src, const float *modelMatrix, const float *projectionMatrix,
                             vec4_t eye, vec4_t dst);
 
-void R_TransformClipToWindow(const vec4_t clip, const viewParms_t *view, vec4_t normalized, vec4_t window);
+void R_TransformClipToWindow(const vec4_t clip, const viewParms_t &view, vec4_t normalized, vec4_t window);
 void myGlMultMatrix(const float *a, const float *b, float *out);
 void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
                        orientationr_t &orient);
@@ -37,6 +37,6 @@ void R_DecomposeLitSort(unsigned sort, int *entityNum, shader_t **shader, int *f
 
 void R_DecomposeSort(unsigned sort, int *entityNum, shader_t **shader,
                      int *fogNum, int *dlightMap);
-void R_RenderView(const viewParms_t *parms);
+void R_RenderView(const viewParms_t &parms);
 
 #endif // TR_MAIN_HPP

@@ -527,7 +527,7 @@ void RE_RenderScene(const refdef_t *fd)
 	tr.drawSurfCmd = NULL;
 	tr.numDrawSurfCmds = 0;
 
-	R_RenderView(&parms);
+	R_RenderView(parms);
 
 	if (tr.needScreenMap)
 	{
