@@ -653,7 +653,7 @@ static void qsort_idx(int *a, const int n)
 ParseFace
 ===============
 */
-static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t *surf, int *indexes)
+static void ParseFace(const dsurface_t &ds, const drawVert_t *verts, msurface_t &surf, int *indexes)
 {
 	int i, j;
 	srfSurfaceFace_t *cv;
@@ -665,9 +665,9 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	// static const int idx_pattern2[] = {5, 4, 3, 2, 3, 4};
 
 	// get fog volume
-	surf->fogIndex = LittleLong(ds->fogNum) + 1;
+	surf.fogIndex = LittleLong(ds.fogNum) + 1;
 
-	lightmapNum = LittleLong(ds->lightmapNum);
+	lightmapNum = LittleLong(ds.lightmapNum);
 	if (lightmapNum >= 0 && tr.mergeLightmaps)
 	{
 		lightmapNum = R_GetLightmapCoords(lightmapNum, &lightmapX, &lightmapY);
@@ -681,17 +681,17 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	tr.lightmapOffset[1] = lightmapY;
 
 	// get shader value
-	surf->shader = ShaderForShaderNum(LittleLong(ds->shaderNum), lightmapNum);
+	surf.shader = ShaderForShaderNum(LittleLong(ds.shaderNum), lightmapNum);
 
-	numPoints = LittleLong(ds->numVerts);
+	numPoints = LittleLong(ds.numVerts);
 	if (numPoints > MAX_FACE_POINTS)
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: MAX_FACE_POINTS exceeded: %i\n", numPoints);
 		numPoints = MAX_FACE_POINTS;
-		surf->shader = tr.defaultShader;
+		surf.shader = tr.defaultShader;
 	}
 
-	numIndexes = LittleLong(ds->numIndexes);
+	numIndexes = LittleLong(ds.numIndexes);
 
 	// create the srfSurfaceFace_t
 	sfaceSize = sizeof(*cv) - sizeof(cv->points) + sizeof(cv->points[0]) * numPoints;
@@ -704,7 +704,7 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	cv->numIndices = numIndexes;
 	cv->ofsIndices = ofsIndexes;
 
-	verts += LittleLong(ds->firstVert);
+	verts += LittleLong(ds.firstVert);
 	for (i = 0; i < numPoints; i++)
 	{
 		for (j = 0; j < 3; j++)
@@ -725,7 +725,7 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 		}
 	}
 
-	indexes += LittleLong(ds->firstIndex);
+	indexes += LittleLong(ds.firstIndex);
 	for (i = 0; i < numIndexes; i++)
 	{
 		((int *)((byte *)cv + cv->ofsIndices))[i] = LittleLong(indexes[i]);
@@ -747,11 +747,11 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	// take the plane information from the lightmap vector
 	for (i = 0; i < 3; i++)
 	{
-		cv->plane.normal[i] = LittleFloat(ds->lightmapVecs[2][i]);
+		cv->plane.normal[i] = LittleFloat(ds.lightmapVecs[2][i]);
 	}
 
 #ifdef USE_PMLIGHT
-	if (surf->shader->numUnfoggedPasses && surf->shader->lightingStage >= 0)
+	if (surf.shader->numUnfoggedPasses && surf.shader->lightingStage >= 0)
 	{
 		if (fabs(cv->plane.normal[0]) < 0.01 && fabs(cv->plane.normal[1]) < 0.01 && fabs(cv->plane.normal[2]) < 0.01)
 		{
@@ -773,7 +773,7 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	SetPlaneSignbits(&cv->plane);
 	cv->plane.type = PlaneTypeForNormal(cv->plane.normal);
 
-	surf->data = (surfaceType_t *)cv;
+	surf.data = (surfaceType_t *)cv;
 }
 
 /*
@@ -781,7 +781,7 @@ static void ParseFace(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 ParseMesh
 ===============
 */
-static void ParseMesh(const dsurface_t *ds, const drawVert_t *verts, msurface_t *surf)
+static void ParseMesh(const dsurface_t &ds, const drawVert_t *verts, msurface_t &surf)
 {
 	srfGridMesh_t *grid;
 	int i, j;
@@ -794,9 +794,9 @@ static void ParseMesh(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	static surfaceType_t skipData = SF_SKIP;
 
 	// get fog volume
-	surf->fogIndex = LittleLong(ds->fogNum) + 1;
+	surf.fogIndex = LittleLong(ds.fogNum) + 1;
 
-	lightmapNum = LittleLong(ds->lightmapNum);
+	lightmapNum = LittleLong(ds.lightmapNum);
 	if (lightmapNum >= 0 && tr.mergeLightmaps)
 	{
 		lightmapNum = R_GetLightmapCoords(lightmapNum, &lightmapX, &lightmapY);
@@ -810,20 +810,20 @@ static void ParseMesh(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 	tr.lightmapOffset[1] = lightmapY;
 
 	// get shader value
-	surf->shader = ShaderForShaderNum(LittleLong(ds->shaderNum), lightmapNum);
+	surf.shader = ShaderForShaderNum(LittleLong(ds.shaderNum), lightmapNum);
 
 	// we may have a nodraw surface, because they might still need to
 	// be around for movement clipping
-	if (s_worldData.shaders[LittleLong(ds->shaderNum)].surfaceFlags & SURF_NODRAW)
+	if (s_worldData.shaders[LittleLong(ds.shaderNum)].surfaceFlags & SURF_NODRAW)
 	{
-		surf->data = &skipData;
+		surf.data = &skipData;
 		return;
 	}
 
-	width = LittleLong(ds->patchWidth);
-	height = LittleLong(ds->patchHeight);
+	width = LittleLong(ds.patchWidth);
+	height = LittleLong(ds.patchHeight);
 
-	verts += LittleLong(ds->firstVert);
+	verts += LittleLong(ds.firstVert);
 	numPoints = width * height;
 	for (i = 0; i < numPoints; i++)
 	{
@@ -848,15 +848,15 @@ static void ParseMesh(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 
 	// pre-tesseleate
 	grid = R_SubdividePatchToGrid(width, height, points);
-	surf->data = (surfaceType_t *)grid;
+	surf.data = (surfaceType_t *)grid;
 
 	// copy the level of detail origin, which is the center
 	// of the group of all curves that must subdivide the same
 	// to avoid cracking
 	for (i = 0; i < 3; i++)
 	{
-		bounds[0][i] = LittleFloat(ds->lightmapVecs[0][i]);
-		bounds[1][i] = LittleFloat(ds->lightmapVecs[1][i]);
+		bounds[0][i] = LittleFloat(ds.lightmapVecs[0][i]);
+		bounds[1][i] = LittleFloat(ds.lightmapVecs[1][i]);
 	}
 	VectorAdd(bounds[0], bounds[1], bounds[1]);
 	VectorScale(bounds[1], 0.5f, grid->lodOrigin);
@@ -869,7 +869,7 @@ static void ParseMesh(const dsurface_t *ds, const drawVert_t *verts, msurface_t 
 ParseTriSurf
 ===============
 */
-static void ParseTriSurf(const dsurface_t *ds, const drawVert_t *verts, msurface_t *surf, int *indexes)
+static void ParseTriSurf(const dsurface_t &ds, const drawVert_t *verts, msurface_t &surf, int *indexes)
 {
 	srfTriangles_t *tri;
 	int i, j;
@@ -878,9 +878,9 @@ static void ParseTriSurf(const dsurface_t *ds, const drawVert_t *verts, msurface
 	float lightmapX, lightmapY;
 
 	// get fog volume
-	surf->fogIndex = LittleLong(ds->fogNum) + 1;
+	surf.fogIndex = LittleLong(ds.fogNum) + 1;
 
-	lightmapNum = LittleLong(ds->lightmapNum);
+	lightmapNum = LittleLong(ds.lightmapNum);
 	if (lightmapNum >= 0 && tr.mergeLightmaps)
 	{
 		lightmapNum = R_GetLightmapCoords(lightmapNum, &lightmapX, &lightmapY);
@@ -894,10 +894,10 @@ static void ParseTriSurf(const dsurface_t *ds, const drawVert_t *verts, msurface
 	tr.lightmapOffset[1] = lightmapY;
 
 	// get shader
-	surf->shader = ShaderForShaderNum(LittleLong(ds->shaderNum), LIGHTMAP_BY_VERTEX);
+	surf.shader = ShaderForShaderNum(LittleLong(ds.shaderNum), LIGHTMAP_BY_VERTEX);
 
-	numVerts = LittleLong(ds->numVerts);
-	numIndexes = LittleLong(ds->numIndexes);
+	numVerts = LittleLong(ds.numVerts);
+	numIndexes = LittleLong(ds.numIndexes);
 
 	tri = static_cast<srfTriangles_t *>(ri.Hunk_Alloc(sizeof(*tri) + numVerts * sizeof(tri->verts[0]) + numIndexes * sizeof(tri->indexes[0]), h_low));
 	tri->surfaceType = SF_TRIANGLES;
@@ -906,11 +906,11 @@ static void ParseTriSurf(const dsurface_t *ds, const drawVert_t *verts, msurface
 	tri->verts = (drawVert_t *)(tri + 1);
 	tri->indexes = (int *)(tri->verts + tri->numVerts);
 
-	surf->data = (surfaceType_t *)tri;
+	surf.data = (surfaceType_t *)tri;
 
 	// copy vertexes
 	ClearBounds(tri->bounds[0], tri->bounds[1]);
-	verts += LittleLong(ds->firstVert);
+	verts += LittleLong(ds.firstVert);
 	for (i = 0; i < numVerts; i++)
 	{
 		for (j = 0; j < 3; j++)
@@ -935,7 +935,7 @@ static void ParseTriSurf(const dsurface_t *ds, const drawVert_t *verts, msurface
 	}
 
 	// copy indexes
-	indexes += LittleLong(ds->firstIndex);
+	indexes += LittleLong(ds.firstIndex);
 	for (i = 0; i < numIndexes; i++)
 	{
 		tri->indexes[i] = LittleLong(indexes[i]);
@@ -951,27 +951,27 @@ static void ParseTriSurf(const dsurface_t *ds, const drawVert_t *verts, msurface
 ParseFlare
 ===============
 */
-static void ParseFlare(const dsurface_t *ds, const drawVert_t *verts, msurface_t *surf, int *indexes)
+static void ParseFlare(const dsurface_t &ds, const drawVert_t *verts, msurface_t &surf, int *indexes)
 {
 	srfFlare_t *flare;
 	int i;
 
 	// get fog volume
-	surf->fogIndex = LittleLong(ds->fogNum) + 1;
+	surf.fogIndex = LittleLong(ds.fogNum) + 1;
 
 	// get shader
-	surf->shader = ShaderForShaderNum(LittleLong(ds->shaderNum), LIGHTMAP_BY_VERTEX);
+	surf.shader = ShaderForShaderNum(LittleLong(ds.shaderNum), LIGHTMAP_BY_VERTEX);
 
 	flare = static_cast<srfFlare_t *>(ri.Hunk_Alloc(sizeof(*flare), h_low));
 	flare->surfaceType = SF_FLARE;
 
-	surf->data = (surfaceType_t *)flare;
+	surf.data = (surfaceType_t *)flare;
 
 	for (i = 0; i < 3; i++)
 	{
-		flare->origin[i] = LittleFloat(ds->lightmapOrigin[i]);
-		flare->color[i] = LittleFloat(ds->lightmapVecs[0][i]);
-		flare->normal[i] = LittleFloat(ds->lightmapVecs[2][i]);
+		flare->origin[i] = LittleFloat(ds.lightmapOrigin[i]);
+		flare->color[i] = LittleFloat(ds.lightmapVecs[0][i]);
+		flare->normal[i] = LittleFloat(ds.lightmapVecs[2][i]);
 	}
 }
 
@@ -1038,7 +1038,7 @@ NOTE: never sync LoD through grid edges with merged points!
 FIXME: write generalized version that also avoids cracks between a patch and one that meets half way?
 =================
 */
-static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
+static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t &grid1)
 {
 	int j, k, l, m, n, offset1, offset2, touch;
 	srfGridMesh_t *grid2;
@@ -1054,14 +1054,14 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 		if (grid2->lodFixed == 2)
 			continue;
 		// grids in the same LOD group should have the exact same lod radius
-		if (grid1->lodRadius != grid2->lodRadius)
+		if (grid1.lodRadius != grid2->lodRadius)
 			continue;
 		// grids in the same LOD group should have the exact same lod origin
-		if (grid1->lodOrigin[0] != grid2->lodOrigin[0])
+		if (grid1.lodOrigin[0] != grid2->lodOrigin[0])
 			continue;
-		if (grid1->lodOrigin[1] != grid2->lodOrigin[1])
+		if (grid1.lodOrigin[1] != grid2->lodOrigin[1])
 			continue;
-		if (grid1->lodOrigin[2] != grid2->lodOrigin[2])
+		if (grid1.lodOrigin[2] != grid2->lodOrigin[2])
 			continue;
 		//
 		touch = false;
@@ -1069,12 +1069,12 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 		{
 			//
 			if (n)
-				offset1 = (grid1->height - 1) * grid1->width;
+				offset1 = (grid1.height - 1) * grid1.width;
 			else
 				offset1 = 0;
-			if (R_MergedWidthPoints(*grid1, offset1))
+			if (R_MergedWidthPoints(grid1, offset1))
 				continue;
-			for (k = 1; k < grid1->width - 1; k++)
+			for (k = 1; k < grid1.width - 1; k++)
 			{
 				for (m = 0; m < 2; m++)
 				{
@@ -1088,14 +1088,14 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 					for (l = 1; l < grid2->width - 1; l++)
 					{
 						//
-						if (fabs(grid1->verts[k + offset1].xyz[0] - grid2->verts[l + offset2].xyz[0]) > .1)
+						if (fabs(grid1.verts[k + offset1].xyz[0] - grid2->verts[l + offset2].xyz[0]) > .1)
 							continue;
-						if (fabs(grid1->verts[k + offset1].xyz[1] - grid2->verts[l + offset2].xyz[1]) > .1)
+						if (fabs(grid1.verts[k + offset1].xyz[1] - grid2->verts[l + offset2].xyz[1]) > .1)
 							continue;
-						if (fabs(grid1->verts[k + offset1].xyz[2] - grid2->verts[l + offset2].xyz[2]) > .1)
+						if (fabs(grid1.verts[k + offset1].xyz[2] - grid2->verts[l + offset2].xyz[2]) > .1)
 							continue;
 						// ok the points are equal and should have the same lod error
-						grid2->widthLodError[l] = grid1->widthLodError[k];
+						grid2->widthLodError[l] = grid1.widthLodError[k];
 						touch = true;
 					}
 				}
@@ -1111,14 +1111,14 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 					for (l = 1; l < grid2->height - 1; l++)
 					{
 						//
-						if (fabs(grid1->verts[k + offset1].xyz[0] - grid2->verts[grid2->width * l + offset2].xyz[0]) > .1)
+						if (fabs(grid1.verts[k + offset1].xyz[0] - grid2->verts[grid2->width * l + offset2].xyz[0]) > .1)
 							continue;
-						if (fabs(grid1->verts[k + offset1].xyz[1] - grid2->verts[grid2->width * l + offset2].xyz[1]) > .1)
+						if (fabs(grid1.verts[k + offset1].xyz[1] - grid2->verts[grid2->width * l + offset2].xyz[1]) > .1)
 							continue;
-						if (fabs(grid1->verts[k + offset1].xyz[2] - grid2->verts[grid2->width * l + offset2].xyz[2]) > .1)
+						if (fabs(grid1.verts[k + offset1].xyz[2] - grid2->verts[grid2->width * l + offset2].xyz[2]) > .1)
 							continue;
 						// ok the points are equal and should have the same lod error
-						grid2->heightLodError[l] = grid1->widthLodError[k];
+						grid2->heightLodError[l] = grid1.widthLodError[k];
 						touch = true;
 					}
 				}
@@ -1128,12 +1128,12 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 		{
 			//
 			if (n)
-				offset1 = grid1->width - 1;
+				offset1 = grid1.width - 1;
 			else
 				offset1 = 0;
-			if (R_MergedHeightPoints(*grid1, offset1))
+			if (R_MergedHeightPoints(grid1, offset1))
 				continue;
-			for (k = 1; k < grid1->height - 1; k++)
+			for (k = 1; k < grid1.height - 1; k++)
 			{
 				for (m = 0; m < 2; m++)
 				{
@@ -1147,14 +1147,14 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 					for (l = 1; l < grid2->width - 1; l++)
 					{
 						//
-						if (fabs(grid1->verts[grid1->width * k + offset1].xyz[0] - grid2->verts[l + offset2].xyz[0]) > .1)
+						if (fabs(grid1.verts[grid1.width * k + offset1].xyz[0] - grid2->verts[l + offset2].xyz[0]) > .1)
 							continue;
-						if (fabs(grid1->verts[grid1->width * k + offset1].xyz[1] - grid2->verts[l + offset2].xyz[1]) > .1)
+						if (fabs(grid1.verts[grid1.width * k + offset1].xyz[1] - grid2->verts[l + offset2].xyz[1]) > .1)
 							continue;
-						if (fabs(grid1->verts[grid1->width * k + offset1].xyz[2] - grid2->verts[l + offset2].xyz[2]) > .1)
+						if (fabs(grid1.verts[grid1.width * k + offset1].xyz[2] - grid2->verts[l + offset2].xyz[2]) > .1)
 							continue;
 						// ok the points are equal and should have the same lod error
-						grid2->widthLodError[l] = grid1->heightLodError[k];
+						grid2->widthLodError[l] = grid1.heightLodError[k];
 						touch = true;
 					}
 				}
@@ -1170,14 +1170,14 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 					for (l = 1; l < grid2->height - 1; l++)
 					{
 						//
-						if (fabs(grid1->verts[grid1->width * k + offset1].xyz[0] - grid2->verts[grid2->width * l + offset2].xyz[0]) > .1)
+						if (fabs(grid1.verts[grid1.width * k + offset1].xyz[0] - grid2->verts[grid2->width * l + offset2].xyz[0]) > .1)
 							continue;
-						if (fabs(grid1->verts[grid1->width * k + offset1].xyz[1] - grid2->verts[grid2->width * l + offset2].xyz[1]) > .1)
+						if (fabs(grid1.verts[grid1.width * k + offset1].xyz[1] - grid2->verts[grid2->width * l + offset2].xyz[1]) > .1)
 							continue;
-						if (fabs(grid1->verts[grid1->width * k + offset1].xyz[2] - grid2->verts[grid2->width * l + offset2].xyz[2]) > .1)
+						if (fabs(grid1.verts[grid1.width * k + offset1].xyz[2] - grid2->verts[grid2->width * l + offset2].xyz[2]) > .1)
 							continue;
 						// ok the points are equal and should have the same lod error
-						grid2->heightLodError[l] = grid1->heightLodError[k];
+						grid2->heightLodError[l] = grid1.heightLodError[k];
 						touch = true;
 					}
 				}
@@ -1186,7 +1186,7 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t *grid1)
 		if (touch)
 		{
 			grid2->lodFixed = 2;
-			R_FixSharedVertexLodError_r(start, grid2);
+			R_FixSharedVertexLodError_r(start, *grid2);
 			// NOTE: this would be correct but makes things really slow
 			// grid2->lodFixed = 1;
 		}
@@ -1219,7 +1219,7 @@ static void R_FixSharedVertexLodError(void)
 		//
 		grid1->lodFixed = 2;
 		// recursively fix other patches in the same LOD group
-		R_FixSharedVertexLodError_r(i + 1, grid1);
+		R_FixSharedVertexLodError_r(i + 1, *grid1);
 	}
 }
 
@@ -1852,19 +1852,19 @@ static void R_LoadSurfaces(const lump_t *surfs, const lump_t *verts, const lump_
 		switch (LittleLong(in->surfaceType))
 		{
 		case MST_PATCH:
-			ParseMesh(in, dv, out);
+			ParseMesh(*in, dv, *out);
 			numMeshes++;
 			break;
 		case MST_TRIANGLE_SOUP:
-			ParseTriSurf(in, dv, out, indexes);
+			ParseTriSurf(*in, dv, *out, indexes);
 			numTriSurfs++;
 			break;
 		case MST_PLANAR:
-			ParseFace(in, dv, out, indexes);
+			ParseFace(*in, dv, *out, indexes);
 			numFaces++;
 			break;
 		case MST_FLARE:
-			ParseFlare(in, dv, out, indexes);
+			ParseFlare(*in, dv, *out, indexes);
 			numFlares++;
 			break;
 		default:

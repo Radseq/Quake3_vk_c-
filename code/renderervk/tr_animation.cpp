@@ -47,17 +47,17 @@ frame.
 R_MDRCullModel
 =============
 */
-static int R_MDRCullModel(mdrHeader_t *header, const trRefEntity_t &ent)
+static int R_MDRCullModel(mdrHeader_t &header, const trRefEntity_t &ent)
 {
 	vec3_t bounds[2];
 	mdrFrame_t *oldFrame, *newFrame;
 	int i, frameSize;
 
-	frameSize = (size_t)(&((mdrFrame_t *)0)->bones[header->numBones]);
+	frameSize = (size_t)(&((mdrFrame_t *)0)->bones[header.numBones]);
 
 	// compute frame pointers
-	newFrame = (mdrFrame_t *)((byte *)header + header->ofsFrames + frameSize * ent.e.frame);
-	oldFrame = (mdrFrame_t *)((byte *)header + header->ofsFrames + frameSize * ent.e.oldframe);
+	newFrame = (mdrFrame_t *)((byte &)header + header.ofsFrames + frameSize * ent.e.frame);
+	oldFrame = (mdrFrame_t *)((byte &)header + header.ofsFrames + frameSize * ent.e.oldframe);
 
 	// cull bounding sphere ONLY if this is not an upscaled entity
 	if (!ent.e.nonNormalizedAxes)
@@ -143,7 +143,7 @@ static int R_MDRCullModel(mdrHeader_t *header, const trRefEntity_t &ent)
 R_MDRComputeFogNum
 =================
 */
-static int R_MDRComputeFogNum(mdrHeader_t *header, const trRefEntity_t &ent)
+static int R_MDRComputeFogNum(mdrHeader_t &header, const trRefEntity_t &ent)
 {
 	if (tr.refdef.rdflags & RDF_NOWORLDMODEL)
 	{
@@ -155,10 +155,10 @@ static int R_MDRComputeFogNum(mdrHeader_t *header, const trRefEntity_t &ent)
 	mdrFrame_t *mdrFrame;
 	vec3_t localOrigin;
 
-	int frameSize = (size_t)(&((mdrFrame_t *)0)->bones[header->numBones]);
+	int frameSize = (size_t)(&((mdrFrame_t *)0)->bones[header.numBones]);
 
 	// FIXME: non-normalized axis issues
-	mdrFrame = (mdrFrame_t *)((byte *)header + header->ofsFrames + frameSize * ent.e.frame);
+	mdrFrame = (mdrFrame_t *)((byte &)header + header.ofsFrames + frameSize * ent.e.frame);
 	VectorAdd(ent.e.origin, mdrFrame->localOrigin, localOrigin);
 	for (i = 1; i < tr.world->numfogs; i++)
 	{
@@ -193,7 +193,6 @@ R_MDRAddAnimSurfaces
 
 void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 {
-	mdrHeader_t *header;
 	mdrSurface_t *surface;
 	mdrLOD_t *lod;
 	shader_t *shader;
@@ -204,14 +203,14 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 	int cull;
 	bool personalModel;
 
-	header = (mdrHeader_t *)tr.currentModel->modelData;
+	mdrHeader_t &header = (mdrHeader_t &)tr.currentModel->modelData;
 
 	personalModel = (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE);
 
 	if (ent.e.renderfx & RF_WRAP_FRAMES)
 	{
-		ent.e.frame %= header->numFrames;
-		ent.e.oldframe %= header->numFrames;
+		ent.e.frame %= header.ident;
+		ent.e.oldframe %= header.numFrames;
 	}
 
 	//
@@ -220,7 +219,7 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 	// when the surfaces are rendered, they don't need to be
 	// range checked again.
 	//
-	if ((ent.e.frame >= header->numFrames) || (ent.e.frame < 0) || (ent.e.oldframe >= header->numFrames) || (ent.e.oldframe < 0))
+	if ((ent.e.frame >= header.numFrames) || (ent.e.frame < 0) || (ent.e.oldframe >= header.numFrames) || (ent.e.oldframe < 0))
 	{
 		ri.Printf(PRINT_DEVELOPER, "R_MDRAddAnimSurfaces: no such frame %d to %d for '%s'\n",
 				  ent.e.oldframe, ent.e.frame, tr.currentModel->name);
@@ -241,12 +240,12 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 	// figure out the current LOD of the model we're rendering, and set the lod pointer respectively.
 	lodnum = R_ComputeLOD(ent);
 	// check whether this model has as that many LODs at all. If not, try the closest thing we got.
-	if (header->numLODs <= 0)
+	if (header.numLODs <= 0)
 		return;
-	if (header->numLODs <= lodnum)
-		lodnum = header->numLODs - 1;
+	if (header.numLODs <= lodnum)
+		lodnum = header.numLODs - 1;
 
-	lod = (mdrLOD_t *)((byte *)header + header->ofsLODs);
+	lod = (mdrLOD_t *)((byte &)header + header.ofsLODs);
 	for (i = 0; i < lodnum; i++)
 	{
 		lod = (mdrLOD_t *)((byte *)lod + lod->ofsEnd);
@@ -316,7 +315,7 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 RB_MDRSurfaceAnim
 ==============
 */
-void RB_MDRSurfaceAnim(mdrSurface_t *surface)
+void RB_MDRSurfaceAnim(mdrSurface_t &surface)
 {
 	int i, j, k;
 	float frontlerp, backlerp;
@@ -351,7 +350,7 @@ void RB_MDRSurfaceAnim(mdrSurface_t *surface)
 		frontlerp = 1.0f - backlerp;
 	}
 
-	header = (mdrHeader_t *)((byte *)surface + surface->ofsHeader);
+	header = (mdrHeader_t *)((byte &)surface + surface.ofsHeader);
 
 	frameSize = (size_t)(&((mdrFrame_t *)0)->bones[header->numBones]);
 
@@ -360,10 +359,10 @@ void RB_MDRSurfaceAnim(mdrSurface_t *surface)
 	oldFrame = (mdrFrame_t *)((byte *)header + header->ofsFrames +
 							  backEnd.currentEntity->e.oldframe * frameSize);
 
-	RB_CHECKOVERFLOW(surface->numVerts, surface->numTriangles * 3);
+	RB_CHECKOVERFLOW(surface.numVerts, surface.numTriangles * 3);
 
-	triangles = (int *)((byte *)surface + surface->ofsTriangles);
-	indexes = surface->numTriangles * 3;
+	triangles = (int *)((byte &)surface + surface.ofsTriangles);
+	indexes = surface.numTriangles * 3;
 	baseIndex = tess.numIndexes;
 	baseVertex = tess.numVertexes;
 
@@ -395,8 +394,8 @@ void RB_MDRSurfaceAnim(mdrSurface_t *surface)
 	//
 	// deform the vertexes by the lerped bones
 	//
-	numVerts = surface->numVerts;
-	v = (mdrVertex_t *)((byte *)surface + surface->ofsVerts);
+	numVerts = surface.numVerts;
+	v = (mdrVertex_t *)((byte &)surface + surface.ofsVerts);
 	for (j = 0; j < numVerts; j++)
 	{
 		vec3_t tempVert, tempNormal;
@@ -442,7 +441,7 @@ void RB_MDRSurfaceAnim(mdrSurface_t *surface)
 		v = (mdrVertex_t *)&v->weights[v->numWeights];
 	}
 
-	tess.numVertexes += surface->numVerts;
+	tess.numVertexes += surface.numVerts;
 }
 
 constexpr float MC_SCALE_VECT = (1.0f / 64);

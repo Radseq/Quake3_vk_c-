@@ -596,7 +596,7 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 
 		R_SetupEntityLighting(tr.refdef, ent);
 
-		R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.ort);
+		R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, tr.ort);
 
 		for (i = 0; i < tr.viewParms.num_dlights; i++)
 		{
@@ -617,7 +617,7 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 
 #ifdef USE_LEGACY_DLIGHTS
 	R_SetupEntityLighting(tr.refdef, ent);
-	R_DlightBmodel(bmodel);
+	R_DlightBmodel(*bmodel);
 
 	for (i = 0; i < bmodel->numSurfaces; i++)
 	{
@@ -1023,7 +1023,7 @@ void R_AddWorldSurfaces(void)
 	// (even though HERE it's == dl->origin) so we can always use R_LightCullBounds
 	// instead of having copypasted versions for both world and local cases
 
-	R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, &tr.viewParms.world);
+	R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, tr.viewParms.world);
 	for (i = 0; i < tr.viewParms.num_dlights; i++)
 	{
 		dl = &tr.viewParms.dlights[i];

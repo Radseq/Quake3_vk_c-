@@ -43,23 +43,23 @@ Used by both the front end (for DlightBmodel) and
 the back end (before doing the lighting calculation)
 ===============
 */
-void R_TransformDlights(int count, dlight_t *dl, orientationr_t *ort)
+void R_TransformDlights(int count, dlight_t *dl, orientationr_t &ort)
 {
     int i;
     vec3_t temp, temp2;
 
     for (i = 0; i < count; i++, dl++)
     {
-        VectorSubtract(dl->origin, ort->origin, temp);
-        dl->transformed[0] = DotProduct(temp, ort->axis[0]);
-        dl->transformed[1] = DotProduct(temp, ort->axis[1]);
-        dl->transformed[2] = DotProduct(temp, ort->axis[2]);
+        VectorSubtract(dl->origin, ort.origin, temp);
+        dl->transformed[0] = DotProduct(temp, ort.axis[0]);
+        dl->transformed[1] = DotProduct(temp, ort.axis[1]);
+        dl->transformed[2] = DotProduct(temp, ort.axis[2]);
         if (dl->linear)
         {
-            VectorSubtract(dl->origin2, ort->origin, temp2);
-            dl->transformed2[0] = DotProduct(temp2, ort->axis[0]);
-            dl->transformed2[1] = DotProduct(temp2, ort->axis[1]);
-            dl->transformed2[2] = DotProduct(temp2, ort->axis[2]);
+            VectorSubtract(dl->origin2, ort.origin, temp2);
+            dl->transformed2[0] = DotProduct(temp2, ort.axis[0]);
+            dl->transformed2[1] = DotProduct(temp2, ort.axis[1]);
+            dl->transformed2[2] = DotProduct(temp2, ort.axis[2]);
         }
     }
 }
@@ -72,7 +72,7 @@ R_DlightBmodel
 Determine which dynamic lights may effect this bmodel
 =============
 */
-void R_DlightBmodel(bmodel_t *bmodel)
+void R_DlightBmodel(bmodel_t &bmodel)
 {
     int i, j;
     const dlight_t *dl;
@@ -80,7 +80,7 @@ void R_DlightBmodel(bmodel_t *bmodel)
     msurface_t *surf;
 
     // transform all the lights
-    R_TransformDlights(tr.refdef.num_dlights, tr.refdef.dlights, &tr.ort);
+    R_TransformDlights(tr.refdef.num_dlights, tr.refdef.dlights, tr.ort);
 
     mask = 0;
     for (i = 0; i < tr.refdef.num_dlights; i++)
@@ -90,11 +90,11 @@ void R_DlightBmodel(bmodel_t *bmodel)
         // see if the point is close enough to the bounds to matter
         for (j = 0; j < 3; j++)
         {
-            if (dl->transformed[j] - bmodel->bounds[1][j] > dl->radius)
+            if (dl->transformed[j] - bmodel.bounds[1][j] > dl->radius)
             {
                 break;
             }
-            if (bmodel->bounds[0][j] - dl->transformed[j] > dl->radius)
+            if (bmodel.bounds[0][j] - dl->transformed[j] > dl->radius)
             {
                 break;
             }
@@ -111,9 +111,9 @@ void R_DlightBmodel(bmodel_t *bmodel)
     tr.currentEntity->needDlights = (mask != 0) ? 1 : 0;
 
     // set the dlight bits in all the surfaces
-    for (i = 0; i < bmodel->numSurfaces; i++)
+    for (i = 0; i < bmodel.numSurfaces; i++)
     {
-        surf = bmodel->firstSurface + i;
+        surf = bmodel.firstSurface + i;
 
         if (*surf->data == SF_FACE)
         {

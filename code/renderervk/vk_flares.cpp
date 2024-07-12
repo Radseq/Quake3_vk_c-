@@ -417,7 +417,7 @@ static void RB_TestFlare(flare_t *f)
 RB_RenderFlare
 ==================
 */
-static void RB_RenderFlare(flare_t *f)
+static void RB_RenderFlare(flare_t &f)
 {
 	float size;
 	vec3_t color;
@@ -431,10 +431,10 @@ static void RB_RenderFlare(flare_t *f)
 	backEnd.pc.c_flareRenders++;
 
 	// We don't want too big values anyways when dividing by distance.
-	if (f->eyeZ > -1.0f)
+	if (f.eyeZ > -1.0f)
 		distance = 1.0f;
 	else
-		distance = -f->eyeZ;
+		distance = -f.eyeZ;
 
 	// calculate the flare size..
 	size = backEnd.viewParms.viewportWidth * (r_flareSize->value / 640.0f + 8 / distance);
@@ -464,14 +464,14 @@ static void RB_RenderFlare(flare_t *f)
 
 	intensity = r_flareCoeff->value * size * size / (factor * factor);
 
-	VectorScale(f->color, f->drawIntensity * intensity, color);
+	VectorScale(f.color, f.drawIntensity * intensity, color);
 
 	// Calculations for fogging
-	if (tr.world && f->fogNum > 0 && f->fogNum < tr.world->numfogs)
+	if (tr.world && f.fogNum > 0 && f.fogNum < tr.world->numfogs)
 	{
 		tess.numVertexes = 1;
-		VectorCopy(f->origin, tess.xyz[0]);
-		tess.fogNum = f->fogNum;
+		VectorCopy(f.origin, tess.xyz[0]);
+		tess.fogNum = f.fogNum;
 
 		RB_CalcModulateColorsByFog(fogFactors);
 
@@ -480,14 +480,14 @@ static void RB_RenderFlare(flare_t *f)
 			return;
 	}
 
-	RB_BeginSurface(*tr.flareShader, f->fogNum);
+	RB_BeginSurface(*tr.flareShader, f.fogNum);
 
 	c.rgba[0] = color[0] * fogFactors[0];
 	c.rgba[1] = color[1] * fogFactors[1];
 	c.rgba[2] = color[2] * fogFactors[2];
 	c.rgba[3] = 255;
 
-	RB_AddQuadStamp2(f->windowX - size, f->windowY - size, size * 2, size * 2, 0, 0, 1, 1, c);
+	RB_AddQuadStamp2(f.windowX - size, f.windowY - size, size * 2, size * 2, 0, 0, 1, 1, c);
 
 	RB_EndSurface();
 }
@@ -596,7 +596,7 @@ void RB_RenderFlares(void)
 	{
 		if (f->frameSceneNum == backEnd.viewParms.frameSceneNum && f->portalView == backEnd.viewParms.portalView && f->drawIntensity)
 		{
-			RB_RenderFlare(f);
+			RB_RenderFlare(*f);
 		}
 	}
 

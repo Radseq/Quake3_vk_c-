@@ -177,7 +177,7 @@ void *R_GetCommandBuffer(int bytes)
 R_AddDrawSurfCmd
 =============
 */
-void R_AddDrawSurfCmd(drawSurf_t *drawSurfs, int numDrawSurfs)
+void R_AddDrawSurfCmd(drawSurf_t &drawSurfs, int numDrawSurfs)
 {
 	drawSurfsCommand_t *cmd;
 
@@ -188,7 +188,7 @@ void R_AddDrawSurfCmd(drawSurf_t *drawSurfs, int numDrawSurfs)
 	}
 	cmd->commandId = RC_DRAW_SURFS;
 
-	cmd->drawSurfs = drawSurfs;
+	cmd->drawSurfs = &drawSurfs;
 	cmd->numDrawSurfs = numDrawSurfs;
 
 	cmd->refdef = tr.refdef;

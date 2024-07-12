@@ -349,8 +349,8 @@ Does NOT produce any GL calls
 Called by both the front end and the back end
 =================
 */
-void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t *viewParms,
-					   orientationr_t *ort)
+void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
+					   orientationr_t &ort)
 {
 	float glMatrix[16];
 	vec3_t delta;
@@ -358,41 +358,41 @@ void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t *viewParms,
 
 	if (ent.e.reType != RT_MODEL)
 	{
-		*ort = viewParms->world;
+		ort = viewParms.world;
 		return;
 	}
 
-	VectorCopy(ent.e.origin, ort->origin);
+	VectorCopy(ent.e.origin, ort.origin);
 
-	VectorCopy(ent.e.axis[0], ort->axis[0]);
-	VectorCopy(ent.e.axis[1], ort->axis[1]);
-	VectorCopy(ent.e.axis[2], ort->axis[2]);
+	VectorCopy(ent.e.axis[0], ort.axis[0]);
+	VectorCopy(ent.e.axis[1], ort.axis[1]);
+	VectorCopy(ent.e.axis[2], ort.axis[2]);
 
-	glMatrix[0] = ort->axis[0][0];
-	glMatrix[4] = ort->axis[1][0];
-	glMatrix[8] = ort->axis[2][0];
-	glMatrix[12] = ort->origin[0];
+	glMatrix[0] = ort.axis[0][0];
+	glMatrix[4] = ort.axis[1][0];
+	glMatrix[8] = ort.axis[2][0];
+	glMatrix[12] = ort.origin[0];
 
-	glMatrix[1] = ort->axis[0][1];
-	glMatrix[5] = ort->axis[1][1];
-	glMatrix[9] = ort->axis[2][1];
-	glMatrix[13] = ort->origin[1];
+	glMatrix[1] = ort.axis[0][1];
+	glMatrix[5] = ort.axis[1][1];
+	glMatrix[9] = ort.axis[2][1];
+	glMatrix[13] = ort.origin[1];
 
-	glMatrix[2] = ort->axis[0][2];
-	glMatrix[6] = ort->axis[1][2];
-	glMatrix[10] = ort->axis[2][2];
-	glMatrix[14] = ort->origin[2];
+	glMatrix[2] = ort.axis[0][2];
+	glMatrix[6] = ort.axis[1][2];
+	glMatrix[10] = ort.axis[2][2];
+	glMatrix[14] = ort.origin[2];
 
 	glMatrix[3] = 0;
 	glMatrix[7] = 0;
 	glMatrix[11] = 0;
 	glMatrix[15] = 1;
 
-	myGlMultMatrix(glMatrix, viewParms->world.modelMatrix, ort->modelMatrix);
+	myGlMultMatrix(glMatrix, viewParms.world.modelMatrix, ort.modelMatrix);
 
 	// calculate the viewer origin in the model's space
 	// needed for fog, specular, and environment mapping
-	VectorSubtract(viewParms->ort.origin, ort->origin, delta);
+	VectorSubtract(viewParms.ort.origin, ort.origin, delta);
 
 	// compensate for scale in the axes if necessary
 	if (ent.e.nonNormalizedAxes)
@@ -412,9 +412,9 @@ void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t *viewParms,
 		axisLength = 1.0f;
 	}
 
-	ort->viewOrigin[0] = DotProduct(delta, ort->axis[0]) * axisLength;
-	ort->viewOrigin[1] = DotProduct(delta, ort->axis[1]) * axisLength;
-	ort->viewOrigin[2] = DotProduct(delta, ort->axis[2]) * axisLength;
+	ort.viewOrigin[0] = DotProduct(delta, ort.axis[0]) * axisLength;
+	ort.viewOrigin[1] = DotProduct(delta, ort.axis[1]) * axisLength;
+	ort.viewOrigin[2] = DotProduct(delta, ort.axis[2]) * axisLength;
 }
 
 /*
@@ -516,7 +516,7 @@ Set up the culling frustum planes for the current view using the results we got 
 the projection matrix.
 =================
 */
-static void R_SetupFrustum(viewParms_t *dest, float xmin, float xmax, float ymax, float zProj, float stereoSep)
+static void R_SetupFrustum(viewParms_t &dest, float xmin, float xmax, float ymax, float zProj, float stereoSep)
 {
 	vec3_t ofsorigin;
 	float oppleg, adjleg, length;
@@ -525,57 +525,57 @@ static void R_SetupFrustum(viewParms_t *dest, float xmin, float xmax, float ymax
 	if (stereoSep == 0 && xmin == -xmax)
 	{
 		// symmetric case can be simplified
-		VectorCopy(dest->ort.origin, ofsorigin);
+		VectorCopy(dest.ort.origin, ofsorigin);
 
 		length = sqrt(xmax * xmax + zProj * zProj);
 		oppleg = xmax / length;
 		adjleg = zProj / length;
 
-		VectorScale(dest->ort.axis[0], oppleg, dest->frustum[0].normal);
-		VectorMA(dest->frustum[0].normal, adjleg, dest->ort.axis[1], dest->frustum[0].normal);
+		VectorScale(dest.ort.axis[0], oppleg, dest.frustum[0].normal);
+		VectorMA(dest.frustum[0].normal, adjleg, dest.ort.axis[1], dest.frustum[0].normal);
 
-		VectorScale(dest->ort.axis[0], oppleg, dest->frustum[1].normal);
-		VectorMA(dest->frustum[1].normal, -adjleg, dest->ort.axis[1], dest->frustum[1].normal);
+		VectorScale(dest.ort.axis[0], oppleg, dest.frustum[1].normal);
+		VectorMA(dest.frustum[1].normal, -adjleg, dest.ort.axis[1], dest.frustum[1].normal);
 	}
 	else
 	{
-		// In stereo rendering, due to the modification of the projection matrix, dest->ort.origin is not the
+		// In stereo rendering, due to the modification of the projection matrix, dest.ort.origin is not the
 		// actual origin that we're rendering so offset the tip of the view pyramid.
-		VectorMA(dest->ort.origin, stereoSep, dest->ort.axis[1], ofsorigin);
+		VectorMA(dest.ort.origin, stereoSep, dest.ort.axis[1], ofsorigin);
 
 		oppleg = xmax + stereoSep;
 		length = sqrt(oppleg * oppleg + zProj * zProj);
-		VectorScale(dest->ort.axis[0], oppleg / length, dest->frustum[0].normal);
-		VectorMA(dest->frustum[0].normal, zProj / length, dest->ort.axis[1], dest->frustum[0].normal);
+		VectorScale(dest.ort.axis[0], oppleg / length, dest.frustum[0].normal);
+		VectorMA(dest.frustum[0].normal, zProj / length, dest.ort.axis[1], dest.frustum[0].normal);
 
 		oppleg = xmin + stereoSep;
 		length = sqrt(oppleg * oppleg + zProj * zProj);
-		VectorScale(dest->ort.axis[0], -oppleg / length, dest->frustum[1].normal);
-		VectorMA(dest->frustum[1].normal, -zProj / length, dest->ort.axis[1], dest->frustum[1].normal);
+		VectorScale(dest.ort.axis[0], -oppleg / length, dest.frustum[1].normal);
+		VectorMA(dest.frustum[1].normal, -zProj / length, dest.ort.axis[1], dest.frustum[1].normal);
 	}
 
 	length = sqrt(ymax * ymax + zProj * zProj);
 	oppleg = ymax / length;
 	adjleg = zProj / length;
 
-	VectorScale(dest->ort.axis[0], oppleg, dest->frustum[2].normal);
-	VectorMA(dest->frustum[2].normal, adjleg, dest->ort.axis[2], dest->frustum[2].normal);
+	VectorScale(dest.ort.axis[0], oppleg, dest.frustum[2].normal);
+	VectorMA(dest.frustum[2].normal, adjleg, dest.ort.axis[2], dest.frustum[2].normal);
 
-	VectorScale(dest->ort.axis[0], oppleg, dest->frustum[3].normal);
-	VectorMA(dest->frustum[3].normal, -adjleg, dest->ort.axis[2], dest->frustum[3].normal);
+	VectorScale(dest.ort.axis[0], oppleg, dest.frustum[3].normal);
+	VectorMA(dest.frustum[3].normal, -adjleg, dest.ort.axis[2], dest.frustum[3].normal);
 
 	for (i = 0; i < 4; i++)
 	{
-		dest->frustum[i].type = PLANE_NON_AXIAL;
-		dest->frustum[i].dist = DotProduct(ofsorigin, dest->frustum[i].normal);
-		SetPlaneSignbits(&dest->frustum[i]);
+		dest.frustum[i].type = PLANE_NON_AXIAL;
+		dest.frustum[i].dist = DotProduct(ofsorigin, dest.frustum[i].normal);
+		SetPlaneSignbits(&dest.frustum[i]);
 	}
 
 	// near clipping plane
-	VectorCopy(dest->ort.axis[0], dest->frustum[4].normal);
-	dest->frustum[4].type = PLANE_NON_AXIAL;
-	dest->frustum[4].dist = DotProduct(ofsorigin, dest->frustum[4].normal) + r_znear->value;
-	SetPlaneSignbits(&dest->frustum[4]);
+	VectorCopy(dest.ort.axis[0], dest.frustum[4].normal);
+	dest.frustum[4].type = PLANE_NON_AXIAL;
+	dest.frustum[4].dist = DotProduct(ofsorigin, dest.frustum[4].normal) + r_znear->value;
+	SetPlaneSignbits(&dest.frustum[4]);
 }
 
 /*
@@ -583,7 +583,7 @@ static void R_SetupFrustum(viewParms_t *dest, float xmin, float xmax, float ymax
 R_SetupProjection
 ===============
 */
-void R_SetupProjection(viewParms_t *dest, float zProj, bool computeFrustum)
+void R_SetupProjection(viewParms_t &dest, float zProj, bool computeFrustum)
 {
 	float xmin, xmax, ymin, ymax;
 	float width, height, stereoSep = r_stereoSeparation->value;
@@ -595,37 +595,37 @@ void R_SetupProjection(viewParms_t *dest, float zProj, bool computeFrustum)
 
 	if (stereoSep != 0)
 	{
-		if (dest->stereoFrame == STEREO_LEFT)
+		if (dest.stereoFrame == STEREO_LEFT)
 			stereoSep = zProj / stereoSep;
-		else if (dest->stereoFrame == STEREO_RIGHT)
+		else if (dest.stereoFrame == STEREO_RIGHT)
 			stereoSep = zProj / -stereoSep;
 		else
 			stereoSep = 0;
 	}
 
-	ymax = zProj * tan(dest->fovY * M_PI / 360.0f);
+	ymax = zProj * tan(dest.fovY * M_PI / 360.0f);
 	ymin = -ymax;
 
-	xmax = zProj * tan(dest->fovX * M_PI / 360.0f);
+	xmax = zProj * tan(dest.fovX * M_PI / 360.0f);
 	xmin = -xmax;
 
 	width = xmax - xmin;
 	height = ymax - ymin;
 
-	dest->projectionMatrix[0] = 2 * zProj / width;
-	dest->projectionMatrix[4] = 0;
-	dest->projectionMatrix[8] = (xmax + xmin + 2 * stereoSep) / width;
-	dest->projectionMatrix[12] = 2 * zProj * stereoSep / width;
+	dest.projectionMatrix[0] = 2 * zProj / width;
+	dest.projectionMatrix[4] = 0;
+	dest.projectionMatrix[8] = (xmax + xmin + 2 * stereoSep) / width;
+	dest.projectionMatrix[12] = 2 * zProj * stereoSep / width;
 
-	dest->projectionMatrix[1] = 0;
-	dest->projectionMatrix[5] = 2 * zProj / height;
-	dest->projectionMatrix[9] = (ymax + ymin) / height; // normally 0
-	dest->projectionMatrix[13] = 0;
+	dest.projectionMatrix[1] = 0;
+	dest.projectionMatrix[5] = 2 * zProj / height;
+	dest.projectionMatrix[9] = (ymax + ymin) / height; // normally 0
+	dest.projectionMatrix[13] = 0;
 
-	dest->projectionMatrix[3] = 0;
-	dest->projectionMatrix[7] = 0;
-	dest->projectionMatrix[11] = -1;
-	dest->projectionMatrix[15] = 0;
+	dest.projectionMatrix[3] = 0;
+	dest.projectionMatrix[7] = 0;
+	dest.projectionMatrix[11] = -1;
+	dest.projectionMatrix[15] = 0;
 
 	// Now that we have all the data for the projection matrix we can also setup the view frustum.
 	if (computeFrustum)
@@ -639,61 +639,61 @@ R_SetupProjectionZ
 Sets the z-component transformation part in the projection matrix
 ===============
 */
-static void R_SetupProjectionZ(viewParms_t *dest)
+static void R_SetupProjectionZ(viewParms_t &dest)
 {
 	const float zNear = r_znear->value;
-	const float zFar = dest->zFar;
+	const float zFar = dest.zFar;
 	const float depth = zFar - zNear;
 
-	dest->projectionMatrix[2] = 0;
-	dest->projectionMatrix[6] = 0;
+	dest.projectionMatrix[2] = 0;
+	dest.projectionMatrix[6] = 0;
 #ifdef USE_REVERSED_DEPTH
-	dest->projectionMatrix[10] = zNear / depth;
-	dest->projectionMatrix[14] = zFar * zNear / depth;
+	dest.projectionMatrix[10] = zNear / depth;
+	dest.projectionMatrix[14] = zFar * zNear / depth;
 #else
-	dest->projectionMatrix[10] = -zFar / depth;
-	dest->projectionMatrix[14] = -zFar * zNear / depth;
+	dest.projectionMatrix[10] = -zFar / depth;
+	dest.projectionMatrix[14] = -zFar * zNear / depth;
 #endif
-	if (dest->portalView != PV_NONE)
+	if (dest.portalView != PV_NONE)
 	{
 		float plane[4];
 		float plane2[4];
 		vec4_t q, c;
 
 #ifdef USE_REVERSED_DEPTH
-		dest->projectionMatrix[10] = -zFar / depth;
-		dest->projectionMatrix[14] = -zFar * zNear / depth;
+		dest.projectionMatrix[10] = -zFar / depth;
+		dest.projectionMatrix[14] = -zFar * zNear / depth;
 #endif
 
 		// transform portal plane into camera space
-		plane[0] = dest->portalPlane.normal[0];
-		plane[1] = dest->portalPlane.normal[1];
-		plane[2] = dest->portalPlane.normal[2];
-		plane[3] = dest->portalPlane.dist;
+		plane[0] = dest.portalPlane.normal[0];
+		plane[1] = dest.portalPlane.normal[1];
+		plane[2] = dest.portalPlane.normal[2];
+		plane[3] = dest.portalPlane.dist;
 
-		plane2[0] = -DotProduct(dest->ort.axis[1], plane);
-		plane2[1] = DotProduct(dest->ort.axis[2], plane);
-		plane2[2] = -DotProduct(dest->ort.axis[0], plane);
-		plane2[3] = DotProduct(plane, dest->ort.origin) - plane[3];
+		plane2[0] = -DotProduct(dest.ort.axis[1], plane);
+		plane2[1] = DotProduct(dest.ort.axis[2], plane);
+		plane2[2] = -DotProduct(dest.ort.axis[0], plane);
+		plane2[3] = DotProduct(plane, dest.ort.origin) - plane[3];
 
 		// Lengyel, Eric. "Modifying the Projection Matrix to Perform Oblique Near-plane Clipping".
 		// Terathon Software 3D Graphics Library, 2004. http://www.terathon.com/code/oblique.html
-		q[0] = (SGN(plane2[0]) + dest->projectionMatrix[8]) / dest->projectionMatrix[0];
-		q[1] = (SGN(plane2[1]) + dest->projectionMatrix[9]) / dest->projectionMatrix[5];
+		q[0] = (SGN(plane2[0]) + dest.projectionMatrix[8]) / dest.projectionMatrix[0];
+		q[1] = (SGN(plane2[1]) + dest.projectionMatrix[9]) / dest.projectionMatrix[5];
 		q[2] = -1.0f;
-		q[3] = -dest->projectionMatrix[10] / dest->projectionMatrix[14];
+		q[3] = -dest.projectionMatrix[10] / dest.projectionMatrix[14];
 		VectorScale4(plane2, 2.0f / DotProduct4(plane2, q), c);
 
-		dest->projectionMatrix[2] = c[0];
-		dest->projectionMatrix[6] = c[1];
-		dest->projectionMatrix[10] = c[2];
-		dest->projectionMatrix[14] = c[3];
+		dest.projectionMatrix[2] = c[0];
+		dest.projectionMatrix[6] = c[1];
+		dest.projectionMatrix[10] = c[2];
+		dest.projectionMatrix[14] = c[3];
 
 #ifdef USE_REVERSED_DEPTH
-		dest->projectionMatrix[2] = -dest->projectionMatrix[2];
-		dest->projectionMatrix[6] = -dest->projectionMatrix[6];
-		dest->projectionMatrix[10] = -(dest->projectionMatrix[10] + 1.0);
-		dest->projectionMatrix[14] = -dest->projectionMatrix[14];
+		dest.projectionMatrix[2] = -dest.projectionMatrix[2];
+		dest.projectionMatrix[6] = -dest.projectionMatrix[6];
+		dest.projectionMatrix[10] = -(dest.projectionMatrix[10] + 1.0);
+		dest.projectionMatrix[14] = -dest.projectionMatrix[14];
 #endif
 	}
 }
@@ -810,7 +810,7 @@ static bool R_GetPortalOrientations(const drawSurf_t *drawSurf, int entityNum,
 		tr.currentEntity = &tr.refdef.entities[entityNum];
 
 		// get the orientation of the entity
-		R_RotateForEntity(*tr.currentEntity, &tr.viewParms, &tr.ort);
+		R_RotateForEntity(*tr.currentEntity, tr.viewParms, tr.ort);
 
 		// rotate the plane, but keep the non-rotated version for matching
 		// against the portalSurface entities
@@ -940,7 +940,7 @@ static bool IsMirror(const drawSurf_t *drawSurf, int entityNum)
 		tr.currentEntity = &tr.refdef.entities[entityNum];
 
 		// get the orientation of the entity
-		R_RotateForEntity(*tr.currentEntity, &tr.viewParms, &tr.ort);
+		R_RotateForEntity(*tr.currentEntity, tr.viewParms, tr.ort);
 
 		// rotate the plane, but keep the non-rotated version for matching
 		// against the portalSurface entities
@@ -1574,7 +1574,7 @@ static void R_SortDrawSurfs(drawSurf_t *drawSurfs, int numDrawSurfs)
 	if (numDrawSurfs < 1)
 	{
 		// we still need to add it for hyperspace cases
-		R_AddDrawSurfCmd(drawSurfs, numDrawSurfs);
+		R_AddDrawSurfCmd(*drawSurfs, numDrawSurfs);
 		return;
 	}
 
@@ -1632,7 +1632,7 @@ static void R_SortDrawSurfs(drawSurf_t *drawSurfs, int numDrawSurfs)
 	}
 #endif // USE_PMLIGHT
 
-	R_AddDrawSurfCmd(drawSurfs, numDrawSurfs);
+	R_AddDrawSurfCmd(*drawSurfs, numDrawSurfs);
 }
 
 /*
@@ -1694,7 +1694,7 @@ static void R_AddEntitySurfaces(void)
 
 		case RT_MODEL:
 			// we must set up parts of tr.ort for model culling
-			R_RotateForEntity(ent, &tr.viewParms, &tr.ort);
+			R_RotateForEntity(ent, tr.viewParms, tr.ort);
 
 			tr.currentModel = R_GetModelByHandle(ent.e.hModel);
 			if (!tr.currentModel)
@@ -1757,7 +1757,7 @@ static void R_GenerateDrawSurfs(void)
 	R_SetFarClip();
 
 	// we know the size of the clipping volume. Now set the rest of the projection matrix.
-	R_SetupProjectionZ(&tr.viewParms);
+	R_SetupProjectionZ(tr.viewParms);
 
 	R_AddEntitySurfaces();
 }
@@ -1791,7 +1791,7 @@ void R_RenderView(const viewParms_t *parms)
 	// set viewParms.world
 	R_RotateForViewer();
 
-	R_SetupProjection(&tr.viewParms, r_zproj->value, true);
+	R_SetupProjection(tr.viewParms, r_zproj->value, true);
 
 	R_GenerateDrawSurfs();
 

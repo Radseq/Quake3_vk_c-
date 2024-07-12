@@ -269,7 +269,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
 				// set up the transformation matrix
-				R_RotateForEntity(*backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
+				R_RotateForEntity(*backEnd.currentEntity, backEnd.viewParms, backEnd.ort);
 				// set up the dynamic lighting if needed
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
@@ -277,7 +277,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 #endif
 					if (backEnd.currentEntity->needDlights)
 					{
-						R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.ort);
+						R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
 					}
 #endif // USE_LEGACY_DLIGHTS
 				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
@@ -298,7 +298,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 #ifdef USE_PMLIGHT
 				if (!r_dlightMode->integer)
 #endif
-					R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.ort);
+					R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
 #endif // USE_LEGACY_DLIGHTS
 			}
 
@@ -364,7 +364,7 @@ static void RB_BeginDrawingLitSurfs(void)
 RB_RenderLitSurfList
 ==================
 */
-static void RB_RenderLitSurfList(dlight_t *dl)
+static void RB_RenderLitSurfList(dlight_t &dl)
 {
 	shader_t *shader, *oldShader;
 	int fogNum;
@@ -386,7 +386,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 
 	tess.dlightUpdateParams = true;
 
-	for (litSurf = dl->head; litSurf; litSurf = litSurf->next)
+	for (litSurf = dl.head; litSurf; litSurf = litSurf->next)
 	{
 		// if ( litSurf->sort == sort ) {
 		if (litSurf->sort == oldSort)
@@ -442,7 +442,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
 				// set up the transformation matrix
-				R_RotateForEntity(*backEnd.currentEntity, &backEnd.viewParms, &backEnd.ort);
+				R_RotateForEntity(*backEnd.currentEntity, backEnd.viewParms, backEnd.ort);
 
 				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
 				{
@@ -465,7 +465,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 			tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
 
 			// set up the dynamic lighting
-			R_TransformDlights(1, dl, &backEnd.ort);
+			R_TransformDlights(1, &dl, backEnd.ort);
 			tess.dlightUpdateParams = true;
 
 			tess.depthRange = depthRange ? DEPTH_RANGE_WEAPON : DEPTH_RANGE_NORMAL;
@@ -681,7 +681,7 @@ static void RB_LightingPass(void)
 		if (dl->head)
 		{
 			tess.light = dl;
-			RB_RenderLitSurfList(dl);
+			RB_RenderLitSurfList(*dl);
 		}
 	}
 
