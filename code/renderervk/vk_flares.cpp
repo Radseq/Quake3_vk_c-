@@ -480,7 +480,7 @@ static void RB_RenderFlare(flare_t *f)
 			return;
 	}
 
-	RB_BeginSurface(tr.flareShader, f->fogNum);
+	RB_BeginSurface(*tr.flareShader, f->fogNum);
 
 	c.rgba[0] = color[0] * fogFactors[0];
 	c.rgba[1] = color[1] * fogFactors[1];

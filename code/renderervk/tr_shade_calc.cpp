@@ -59,16 +59,16 @@ static float *TableForFunc(genFunc_t func)
 **
 ** Evaluates a given waveForm_t, referencing backEnd.refdef.time directly
 */
-static float EvalWaveForm(const waveForm_t *wf)
+static float EvalWaveForm(const waveForm_t &wf)
 {
 	float *table;
 
-	table = TableForFunc(wf->func);
+	table = TableForFunc(wf.func);
 
-	return WAVEVALUE(table, wf->base, wf->amplitude, wf->phase, wf->frequency);
+	return WAVEVALUE(table, wf.base, wf.amplitude, wf.phase, wf.frequency);
 }
 
-static float EvalWaveFormClamped(const waveForm_t *wf)
+static float EvalWaveFormClamped(const waveForm_t &wf)
 {
 	float glow = EvalWaveForm(wf);
 
@@ -88,7 +88,7 @@ static float EvalWaveFormClamped(const waveForm_t *wf)
 /*
 ** RB_CalcStretchTexCoords
 */
-void RB_CalcStretchTexCoords(const waveForm_t *wf, float *src, float *dst)
+void RB_CalcStretchTexCoords(const waveForm_t &wf, float *src, float *dst)
 {
 	float p;
 	texModInfo_t tmi;
@@ -103,7 +103,7 @@ void RB_CalcStretchTexCoords(const waveForm_t *wf, float *src, float *dst)
 	tmi.matrix[1][1] = p;
 	tmi.translate[1] = 0.5f - 0.5f * p;
 
-	RB_CalcTransformTexCoords(&tmi, src, dst);
+	RB_CalcTransformTexCoords(tmi, src, dst);
 }
 
 /*
@@ -119,7 +119,7 @@ DEFORMATIONS
 RB_CalcDeformVertexes
 ========================
 */
-static void RB_CalcDeformVertexes(deformStage_t *ds)
+static void RB_CalcDeformVertexes(deformStage_t &ds)
 {
 	int i;
 	vec3_t offset;
@@ -128,9 +128,9 @@ static void RB_CalcDeformVertexes(deformStage_t *ds)
 	float *normal = (float *)tess.normal;
 	float *table;
 
-	if (ds->deformationWave.frequency == 0)
+	if (ds.deformationWave.frequency == 0)
 	{
-		scale = EvalWaveForm(&ds->deformationWave);
+		scale = EvalWaveForm(ds.deformationWave);
 
 		for (i = 0; i < tess.numVertexes; i++, xyz += 4, normal += 4)
 		{
@@ -143,16 +143,16 @@ static void RB_CalcDeformVertexes(deformStage_t *ds)
 	}
 	else
 	{
-		table = TableForFunc(ds->deformationWave.func);
+		table = TableForFunc(ds.deformationWave.func);
 
 		for (i = 0; i < tess.numVertexes; i++, xyz += 4, normal += 4)
 		{
-			float off = (xyz[0] + xyz[1] + xyz[2]) * ds->deformationSpread;
+			float off = (xyz[0] + xyz[1] + xyz[2]) * ds.deformationSpread;
 
-			scale = WAVEVALUE(table, ds->deformationWave.base,
-							  ds->deformationWave.amplitude,
-							  ds->deformationWave.phase + off,
-							  ds->deformationWave.frequency);
+			scale = WAVEVALUE(table, ds.deformationWave.base,
+							  ds.deformationWave.amplitude,
+							  ds.deformationWave.phase + off,
+							  ds.deformationWave.frequency);
 
 			VectorScale(normal, scale, offset);
 
@@ -170,7 +170,7 @@ RB_CalcDeformNormals
 Wiggle the normals for wavy environment mapping
 =========================
 */
-static void RB_CalcDeformNormals(deformStage_t *ds)
+static void RB_CalcDeformNormals(deformStage_t &ds)
 {
 	int i;
 	float scale;
@@ -181,18 +181,18 @@ static void RB_CalcDeformNormals(deformStage_t *ds)
 	{
 		scale = 0.98f;
 		scale = NoiseGet4f(xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
-						   tess.shaderTime * ds->deformationWave.frequency);
-		normal[0] += ds->deformationWave.amplitude * scale;
+						   tess.shaderTime * ds.deformationWave.frequency);
+		normal[0] += ds.deformationWave.amplitude * scale;
 
 		scale = 0.98f;
 		scale = NoiseGet4f(100 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
-						   tess.shaderTime * ds->deformationWave.frequency);
-		normal[1] += ds->deformationWave.amplitude * scale;
+						   tess.shaderTime * ds.deformationWave.frequency);
+		normal[1] += ds.deformationWave.amplitude * scale;
 
 		scale = 0.98f;
 		scale = NoiseGet4f(200 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
-						   tess.shaderTime * ds->deformationWave.frequency);
-		normal[2] += ds->deformationWave.amplitude * scale;
+						   tess.shaderTime * ds.deformationWave.frequency);
+		normal[2] += ds.deformationWave.amplitude * scale;
 
 		VectorNormalizeFast(normal);
 	}
@@ -203,7 +203,7 @@ static void RB_CalcDeformNormals(deformStage_t *ds)
 RB_CalcBulgeVertexes
 ========================
 */
-static void RB_CalcBulgeVertexes(deformStage_t *ds)
+static void RB_CalcBulgeVertexes(deformStage_t &ds)
 {
 	int i;
 	const float *st = (const float *)tess.texCoords[0][0];
@@ -211,16 +211,16 @@ static void RB_CalcBulgeVertexes(deformStage_t *ds)
 	float *normal = (float *)tess.normal;
 	double now;
 
-	now = backEnd.refdef.floatTime * ds->bulgeSpeed;
+	now = backEnd.refdef.floatTime * ds.bulgeSpeed;
 
 	for (i = 0; i < tess.numVertexes; i++, xyz += 4, st += 2, normal += 4)
 	{
 		int64_t off;
 		float scale;
 
-		off = (float)(FUNCTABLE_SIZE / (M_PI * 2)) * (st[0] * ds->bulgeWidth + now);
+		off = (float)(FUNCTABLE_SIZE / (M_PI * 2)) * (st[0] * ds.bulgeWidth + now);
 
-		scale = tr.sinTable[off & FUNCTABLE_MASK] * ds->bulgeHeight;
+		scale = tr.sinTable[off & FUNCTABLE_MASK] * ds.bulgeHeight;
 
 		xyz[0] += normal[0] * scale;
 		xyz[1] += normal[1] * scale;
@@ -235,7 +235,7 @@ RB_CalcMoveVertexes
 A deformation that can move an entire surface along a wave path
 ======================
 */
-static void RB_CalcMoveVertexes(deformStage_t *ds)
+static void RB_CalcMoveVertexes(deformStage_t &ds)
 {
 	int i;
 	float *xyz;
@@ -243,14 +243,14 @@ static void RB_CalcMoveVertexes(deformStage_t *ds)
 	float scale;
 	vec3_t offset;
 
-	table = TableForFunc(ds->deformationWave.func);
+	table = TableForFunc(ds.deformationWave.func);
 
-	scale = WAVEVALUE(table, ds->deformationWave.base,
-					  ds->deformationWave.amplitude,
-					  ds->deformationWave.phase,
-					  ds->deformationWave.frequency);
+	scale = WAVEVALUE(table, ds.deformationWave.base,
+					  ds.deformationWave.amplitude,
+					  ds.deformationWave.phase,
+					  ds.deformationWave.frequency);
 
-	VectorScale(ds->moveVector, scale, offset);
+	VectorScale(ds.moveVector, scale, offset);
 
 	xyz = (float *)tess.xyz;
 	for (i = 0; i < tess.numVertexes; i++, xyz += 4)
@@ -573,13 +573,12 @@ RB_DeformTessGeometry
 void RB_DeformTessGeometry(void)
 {
 	int i;
-	deformStage_t *ds;
 
 	for (i = 0; i < tess.shader->numDeforms; i++)
 	{
-		ds = &tess.shader->deforms[i];
+		deformStage_t &ds = tess.shader->deforms[i];
 
-		switch (ds->deformation)
+		switch (ds.deformation)
 		{
 		case DEFORM_NONE:
 			break;
@@ -612,7 +611,7 @@ void RB_DeformTessGeometry(void)
 		case DEFORM_TEXT5:
 		case DEFORM_TEXT6:
 		case DEFORM_TEXT7:
-			DeformText(backEnd.refdef.text[ds->deformation - DEFORM_TEXT0]);
+			DeformText(backEnd.refdef.text[ds.deformation - DEFORM_TEXT0]);
 			break;
 		}
 	}
@@ -707,16 +706,16 @@ void RB_CalcAlphaFromOneMinusEntity(unsigned char *dstColors)
 /*
 ** RB_CalcWaveColor
 */
-void RB_CalcWaveColor(const waveForm_t *wf, unsigned char *dstColors)
+void RB_CalcWaveColor(const waveForm_t &wf, unsigned char *dstColors)
 {
 	int v, i;
 	float glow;
 	uint32_t *colors = (uint32_t *)dstColors;
 	color4ub_t color;
 
-	if (wf->func == GF_NOISE)
+	if (wf.func == GF_NOISE)
 	{
-		glow = wf->base + NoiseGet4f(0, 0, 0, (tess.shaderTime + wf->phase) * wf->frequency) * wf->amplitude;
+		glow = wf.base + NoiseGet4f(0, 0, 0, (tess.shaderTime + wf.phase) * wf.frequency) * wf.amplitude;
 	}
 	else
 	{
@@ -742,7 +741,7 @@ void RB_CalcWaveColor(const waveForm_t *wf, unsigned char *dstColors)
 /*
 ** RB_CalcWaveAlpha
 */
-void RB_CalcWaveAlpha(const waveForm_t *wf, unsigned char *dstColors)
+void RB_CalcWaveAlpha(const waveForm_t &wf, unsigned char *dstColors)
 {
 	int i;
 	int v;
@@ -943,12 +942,12 @@ RB_CalcFogProgramParms
 const fogProgramParms_t *RB_CalcFogProgramParms(void)
 {
 	static fogProgramParms_t parm;
-	const fog_t *fog;
+	//const fog_t *fog;
 	vec3_t local;
 
 	Com_Memset(parm.fogDepthVector, 0, sizeof(parm.fogDepthVector));
 
-	fog = tr.world->fogs + tess.fogNum;
+	fog_t &fog = *(tr.world->fogs + tess.fogNum);
 
 	// all fogging distance is based on world Z units
 	VectorSubtract(backEnd.ort.origin, backEnd.viewParms.ort.origin, local);
@@ -958,21 +957,21 @@ const fogProgramParms_t *RB_CalcFogProgramParms(void)
 	parm.fogDistanceVector[3] = DotProduct(local, backEnd.viewParms.ort.axis[0]);
 
 	// scale the fog vectors based on the fog's thickness
-	parm.fogDistanceVector[0] *= fog->tcScale;
-	parm.fogDistanceVector[1] *= fog->tcScale;
-	parm.fogDistanceVector[2] *= fog->tcScale;
-	parm.fogDistanceVector[3] *= fog->tcScale;
+	parm.fogDistanceVector[0] *= fog.tcScale;
+	parm.fogDistanceVector[1] *= fog.tcScale;
+	parm.fogDistanceVector[2] *= fog.tcScale;
+	parm.fogDistanceVector[3] *= fog.tcScale;
 
 	// rotate the gradient vector for this orientation
-	if (fog->hasSurface)
+	if (fog.hasSurface)
 	{
-		parm.fogDepthVector[0] = fog->surface[0] * backEnd.ort.axis[0][0] +
-								 fog->surface[1] * backEnd.ort.axis[0][1] + fog->surface[2] * backEnd.ort.axis[0][2];
-		parm.fogDepthVector[1] = fog->surface[0] * backEnd.ort.axis[1][0] +
-								 fog->surface[1] * backEnd.ort.axis[1][1] + fog->surface[2] * backEnd.ort.axis[1][2];
-		parm.fogDepthVector[2] = fog->surface[0] * backEnd.ort.axis[2][0] +
-								 fog->surface[1] * backEnd.ort.axis[2][1] + fog->surface[2] * backEnd.ort.axis[2][2];
-		parm.fogDepthVector[3] = -fog->surface[3] + DotProduct(backEnd.ort.origin, fog->surface);
+		parm.fogDepthVector[0] = fog.surface[0] * backEnd.ort.axis[0][0] +
+								 fog.surface[1] * backEnd.ort.axis[0][1] + fog.surface[2] * backEnd.ort.axis[0][2];
+		parm.fogDepthVector[1] = fog.surface[0] * backEnd.ort.axis[1][0] +
+								 fog.surface[1] * backEnd.ort.axis[1][1] + fog.surface[2] * backEnd.ort.axis[1][2];
+		parm.fogDepthVector[2] = fog.surface[0] * backEnd.ort.axis[2][0] +
+								 fog.surface[1] * backEnd.ort.axis[2][1] + fog.surface[2] * backEnd.ort.axis[2][2];
+		parm.fogDepthVector[3] = -fog.surface[3] + DotProduct(backEnd.ort.origin, fog.surface);
 
 		parm.eyeT = DotProduct(backEnd.ort.viewOrigin, parm.fogDepthVector) + parm.fogDepthVector[3];
 	}
@@ -994,7 +993,7 @@ const fogProgramParms_t *RB_CalcFogProgramParms(void)
 	}
 
 	parm.fogDistanceVector[3] += 1.0 / 512;
-	parm.fogColor = fog->color;
+	parm.fogColor = fog.color;
 
 	return &parm;
 }
@@ -1116,17 +1115,17 @@ void RB_CalcEnvironmentTexCoords(float *st)
 /*
 ** RB_CalcTurbulentTexCoords
 */
-void RB_CalcTurbulentTexCoords(const waveForm_t *wf, float *src, float *dst)
+void RB_CalcTurbulentTexCoords(const waveForm_t &wf, float *src, float *dst)
 {
 	int i;
 	double now; // -EC- set to double
 
-	now = (wf->phase + tess.shaderTime * wf->frequency);
+	now = (wf.phase + tess.shaderTime * wf.frequency);
 
 	for (i = 0; i < tess.numVertexes; i++, dst += 2, src += 2)
 	{
-		dst[0] = src[0] + tr.sinTable[((int64_t)(((tess.xyz[i][0] + tess.xyz[i][2]) * 1.0 / 128 * 0.125 + now) * FUNCTABLE_SIZE)) & (FUNCTABLE_MASK)] * wf->amplitude;
-		dst[1] = src[1] + tr.sinTable[((int64_t)((tess.xyz[i][1] * 1.0 / 128 * 0.125 + now) * FUNCTABLE_SIZE)) & (FUNCTABLE_MASK)] * wf->amplitude;
+		dst[0] = src[0] + tr.sinTable[((int64_t)(((tess.xyz[i][0] + tess.xyz[i][2]) * 1.0 / 128 * 0.125 + now) * FUNCTABLE_SIZE)) & (FUNCTABLE_MASK)] * wf.amplitude;
+		dst[1] = src[1] + tr.sinTable[((int64_t)((tess.xyz[i][1] * 1.0 / 128 * 0.125 + now) * FUNCTABLE_SIZE)) & (FUNCTABLE_MASK)] * wf.amplitude;
 	}
 }
 
@@ -1173,7 +1172,7 @@ void RB_CalcScrollTexCoords(const float scrollSpeed[2], float *src, float *dst)
 /*
 ** RB_CalcTransformTexCoords
 */
-void RB_CalcTransformTexCoords(const texModInfo_t *tmi, float *src, float *dst)
+void RB_CalcTransformTexCoords(const texModInfo_t &tmi, float *src, float *dst)
 {
 	int i;
 
@@ -1182,8 +1181,8 @@ void RB_CalcTransformTexCoords(const texModInfo_t *tmi, float *src, float *dst)
 		const float s = src[0];
 		const float t = src[1];
 
-		dst[0] = s * tmi->matrix[0][0] + t * tmi->matrix[1][0] + tmi->translate[0];
-		dst[1] = s * tmi->matrix[0][1] + t * tmi->matrix[1][1] + tmi->translate[1];
+		dst[0] = s * tmi.matrix[0][0] + t * tmi.matrix[1][0] + tmi.translate[0];
+		dst[1] = s * tmi.matrix[0][1] + t * tmi.matrix[1][1] + tmi.translate[1];
 	}
 }
 
@@ -1212,7 +1211,7 @@ void RB_CalcRotateTexCoords(float degsPerSecond, float *src, float *dst)
 	tmi.matrix[1][1] = cosValue;
 	tmi.translate[1] = 0.5 - 0.5 * sinValue - 0.5 * cosValue;
 
-	RB_CalcTransformTexCoords(&tmi, src, dst);
+	RB_CalcTransformTexCoords(tmi, src, dst);
 }
 
 /*

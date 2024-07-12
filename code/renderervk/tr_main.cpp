@@ -1007,7 +1007,7 @@ static bool SurfIsOffscreen(const drawSurf_t *drawSurf, bool *isMirror)
 	R_RotateForViewer();
 
 	R_DecomposeSort(drawSurf->sort, &entityNum, &shader, &fogNum, &dlighted);
-	RB_BeginSurface(shader, fogNum);
+	RB_BeginSurface(*shader, fogNum);
 #ifdef USE_VBO
 	tess.allowVBO = false;
 #endif

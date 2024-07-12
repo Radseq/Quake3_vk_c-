@@ -70,7 +70,7 @@ void RB_CheckOverflow(int verts, int indexes)
 		ri.Error(ERR_DROP, "RB_CheckOverflow: indices > MAX (%d > %d)", indexes, SHADER_MAX_INDEXES);
 	}
 
-	RB_BeginSurface(tess.shader, tess.fogNum);
+	RB_BeginSurface(*tess.shader, tess.fogNum);
 }
 
 /*
@@ -334,7 +334,7 @@ static void RB_SurfaceTriangles(const srfTriangles_t *srf)
 		if (tess.vboIndex == 0)
 		{
 			RB_EndSurface();
-			RB_BeginSurface(tess.shader, tess.fogNum);
+			RB_BeginSurface(*tess.shader, tess.fogNum);
 			// set some dummy parameters for RB_EndSurface
 			tess.numIndexes = 1;
 			tess.numVertexes = 0;
@@ -914,7 +914,7 @@ static void RB_SurfaceFace(const srfSurfaceFace_t *surf)
 		if (tess.vboIndex == 0)
 		{
 			RB_EndSurface();
-			RB_BeginSurface(tess.shader, tess.fogNum);
+			RB_BeginSurface(*tess.shader, tess.fogNum);
 			// set some dummy parameters for RB_EndSurface
 			tess.numIndexes = 1;
 			tess.numVertexes = 0;
@@ -1142,7 +1142,7 @@ static void RB_SurfaceGrid(srfGridMesh_t *cv)
 		if (tess.vboIndex == 0)
 		{
 			RB_EndSurface();
-			RB_BeginSurface(tess.shader, tess.fogNum);
+			RB_BeginSurface(*tess.shader, tess.fogNum);
 			// set some dummy parameters for RB_EndSurface
 			tess.numIndexes = 1;
 			tess.numVertexes = 0;
@@ -1225,7 +1225,7 @@ static void RB_SurfaceGrid(srfGridMesh_t *cv)
 #ifdef USE_VBO
 					if (cv->vboItemIndex)
 					{
-						VBO_PushData(cv->vboItemIndex, &tess);
+						VBO_PushData(cv->vboItemIndex, tess);
 						tess.numIndexes = 0;
 						tess.numVertexes = 0;
 					}
@@ -1236,7 +1236,7 @@ static void RB_SurfaceGrid(srfGridMesh_t *cv)
 				else
 				{
 					RB_EndSurface();
-					RB_BeginSurface(tess.shader, tess.fogNum);
+					RB_BeginSurface(*tess.shader, tess.fogNum);
 				}
 			}
 			else

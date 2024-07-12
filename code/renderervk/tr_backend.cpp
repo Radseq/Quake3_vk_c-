@@ -105,7 +105,7 @@ static void RB_Hyperspace(void)
 	if (tess.shader != tr.whiteShader)
 	{
 		RB_EndSurface();
-		RB_BeginSurface(tr.whiteShader, 0);
+		RB_BeginSurface(*tr.whiteShader, 0);
 	}
 
 #ifdef USE_VBO
@@ -247,7 +247,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 			}
 			oldShaderSort = shader->sort;
 #endif
-			RB_BeginSurface(shader, fogNum);
+			RB_BeginSurface(*shader, fogNum);
 			oldShader = shader;
 		}
 
@@ -419,7 +419,7 @@ static void RB_RenderLitSurfList(dlight_t *dl)
 			{
 				RB_EndSurface();
 			}
-			RB_BeginSurface(shader, fogNum);
+			RB_BeginSurface(*shader, fogNum);
 			oldShader = shader;
 		}
 
@@ -640,7 +640,7 @@ static const void *RB_StretchPic(const void *data)
 			RB_EndSurface();
 		}
 		backEnd.currentEntity = &backEnd.entity2D;
-		RB_BeginSurface(shader, 0);
+		RB_BeginSurface(*shader, 0);
 	}
 
 #ifdef USE_VBO

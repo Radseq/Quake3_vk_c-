@@ -56,13 +56,13 @@ because a surface may be forced to perform a RB_End due
 to overflow.
 ==============
 */
-void RB_BeginSurface(shader_t *shader, int fogNum)
+void RB_BeginSurface(shader_t &shader, int fogNum)
 {
 
 	shader_t *state;
 
 #ifdef USE_VBO
-	if (shader->isStaticShader && !shader->remappedShader)
+	if (shader.isStaticShader && !shader.remappedShader)
 	{
 		tess.allowVBO = true;
 	}
@@ -72,13 +72,13 @@ void RB_BeginSurface(shader_t *shader, int fogNum)
 	}
 #endif
 
-	if (shader->remappedShader)
+	if (shader.remappedShader)
 	{
-		state = shader->remappedShader;
+		state = shader.remappedShader;
 	}
 	else
 	{
-		state = shader;
+		state = &shader;
 	}
 
 #ifdef USE_PMLIGHT
@@ -175,7 +175,7 @@ void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 			break;
 
 		case TMOD_TURBULENT:
-			RB_CalcTurbulentTexCoords(&bundle.texMods[tm].wave, (float *)src, (float *)dst);
+			RB_CalcTurbulentTexCoords(bundle.texMods[tm].wave, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
@@ -222,12 +222,12 @@ void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 			break;
 
 		case TMOD_STRETCH:
-			RB_CalcStretchTexCoords(&bundle.texMods[tm].wave, (float *)src, (float *)dst);
+			RB_CalcStretchTexCoords(bundle.texMods[tm].wave, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
 		case TMOD_TRANSFORM:
-			RB_CalcTransformTexCoords(&bundle.texMods[tm], (float *)src, (float *)dst);
+			RB_CalcTransformTexCoords(bundle.texMods[tm], (float *)src, (float *)dst);
 			src = dst;
 			break;
 
@@ -350,7 +350,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 	}
 	break;
 	case CGEN_WAVEFORM:
-		RB_CalcWaveColor(&pStage.bundle[b].rgbWave, dest->rgba);
+		RB_CalcWaveColor(pStage.bundle[b].rgbWave, dest->rgba);
 		break;
 	case CGEN_ENTITY:
 		RB_CalcColorFromEntity(dest->rgba);
@@ -384,7 +384,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 		}
 		break;
 	case AGEN_WAVEFORM:
-		RB_CalcWaveAlpha(&pStage.bundle[b].alphaWave, dest->rgba);
+		RB_CalcWaveAlpha(pStage.bundle[b].alphaWave, dest->rgba);
 		break;
 	case AGEN_LIGHTING_SPECULAR:
 		RB_CalcSpecularAlpha(dest->rgba);
@@ -473,19 +473,19 @@ uint32_t VK_PushUniform(const vkUniform_t &uniform)
 	return offset;
 }
 
-static void R_BindAnimatedImage(const textureBundle_t *bundle)
+static void R_BindAnimatedImage(const textureBundle_t &bundle)
 {
 	int64_t index;
 	double v;
 
-	if (bundle->isVideoMap)
+	if (bundle.isVideoMap)
 	{
-		ri.CIN_RunCinematic(bundle->videoMapHandle);
-		ri.CIN_UploadCinematic(bundle->videoMapHandle);
+		ri.CIN_RunCinematic(bundle.videoMapHandle);
+		ri.CIN_UploadCinematic(bundle.videoMapHandle);
 		return;
 	}
 
-	if (bundle->isScreenMap /*&& backEnd.viewParms.frameSceneNum == 1*/)
+	if (bundle.isScreenMap /*&& backEnd.viewParms.frameSceneNum == 1*/)
 	{
 		if (!backEnd.screenMapDone)
 			Bind(tr.blackImage);
@@ -494,28 +494,28 @@ static void R_BindAnimatedImage(const textureBundle_t *bundle)
 		return;
 	}
 
-	if (bundle->numImageAnimations <= 1)
+	if (bundle.numImageAnimations <= 1)
 	{
-		Bind(bundle->image[0]);
+		Bind(bundle.image[0]);
 		return;
 	}
 
 	// it is necessary to do this messy calc to make sure animations line up
 	// exactly with waveforms of the same frequency
-	// v = tess.shaderTime * bundle->imageAnimationSpeed * FUNCTABLE_SIZE;
+	// v = tess.shaderTime * bundle.imageAnimationSpeed * FUNCTABLE_SIZE;
 	// index = v;
 	// index >>= FUNCTABLE_SIZE2;
 
-	v = tess.shaderTime * bundle->imageAnimationSpeed; // fix for frameloss bug -EC-
+	v = tess.shaderTime * bundle.imageAnimationSpeed; // fix for frameloss bug -EC-
 	index = v;
 
 	if (index < 0)
 	{
 		index = 0; // may happen with shader time offsets
 	}
-	index %= bundle->numImageAnimations;
+	index %= bundle.numImageAnimations;
 
-	Bind(bundle->image[index]);
+	Bind(bundle.image[index]);
 }
 
 #ifdef USE_PMLIGHT
@@ -607,7 +607,7 @@ void VK_LightingPass(void)
 		pipeline = vk.dlight_pipelines_x[cull][tess.shader->polygonOffset][fog_stage][abs_light];
 
 	SelectTexture(0);
-	R_BindAnimatedImage(&pStage->bundle[tess.shader->lightingBundle]);
+	R_BindAnimatedImage(pStage->bundle[tess.shader->lightingBundle]);
 
 #ifdef USE_VBO
 	if (tess.vboIndex == 0)
@@ -660,36 +660,36 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 
 	for (stage = 0; stage < MAX_SHADER_STAGES; stage++)
 	{
-		const shaderStage_t &pStage = *tess.xstages[stage];
-		if (!&pStage)
+		const shaderStage_t *pStage = tess.xstages[stage];
+		if (!pStage)
 			break;
 
 #ifdef USE_VBO
 		tess.vboStage = stage;
 #endif
 
-		tess_flags |= pStage.tessFlags;
+		tess_flags |= pStage->tessFlags;
 
-		for (i = 0; i < pStage.numTexBundles; i++)
+		for (i = 0; i < pStage->numTexBundles; i++)
 		{
-			if (pStage.bundle[i].image[0] != NULL)
+			if (pStage->bundle[i].image[0] != NULL)
 			{
 				SelectTexture(i);
-				R_BindAnimatedImage(&pStage.bundle[i]);
+				R_BindAnimatedImage(pStage->bundle[i]);
 				if (tess_flags & (TESS_ST0 << i))
 				{
-					R_ComputeTexCoords(i, pStage.bundle[i]);
+					R_ComputeTexCoords(i, pStage->bundle[i]);
 				}
 				if (tess_flags & (TESS_RGBA0 << i))
 				{
-					R_ComputeColors(i, tess.svars.colors[i], pStage);
+					R_ComputeColors(i, tess.svars.colors[i], *pStage);
 				}
 				if (tess_flags & (TESS_ENT0 << i) && backEnd.currentEntity)
 				{
 					uniform.ent.color[i][0] = backEnd.currentEntity->e.shader.rgba[0] / 255.0;
 					uniform.ent.color[i][1] = backEnd.currentEntity->e.shader.rgba[1] / 255.0;
 					uniform.ent.color[i][2] = backEnd.currentEntity->e.shader.rgba[2] / 255.0;
-					uniform.ent.color[i][3] = pStage.bundle[i].alphaGen == AGEN_IDENTITY ? 1.0 : (backEnd.currentEntity->e.shader.rgba[3] / 255.0);
+					uniform.ent.color[i][3] = pStage->bundle[i].alphaGen == AGEN_IDENTITY ? 1.0 : (backEnd.currentEntity->e.shader.rgba[3] / 255.0);
 					pushUniform = true;
 				}
 			}
@@ -703,7 +703,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 
 		SelectTexture(0);
 
-		if (r_lightmap->integer && pStage.bundle[1].lightmap != LIGHTMAP_INDEX_NONE)
+		if (r_lightmap->integer && pStage->bundle[1].lightmap != LIGHTMAP_INDEX_NONE)
 		{
 			// SelectTexture( 0 );
 			Bind(tr.whiteImage); // replace diffuse texture with a white one thus effectively render only lightmap
@@ -711,29 +711,29 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 
 		if (backEnd.viewParms.portalView == PV_MIRROR)
 		{
-			pipeline = pStage.vk_mirror_pipeline[fog_stage];
+			pipeline = pStage->vk_mirror_pipeline[fog_stage];
 		}
 		else
 		{
-			pipeline = pStage.vk_pipeline[fog_stage];
+			pipeline = pStage->vk_pipeline[fog_stage];
 		}
 
 		vk_bind_pipeline(pipeline);
 		vk_bind_geometry(tess_flags);
 		vk_draw_geometry(tess.depthRange, true);
 
-		if (pStage.depthFragment)
+		if (pStage->depthFragment)
 		{
 			if (backEnd.viewParms.portalView == PV_MIRROR)
-				pipeline = pStage.vk_mirror_pipeline_df;
+				pipeline = pStage->vk_mirror_pipeline_df;
 			else
-				pipeline = pStage.vk_pipeline_df;
+				pipeline = pStage->vk_pipeline_df;
 			vk_bind_pipeline(pipeline);
 			vk_draw_geometry(tess.depthRange, true);
 		}
 
 		// allow skipping out to show just lightmaps during development
-		if (r_lightmap->integer && (pStage.bundle[0].lightmap != LIGHTMAP_INDEX_NONE || pStage.bundle[1].lightmap != LIGHTMAP_INDEX_NONE))
+		if (r_lightmap->integer && (pStage->bundle[0].lightmap != LIGHTMAP_INDEX_NONE || pStage->bundle[1].lightmap != LIGHTMAP_INDEX_NONE))
 			break;
 
 		tess_flags = 0;
