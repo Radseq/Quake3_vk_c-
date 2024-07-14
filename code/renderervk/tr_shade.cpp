@@ -519,31 +519,31 @@ static void R_BindAnimatedImage(const textureBundle_t &bundle)
 }
 
 #ifdef USE_PMLIGHT
-static void VK_SetLightParams(vkUniform_t *uniform, const dlight_t *dl)
+static void VK_SetLightParams(vkUniform_t &uniform, const dlight_t *dl)
 {
 	float radius;
 	if (!glConfig.deviceSupportsGamma && !vk.fboActive)
-		VectorScale(dl->color, 2 * powf(r_intensity->value, r_gamma->value), uniform->light.color);
+		VectorScale(dl->color, 2 * powf(r_intensity->value, r_gamma->value), uniform.light.color);
 	else
-		VectorCopy(dl->color, uniform->light.color);
+		VectorCopy(dl->color, uniform.light.color);
 
 	radius = dl->radius;
 
 	// vertex data
-	VectorCopy(backEnd.ort.viewOrigin, uniform->eyePos);
-	uniform->eyePos[3] = 0.0f;
-	VectorCopy(dl->transformed, uniform->light.pos);
-	uniform->light.pos[3] = 0.0f;
+	VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
+	uniform.eyePos[3] = 0.0f;
+	VectorCopy(dl->transformed, uniform.light.pos);
+	uniform.light.pos[3] = 0.0f;
 
 	// fragment data
-	uniform->light.color[3] = 1.0f / Square(radius);
+	uniform.light.color[3] = 1.0f / Square(radius);
 
 	if (dl->linear)
 	{
 		vec4_t ab;
 		VectorSubtract(dl->transformed2, dl->transformed, ab);
 		ab[3] = 1.0f / DotProduct(ab, ab);
-		Vector4Copy(ab, uniform->light.vector);
+		Vector4Copy(ab, uniform.light.vector);
 	}
 }
 #endif
@@ -570,7 +570,7 @@ void VK_LightingPass(void)
 		// fog parameters
 		VK_SetFogParams(uniform, &fog_stage);
 		// light parameters
-		VK_SetLightParams(&uniform, tess.light);
+		VK_SetLightParams(uniform, tess.light);
 
 		uniform_offset = VK_PushUniform(uniform);
 
@@ -623,7 +623,7 @@ void VK_LightingPass(void)
 }
 #endif // USE_PMLIGHT
 
-static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogCollapse)
+static void RB_IterateStagesGeneric(const shaderCommands_t &input, bool fogCollapse)
 {
 	int tess_flags;
 	int stage;
@@ -634,7 +634,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t *input, bool fogColla
 
 	vk_bind_index();
 
-	tess_flags = input->shader->tessFlags;
+	tess_flags = input.shader->tessFlags;
 
 	pushUniform = false;
 
@@ -991,7 +991,7 @@ void RB_StageIteratorGeneric(void)
 #endif
 
 	// call shader function
-	RB_IterateStagesGeneric(&tess, fogCollapse);
+	RB_IterateStagesGeneric(tess, fogCollapse);
 
 	// now do any dynamic lighting needed
 #ifdef USE_LEGACY_DLIGHTS
@@ -1021,7 +1021,7 @@ DrawTris
 Draws triangle outlines for debugging
 ================
 */
-static void DrawTris(const shaderCommands_t *input)
+static void DrawTris(const shaderCommands_t &input)
 {
 	uint32_t pipeline;
 
@@ -1031,7 +1031,7 @@ static void DrawTris(const shaderCommands_t *input)
 	if (tess.numIndexes == 0)
 		return;
 
-	if (r_fastsky->integer && input->shader->isSky)
+	if (r_fastsky->integer && input.shader->isSky)
 		return;
 
 #ifdef USE_VBO
@@ -1066,7 +1066,7 @@ DrawNormals
 Draws vertex normals for debugging
 ================
 */
-static void DrawNormals(const shaderCommands_t *input)
+static void DrawNormals(const shaderCommands_t &input)
 {
 	int i;
 #ifdef USE_VBO
@@ -1095,22 +1095,20 @@ static void DrawNormals(const shaderCommands_t *input)
 
 void RB_EndSurface(void)
 {
-	const shaderCommands_t *input;
+	const shaderCommands_t &input = tess;
 
-	input = &tess;
-
-	if (input->numIndexes == 0)
+	if (input.numIndexes == 0)
 	{
 		// VBO_UnBind();
 		return;
 	}
 
-	if (input->numIndexes > SHADER_MAX_INDEXES)
+	if (input.numIndexes > SHADER_MAX_INDEXES)
 	{
 		ri.Error(ERR_DROP, "RB_EndSurface() - SHADER_MAX_INDEXES hit");
 	}
 
-	if (input->numVertexes > SHADER_MAX_VERTEXES)
+	if (input.numVertexes > SHADER_MAX_VERTEXES)
 	{
 		ri.Error(ERR_DROP, "RB_EndSurface() - SHADER_MAX_VERTEXES hit");
 	}

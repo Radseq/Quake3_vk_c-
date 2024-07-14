@@ -775,6 +775,7 @@ Q3RENDVOBJ = \
   $(B)/rendv/puff.o \
   $(B)/rendv/q_shared.o \
   $(B)/rendv/q_math.o \
+  $(B)/rendv/string_operations.o \
 
 # ifneq ($(USE_RENDERER_DLOPEN), 0)
 #   Q3RENDVOBJ += \

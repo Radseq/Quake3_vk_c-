@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_image.hpp"
 #include "tr_noise.hpp"
 #include "q_math.hpp"
+#include <string_view>
 
 // -EC-: avoid using ri.ftol
 #define WAVEVALUE(table, base, amplitude, phase, freq) ((base) + table[(int64_t)((((phase) + tess.shaderTime * (freq)) * FUNCTABLE_SIZE)) & FUNCTABLE_MASK] * (amplitude))
@@ -266,7 +267,7 @@ DeformText
 Change a polygon into a bunch of text polygons
 =============
 */
-static void DeformText(const char *text)
+static void DeformText(std::string_view text)
 {
 	int i;
 	vec3_t origin, width, height;
@@ -307,7 +308,7 @@ static void DeformText(const char *text)
 	VectorScale(width, height[2] * -0.75f, width);
 
 	// determine the starting position
-	len = strlen(text);
+	len = text.size();
 	VectorMA(origin, (len - 1), width, origin);
 
 	// clear the shader indexes
@@ -319,7 +320,7 @@ static void DeformText(const char *text)
 	// draw each character
 	for (i = 0; i < len; i++)
 	{
-		ch = text[i];
+		ch = static_cast<int>(text[i]);
 		ch &= 255;
 
 		if (ch != ' ')
@@ -611,7 +612,7 @@ void RB_DeformTessGeometry(void)
 		case DEFORM_TEXT5:
 		case DEFORM_TEXT6:
 		case DEFORM_TEXT7:
-			DeformText(backEnd.refdef.text[ds.deformation - DEFORM_TEXT0]);
+			DeformText(std::string_view(backEnd.refdef.text[ds.deformation - DEFORM_TEXT0]));
 			break;
 		}
 	}
