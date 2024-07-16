@@ -175,7 +175,7 @@ std::string_view COM_ParseExt_cpp(std::string_view &data, bool allowLineBreaks)
                     data.remove_prefix(1);
                 }
                 com_token[len] = '\0';
-                std::string_view(com_token);
+                return std::string_view(com_token);
             }
             if (c == '\n')
             {

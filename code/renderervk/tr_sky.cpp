@@ -72,7 +72,7 @@ static void AddSkyPolygon(int nump, vec3_t vecs)
 	int axis;
 	float *vp;
 	// s = [0]/[2], t = [1]/[2]
-	static const int vec_to_st[6][3] =
+	static constexpr int vec_to_st[6][3] =
 		{
 			{-2, 3, 1},
 			{2, 3, -1},
@@ -267,18 +267,18 @@ static void ClearSkyBox(void)
 RB_ClipSkyPolygons
 ================
 */
-static void RB_ClipSkyPolygons(const shaderCommands_t *input)
+static void RB_ClipSkyPolygons(const shaderCommands_t &input)
 {
 	vec3_t p[5]; // need one extra point for clipping
 	int i, j;
 
 	ClearSkyBox();
 
-	for (i = 0; i < input->numIndexes; i += 3)
+	for (i = 0; i < input.numIndexes; i += 3)
 	{
 		for (j = 0; j < 3; j++)
 		{
-			VectorSubtract(input->xyz[input->indexes[i + j]],
+			VectorSubtract(input.xyz[input.indexes[i + j]],
 						   backEnd.viewParms.ort.origin,
 						   p[j]);
 		}
@@ -302,7 +302,7 @@ CLOUD VERTEX GENERATION
 static void MakeSkyVec(float s, float t, int axis, vec3_t outXYZ)
 {
 	// 1 = s, 2 = t, 3 = 2048
-	static const int st_to_vec[6][3] =
+	static constexpr int st_to_vec[6][3] =
 		{
 			{3, -1, 2},
 			{-3, 1, 2},
@@ -472,7 +472,7 @@ static void DrawSkySide(image_t *image, const int mins[2], const int maxs[2])
 	}
 }
 
-static void DrawSkyBox(const shader_t *shader)
+static void DrawSkyBox(const shader_t &shader)
 {
 	int i;
 	sky_min = 0;
@@ -530,7 +530,7 @@ static void DrawSkyBox(const shader_t *shader)
 			}
 		}
 
-		DrawSkySide(shader->sky.outerbox[sky_texorder[i]], sky_mins_subd, sky_maxs_subd);
+		DrawSkySide(shader.sky.outerbox[sky_texorder[i]], sky_mins_subd, sky_maxs_subd);
 	}
 }
 
@@ -627,11 +627,9 @@ static void FillCloudBox(void)
 /*
 ** R_BuildCloudData
 */
-static void R_BuildCloudData(const shaderCommands_t *input)
+static void R_BuildCloudData(const shaderCommands_t &input)
 {
-	const shader_t *shader;
-
-	shader = input->shader;
+	const shader_t &shader = *input.shader;
 
 	sky_min = 1.0 / 256.0f; // FIXME: not correct?
 	sky_max = 255.0 / 256.0f;
@@ -640,7 +638,7 @@ static void R_BuildCloudData(const shaderCommands_t *input)
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
 
-	if (shader->sky.cloudHeight)
+	if (shader.sky.cloudHeight)
 	{
 		if (tess.xstages[0])
 		{
@@ -824,7 +822,7 @@ void RB_StageIteratorSky(void)
 	// go through all the polygons and project them onto
 	// the sky box to see which blocks on each side need
 	// to be drawn
-	RB_ClipSkyPolygons(&tess);
+	RB_ClipSkyPolygons(tess);
 
 	// r_showsky will let all the sky blocks be drawn in
 	// front of everything to allow developers to see how
@@ -842,12 +840,12 @@ void RB_StageIteratorSky(void)
 	// draw the outer skybox
 	if (tess.shader->sky.outerbox[0] && tess.shader->sky.outerbox[0] != tr.defaultImage)
 	{
-		DrawSkyBox(tess.shader);
+		DrawSkyBox(*tess.shader);
 	}
 
 	// generate the vertexes for all the clouds, which will be drawn
 	// by the generic shader routine
-	R_BuildCloudData(&tess);
+	R_BuildCloudData(tess);
 
 	// draw the inner skybox
 	if (tess.numVertexes)
