@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "q_math.hpp"
 #include "utils.hpp"
 
+
 #define LL(x) x = LittleLong(x)
 
 // 3x4 identity matrix
@@ -772,7 +773,7 @@ static void Matrix34Invert(const float *inMat, float *outMat)
 	outMat[11] = -DotProduct(outMat + 8, trans);
 }
 
-bool R_LoadIQM(model_t &mod, void *buffer, int filesize, const char *mod_name)
+bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_name)
 {
 	iqmVertexArray_t *vertexarray;
 	iqmTriangle_t *triangle;
@@ -814,7 +815,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, const char *mod_name)
 	if (header.version != IQM_VERSION)
 	{
 		ri.Printf(PRINT_WARNING, "R_LoadIQM: %s is a unsupported IQM version (%d), only version %d is supported.\n",
-				  mod_name, header.version, IQM_VERSION);
+				  mod_name.data(), header.version, IQM_VERSION);
 		return false;
 	}
 
@@ -854,7 +855,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, const char *mod_name)
 	if (header.num_joints > IQM_MAX_JOINTS)
 	{
 		ri.Printf(PRINT_WARNING, "R_LoadIQM: %s has more than %d joints (%d).\n",
-				  mod_name, IQM_MAX_JOINTS, header.num_joints);
+				  mod_name.data(), IQM_MAX_JOINTS, header.num_joints);
 		return false;
 	}
 
@@ -989,7 +990,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, const char *mod_name)
 		// check for required vertex arrays
 		if (vertexArrayFormat[IQM_POSITION] == -1 || vertexArrayFormat[IQM_NORMAL] == -1 || vertexArrayFormat[IQM_TEXCOORD] == -1)
 		{
-			ri.Printf(PRINT_WARNING, "R_LoadIQM: %s is missing IQM_POSITION, IQM_NORMAL, and/or IQM_TEXCOORD array.\n", mod_name);
+			ri.Printf(PRINT_WARNING, "R_LoadIQM: %s is missing IQM_POSITION, IQM_NORMAL, and/or IQM_TEXCOORD array.\n", mod_name.data());
 			return false;
 		}
 
@@ -997,7 +998,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, const char *mod_name)
 		{
 			if (vertexArrayFormat[IQM_BLENDINDEXES] == -1 || vertexArrayFormat[IQM_BLENDWEIGHTS] == -1)
 			{
-				ri.Printf(PRINT_WARNING, "R_LoadIQM: %s is missing IQM_BLENDINDEXES and/or IQM_BLENDWEIGHTS array.\n", mod_name);
+				ri.Printf(PRINT_WARNING, "R_LoadIQM: %s is missing IQM_BLENDINDEXES and/or IQM_BLENDWEIGHTS array.\n", mod_name.data());
 				return false;
 			}
 		}
@@ -1061,14 +1062,14 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, const char *mod_name)
 			if (mesh->num_vertexes >= SHADER_MAX_VERTEXES)
 			{
 				ri.Printf(PRINT_WARNING, "R_LoadIQM: %s has more than %i verts on %s (%i).\n",
-						  mod_name, SHADER_MAX_VERTEXES - 1, meshName[0] ? meshName : "a surface",
+						  mod_name.data(), SHADER_MAX_VERTEXES - 1, meshName[0] ? meshName : "a surface",
 						  mesh->num_vertexes);
 				return false;
 			}
 			if (mesh->num_triangles * 3 >= SHADER_MAX_INDEXES)
 			{
 				ri.Printf(PRINT_WARNING, "R_LoadIQM: %s has more than %i triangles on %s (%i).\n",
-						  mod_name, (SHADER_MAX_INDEXES / 3) - 1, meshName[0] ? meshName : "a surface",
+						  mod_name.data(), (SHADER_MAX_INDEXES / 3) - 1, meshName[0] ? meshName : "a surface",
 						  mesh->num_triangles);
 				return false;
 			}
@@ -1130,7 +1131,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, const char *mod_name)
 	if (header.num_poses != header.num_joints && header.num_poses != 0)
 	{
 		ri.Printf(PRINT_WARNING, "R_LoadIQM: %s has %d poses and %d joints, must have the same number or 0 poses\n",
-				  mod_name, header.num_poses, header.num_joints);
+				  mod_name.data(), header.num_poses, header.num_joints);
 		return false;
 	}
 

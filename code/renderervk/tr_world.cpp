@@ -178,41 +178,41 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t *shader)
 }
 
 #ifdef USE_PMLIGHT
-bool R_LightCullBounds(const dlight_t *dl, const vec3_t mins, const vec3_t maxs)
+bool R_LightCullBounds(const dlight_t &dl, const vec3_t mins, const vec3_t maxs)
 {
-	if (dl->linear)
+	if (dl.linear)
 	{
-		if (dl->transformed[0] - dl->radius > maxs[0] && dl->transformed2[0] - dl->radius > maxs[0])
+		if (dl.transformed[0] - dl.radius > maxs[0] && dl.transformed2[0] - dl.radius > maxs[0])
 			return true;
-		if (dl->transformed[0] + dl->radius < mins[0] && dl->transformed2[0] + dl->radius < mins[0])
-			return true;
-
-		if (dl->transformed[1] - dl->radius > maxs[1] && dl->transformed2[1] - dl->radius > maxs[1])
-			return true;
-		if (dl->transformed[1] + dl->radius < mins[1] && dl->transformed2[1] + dl->radius < mins[1])
+		if (dl.transformed[0] + dl.radius < mins[0] && dl.transformed2[0] + dl.radius < mins[0])
 			return true;
 
-		if (dl->transformed[2] - dl->radius > maxs[2] && dl->transformed2[2] - dl->radius > maxs[2])
+		if (dl.transformed[1] - dl.radius > maxs[1] && dl.transformed2[1] - dl.radius > maxs[1])
 			return true;
-		if (dl->transformed[2] + dl->radius < mins[2] && dl->transformed2[2] + dl->radius < mins[2])
+		if (dl.transformed[1] + dl.radius < mins[1] && dl.transformed2[1] + dl.radius < mins[1])
+			return true;
+
+		if (dl.transformed[2] - dl.radius > maxs[2] && dl.transformed2[2] - dl.radius > maxs[2])
+			return true;
+		if (dl.transformed[2] + dl.radius < mins[2] && dl.transformed2[2] + dl.radius < mins[2])
 			return true;
 
 		return false;
 	}
 
-	if (dl->transformed[0] - dl->radius > maxs[0])
+	if (dl.transformed[0] - dl.radius > maxs[0])
 		return true;
-	if (dl->transformed[0] + dl->radius < mins[0])
-		return true;
-
-	if (dl->transformed[1] - dl->radius > maxs[1])
-		return true;
-	if (dl->transformed[1] + dl->radius < mins[1])
+	if (dl.transformed[0] + dl.radius < mins[0])
 		return true;
 
-	if (dl->transformed[2] - dl->radius > maxs[2])
+	if (dl.transformed[1] - dl.radius > maxs[1])
 		return true;
-	if (dl->transformed[2] + dl->radius < mins[2])
+	if (dl.transformed[1] + dl.radius < mins[1])
+		return true;
+
+	if (dl.transformed[2] - dl.radius > maxs[2])
+		return true;
+	if (dl.transformed[2] + dl.radius < mins[2])
 		return true;
 
 	return false;
@@ -238,12 +238,12 @@ static bool R_LightCullFace(const srfSurfaceFace_t *face, const dlight_t *dl)
 	return false;
 }
 
-static bool R_LightCullSurface(const surfaceType_t *surface, const dlight_t *dl)
+static bool R_LightCullSurface(const surfaceType_t *surface, const dlight_t &dl)
 {
 	switch (*surface)
 	{
 	case SF_FACE:
-		return R_LightCullFace((const srfSurfaceFace_t *)surface, dl);
+		return R_LightCullFace((const srfSurfaceFace_t *)surface, &dl);
 	case SF_GRID:
 	{
 		const srfGridMesh_t *grid = (const srfGridMesh_t *)surface;
@@ -440,7 +440,7 @@ static void R_AddWorldSurface(msurface_t *surf, int dlightBits)
 =============================================================
 */
 #ifdef USE_PMLIGHT
-static void R_AddLitSurface(msurface_t *surf, const dlight_t *light)
+static void R_AddLitSurface(msurface_t *surf, const dlight_t &light)
 {
 	// since we're not worried about offscreen lights casting into the frustum (ATM !!!)
 	// only add the "lit" version of this surface if it was already added to the view
@@ -545,7 +545,7 @@ static void R_RecursiveLightNode(const mnode_t *node)
 	{
 		// the surface may have already been added if it spans multiple leafs
 		surf = *mark;
-		R_AddLitSurface(surf, tr.light);
+		R_AddLitSurface(surf, *tr.light);
 		mark++;
 	}
 }
@@ -566,16 +566,15 @@ R_AddBrushModelSurfaces
 */
 void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 {
-	bmodel_t *bmodel;
 	int clip;
 	const model_t *pModel;
 	uint32_t i;
 
 	pModel = R_GetModelByHandle(ent.e.hModel);
 
-	bmodel = pModel->bmodel;
+	bmodel_t &bmodel = *pModel->bmodel;
 
-	clip = R_CullLocalBox(bmodel->bounds);
+	clip = R_CullLocalBox(bmodel.bounds);
 	if (clip == CULL_OUT)
 	{
 		return;
@@ -586,12 +585,11 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 	if (r_dlightMode->integer)
 #endif
 	{
-		dlight_t *dl;
 		int s;
 
-		for (s = 0; s < bmodel->numSurfaces; s++)
+		for (s = 0; s < bmodel.numSurfaces; s++)
 		{
-			R_AddWorldSurface(bmodel->firstSurface + s, 0);
+			R_AddWorldSurface(bmodel.firstSurface + s, 0);
 		}
 
 		R_SetupEntityLighting(tr.refdef, ent);
@@ -600,14 +598,14 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 
 		for (i = 0; i < tr.viewParms.num_dlights; i++)
 		{
-			dl = &tr.viewParms.dlights[i];
-			if (!R_LightCullBounds(dl, bmodel->bounds[0], bmodel->bounds[1]))
+			dlight_t &dl = tr.viewParms.dlights[i];
+			if (!R_LightCullBounds(dl, bmodel.bounds[0], bmodel.bounds[1]))
 			{
 				tr.lightCount++;
-				tr.light = dl;
-				for (s = 0; s < bmodel->numSurfaces; s++)
+				tr.light = &dl;
+				for (s = 0; s < bmodel.numSurfaces; s++)
 				{
-					R_AddLitSurface(bmodel->firstSurface + s, dl);
+					R_AddLitSurface(bmodel.firstSurface + s, dl);
 				}
 			}
 		}
@@ -617,11 +615,11 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 
 #ifdef USE_LEGACY_DLIGHTS
 	R_SetupEntityLighting(tr.refdef, ent);
-	R_DlightBmodel(*bmodel);
+	R_DlightBmodel(bmodel);
 
-	for (i = 0; i < bmodel->numSurfaces; i++)
+	for (i = 0; i < bmodel.numSurfaces; i++)
 	{
-		R_AddWorldSurface(bmodel->firstSurface + i, tr.currentEntity->needDlights);
+		R_AddWorldSurface(bmodel.firstSurface + i, tr.currentEntity->needDlights);
 	}
 #endif
 }
@@ -982,7 +980,6 @@ R_AddWorldSurfaces
 void R_AddWorldSurfaces(void)
 {
 #ifdef USE_PMLIGHT
-	dlight_t *dl;
 	int i;
 #endif
 
@@ -1026,16 +1023,16 @@ void R_AddWorldSurfaces(void)
 	R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, tr.viewParms.world);
 	for (i = 0; i < tr.viewParms.num_dlights; i++)
 	{
-		dl = &tr.viewParms.dlights[i];
-		dl->head = dl->tail = NULL;
-		if (R_CullDlight(*dl) == CULL_OUT)
+		dlight_t &dl = tr.viewParms.dlights[i];
+		dl.head = dl.tail = NULL;
+		if (R_CullDlight(dl) == CULL_OUT)
 		{
 			tr.pc.c_light_cull_out++;
 			continue;
 		}
 		tr.pc.c_light_cull_in++;
 		tr.lightCount++;
-		tr.light = dl;
+		tr.light = &dl;
 		R_RecursiveLightNode(tr.world->nodes);
 	}
 #endif // USE_PMLIGHT

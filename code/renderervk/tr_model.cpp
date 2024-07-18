@@ -35,8 +35,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define LL(x) x = LittleLong(x)
 
-static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, const char *name);
-static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, const char *name);
+static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, std::string_view name);
+static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, std::string_view name);
 
 /*
 ====================
@@ -91,7 +91,7 @@ static qhandle_t R_RegisterMD3(std::string_view name, model_t &mod)
 
 		ident = LittleLong(*buf.u);
 		if (ident == MD3_IDENT)
-			loaded = R_LoadMD3(mod, lod, buf.v, fileSize, name.data());
+			loaded = R_LoadMD3(mod, lod, buf.v, fileSize, name);
 		else
 			ri.Printf(PRINT_WARNING, "%s: unknown fileid for %s\n", __func__, name.data());
 
@@ -157,7 +157,7 @@ static qhandle_t R_RegisterMDR(std::string_view name, model_t &mod)
 
 	ident = LittleLong(*buf.u);
 	if (ident == MDR_IDENT)
-		loaded = R_LoadMDR(mod, buf.v, filesize, name.data());
+		loaded = R_LoadMDR(mod, buf.v, filesize, name);
 
 	ri.FS_FreeFile(buf.v);
 
@@ -193,7 +193,7 @@ static qhandle_t R_RegisterIQM(std::string_view name, model_t &mod)
 		return 0;
 	}
 
-	loaded = R_LoadIQM(mod, buf.u, filesize, name.data());
+	loaded = R_LoadIQM(mod, buf.u, filesize, name);
 
 	ri.FS_FreeFile(buf.v);
 
@@ -210,18 +210,16 @@ static qhandle_t R_RegisterIQM(std::string_view name, model_t &mod)
 typedef struct
 {
 	std::string_view ext;
-	qhandle_t (*ModelLoader)( std::string_view, model_t & );
+	qhandle_t (*ModelLoader)(std::string_view, model_t &);
 } modelExtToLoaderMap_t;
-
 
 // Note that the ordering indicates the order of preference used
 // when there are multiple models of different formats available
 static modelExtToLoaderMap_t modelLoaders[] =
-{
-    {"iqm", R_RegisterIQM},
-    {"mdr", R_RegisterMDR},
-    {"md3", R_RegisterMD3}
-};
+	{
+		{"iqm", R_RegisterIQM},
+		{"mdr", R_RegisterMDR},
+		{"md3", R_RegisterMD3}};
 
 static constexpr int numModelLoaders = sizeof(modelLoaders) / sizeof(modelExtToLoaderMap_t);
 
@@ -334,7 +332,7 @@ qhandle_t RE_RegisterModel(const char *name)
 	//
 	// load the files
 	//
-	//Q_strncpyz(localName, name, MAX_QPATH);
+	// Q_strncpyz(localName, name, MAX_QPATH);
 
 	std::string_view ext = COM_GetExtension_cpp(localName);
 
@@ -402,7 +400,7 @@ qhandle_t RE_RegisterModel(const char *name)
 R_LoadMD3
 =================
 */
-static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, const char *mod_name)
+static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, std::string_view mod_name)
 {
 	int i, j;
 	md3Header_t *pinmodel, *hdr;
@@ -653,7 +651,7 @@ static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, const c
 R_LoadMDR
 =================
 */
-static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, const char* mod_name)
+static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, std::string_view mod_name)
 {
 	int i, j, k, l;
 	mdrHeader_t *pinmodel, *mdr;
@@ -704,7 +702,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, const char* mod_
 	if (pinmodel->numBones < 0 ||
 		sizeof(*mdr) + pinmodel->numFrames * (sizeof(*frame) + (pinmodel->numBones - 1) * sizeof(*frame->bones)) > size)
 	{
-		ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name);
+		ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name.data());
 		return false;
 	}
 
@@ -726,7 +724,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, const char* mod_
 
 	if (mdr->numFrames < 1)
 	{
-		ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has no frames\n", mod_name);
+		ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has no frames\n", mod_name.data());
 		return false;
 	}
 
@@ -818,7 +816,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, const char* mod_
 		// simple bounds check
 		if ((byte *)(lod + 1) > (byte *)mdr + size)
 		{
-			ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name);
+			ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name.data());
 			return false;
 		}
 
@@ -834,7 +832,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, const char* mod_
 			// simple bounds check
 			if ((byte *)(surf + 1) > (byte *)mdr + size)
 			{
-				ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name);
+				ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name.data());
 				return false;
 			}
 
@@ -854,14 +852,14 @@ static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, const char* mod_
 			if (surf->numVerts >= SHADER_MAX_VERTEXES)
 			{
 				ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has more than %i verts on %s (%i).\n",
-						  mod_name, SHADER_MAX_VERTEXES - 1, surf->name[0] ? surf->name : "a surface",
+						  mod_name.data(), SHADER_MAX_VERTEXES - 1, surf->name[0] ? surf->name : "a surface",
 						  surf->numVerts);
 				return false;
 			}
 			if (surf->numTriangles * 3 >= SHADER_MAX_INDEXES)
 			{
 				ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has more than %i triangles on %s (%i).\n",
-						  mod_name, (SHADER_MAX_INDEXES / 3) - 1, surf->name[0] ? surf->name : "a surface",
+						  mod_name.data(), (SHADER_MAX_INDEXES / 3) - 1, surf->name[0] ? surf->name : "a surface",
 						  surf->numTriangles);
 				return false;
 			}
@@ -891,7 +889,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, const char* mod_
 				// simple bounds check
 				if (curv->numWeights < 0 || (byte *)(v + 1) + (curv->numWeights - 1) * sizeof(*weight) > (byte *)mdr + size)
 				{
-					ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name);
+					ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name.data());
 					return false;
 				}
 
@@ -932,7 +930,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, const char* mod_
 			// simple bounds check
 			if (surf->numTriangles < 0 || (byte *)(tri + surf->numTriangles) > (byte *)mdr + size)
 			{
-				ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name);
+				ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name.data());
 				return false;
 			}
 
@@ -970,7 +968,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, const char* mod_
 	// simple bounds check
 	if (mdr->numTags < 0 || (byte *)(tag + mdr->numTags) > (byte *)mdr + size)
 	{
-		ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name);
+		ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name.data());
 		return false;
 	}
 
@@ -1072,7 +1070,7 @@ void R_Modellist_f(void)
 R_GetTag
 ================
 */
-static md3Tag_t *R_GetTag(md3Header_t *mod, int frame, const char *tagName)
+static md3Tag_t *R_GetTag(md3Header_t *mod, int frame, std::string_view tagName)
 {
 	md3Tag_t *tag;
 	int i;
@@ -1086,7 +1084,7 @@ static md3Tag_t *R_GetTag(md3Header_t *mod, int frame, const char *tagName)
 	tag = (md3Tag_t *)((byte *)mod + mod->ofsTags) + frame * mod->numTags;
 	for (i = 0; i < mod->numTags; i++, tag++)
 	{
-		if (!strcmp(tag->name, tagName))
+		if (!std::string_view(tag->name).compare(tagName))
 		{
 			return tag; // found it
 		}
@@ -1095,7 +1093,7 @@ static md3Tag_t *R_GetTag(md3Header_t *mod, int frame, const char *tagName)
 	return NULL;
 }
 
-static md3Tag_t *R_GetAnimTag(mdrHeader_t *mod, int framenum, const char *tagName, md3Tag_t *dest)
+static md3Tag_t *R_GetAnimTag(mdrHeader_t *mod, int framenum, std::string_view tagName, md3Tag_t &dest)
 {
 	int i, j, k;
 	int frameSize;
@@ -1111,9 +1109,9 @@ static md3Tag_t *R_GetAnimTag(mdrHeader_t *mod, int framenum, const char *tagNam
 	tag = (mdrTag_t *)((byte *)mod + mod->ofsTags);
 	for (i = 0; i < mod->numTags; i++, tag++)
 	{
-		if (!strcmp(tag->name, tagName))
+		if (!std::string_view(tag->name).compare(tagName))
 		{
-			Q_strncpyz(dest->name, tag->name, sizeof(dest->name));
+			Q_strncpyz(dest.name, tag->name, sizeof(dest.name));
 
 			// uncompressed model...
 			//
@@ -1123,14 +1121,14 @@ static md3Tag_t *R_GetAnimTag(mdrHeader_t *mod, int framenum, const char *tagNam
 			for (j = 0; j < 3; j++)
 			{
 				for (k = 0; k < 3; k++)
-					dest->axis[j][k] = frame->bones[tag->boneIndex].matrix[k][j];
+					dest.axis[j][k] = frame->bones[tag->boneIndex].matrix[k][j];
 			}
 
-			dest->origin[0] = frame->bones[tag->boneIndex].matrix[0][3];
-			dest->origin[1] = frame->bones[tag->boneIndex].matrix[1][3];
-			dest->origin[2] = frame->bones[tag->boneIndex].matrix[2][3];
+			dest.origin[0] = frame->bones[tag->boneIndex].matrix[0][3];
+			dest.origin[1] = frame->bones[tag->boneIndex].matrix[1][3];
+			dest.origin[2] = frame->bones[tag->boneIndex].matrix[2][3];
 
-			return dest;
+			return &dest;
 		}
 	}
 
@@ -1143,7 +1141,7 @@ R_LerpTag
 ================
 */
 int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame,
-				   float frac, const char *tagName)
+			  float frac, const char *tagName)
 {
 	md3Tag_t *start, *end;
 	md3Tag_t start_space, end_space;
@@ -1151,13 +1149,15 @@ int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame
 	float frontLerp, backLerp;
 	model_t *model;
 
+	std::string_view tagNameCpp{tagName};
+
 	model = R_GetModelByHandle(handle);
 	if (!model->md3[0])
 	{
 		if (model->type == MOD_MDR)
 		{
-			start = R_GetAnimTag((mdrHeader_t *)model->modelData, startFrame, tagName, &start_space);
-			end = R_GetAnimTag((mdrHeader_t *)model->modelData, endFrame, tagName, &end_space);
+			start = R_GetAnimTag((mdrHeader_t *)model->modelData, startFrame, tagNameCpp, start_space);
+			end = R_GetAnimTag((mdrHeader_t *)model->modelData, endFrame, tagNameCpp, end_space);
 		}
 		else if (model->type == MOD_IQM)
 		{
@@ -1172,8 +1172,8 @@ int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame
 	}
 	else
 	{
-		start = R_GetTag(model->md3[0], startFrame, tagName);
-		end = R_GetTag(model->md3[0], endFrame, tagName);
+		start = R_GetTag(model->md3[0], startFrame, tagNameCpp);
+		end = R_GetTag(model->md3[0], endFrame, tagNameCpp);
 	}
 
 	if (!start || !end)
