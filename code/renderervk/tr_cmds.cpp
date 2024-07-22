@@ -96,15 +96,13 @@ R_IssueRenderCommands
 */
 static void R_IssueRenderCommands(void)
 {
-	renderCommandList_t *cmdList;
-
-	cmdList = &backEndData->commands;
+	renderCommandList_t &cmdList = backEndData->commands;
 
 	// add an end-of-list command
-	*(int *)(cmdList->cmds + cmdList->used) = RC_END_OF_LIST;
+	*(int *)(cmdList.cmds + cmdList.used) = RC_END_OF_LIST;
 
 	// clear it out, in case this is a sync and not a buffer flip
-	cmdList->used = 0;
+	cmdList.used = 0;
 
 	if (backEnd.screenshotMask == 0)
 	{
@@ -126,7 +124,7 @@ static void R_IssueRenderCommands(void)
 	if (!r_skipBackEnd->integer)
 	{
 		// let it start on the new batch
-		RB_ExecuteRenderCommands(cmdList->cmds);
+		RB_ExecuteRenderCommands(cmdList.cmds);
 	}
 }
 
@@ -139,13 +137,11 @@ make sure there is enough command space
 */
 static void *R_GetCommandBufferReserved(int bytes, int reservedBytes)
 {
-	renderCommandList_t *cmdList;
-
-	cmdList = &backEndData->commands;
+	renderCommandList_t &cmdList = backEndData->commands;
 	bytes = PAD(bytes, sizeof(void *));
 
 	// always leave room for the end of list command
-	if (cmdList->used + bytes + sizeof(int) + reservedBytes > MAX_RENDER_COMMANDS)
+	if (cmdList.used + bytes + sizeof(int) + reservedBytes > MAX_RENDER_COMMANDS)
 	{
 		if (bytes > MAX_RENDER_COMMANDS - sizeof(int))
 		{
@@ -155,9 +151,9 @@ static void *R_GetCommandBufferReserved(int bytes, int reservedBytes)
 		return NULL;
 	}
 
-	cmdList->used += bytes;
+	cmdList.used += bytes;
 
-	return cmdList->cmds + cmdList->used - bytes;
+	return cmdList.cmds + cmdList.used - bytes;
 }
 
 /*
@@ -343,8 +339,6 @@ RE_TakeVideoFrame
 void RE_TakeVideoFrame(int width, int height,
 							byte *captureBuffer, byte *encodeBuffer, bool motionJpeg)
 {
-	videoFrameCommand_t *cmd;
-
 	if (!tr.registered)
 	{
 		return;
@@ -352,15 +346,15 @@ void RE_TakeVideoFrame(int width, int height,
 
 	backEnd.screenshotMask |= SCREENSHOT_AVI;
 
-	cmd = &backEnd.vcmd;
+	videoFrameCommand_t &cmd = backEnd.vcmd;
 
 	// cmd->commandId = RC_VIDEOFRAME;
 
-	cmd->width = width;
-	cmd->height = height;
-	cmd->captureBuffer = captureBuffer;
-	cmd->encodeBuffer = encodeBuffer;
-	cmd->motionJpeg = motionJpeg;
+	cmd.width = width;
+	cmd.height = height;
+	cmd.captureBuffer = captureBuffer;
+	cmd.encodeBuffer = encodeBuffer;
+	cmd.motionJpeg = motionJpeg;
 }
 
 void RE_ThrottleBackend()

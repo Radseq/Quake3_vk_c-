@@ -497,7 +497,7 @@ Apply a color blend over a set of pixels
 static void R_BlendOverTexture(byte *data, int pixelCount, int mipLevel)
 {
 
-	static const byte blendColors[][4] = {
+	static constexpr byte blendColors[][4] = {
 		{255, 0, 0, 128},
 		{255, 255, 0, 128},
 		{0, 255, 0, 128},

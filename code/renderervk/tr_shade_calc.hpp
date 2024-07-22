@@ -13,7 +13,7 @@ void RB_CalcSpecularAlpha(unsigned char *alphas);
 void RB_CalcFogTexCoords(float *st);
 void RB_CalcEnvironmentTexCoords(float *st);
 void RB_CalcEnvironmentTexCoordsFP(float *st, int screenMap);
-const fogProgramParms_t *RB_CalcFogProgramParms();
+void RB_CalcFogProgramParms(fogProgramParms_t& parm);
 
 void RB_CalcWaveColor(const waveForm_t &wf, unsigned char *dstColors);
 void RB_CalcColorFromEntity(unsigned char *dstColors);

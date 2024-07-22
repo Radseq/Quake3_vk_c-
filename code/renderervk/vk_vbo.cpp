@@ -505,7 +505,7 @@ static void initItem(vbo_item_t *item)
 	item->soft_offset = -1;
 }
 
-void R_BuildWorldVBO(msurface_t *surf, int surfCount)
+void R_BuildWorldVBO(msurface_t &surf, int surfCount)
 {
 	vbo_t &vbo = world_vbo;
 	msurface_t **surfList;
@@ -535,43 +535,44 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 	vbo_size = 0;
 
 	// initial scan to count surfaces/indexes/vertexes for memory allocation
-	for (i = 0, sf = surf; i < surfCount; i++, sf++)
+	for (i = 0; i < surfCount; i++)
 	{
-		face = (srfSurfaceFace_t *)sf->data;
-		if (face->surfaceType == SF_FACE && isStaticShader(*sf->shader))
+		msurface_t & sf = surf;
+		face = (srfSurfaceFace_t *)sf.data;
+		if (face->surfaceType == SF_FACE && isStaticShader(*sf.shader))
 		{
 			face->vboItemIndex = ++numStaticSurfaces;
 			numStaticVertexes += face->numPoints;
 			numStaticIndexes += face->numIndices;
 
-			vbo_size += face->numPoints * (sf->shader->svarsSize + sizeof(tess.xyz[0]) + sizeof(tess.normal[0]));
-			sf->shader->numVertexes += face->numPoints;
-			sf->shader->numIndexes += face->numIndices;
+			vbo_size += face->numPoints * (sf.shader->svarsSize + sizeof(tess.xyz[0]) + sizeof(tess.normal[0]));
+			sf.shader->numVertexes += face->numPoints;
+			sf.shader->numIndexes += face->numIndices;
 			continue;
 		}
-		tris = (srfTriangles_t *)sf->data;
-		if (tris->surfaceType == SF_TRIANGLES && isStaticShader(*sf->shader))
+		tris = (srfTriangles_t *)sf.data;
+		if (tris->surfaceType == SF_TRIANGLES && isStaticShader(*sf.shader))
 		{
 			tris->vboItemIndex = ++numStaticSurfaces;
 			numStaticVertexes += tris->numVerts;
 			numStaticIndexes += tris->numIndexes;
 
-			vbo_size += tris->numVerts * (sf->shader->svarsSize + sizeof(tess.xyz[0]) + sizeof(tess.normal[0]));
-			sf->shader->numVertexes += tris->numVerts;
-			sf->shader->numIndexes += tris->numIndexes;
+			vbo_size += tris->numVerts * (sf.shader->svarsSize + sizeof(tess.xyz[0]) + sizeof(tess.normal[0]));
+			sf.shader->numVertexes += tris->numVerts;
+			sf.shader->numIndexes += tris->numIndexes;
 			continue;
 		}
-		grid = (srfGridMesh_t *)sf->data;
-		if (grid->surfaceType == SF_GRID && isStaticShader(*sf->shader))
+		grid = (srfGridMesh_t *)sf.data;
+		if (grid->surfaceType == SF_GRID && isStaticShader(*sf.shader))
 		{
 			grid->vboItemIndex = ++numStaticSurfaces;
 			RB_SurfaceGridEstimate(grid, &grid->vboExpectVertices, &grid->vboExpectIndices);
 			numStaticVertexes += grid->vboExpectVertices;
 			numStaticIndexes += grid->vboExpectIndices;
 
-			vbo_size += grid->vboExpectVertices * (sf->shader->svarsSize + sizeof(tess.xyz[0]) + sizeof(tess.normal[0]));
-			sf->shader->numVertexes += grid->vboExpectVertices;
-			sf->shader->numIndexes += grid->vboExpectIndices;
+			vbo_size += grid->vboExpectVertices * (sf.shader->svarsSize + sizeof(tess.xyz[0]) + sizeof(tess.normal[0]));
+			sf.shader->numVertexes += grid->vboExpectVertices;
+			sf.shader->numIndexes += grid->vboExpectIndices;
 			continue;
 		}
 	}
@@ -618,24 +619,25 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 
 	surfList = reinterpret_cast<msurface_t **>(ri.Hunk_AllocateTempMemory(numStaticSurfaces * sizeof(msurface_t *)));
 
-	for (i = 0, n = 0, sf = surf; i < surfCount; i++, sf++)
+	for (i = 0, n = 0; i < surfCount; i++)
 	{
-		face = (srfSurfaceFace_t *)sf->data;
+		msurface_t & sf = surf;
+		face = (srfSurfaceFace_t *)sf.data;
 		if (face->surfaceType == SF_FACE && face->vboItemIndex)
 		{
-			surfList[n++] = sf;
+			surfList[n++] = &sf;
 			continue;
 		}
-		tris = (srfTriangles_t *)sf->data;
+		tris = (srfTriangles_t *)sf.data;
 		if (tris->surfaceType == SF_TRIANGLES && tris->vboItemIndex)
 		{
-			surfList[n++] = sf;
+			surfList[n++] = &sf;
 			continue;
 		}
-		grid = (srfGridMesh_t *)sf->data;
+		grid = (srfGridMesh_t *)sf.data;
 		if (grid->surfaceType == SF_GRID && grid->vboItemIndex)
 		{
-			surfList[n++] = sf;
+			surfList[n++] = &sf;
 			continue;
 		}
 	}

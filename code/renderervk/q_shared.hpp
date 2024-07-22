@@ -5,7 +5,7 @@
 #include <math.h>
 #include "../qcommon/q_platform.h"
 
-#include "../qcommon/surfaceflags.h" // shared with the q3map utility
+//#include "../qcommon/surfaceflags.h" // shared with the q3map utility
 
 #include "../qcommon/q_shared_test.h"
 

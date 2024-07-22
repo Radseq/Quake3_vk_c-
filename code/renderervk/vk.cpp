@@ -1,3 +1,4 @@
+#include "string_operations.hpp"
 #include "vk.hpp"
 #include <stdexcept>
 #include <algorithm>
@@ -1184,36 +1185,36 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags
 }
 #endif
 
-static bool used_instance_extension(const char *ext)
+static bool used_instance_extension(std::string_view ext)
 {
-	const char *u;
+	// Find the last underscore
+    size_t pos = ext.find_last_of('_');
 
-	// allow all VK_*_surface extensions
-	u = strrchr(ext, '_');
-	if (u && Q_stricmp(u + 1, "surface") == 0)
-		return true;
+    // allow all VK_*_surface extensions
+    if (pos != std::string_view::npos && Q_stricmp_cpp(ext.substr(pos + 1), "surface") == 0)
+        return true;
 
-	if (Q_stricmp(ext, VK_KHR_DISPLAY_EXTENSION_NAME) == 0)
-		return true; // needed for KMSDRM instances/devices?
+    if (Q_stricmp_cpp(ext, VK_KHR_DISPLAY_EXTENSION_NAME) == 0)
+        return true; // needed for KMSDRM instances/devices?
 
-	if (Q_stricmp(ext, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0)
-		return true;
+    if (Q_stricmp_cpp(ext, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0)
+        return true;
 
 #ifdef USE_VK_VALIDATION
-	if (Q_stricmp(ext, VK_EXT_DEBUG_REPORT_EXTENSION_NAME) == 0)
-		return true;
+    if (Q_stricmp_cpp(ext, VK_EXT_DEBUG_REPORT_EXTENSION_NAME) == 0)
+        return true;
 #endif
 
-	if (Q_stricmp(ext, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0)
-		return true;
+    if (Q_stricmp_cpp(ext, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0)
+        return true;
 
-	if (Q_stricmp(ext, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) == 0)
-		return true;
+    if (Q_stricmp_cpp(ext, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) == 0)
+        return true;
 
-	if (Q_stricmp(ext, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME) == 0)
-		return true;
+    if (Q_stricmp_cpp(ext, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME) == 0)
+        return true;
 
-	return false;
+    return false;
 }
 
 static void create_instance(void)
@@ -1243,7 +1244,7 @@ static void create_instance(void)
 	{
 		const char *ext = extension_properties[i].extensionName;
 
-		if (!used_instance_extension(ext))
+		if (!used_instance_extension(std::string_view(ext)))
 		{
 			continue;
 		}

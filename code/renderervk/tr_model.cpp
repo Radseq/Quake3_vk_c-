@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <functional>
 #include <string_view>
+#include "utils.hpp"
 
 #define LL(x) x = LittleLong(x)
 
@@ -221,7 +222,7 @@ static modelExtToLoaderMap_t modelLoaders[] =
 		{"mdr", R_RegisterMDR},
 		{"md3", R_RegisterMD3}};
 
-static constexpr int numModelLoaders = sizeof(modelLoaders) / sizeof(modelExtToLoaderMap_t);
+static constexpr size_t numModelLoaders = arrayLen(modelLoaders);
 
 //===============================================================================
 
@@ -419,7 +420,7 @@ static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, std::st
 	version = LittleLong(pinmodel->version);
 	if (version != MD3_VERSION)
 	{
-		ri.Printf(PRINT_WARNING, "%s: %s has wrong version (%i should be %i)\n", __func__, mod_name, version, MD3_VERSION);
+		ri.Printf(PRINT_WARNING, "%s: %s has wrong version (%i should be %i)\n", __func__, mod_name.data(), version, MD3_VERSION);
 		return false;
 	}
 
@@ -427,7 +428,7 @@ static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, std::st
 
 	if (size > fileSize)
 	{
-		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name);
+		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name.data());
 		return false;
 	}
 
@@ -452,34 +453,34 @@ static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, std::st
 
 	if (hdr->numFrames < 1)
 	{
-		ri.Printf(PRINT_WARNING, "%s: %s has no frames\n", __func__, mod_name);
+		ri.Printf(PRINT_WARNING, "%s: %s has no frames\n", __func__, mod_name.data());
 		return false;
 	}
 
 	if (hdr->ofsFrames > size || hdr->ofsTags > size || hdr->ofsSurfaces > size)
 	{
-		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name);
+		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name.data());
 		return false;
 	}
 	if ((unsigned)(hdr->numFrames | hdr->numTags | hdr->numSkins) > (1 << 20))
 	{
-		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name);
+		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name.data());
 		return false;
 	}
 
 	if (hdr->ofsFrames + hdr->numFrames * sizeof(md3Frame_t) > fileSize)
 	{
-		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name);
+		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name.data());
 		return false;
 	}
 	if (hdr->ofsTags + hdr->numTags * hdr->numFrames * sizeof(md3Tag_t) > fileSize)
 	{
-		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name);
+		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name.data());
 		return false;
 	}
 	if (hdr->ofsSurfaces + (hdr->numSurfaces ? 1 : 0) * sizeof(md3Surface_t) > fileSize)
 	{
-		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name);
+		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name.data());
 		return false;
 	}
 
@@ -530,46 +531,46 @@ static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, std::st
 
 		if (surf->ofsEnd > fileSize || (((byte *)surf - (byte *)hdr) + surf->ofsEnd) > fileSize)
 		{
-			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name);
+			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name.data());
 			return false;
 		}
 		if (surf->ofsTriangles > fileSize || surf->ofsShaders > fileSize || surf->ofsSt > fileSize || surf->ofsXyzNormals > fileSize)
 		{
-			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name);
+			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name.data());
 			return false;
 		}
 		if (surf->ofsTriangles + surf->numTriangles * sizeof(md3Triangle_t) > fileSize)
 		{
-			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name);
+			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name.data());
 			return false;
 		}
 		if (surf->ofsShaders + surf->numShaders * sizeof(md3Shader_t) > fileSize || surf->numShaders > (1 << 20))
 		{
-			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name);
+			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name.data());
 			return false;
 		}
 		if (surf->ofsSt + surf->numVerts * sizeof(md3St_t) > fileSize)
 		{
-			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name);
+			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name.data());
 			return false;
 		}
 		if (surf->ofsXyzNormals + surf->numVerts * sizeof(md3XyzNormal_t) > fileSize)
 		{
-			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name);
+			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name.data());
 			return false;
 		}
 
 		if (surf->numVerts >= SHADER_MAX_VERTEXES)
 		{
 			ri.Printf(PRINT_WARNING, "%s: %s has more than %i verts on %s (%i).\n", __func__,
-					  mod_name, SHADER_MAX_VERTEXES - 1, surf->name[0] ? surf->name : "a surface",
+					  mod_name.data(), SHADER_MAX_VERTEXES - 1, surf->name[0] ? surf->name : "a surface",
 					  surf->numVerts);
 			return false;
 		}
 		if (surf->numTriangles * 3 >= SHADER_MAX_INDEXES)
 		{
 			ri.Printf(PRINT_WARNING, "%s: %s has more than %i triangles on %s (%i).\n", __func__,
-					  mod_name, (SHADER_MAX_INDEXES / 3) - 1, surf->name[0] ? surf->name : "a surface",
+					  mod_name.data(), (SHADER_MAX_INDEXES / 3) - 1, surf->name[0] ? surf->name : "a surface",
 					  surf->numTriangles);
 			return false;
 		}
@@ -670,7 +671,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, std::string_view
 	pinmodel->version = LittleLong(pinmodel->version);
 	if (pinmodel->version != MDR_VERSION)
 	{
-		ri.Printf(PRINT_WARNING, "%s: %s has wrong version (%i should be %i)\n", __func__, mod_name, pinmodel->version, MDR_VERSION);
+		ri.Printf(PRINT_WARNING, "%s: %s has wrong version (%i should be %i)\n", __func__, mod_name.data(), pinmodel->version, MDR_VERSION);
 		return false;
 	}
 
@@ -678,7 +679,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, std::string_view
 
 	if (size > filesize)
 	{
-		ri.Printf(PRINT_WARNING, "%s: Header of %s is broken. Wrong filesize declared!\n", __func__, mod_name);
+		ri.Printf(PRINT_WARNING, "%s: Header of %s is broken. Wrong filesize declared!\n", __func__, mod_name.data());
 		return false;
 	}
 
@@ -1161,7 +1162,7 @@ int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame
 		}
 		else if (model->type == MOD_IQM)
 		{
-			return R_IQMLerpTag(tag, reinterpret_cast<iqmData_t &>(model->modelData),
+			return R_IQMLerpTag(*tag, reinterpret_cast<iqmData_t &>(model->modelData),
 								startFrame, endFrame,
 								frac, tagName);
 		}

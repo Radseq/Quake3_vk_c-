@@ -36,22 +36,4 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // AVI files have the start of pixel lines 4 byte-aligned
 #define AVI_LINE_PADDING 4
 
-static inline unsigned int log2pad_plus(unsigned int v, int roundup)
-{
-    unsigned int x = 1;
-
-    while (x < v)
-        x <<= 1;
-
-    if (roundup == 0)
-    {
-        if (x > v)
-        {
-            x >>= 1;
-        }
-    }
-
-    return x;
-}
-
 #endif // Q_COMMON_HPP

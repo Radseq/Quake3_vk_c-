@@ -114,23 +114,23 @@ struct state
  *   buffer, using shift right, and new bytes are appended to the top of the
  *   bit buffer, using shift left.
  */
-local int32_t bits(struct state *s, int32_t need)
+local int32_t bits(struct state &s, int32_t need)
 {
     int32_t val; /* bit accumulator (can use up to 20 bits) */
 
     /* load at least need bits into val */
-    val = s->bitbuf;
-    while (s->bitcnt < need)
+    val = s.bitbuf;
+    while (s.bitcnt < need)
     {
-        if (s->incnt == s->inlen)
-            Q_longjmp(s->env, 1);                         /* out of input */
-        val |= (int32_t)(s->in[s->incnt++]) << s->bitcnt; /* load eight bits */
-        s->bitcnt += 8;
+        if (s.incnt == s.inlen)
+            Q_longjmp(s.env, 1);                         /* out of input */
+        val |= (int32_t)(s.in[s.incnt++]) << s.bitcnt; /* load eight bits */
+        s.bitcnt += 8;
     }
 
     /* drop need bits and update buffer, always zero to seven bits left */
-    s->bitbuf = (int32_t)(val >> need);
-    s->bitcnt -= need;
+    s.bitbuf = (int32_t)(val >> need);
+    s.bitcnt -= need;
 
     /* return need bits, zeroing the bits above that */
     return (int32_t)(val & ((1L << need) - 1));
@@ -153,37 +153,37 @@ local int32_t bits(struct state *s, int32_t need)
  * - A stored block can have zero length.  This is sometimes used to byte-align
  *   subsets of the compressed data for random access or partial recovery.
  */
-local int32_t stored(struct state *s)
+local int32_t stored(struct state &s)
 {
     uint32_t len; /* length of stored block */
 
-    /* discard leftover bits from current byte (assumes s->bitcnt < 8) */
-    s->bitbuf = 0;
-    s->bitcnt = 0;
+    /* discard leftover bits from current byte (assumes s.bitcnt < 8) */
+    s.bitbuf = 0;
+    s.bitcnt = 0;
 
     /* get length and check against its one's complement */
-    if (s->incnt + 4 > s->inlen)
+    if (s.incnt + 4 > s.inlen)
         return 2; /* not enough input */
-    len = s->in[s->incnt++];
-    len |= s->in[s->incnt++] << 8;
-    if (s->in[s->incnt++] != (~len & 0xff) ||
-        s->in[s->incnt++] != ((~len >> 8) & 0xff))
+    len = s.in[s.incnt++];
+    len |= s.in[s.incnt++] << 8;
+    if (s.in[s.incnt++] != (~len & 0xff) ||
+        s.in[s.incnt++] != ((~len >> 8) & 0xff))
         return -2; /* didn't match complement! */
 
     /* copy len bytes from in to out */
-    if (s->incnt + len > s->inlen)
+    if (s.incnt + len > s.inlen)
         return 2; /* not enough input */
-    if (s->out != NULL)
+    if (s.out != NULL)
     {
-        if (s->outcnt + len > s->outlen)
+        if (s.outcnt + len > s.outlen)
             return 1; /* not enough output space */
         while (len--)
-            s->out[s->outcnt++] = s->in[s->incnt++];
+            s.out[s.outcnt++] = s.in[s.incnt++];
     }
     else
     { /* just scanning */
-        s->outcnt += len;
-        s->incnt += len;
+        s.outcnt += len;
+        s.incnt += len;
     }
 
     /* done with a valid stored block */
@@ -226,7 +226,7 @@ struct huffman
  * - Incomplete codes are handled by this decoder, since they are permitted
  *   in the deflate format.  See the format notes for fixed() and dynamic().
  */
-static int32_t decode(struct state *s, struct huffman *h)
+static int32_t decode(struct state &s, struct huffman *h)
 {
     int32_t len;    /* current number of bits in code */
     int32_t code;   /* len bits being decoded */
@@ -237,8 +237,8 @@ static int32_t decode(struct state *s, struct huffman *h)
     int32_t left;   /* bits left in next or left to process */
     int16_t *next;  /* next number of codes */
 
-    bitbuf = s->bitbuf;
-    left = s->bitcnt;
+    bitbuf = s.bitbuf;
+    left = s.bitcnt;
     code = first = index = 0;
     len = 1;
     next = h->count + 1;
@@ -252,8 +252,8 @@ static int32_t decode(struct state *s, struct huffman *h)
                 count = *next++;
                 if (code < first + count)
                 { /* if length len, return symbol */
-                    s->bitbuf = bitbuf;
-                    s->bitcnt = (s->bitcnt - len) & 7;
+                    s.bitbuf = bitbuf;
+                    s.bitcnt = (s.bitcnt - len) & 7;
                     return h->symbol[index + (code - first)];
                 }
                 index += count; /* else update for next length */
@@ -265,9 +265,9 @@ static int32_t decode(struct state *s, struct huffman *h)
             left = (MAXBITS + 1) - len;
             if (left == 0)
                 break;
-            if (s->incnt == s->inlen)
-                Q_longjmp(s->env, 1); /* out of input */
-            bitbuf = s->in[s->incnt++];
+            if (s.incnt == s.inlen)
+                Q_longjmp(s.env, 1); /* out of input */
+            bitbuf = s.in[s.incnt++];
             if (left > 8)
                 left = 8;
         }
@@ -404,7 +404,7 @@ local int32_t construct(struct huffman *h, int16_t *length, int32_t n)
  *   since though their behavior -is- defined for overlapping arrays, it is
  *   defined to do the wrong thing in this case.
  */
-static int32_t codes(struct state *s,
+static int32_t codes(struct state &s,
                      struct huffman *lencode,
                      struct huffman *distcode)
 {
@@ -435,13 +435,13 @@ static int32_t codes(struct state *s,
         if (symbol < 256)
         { /* literal: symbol is the byte */
             /* write out the literal */
-            if (s->out != NULL)
+            if (s.out != NULL)
             {
-                if (s->outcnt == s->outlen)
+                if (s.outcnt == s.outlen)
                     return 1;
-                s->out[s->outcnt] = symbol;
+                s.out[s.outcnt] = symbol;
             }
-            s->outcnt++;
+            s.outcnt++;
         }
         else if (symbol > 256)
         { /* length */
@@ -456,22 +456,22 @@ static int32_t codes(struct state *s,
             if (symbol < 0)
                 return symbol; /* invalid symbol */
             dist = dists[symbol] + bits(s, dext[symbol]);
-            if (dist > s->outcnt)
+            if (dist > s.outcnt)
                 return -10; /* distance too far back */
 
             /* copy length bytes from distance bytes back */
-            if (s->out != NULL)
+            if (s.out != NULL)
             {
-                if (s->outcnt + len > s->outlen)
+                if (s.outcnt + len > s.outlen)
                     return 1;
                 while (len--)
                 {
-                    s->out[s->outcnt] = s->out[s->outcnt - dist];
-                    s->outcnt++;
+                    s.out[s.outcnt] = s.out[s.outcnt - dist];
+                    s.outcnt++;
                 }
             }
             else
-                s->outcnt += len;
+                s.outcnt += len;
         }
     } while (symbol != 256); /* end of block symbol */
 
@@ -503,7 +503,7 @@ static int32_t codes(struct state *s,
  *   length, this can be implemented as an incomplete code.  Then the invalid
  *   codes are detected while decoding.
  */
-local int32_t fixed(struct state *s)
+local int32_t fixed(struct state &s)
 {
     static int32_t virgin = 1;
     static int16_t lencnt[MAXBITS + 1], lensym[FIXLCODES];
@@ -628,7 +628,7 @@ local int32_t fixed(struct state *s)
  * - For reference, a "typical" size for the code description in a dynamic
  *   block is around 80 bytes.
  */
-local int32_t dynamic(struct state *s)
+local int32_t dynamic(struct state &s)
 {
     int32_t nlen, ndist, ncode;                       /* number of lengths in descriptor */
     int32_t index;                                    /* index of lengths[] */
@@ -782,9 +782,9 @@ int32_t puff(uint8_t *dest,       /* pointer to destination pointer */
         /* process blocks until last block or error */
         do
         {
-            last = bits(&s, 1);                                                                      /* one if last block */
-            type = bits(&s, 2);                                                                      /* block type 0..3 */
-            err = type == 0 ? stored(&s) : (type == 1 ? fixed(&s) : (type == 2 ? dynamic(&s) : -1)); /* type == 3, invalid */
+            last = bits(s, 1);                                                                      /* one if last block */
+            type = bits(s, 2);                                                                      /* block type 0..3 */
+            err = type == 0 ? stored(s) : (type == 1 ? fixed(s) : (type == 2 ? dynamic(s) : -1)); /* type == 3, invalid */
             if (err != 0)
                 break; /* return with error */
         } while (!last);

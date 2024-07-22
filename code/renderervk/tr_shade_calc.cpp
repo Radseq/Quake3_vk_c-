@@ -940,10 +940,9 @@ void RB_CalcFogTexCoords(float *st)
 RB_CalcFogProgramParms
 ========================
 */
-const fogProgramParms_t *RB_CalcFogProgramParms(void)
+void RB_CalcFogProgramParms(fogProgramParms_t &parm)
 {
-	static fogProgramParms_t parm;
-	//const fog_t *fog;
+	// const fog_t *fog;
 	vec3_t local;
 
 	Com_Memset(parm.fogDepthVector, 0, sizeof(parm.fogDepthVector));
@@ -995,8 +994,6 @@ const fogProgramParms_t *RB_CalcFogProgramParms(void)
 
 	parm.fogDistanceVector[3] += 1.0 / 512;
 	parm.fogColor = fog.color;
-
-	return &parm;
 }
 
 /*

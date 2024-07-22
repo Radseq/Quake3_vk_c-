@@ -425,7 +425,7 @@ static void ComputeJointMats(iqmData_t &data, int frame, int oldframe,
 	}
 }
 
-int R_IQMLerpTag(orientation_t *tag, iqmData_t &data,
+int R_IQMLerpTag(orientation_t &tag, iqmData_t &data,
 				 int startFrame, int endFrame,
 				 float frac, const char *tagName)
 {
@@ -442,25 +442,25 @@ int R_IQMLerpTag(orientation_t *tag, iqmData_t &data,
 	}
 	if (joint >= data.num_joints)
 	{
-		AxisClear(tag->axis);
-		VectorClear(tag->origin);
+		AxisClear(tag.axis);
+		VectorClear(tag.origin);
 		return false;
 	}
 
 	ComputeJointMats(data, startFrame, endFrame, frac, jointMats);
 
-	tag->axis[0][0] = jointMats[12 * joint + 0];
-	tag->axis[1][0] = jointMats[12 * joint + 1];
-	tag->axis[2][0] = jointMats[12 * joint + 2];
-	tag->origin[0] = jointMats[12 * joint + 3];
-	tag->axis[0][1] = jointMats[12 * joint + 4];
-	tag->axis[1][1] = jointMats[12 * joint + 5];
-	tag->axis[2][1] = jointMats[12 * joint + 6];
-	tag->origin[1] = jointMats[12 * joint + 7];
-	tag->axis[0][2] = jointMats[12 * joint + 8];
-	tag->axis[1][2] = jointMats[12 * joint + 9];
-	tag->axis[2][2] = jointMats[12 * joint + 10];
-	tag->origin[2] = jointMats[12 * joint + 11];
+	tag.axis[0][0] = jointMats[12 * joint + 0];
+	tag.axis[1][0] = jointMats[12 * joint + 1];
+	tag.axis[2][0] = jointMats[12 * joint + 2];
+	tag.origin[0] = jointMats[12 * joint + 3];
+	tag.axis[0][1] = jointMats[12 * joint + 4];
+	tag.axis[1][1] = jointMats[12 * joint + 5];
+	tag.axis[2][1] = jointMats[12 * joint + 6];
+	tag.origin[1] = jointMats[12 * joint + 7];
+	tag.axis[0][2] = jointMats[12 * joint + 8];
+	tag.axis[1][2] = jointMats[12 * joint + 9];
+	tag.axis[2][2] = jointMats[12 * joint + 10];
+	tag.origin[2] = jointMats[12 * joint + 11];
 
 	return true;
 }

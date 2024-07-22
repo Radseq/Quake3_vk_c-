@@ -130,7 +130,6 @@ static void MakeMeshNormals(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE
 	vec3_t base;
 	vec3_t delta;
 	int x, y;
-	drawVert_t *dv;
 	vec3_t around[8], temp;
 	bool good[8];
 	bool wrapWidth, wrapHeight;
@@ -172,8 +171,8 @@ static void MakeMeshNormals(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE
 	{
 		for (j = 0; j < height; j++)
 		{
-			dv = &ctrl[j][i];
-			VectorCopy(dv->xyz, base);
+			drawVert_t &dv = ctrl[j][i];
+			VectorCopy(dv.xyz, base);
 			for (k = 0; k < 8; k++)
 			{
 				VectorClear(around[k]);
@@ -239,7 +238,7 @@ static void MakeMeshNormals(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE
 				VectorAdd(normal, sum, sum);
 			}
 
-			VectorNormalize2(sum, dv->normal);
+			VectorNormalize2(sum, dv.normal);
 		}
 	}
 }

@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shader.hpp"
 #include "tr_model.hpp"
 #include "q_math.hpp"
+#include "utils.hpp"
 
 static world_t s_worldData;
 static byte *fileBase;
@@ -2575,7 +2576,7 @@ void RE_LoadWorldMap(const char *name)
 	R_LoadLightGrid(&header->lumps[LUMP_LIGHTGRID]);
 
 #ifdef USE_VBO
-	R_BuildWorldVBO(s_worldData.surfaces, s_worldData.numsurfaces);
+	R_BuildWorldVBO(*s_worldData.surfaces, s_worldData.numsurfaces);
 #endif
 
 	tr.mapLoading = false;

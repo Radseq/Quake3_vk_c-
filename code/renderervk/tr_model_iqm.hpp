@@ -5,7 +5,7 @@
 #include <string_view>
 
 void R_AddIQMSurfaces(trRefEntity_t &ent);
-int R_IQMLerpTag(orientation_t *tag, iqmData_t &data,
+int R_IQMLerpTag(orientation_t &tag, iqmData_t &data,
                  int startFrame, int endFrame,
                  float frac, const char *tagName);
 

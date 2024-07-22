@@ -75,7 +75,6 @@ Determine which dynamic lights may effect this bmodel
 void R_DlightBmodel(bmodel_t &bmodel)
 {
     int i, j;
-    const dlight_t *dl;
     int mask;
     msurface_t *surf;
 
@@ -85,16 +84,16 @@ void R_DlightBmodel(bmodel_t &bmodel)
     mask = 0;
     for (i = 0; i < tr.refdef.num_dlights; i++)
     {
-        dl = &tr.refdef.dlights[i];
+        const dlight_t &dl = tr.refdef.dlights[i];
 
         // see if the point is close enough to the bounds to matter
         for (j = 0; j < 3; j++)
         {
-            if (dl->transformed[j] - bmodel.bounds[1][j] > dl->radius)
+            if (dl.transformed[j] - bmodel.bounds[1][j] > dl.radius)
             {
                 break;
             }
-            if (bmodel.bounds[0][j] - dl->transformed[j] > dl->radius)
+            if (bmodel.bounds[0][j] - dl.transformed[j] > dl.radius)
             {
                 break;
             }
@@ -157,9 +156,7 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
     VectorSubtract(lightOrigin, tr.world->lightGridOrigin, lightOrigin);
     for (i = 0; i < 3; i++)
     {
-        float v;
-
-        v = lightOrigin[i] * tr.world->lightGridInverseSize[i];
+        float v = lightOrigin[i] * tr.world->lightGridInverseSize[i];
         pos[i] = floor(v);
         frac[i] = v - pos[i];
         if (pos[i] < 0)
@@ -318,7 +315,6 @@ by the Calc_* functions
 void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
 {
     int i;
-    const dlight_t *dl;
     float power;
     vec3_t dir;
     float d;
@@ -388,12 +384,12 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
         {
             for (i = 0; i < refdef.num_dlights; i++)
             {
-                dl = &refdef.dlights[i];
-                if (dl->linear) // no support for linear lights atm
+                const dlight_t &dl = refdef.dlights[i];
+                if (dl.linear) // no support for linear lights atm
                     continue;
-                VectorSubtract(dl->origin, lightOrigin, dir);
+                VectorSubtract(dl.origin, lightOrigin, dir);
                 d = VectorNormalize(dir);
-                power = DLIGHT_AT_RADIUS * (dl->radius * dl->radius);
+                power = DLIGHT_AT_RADIUS * (dl.radius * dl.radius);
                 if (d < DLIGHT_MINIMUM_RADIUS)
                 {
                     d = DLIGHT_MINIMUM_RADIUS;
@@ -407,18 +403,18 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
 #endif
         for (i = 0; i < refdef.num_dlights; i++)
         {
-            dl = &refdef.dlights[i];
-            VectorSubtract(dl->origin, lightOrigin, dir);
+            const dlight_t &dl = refdef.dlights[i];
+            VectorSubtract(dl.origin, lightOrigin, dir);
             d = VectorNormalize(dir);
 
-            power = DLIGHT_AT_RADIUS * (dl->radius * dl->radius);
+            power = DLIGHT_AT_RADIUS * (dl.radius * dl.radius);
             if (d < DLIGHT_MINIMUM_RADIUS)
             {
                 d = DLIGHT_MINIMUM_RADIUS;
             }
             d = power / (d * d);
 
-            VectorMA(ent.directedLight, d, dl->color, ent.directedLight);
+            VectorMA(ent.directedLight, d, dl.color, ent.directedLight);
             VectorMA(lightDir, d, dir, lightDir);
         }
 

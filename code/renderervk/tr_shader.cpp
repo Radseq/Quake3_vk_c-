@@ -174,22 +174,22 @@ static bool ParseVector(const char **text, int count, float *v)
 NameToAFunc
 ===============
 */
-static unsigned NameToAFunc(const char *funcname)
+static unsigned NameToAFunc(std::string_view funcname)
 {
-	if (!Q_stricmp(funcname, "GT0"))
+	if (!Q_stricmp_cpp(funcname, "GT0"))
 	{
 		return GLS_ATEST_GT_0;
 	}
-	else if (!Q_stricmp(funcname, "LT128"))
+	else if (!Q_stricmp_cpp(funcname, "LT128"))
 	{
 		return GLS_ATEST_LT_80;
 	}
-	else if (!Q_stricmp(funcname, "GE128"))
+	else if (!Q_stricmp_cpp(funcname, "GE128"))
 	{
 		return GLS_ATEST_GE_80;
 	}
 
-	ri.Printf(PRINT_WARNING, "WARNING: invalid alphaFunc name '%s' in shader '%s'\n", funcname, shader.name);
+	ri.Printf(PRINT_WARNING, "WARNING: invalid alphaFunc name '%s' in shader '%s'\n", funcname.data(), shader.name);
 	return 0;
 }
 
@@ -198,46 +198,46 @@ static unsigned NameToAFunc(const char *funcname)
 NameToSrcBlendMode
 ===============
 */
-static int NameToSrcBlendMode(const char *name)
+static int NameToSrcBlendMode(std::string_view name)
 {
-	if (!Q_stricmp(name, "GL_ONE"))
+	if (!Q_stricmp_cpp(name, "GL_ONE"))
 	{
 		return GLS_SRCBLEND_ONE;
 	}
-	else if (!Q_stricmp(name, "GL_ZERO"))
+	else if (!Q_stricmp_cpp(name, "GL_ZERO"))
 	{
 		return GLS_SRCBLEND_ZERO;
 	}
-	else if (!Q_stricmp(name, "GL_DST_COLOR"))
+	else if (!Q_stricmp_cpp(name, "GL_DST_COLOR"))
 	{
 		return GLS_SRCBLEND_DST_COLOR;
 	}
-	else if (!Q_stricmp(name, "GL_ONE_MINUS_DST_COLOR"))
+	else if (!Q_stricmp_cpp(name, "GL_ONE_MINUS_DST_COLOR"))
 	{
 		return GLS_SRCBLEND_ONE_MINUS_DST_COLOR;
 	}
-	else if (!Q_stricmp(name, "GL_SRC_ALPHA"))
+	else if (!Q_stricmp_cpp(name, "GL_SRC_ALPHA"))
 	{
 		return GLS_SRCBLEND_SRC_ALPHA;
 	}
-	else if (!Q_stricmp(name, "GL_ONE_MINUS_SRC_ALPHA"))
+	else if (!Q_stricmp_cpp(name, "GL_ONE_MINUS_SRC_ALPHA"))
 	{
 		return GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA;
 	}
-	else if (!Q_stricmp(name, "GL_DST_ALPHA"))
+	else if (!Q_stricmp_cpp(name, "GL_DST_ALPHA"))
 	{
 		return GLS_SRCBLEND_DST_ALPHA;
 	}
-	else if (!Q_stricmp(name, "GL_ONE_MINUS_DST_ALPHA"))
+	else if (!Q_stricmp_cpp(name, "GL_ONE_MINUS_DST_ALPHA"))
 	{
 		return GLS_SRCBLEND_ONE_MINUS_DST_ALPHA;
 	}
-	else if (!Q_stricmp(name, "GL_SRC_ALPHA_SATURATE"))
+	else if (!Q_stricmp_cpp(name, "GL_SRC_ALPHA_SATURATE"))
 	{
 		return GLS_SRCBLEND_ALPHA_SATURATE;
 	}
 
-	ri.Printf(PRINT_WARNING, "WARNING: unknown blend mode '%s' in shader '%s', substituting GL_ONE\n", name, shader.name);
+	ri.Printf(PRINT_WARNING, "WARNING: unknown blend mode '%s' in shader '%s', substituting GL_ONE\n", name.data(), shader.name);
 	return GLS_SRCBLEND_ONE;
 }
 
@@ -281,7 +281,7 @@ static int NameToDstBlendMode(std::string_view name)
 		return GLS_DSTBLEND_ONE_MINUS_SRC_COLOR;
 	}
 
-	ri.Printf(PRINT_WARNING, "WARNING: unknown blend mode '%s' in shader '%s', substituting GL_ONE\n", name, shader.name);
+	ri.Printf(PRINT_WARNING, "WARNING: unknown blend mode '%s' in shader '%s', substituting GL_ONE\n", name.data(), shader.name);
 	return GLS_DSTBLEND_ONE;
 }
 
@@ -609,7 +609,7 @@ ParseStage
 */
 static bool ParseStage(shaderStage_t &stage, const char **text)
 {
-	const char *token;
+	std::string_view token;
 	int i, depthMaskBits = GLS_DEPTHMASK_TRUE, blendSrcBits = 0, blendDstBits = 0, atestBits = 0, depthFuncBits = 0;
 	bool depthMaskExplicit = false;
 
@@ -617,7 +617,8 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 
 	while (1)
 	{
-		token = COM_ParseExt(text, true);
+		token = COM_ParseExt_cpp(text, true);
+
 		if (!token[0])
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: no matching '}' found\n");
@@ -631,21 +632,21 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 		//
 		// map <name>
 		//
-		else if (!Q_stricmp(token, "map"))
+		else if (!Q_stricmp_cpp(token, "map"))
 		{
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (!token[0])
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing parameter for 'map' keyword in shader '%s'\n", shader.name);
 				return false;
 			}
 
-			if (!Q_stricmp(token, "$whiteimage"))
+			if (!Q_stricmp_cpp(token, "$whiteimage"))
 			{
 				stage.bundle[0].image[0] = tr.whiteImage;
 				continue;
 			}
-			else if (!Q_stricmp(token, "$lightmap"))
+			else if (!Q_stricmp_cpp(token, "$lightmap"))
 			{
 				stage.bundle[0].lightmap = LIGHTMAP_INDEX_SHADER; // regular lightmap
 				if (shader.lightmapIndex < 0 || !tr.lightmaps)
@@ -658,9 +659,10 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 				}
 				continue;
 			}
-			else if (Q_stricmpn(token, "*lightmap", 9) == 0 && token[9] >= '0' && token[9] <= '9')
+			else if (Q_stricmpn_cpp(token, "*lightmap", 9) == 0 && token[9] >= '0' && token[9] <= '9')
 			{
-				const int lightmapIndex = atoi(token + 9);
+				std::string_view sub_token = token.substr(9);
+				const int lightmapIndex = atoi_from_view(sub_token);
 				if (lightmapIndex < 0 || tr.lightmaps == NULL)
 				{
 					stage.bundle[0].image[0] = tr.whiteImage;
@@ -685,7 +687,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 				if (shader.noLightScale)
 					flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
-				stage.bundle[0].image[0] = R_FindImageFile(token, flags);
+				stage.bundle[0].image[0] = R_FindImageFile(token.data(), flags);
 
 				if (!stage.bundle[0].image[0])
 				{
@@ -697,11 +699,11 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 		//
 		// clampmap <name>
 		//
-		else if (!Q_stricmp(token, "clampmap") || (!Q_stricmp(token, "screenMap") && s_extendedShader))
+		else if (!Q_stricmp_cpp(token, "clampmap") || (!Q_stricmp_cpp(token, "screenMap") && s_extendedShader))
 		{
 			imgFlags_t flags;
 
-			if (!Q_stricmp(token, "screenMap"))
+			if (!Q_stricmp_cpp(token, "screenMap"))
 			{
 				flags = IMGFLAG_NONE;
 				if (vk.fboActive)
@@ -715,7 +717,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 				flags = IMGFLAG_CLAMPTOEDGE;
 			}
 
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (!token[0])
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing parameter for '%s' keyword in shader '%s'\n",
@@ -732,35 +734,35 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			if (shader.noLightScale)
 				flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
-			stage.bundle[0].image[0] = R_FindImageFile(token, flags);
+			stage.bundle[0].image[0] = R_FindImageFile(token.data(), flags);
 			if (!stage.bundle[0].image[0])
 			{
-				ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token, shader.name);
+				ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token.data(), shader.name);
 				return false;
 			}
 		}
 		//
 		// animMap <frequency> <image1> .... <imageN>
 		//
-		else if (!Q_stricmp(token, "animMap"))
+		else if (!Q_stricmp_cpp(token, "animMap"))
 		{
 			int totalImages = 0;
 			int maxAnimations = s_extendedShader ? MAX_IMAGE_ANIMATIONS : MAX_IMAGE_ANIMATIONS_VQ3;
 
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (!token[0])
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing parameter for 'animMap' keyword in shader '%s'\n", shader.name);
 				return false;
 			}
-			stage.bundle[0].imageAnimationSpeed = Q_atof(token);
+			stage.bundle[0].imageAnimationSpeed = Q_atof_cpp(token);
 
 			// parse up to MAX_IMAGE_ANIMATIONS animations
 			while (1)
 			{
 				int num;
 
-				token = COM_ParseExt(text, false);
+				token = COM_ParseExt_cpp(text, false);
 				if (!token[0])
 				{
 					break;
@@ -779,10 +781,10 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 					if (shader.noLightScale)
 						flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
-					stage.bundle[0].image[num] = R_FindImageFile(token, flags);
+					stage.bundle[0].image[num] = R_FindImageFile(token.data(), flags);
 					if (!stage.bundle[0].image[num])
 					{
-						ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token, shader.name);
+						ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token.data(), shader.name);
 						return false;
 					}
 					stage.bundle[0].numImageAnimations++;
@@ -796,16 +798,16 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 						  totalImages, maxAnimations, shader.name);
 			}
 		}
-		else if (!Q_stricmp(token, "videoMap"))
+		else if (!Q_stricmp_cpp(token, "videoMap"))
 		{
 			int handle;
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (!token[0])
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing parameter for 'videoMap' keyword in shader '%s'\n", shader.name);
 				return false;
 			}
-			handle = ri.CIN_PlayCinematic(token, 0, 0, 256, 256, (CIN_loop | CIN_silent | CIN_shader));
+			handle = ri.CIN_PlayCinematic(token.data(), 0, 0, 256, 256, (CIN_loop | CIN_silent | CIN_shader));
 			if (handle != -1)
 			{
 				if (!tr.scratchImage[handle])
@@ -818,15 +820,15 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			}
 			else
 			{
-				ri.Printf(PRINT_WARNING, "WARNING: could not load '%s' for 'videoMap' keyword in shader '%s'\n", token, shader.name);
+				ri.Printf(PRINT_WARNING, "WARNING: could not load '%s' for 'videoMap' keyword in shader '%s'\n", token.data(), shader.name);
 			}
 		}
 		//
 		// alphafunc <func>
 		//
-		else if (!Q_stricmp(token, "alphaFunc"))
+		else if (!Q_stricmp_cpp(token, "alphaFunc"))
 		{
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (!token[0])
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing parameter for 'alphaFunc' keyword in shader '%s'\n", shader.name);
@@ -838,9 +840,9 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 		//
 		// depthFunc <func>
 		//
-		else if (!Q_stricmp(token, "depthfunc"))
+		else if (!Q_stricmp_cpp(token, "depthfunc"))
 		{
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 
 			if (!token[0])
 			{
@@ -848,24 +850,24 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 				return false;
 			}
 
-			if (!Q_stricmp(token, "lequal"))
+			if (!Q_stricmp_cpp(token, "lequal"))
 			{
 				depthFuncBits = 0;
 			}
-			else if (!Q_stricmp(token, "equal"))
+			else if (!Q_stricmp_cpp(token, "equal"))
 			{
 				depthFuncBits = GLS_DEPTHFUNC_EQUAL;
 			}
 			else
 			{
-				ri.Printf(PRINT_WARNING, "WARNING: unknown depthfunc '%s' in shader '%s'\n", token, shader.name);
+				ri.Printf(PRINT_WARNING, "WARNING: unknown depthfunc '%s' in shader '%s'\n", token.data(), shader.name);
 				continue;
 			}
 		}
 		//
 		// detail
 		//
-		else if (!Q_stricmp(token, "detail"))
+		else if (!Q_stricmp_cpp(token, "detail"))
 		{
 			stage.isDetail = true;
 		}
@@ -873,26 +875,26 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 		// blendfunc <srcFactor> <dstFactor>
 		// or blendfunc <add|filter|blend>
 		//
-		else if (!Q_stricmp(token, "blendfunc"))
+		else if (!Q_stricmp_cpp(token, "blendfunc"))
 		{
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (token[0] == 0)
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing parm for blendFunc in shader '%s'\n", shader.name);
 				continue;
 			}
 			// check for "simple" blends first
-			if (!Q_stricmp(token, "add"))
+			if (!Q_stricmp_cpp(token, "add"))
 			{
 				blendSrcBits = GLS_SRCBLEND_ONE;
 				blendDstBits = GLS_DSTBLEND_ONE;
 			}
-			else if (!Q_stricmp(token, "filter"))
+			else if (!Q_stricmp_cpp(token, "filter"))
 			{
 				blendSrcBits = GLS_SRCBLEND_DST_COLOR;
 				blendDstBits = GLS_DSTBLEND_ZERO;
 			}
-			else if (!Q_stricmp(token, "blend"))
+			else if (!Q_stricmp_cpp(token, "blend"))
 			{
 				blendSrcBits = GLS_SRCBLEND_SRC_ALPHA;
 				blendDstBits = GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
@@ -900,9 +902,9 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			else
 			{
 				// complex double blends
-				blendSrcBits = NameToSrcBlendMode(token);
+				blendSrcBits = NameToSrcBlendMode(std::string_view(token));
 
-				token = COM_ParseExt(text, false);
+				token = COM_ParseExt_cpp(text, false);
 				if (token[0] == '\0')
 				{
 					ri.Printf(PRINT_WARNING, "WARNING: missing parm for blendFunc in shader '%s'\n", shader.name);
@@ -921,21 +923,21 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 		//
 		// rgbGen
 		//
-		else if (!Q_stricmp(token, "rgbGen"))
+		else if (!Q_stricmp_cpp(token, "rgbGen"))
 		{
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (token[0] == 0)
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing parameters for rgbGen in shader '%s'\n", shader.name);
 				continue;
 			}
 
-			if (!Q_stricmp(token, "wave"))
+			if (!Q_stricmp_cpp(token, "wave"))
 			{
 				ParseWaveForm(text, &stage.bundle[0].rgbWave);
 				stage.bundle[0].rgbGen = CGEN_WAVEFORM;
 			}
-			else if (!Q_stricmp(token, "const"))
+			else if (!Q_stricmp_cpp(token, "const"))
 			{
 				vec3_t color;
 
@@ -948,23 +950,23 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 
 				stage.bundle[0].rgbGen = CGEN_CONST;
 			}
-			else if (!Q_stricmp(token, "identity"))
+			else if (!Q_stricmp_cpp(token, "identity"))
 			{
 				stage.bundle[0].rgbGen = CGEN_IDENTITY;
 			}
-			else if (!Q_stricmp(token, "identityLighting"))
+			else if (!Q_stricmp_cpp(token, "identityLighting"))
 			{
 				stage.bundle[0].rgbGen = CGEN_IDENTITY_LIGHTING;
 			}
-			else if (!Q_stricmp(token, "entity"))
+			else if (!Q_stricmp_cpp(token, "entity"))
 			{
 				stage.bundle[0].rgbGen = CGEN_ENTITY;
 			}
-			else if (!Q_stricmp(token, "oneMinusEntity"))
+			else if (!Q_stricmp_cpp(token, "oneMinusEntity"))
 			{
 				stage.bundle[0].rgbGen = CGEN_ONE_MINUS_ENTITY;
 			}
-			else if (!Q_stricmp(token, "vertex"))
+			else if (!Q_stricmp_cpp(token, "vertex"))
 			{
 				stage.bundle[0].rgbGen = CGEN_VERTEX;
 				if (stage.bundle[0].alphaGen == AGEN_IDENTITY)
@@ -972,72 +974,72 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 					stage.bundle[0].alphaGen = AGEN_VERTEX;
 				}
 			}
-			else if (!Q_stricmp(token, "exactVertex"))
+			else if (!Q_stricmp_cpp(token, "exactVertex"))
 			{
 				stage.bundle[0].rgbGen = CGEN_EXACT_VERTEX;
 			}
-			else if (!Q_stricmp(token, "lightingDiffuse"))
+			else if (!Q_stricmp_cpp(token, "lightingDiffuse"))
 			{
 				stage.bundle[0].rgbGen = CGEN_LIGHTING_DIFFUSE;
 			}
-			else if (!Q_stricmp(token, "oneMinusVertex"))
+			else if (!Q_stricmp_cpp(token, "oneMinusVertex"))
 			{
 				stage.bundle[0].rgbGen = CGEN_ONE_MINUS_VERTEX;
 			}
 			else
 			{
-				ri.Printf(PRINT_WARNING, "WARNING: unknown rgbGen parameter '%s' in shader '%s'\n", token, shader.name);
+				ri.Printf(PRINT_WARNING, "WARNING: unknown rgbGen parameter '%s' in shader '%s'\n", token.data(), shader.name);
 				continue;
 			}
 		}
 		//
 		// alphaGen
 		//
-		else if (!Q_stricmp(token, "alphaGen"))
+		else if (!Q_stricmp_cpp(token, "alphaGen"))
 		{
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (token[0] == 0)
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing parameters for alphaGen in shader '%s'\n", shader.name);
 				continue;
 			}
 
-			if (!Q_stricmp(token, "wave"))
+			if (!Q_stricmp_cpp(token, "wave"))
 			{
 				ParseWaveForm(text, &stage.bundle[0].alphaWave);
 				stage.bundle[0].alphaGen = AGEN_WAVEFORM;
 			}
-			else if (!Q_stricmp(token, "const"))
+			else if (!Q_stricmp_cpp(token, "const"))
 			{
-				token = COM_ParseExt(text, false);
-				stage.bundle[0].constantColor.rgba[3] = 255 * Q_atof(token);
+				token = COM_ParseExt_cpp(text, false);
+				stage.bundle[0].constantColor.rgba[3] = 255 * Q_atof_cpp(token);
 				stage.bundle[0].alphaGen = AGEN_CONST;
 			}
-			else if (!Q_stricmp(token, "identity"))
+			else if (!Q_stricmp_cpp(token, "identity"))
 			{
 				stage.bundle[0].alphaGen = AGEN_IDENTITY;
 			}
-			else if (!Q_stricmp(token, "entity"))
+			else if (!Q_stricmp_cpp(token, "entity"))
 			{
 				stage.bundle[0].alphaGen = AGEN_ENTITY;
 			}
-			else if (!Q_stricmp(token, "oneMinusEntity"))
+			else if (!Q_stricmp_cpp(token, "oneMinusEntity"))
 			{
 				stage.bundle[0].alphaGen = AGEN_ONE_MINUS_ENTITY;
 			}
-			else if (!Q_stricmp(token, "vertex"))
+			else if (!Q_stricmp_cpp(token, "vertex"))
 			{
 				stage.bundle[0].alphaGen = AGEN_VERTEX;
 			}
-			else if (!Q_stricmp(token, "lightingSpecular"))
+			else if (!Q_stricmp_cpp(token, "lightingSpecular"))
 			{
 				stage.bundle[0].alphaGen = AGEN_LIGHTING_SPECULAR;
 			}
-			else if (!Q_stricmp(token, "oneMinusVertex"))
+			else if (!Q_stricmp_cpp(token, "oneMinusVertex"))
 			{
 				stage.bundle[0].alphaGen = AGEN_ONE_MINUS_VERTEX;
 			}
-			else if (!Q_stricmp(token, "portal"))
+			else if (!Q_stricmp_cpp(token, "portal"))
 			{
 				stage.bundle[0].alphaGen = AGEN_PORTAL;
 				token = COM_ParseExt(text, false);
@@ -1048,7 +1050,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 				}
 				else
 				{
-					shader.portalRange = Q_atof(token);
+					shader.portalRange = Q_atof_cpp(token);
 
 					if (shader.portalRange < 0.001f)
 						shader.portalRangeR = 0.0f;
@@ -1058,28 +1060,28 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			}
 			else
 			{
-				ri.Printf(PRINT_WARNING, "WARNING: unknown alphaGen parameter '%s' in shader '%s'\n", token, shader.name);
+				ri.Printf(PRINT_WARNING, "WARNING: unknown alphaGen parameter '%s' in shader '%s'\n", token.data(), shader.name);
 				continue;
 			}
 		}
 		//
 		// tcGen <function>
 		//
-		else if (!Q_stricmp(token, "texgen") || !Q_stricmp(token, "tcGen"))
+		else if (!Q_stricmp_cpp(token, "texgen") || !Q_stricmp_cpp(token, "tcGen"))
 		{
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (token[0] == 0)
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing texgen parm in shader '%s'\n", shader.name);
 				continue;
 			}
 
-			if (!Q_stricmp(token, "environment"))
+			if (!Q_stricmp_cpp(token, "environment"))
 			{
 				const char *t = *text;
 				stage.bundle[0].tcGen = TCGEN_ENVIRONMENT_MAPPED;
-				token = COM_ParseExt(text, false);
-				if (Q_stricmp(token, "firstPerson") == 0)
+				token = COM_ParseExt_cpp(text, false);
+				if (Q_stricmp_cpp(token, "firstPerson") == 0)
 				{
 					stage.bundle[0].tcGen = TCGEN_ENVIRONMENT_MAPPED_FP;
 				}
@@ -1088,15 +1090,15 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 					*text = t; // rewind
 				}
 			}
-			else if (!Q_stricmp(token, "lightmap"))
+			else if (!Q_stricmp_cpp(token, "lightmap"))
 			{
 				stage.bundle[0].tcGen = TCGEN_LIGHTMAP;
 			}
-			else if (!Q_stricmp(token, "texture") || !Q_stricmp(token, "base"))
+			else if (!Q_stricmp_cpp(token, "texture") || !Q_stricmp_cpp(token, "base"))
 			{
 				stage.bundle[0].tcGen = TCGEN_TEXTURE;
 			}
-			else if (!Q_stricmp(token, "vector"))
+			else if (!Q_stricmp_cpp(token, "vector"))
 			{
 				ParseVector(text, 3, stage.bundle[0].tcGenVectors[0]);
 				ParseVector(text, 3, stage.bundle[0].tcGenVectors[1]);
@@ -1111,16 +1113,16 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 		//
 		// tcMod <type> <...>
 		//
-		else if (!Q_stricmp(token, "tcMod"))
+		else if (!Q_stricmp_cpp(token, "tcMod"))
 		{
 			char buffer[1024] = "";
 
 			while (1)
 			{
-				token = COM_ParseExt(text, false);
+				token = COM_ParseExt_cpp(text, false);
 				if (token[0] == 0)
 					break;
-				Q_strcat(buffer, sizeof(buffer), token);
+				Q_strcat(buffer, sizeof(buffer), token.data());
 				Q_strcat(buffer, sizeof(buffer), " ");
 			}
 
@@ -1131,20 +1133,20 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 		//
 		// depthmask
 		//
-		else if (!Q_stricmp(token, "depthwrite"))
+		else if (!Q_stricmp_cpp(token, "depthwrite"))
 		{
 			depthMaskBits = GLS_DEPTHMASK_TRUE;
 			depthMaskExplicit = true;
 
 			continue;
 		}
-		else if (!Q_stricmp(token, "depthFragment") && s_extendedShader)
+		else if (!Q_stricmp_cpp(token, "depthFragment") && s_extendedShader)
 		{
 			stage.depthFragment = true;
 		}
 		else
 		{
-			ri.Printf(PRINT_WARNING, "WARNING: unknown parameter '%s' in shader '%s'\n", token, shader.name);
+			ri.Printf(PRINT_WARNING, "WARNING: unknown parameter '%s' in shader '%s'\n", token.data(), shader.name);
 			return false;
 		}
 	}

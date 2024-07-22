@@ -249,12 +249,13 @@ void VK_SetFogParams(vkUniform_t &uniform, int *fogStage)
 {
 	if (tess.fogNum && tess.shader->fogPass)
 	{
-		const fogProgramParms_t *fp = RB_CalcFogProgramParms();
+		fogProgramParms_t fp = {};  
+		RB_CalcFogProgramParms(fp);
 		// vertex data
-		Vector4Copy(fp->fogDistanceVector, uniform.fogDistanceVector);
-		Vector4Copy(fp->fogDepthVector, uniform.fogDepthVector);
-		uniform.fogEyeT[0] = fp->eyeT;
-		if (fp->eyeOutside)
+		Vector4Copy(fp.fogDistanceVector, uniform.fogDistanceVector);
+		Vector4Copy(fp.fogDepthVector, uniform.fogDepthVector);
+		uniform.fogEyeT[0] = fp.eyeT;
+		if (fp.eyeOutside)
 		{
 			uniform.fogEyeT[1] = 0.0; // fog eye out
 		}
@@ -263,7 +264,7 @@ void VK_SetFogParams(vkUniform_t &uniform, int *fogStage)
 			uniform.fogEyeT[1] = 1.0; // fog eye in
 		}
 		// fragment data
-		Vector4Copy(fp->fogColor, uniform.fogColor);
+		Vector4Copy(fp.fogColor, uniform.fogColor);
 		*fogStage = 1;
 	}
 	else
@@ -519,29 +520,29 @@ static void R_BindAnimatedImage(const textureBundle_t &bundle)
 }
 
 #ifdef USE_PMLIGHT
-static void VK_SetLightParams(vkUniform_t &uniform, const dlight_t *dl)
+static void VK_SetLightParams(vkUniform_t &uniform, const dlight_t &dl)
 {
 	float radius;
 	if (!glConfig.deviceSupportsGamma && !vk.fboActive)
-		VectorScale(dl->color, 2 * powf(r_intensity->value, r_gamma->value), uniform.light.color);
+		VectorScale(dl.color, 2 * powf(r_intensity->value, r_gamma->value), uniform.light.color);
 	else
-		VectorCopy(dl->color, uniform.light.color);
+		VectorCopy(dl.color, uniform.light.color);
 
-	radius = dl->radius;
+	radius = dl.radius;
 
 	// vertex data
 	VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
 	uniform.eyePos[3] = 0.0f;
-	VectorCopy(dl->transformed, uniform.light.pos);
+	VectorCopy(dl.transformed, uniform.light.pos);
 	uniform.light.pos[3] = 0.0f;
 
 	// fragment data
 	uniform.light.color[3] = 1.0f / Square(radius);
 
-	if (dl->linear)
+	if (dl.linear)
 	{
 		vec4_t ab;
-		VectorSubtract(dl->transformed2, dl->transformed, ab);
+		VectorSubtract(dl.transformed2, dl.transformed, ab);
 		ab[3] = 1.0f / DotProduct(ab, ab);
 		Vector4Copy(ab, uniform.light.vector);
 	}
@@ -570,7 +571,7 @@ void VK_LightingPass(void)
 		// fog parameters
 		VK_SetFogParams(uniform, &fog_stage);
 		// light parameters
-		VK_SetLightParams(uniform, tess.light);
+		VK_SetLightParams(uniform, *tess.light);
 
 		uniform_offset = VK_PushUniform(uniform);
 
@@ -779,7 +780,6 @@ static bool ProjectDlightTexture(void)
 	float scale;
 	float radius;
 	float modulate = 0.0f;
-	const dlight_t *dl;
 
 	if (!backEnd.refdef.num_dlights)
 	{
@@ -797,9 +797,9 @@ static bool ProjectDlightTexture(void)
 		texCoords = (float *)&tess.svars.texcoords[0][0];
 		tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
 		colors = tess.svars.colors[0][0].rgba;
-		dl = &backEnd.refdef.dlights[l];
-		VectorCopy(dl->transformed, origin);
-		radius = dl->radius;
+		const dlight_t &dl = backEnd.refdef.dlights[l];
+		VectorCopy(dl.transformed, origin);
+		radius = dl.radius;
 		scale = 1.0f / radius;
 
 		for (i = 0; i < tess.numVertexes; i++, texCoords += 2, colors += 4)
@@ -867,9 +867,9 @@ static bool ProjectDlightTexture(void)
 				}
 			}
 			clipBits[i] = clip;
-			colors[0] = dl->color[0] * modulate;
-			colors[1] = dl->color[1] * modulate;
-			colors[2] = dl->color[2] * modulate;
+			colors[0] = dl.color[0] * modulate;
+			colors[1] = dl.color[1] * modulate;
+			colors[2] = dl.color[2] * modulate;
 			colors[3] = 255;
 		}
 
@@ -903,7 +903,7 @@ static bool ProjectDlightTexture(void)
 			// re-bind index buffer for later fog pass
 			rebindIndex = true;
 		}
-		pipeline = vk.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
+		pipeline = vk.dlight_pipelines[dl.additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
 		vk_bind_pipeline(pipeline);
 		vk_bind_index_ext(numIndexes, hitIndexes);
 		vk_bind_geometry(TESS_RGBA0 | TESS_ST0);
