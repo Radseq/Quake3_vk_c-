@@ -33,7 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #endif
 
 #include "../client/client.h"
-#include "../renderercommon/tr_public.h"
+#include "../qcommon/tr_public.h"
 #include "sdl_glw.h"
 #include "sdl_icon.h"
 
@@ -99,74 +99,57 @@ void GLimp_LogComment( const char *comment )
 }
 
 
-static int FindNearestDisplay( int *x, int *y, int w, int h )
+static int FindNearestDisplay(int *x, int *y, int w, int h)
 {
 	const int cx = *x + w / 2;
 	const int cy = *y + h / 2;
-	int i, index, numDisplays;
+	int bestDisplayIndex, numDisplays;
 	SDL_Rect *list, *m;
+	int maxRefreshRate = 0;
 
-	index = -1; // selected display index
+	bestDisplayIndex = -1;
 
 	numDisplays = SDL_GetNumVideoDisplays();
-	if ( numDisplays <= 0 )
+	if (numDisplays <= 0)
 		return -1;
 
 	glw_state.monitorCount = numDisplays;
 
-	list = Z_Malloc( numDisplays * sizeof( list[0] ) );
+	list = Z_Malloc(numDisplays * sizeof(list[0]));
 
-	for ( i = 0; i < numDisplays; i++ )
+	for (int i = 0; i < numDisplays; ++i)
 	{
-		SDL_GetDisplayBounds( i, list + i );
-		//Com_Printf( "[%i]: x=%i, y=%i, w=%i, h=%i\n", i, list[i].x, list[i].y, list[i].w, list[i].h );
-	}
+		SDL_DisplayMode mode;
+		int numModes = SDL_GetNumDisplayModes(i);
+		
+		SDL_GetDisplayBounds(i, list + i);
+		//Com_Printf("[%i]: x=%i, y=%i, w=%i, h=%i\n", i, list[i].x, list[i].y, list[i].w, list[i].h);
 
-	// select display by window center intersection
-	for ( i = 0; i < numDisplays; i++ )
-	{
-		m = list + i;
-		if ( cx >= m->x && cx < (m->x + m->w) && cy >= m->y && cy < (m->y + m->h) )
+		for (int j = 0; j < numModes; ++j)
 		{
-			index = i;
-			break;
-		}
-	}
-
-	// select display by nearest distance between window center and display center
-	if ( index == -1 )
-	{
-		unsigned long nearest, dist;
-		int dx, dy;
-		nearest = ~0UL;
-		for ( i = 0; i < numDisplays; i++ )
-		{
-			m = list + i;
-			dx = (m->x + m->w/2) - cx;
-			dy = (m->y + m->h/2) - cy;
-			dist = ( dx * dx ) + ( dy * dy );
-			if ( dist < nearest )
+			SDL_GetDisplayMode(i, j, &mode);
+			if (mode.refresh_rate > maxRefreshRate)
 			{
-				nearest = dist;
-				index = i;
+				maxRefreshRate = mode.refresh_rate;
+				bestDisplayIndex = i;
 			}
 		}
 	}
 
 	// adjust x and y coordinates if needed
-	if ( index >= 0 )
+	if (bestDisplayIndex >= 0)
 	{
-		m = list + index;
-		if ( *x < m->x )
+		m = list + bestDisplayIndex;
+		if (*x < m->x)
 			*x = m->x;
 
-		if ( *y < m->y )
+		if (*y < m->y)
 			*y = m->y;
 	}
 
-	Z_Free( list );
+	Z_Free(list);
 
-	return index;
+	return bestDisplayIndex;
 }
 
 

@@ -1181,7 +1181,6 @@ static void CM_PatchCollideFromGrid( const cGrid_t *grid, patchCollide_t *pf ) {
 	Com_Memcpy( pf->planes, planes, numPlanes * sizeof( *pf->planes ) );
 }
 
-
 /*
 ===================
 CM_GeneratePatchCollide
