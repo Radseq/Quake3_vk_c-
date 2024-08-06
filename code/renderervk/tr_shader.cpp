@@ -4020,7 +4020,7 @@ most world construction surfaces.
 
 ===============
 */
-shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
+shader_t *R_FindShader(std::string_view name, int lightmapIndex, bool mipRawImage)
 {
 	char strippedName[MAX_QPATH];
 	unsigned long hash;
@@ -4046,7 +4046,7 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 		lightmapIndex = LIGHTMAP_BY_VERTEX;
 	}
 
-	COM_StripExtension(name, strippedName, sizeof(strippedName));
+	COM_StripExtension(name.data(), strippedName, sizeof(strippedName));
 
 	hash = generateHashValue(strippedName, FILE_HASH_SIZE);
 
@@ -4275,7 +4275,7 @@ qhandle_t RE_RegisterShaderNoMip(const char *name)
 		return 0;
 	}
 
-	sh = R_FindShader(name, LIGHTMAP_2D, false);
+	sh = R_FindShader(std::string_view(name), LIGHTMAP_2D, false);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should

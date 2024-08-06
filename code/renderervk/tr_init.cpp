@@ -879,7 +879,7 @@ const void *RB_TakeVideoFrameCmd(const void *data)
 */
 static void GL_SetDefaultState(void)
 {
-	TextureMode(r_textureMode->string);
+	TextureMode(std::string_view(r_textureMode->string));
 	glState.glStateBits = GLS_DEPTHTEST_DISABLE | GLS_DEPTHMASK_TRUE;
 }
 
