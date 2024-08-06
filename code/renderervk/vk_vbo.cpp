@@ -758,64 +758,61 @@ void VBO_Cleanup(void)
 qsort_int
 =============
 */
-void qsort_int(int *arr, const int n)
-{
-	if (n < 32)
-	{ // CUTOFF
-		for (int i = 1; i < n; i++)
-		{
-			int j = i;
-			while (j > 0 && arr[j] < arr[j - 1])
-			{
-				int temp = arr[j];
-				arr[j] = arr[j - 1];
-				arr[j - 1] = temp;
-				j--;
-			}
-		}
-		return;
-	}
+constexpr int MIN_MERGE = 32;
 
-	int stack[2 * n];
-	int top = -1;
-	stack[++top] = 0;
-	stack[++top] = n - 1;
+void timSort(int arr[], int n) {
+	int r = 0;
+    int a = n;
+    while (a >= MIN_MERGE) {
+        r |= (a & 1);
+        a >>= 1;
+    }
 
-	while (top >= 0)
-	{
-		int high = stack[top--];
-		int low = stack[top--];
+    int minRun = a + r;
 
-		int pivot = arr[high];
-		int i = low - 1;
+    int leftArr[n], rightArr[n];
 
-		for (int j = low; j <= high - 1; j++)
-		{
-			if (arr[j] < pivot)
-			{
-				i++;
-				int temp = arr[i];
-				arr[i] = arr[j];
-				arr[j] = temp;
-			}
-		}
-		int pi = i + 1;
-		int temp = arr[pi];
-		arr[pi] = arr[high];
-		arr[high] = temp;
+	// insertionSort
+    for (int z = 0; z < n; z += minRun) {
+        int right = (z + minRun - 1 < n - 1) ? z + minRun - 1 : n - 1;
+        for (int i = z + 1; i <= right; i++) {
+            int key = arr[i];
+            int j = i - 1;
+            while (j >= z && arr[j] > key) {
+                arr[j + 1] = arr[j];
+                j--;
+            }
+            arr[j + 1] = key;
+        }
+    }
 
-		if (pi - 1 > low)
-		{
-			stack[++top] = low;
-			stack[++top] = pi - 1;
-		}
+    for (int size = minRun; size < n; size = 2 * size) {
+        for (int left = 0; left < n; left += 2 * size) {
+            int mid = left + size - 1;
+            int right = (left + 2 * size - 1 < n - 1) ? left + 2 * size - 1 : n - 1;
 
-		if (pi + 1 < high)
-		{
-			stack[++top] = pi + 1;
-			stack[++top] = high;
-		}
-	}
+            int len1 = mid - left + 1, len2 = right - mid;
+            for (int i = 0; i < len1; i++) {
+                leftArr[i] = arr[left + i];
+            }
+            for (int i = 0; i < len2; i++) {
+                rightArr[i] = arr[mid + 1 + i];
+            }
+
+            int i = 0, j = 0, k = left;
+            while (i < len1 && j < len2) {
+                if (leftArr[i] <= rightArr[j])
+                    arr[k++] = leftArr[i++];
+                else
+                    arr[k++] = rightArr[j++];
+            }
+
+            while (i < len1)
+                arr[k++] = leftArr[i++];
+            while (j < len2)
+                arr[k++] = rightArr[j++];
+        }
+    }
 }
 
 static int run_length(const int *a, int from, int to, int *count)
@@ -923,7 +920,7 @@ void VBO_PrepareQueues(void)
 
 	// sort items so we can scan for longest runs
 	if (vbo.items_queue_count > 1)
-		qsort_int(vbo.items_queue, vbo.items_queue_count - 1);
+		timSort(vbo.items_queue, vbo.items_queue_count);
 
 	vbo.soft_buffer_indexes = 0;
 	vbo.ibo_items_count = 0;
