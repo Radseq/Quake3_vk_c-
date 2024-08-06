@@ -47,6 +47,7 @@ DNAME            = quake3e.ded
 
 RENDERER_PREFIX  = $(CNAME)
 
+CXX = g++
 
 ifeq ($(V),1)
 echo_cmd=@:
@@ -182,7 +183,7 @@ BR=$(BUILD_DIR)/release-$(PLATFORM)-$(ARCH)
 ADIR=$(MOUNT_DIR)/asm
 CDIR=$(MOUNT_DIR)/client
 SDIR=$(MOUNT_DIR)/server
-RCDIR=$(MOUNT_DIR)/renderercommon
+# RCDIR=$(MOUNT_DIR)/renderercommon
 RVDIR=$(MOUNT_DIR)/renderervk
 SDLDIR=$(MOUNT_DIR)/sdl
 SDLHDIR=$(MOUNT_DIR)/libsdl/include/SDL2
@@ -250,8 +251,12 @@ ifeq ($(USE_SYSTEM_VORBIS),1)
 endif
 
 # extract version info
+ifneq ($(COMPILE_PLATFORM),darwin)
 VERSION=$(shell grep ".\+define[ \t]\+Q3_VERSION[ \t]\+\+" $(CMDIR)/q_shared.h | \
   sed -e 's/.*".* \([^ ]*\)"/\1/')
+else
+VERSION=1.32e
+endif
 
 # common qvm definition
 ifeq ($(ARCH),x86_64)
@@ -579,8 +584,6 @@ TARGET_RENDV = $(RENDERER_PREFIX)_vulkan_$(SHLIBNAME)
 
 TARGET_SERVER = $(DNAME)$(ARCHEXT)$(BINEXT)
 
-STRINGIFY = $(B)/rend2/stringify$(BINEXT)
-
 TARGETS =
 
 ifneq ($(BUILD_SERVER),0)
@@ -614,6 +617,11 @@ endef
 define DO_REND_CC
 $(echo_cmd) "REND_CC $<"
 $(Q)$(CC) $(CFLAGS) $(RENDCFLAGS) -o $@ -c $<
+endef
+
+define DO_REND_PLUS_CC
+$(echo_cmd) "REND_C++ $<"
+$(Q)$(CXX) -std=c++23 $(CFLAGS) $(RENDCFLAGS) -o $@ -c $<
 endef
 
 define DO_REF_STR
@@ -654,10 +662,10 @@ default: release
 all: debug release
 
 debug:
-	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS)" V=$(V)
+	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS) -lstdc++" V=$(V)
 
 release:
-	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" V=$(V)
+	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" LDFLAGS="-rdynamic -lm" V=$(V)
 
 define ADD_COPY_TARGET
 TARGETS += $2
@@ -717,13 +725,13 @@ makedirs:
 	@if [ ! -d $(B) ];then $(MKDIR) $(B);fi
 	@if [ ! -d $(B)/client ];then $(MKDIR) $(B)/client;fi
 	@if [ ! -d $(B)/client/jpeg ];then $(MKDIR) $(B)/client/jpeg;fi
+	@if [ ! -d $(B)/rendv ];then $(MKDIR) $(B)/rendv;fi
 ifeq ($(USE_SYSTEM_OGG),0)
 	@if [ ! -d $(B)/client/ogg ];then $(MKDIR) $(B)/client/ogg;fi
 endif
 ifeq ($(USE_SYSTEM_VORBIS),0)
 	@if [ ! -d $(B)/client/vorbis ];then $(MKDIR) $(B)/client/vorbis;fi
 endif
-	@if [ ! -d $(B)/rendv ];then $(MKDIR) $(B)/rendv;fi
 ifneq ($(BUILD_SERVER),0)
 	@if [ ! -d $(B)/ded ];then $(MKDIR) $(B)/ded;fi
 endif
@@ -733,44 +741,48 @@ endif
 #############################################################################
 
 Q3RENDVOBJ = \
-  $(B)/rendv/tr_animation.o \
-  $(B)/rendv/tr_backend.o \
-  $(B)/rendv/tr_bsp.o \
-  $(B)/rendv/tr_cmds.o \
-  $(B)/rendv/tr_curve.o \
-  $(B)/rendv/tr_font.o \
-  $(B)/rendv/tr_image.o \
-  $(B)/rendv/tr_image_png.o \
-  $(B)/rendv/tr_image_jpg.o \
-  $(B)/rendv/tr_image_bmp.o \
-  $(B)/rendv/tr_image_tga.o \
-  $(B)/rendv/tr_image_pcx.o \
-  $(B)/rendv/tr_init.o \
+  $(B)/rendv/tr_noise.o \
+  $(B)/rendv/tr_world.o \
   $(B)/rendv/tr_light.o \
   $(B)/rendv/tr_main.o \
-  $(B)/rendv/tr_marks.o \
-  $(B)/rendv/tr_mesh.o \
-  $(B)/rendv/tr_model.o \
-  $(B)/rendv/tr_model_iqm.o \
-  $(B)/rendv/tr_noise.o \
-  $(B)/rendv/tr_scene.o \
+  $(B)/rendv/vk_flares.o \
   $(B)/rendv/tr_shade.o \
   $(B)/rendv/tr_shade_calc.o \
-  $(B)/rendv/tr_shader.o \
-  $(B)/rendv/tr_shadows.o \
-  $(B)/rendv/tr_sky.o \
   $(B)/rendv/tr_surface.o \
-  $(B)/rendv/tr_world.o \
-  $(B)/rendv/vk.o \
-  $(B)/rendv/vk_flares.o \
+  $(B)/rendv/tr_model.o \
+  $(B)/rendv/tr_model_iqm.o \
+  $(B)/rendv/tr_shader.o \
+  $(B)/rendv/tr_image.o \
+  $(B)/rendv/tr_mesh.o \
+  $(B)/rendv/tr_scene.o \
+  $(B)/rendv/tr_marks.o \
+  $(B)/rendv/tr_animation.o \
+  $(B)/rendv/tr_backend.o \
+  $(B)/rendv/tr_curve.o \
+  $(B)/rendv/tr_font.o \
+  $(B)/rendv/tr_shadows.o \
+  $(B)/rendv/tr_cmds.o \
+  $(B)/rendv/tr_image_bmp.o \
+  $(B)/rendv/tr_image_pcx.o \
+  $(B)/rendv/tr_image_png.o \
+  $(B)/rendv/tr_image_tga.o \
   $(B)/rendv/vk_vbo.o \
+  $(B)/rendv/tr_sky.o \
+  $(B)/rendv/tr_bsp.o \
+  $(B)/rendv/vk.o \
+  $(B)/rendv/tr_image_jpg.o \
+  $(B)/rendv/tr_init.o \
+  $(B)/rendv/puff.o \
+  $(B)/rendv/q_shared.o \
+  $(B)/rendv/q_math.o \
+  $(B)/rendv/string_operations.o \
 
-ifneq ($(USE_RENDERER_DLOPEN), 0)
-  Q3RENDVOBJ += \
-    $(B)/rendv/q_shared.o \
-    $(B)/rendv/puff.o \
-    $(B)/rendv/q_math.o
-endif
+# ifneq ($(USE_RENDERER_DLOPEN), 0)
+#   Q3RENDVOBJ += \
+#     $(B)/rendv/q_shared.o \
+#     $(B)/rendv/puff.o \
+#     $(B)/rendv/q_math.o
+# endif
 
 JPGOBJ = \
   $(B)/client/jpeg/jaricom.o \
@@ -1056,15 +1068,11 @@ $(B)/$(TARGET_CLIENT): $(Q3OBJ)
 	$(Q)$(CC) -o $@ $(Q3OBJ) $(CLIENT_LDFLAGS) \
 		$(LDFLAGS)
 
+	
 # modular renderers
-
-$(STRINGIFY): $(MOUNT_DIR)/renderer2/stringify.c
-	$(echo_cmd) "LD $@"
-	$(Q)$(CC) -o $@ $(MOUNT_DIR)/renderer2/stringify.c $(LDFLAGS)
-
 $(B)/$(TARGET_RENDV): $(Q3RENDVOBJ)
 	$(echo_cmd) "LD $@"
-	$(Q)$(CC) -o $@ $(Q3RENDVOBJ) $(SHLIBCFLAGS) $(SHLIBLDFLAGS)
+	$(Q)$(CXX) -std=c++23 -o $@ $(Q3RENDVOBJ) $(SHLIBCFLAGS) $(SHLIBLDFLAGS)
 
 #############################################################################
 # DEDICATED SERVER
@@ -1200,35 +1208,11 @@ $(B)/client/vorbis/%.o: $(VORBISDIR)/lib/%.c
 $(B)/client/%.o: $(SDLDIR)/%.c
 	$(DO_CC)
 
-$(B)/rend1/%.o: $(R1DIR)/%.c
-	$(DO_REND_CC)
+$(B)/rendv/%.o: $(RVDIR)/%.cpp
+	$(DO_REND_PLUS_CC)
 
-$(B)/rend1/%.o: $(RCDIR)/%.c
-	$(DO_REND_CC)
-
-$(B)/rend1/%.o: $(CMDIR)/%.c
-	$(DO_REND_CC)
-
-$(B)/rend2/glsl/%.c: $(R2DIR)/glsl/%.glsl $(STRINGIFY)
-	$(DO_REF_STR)
-
-$(B)/rend2/glsl/%.o: $(B)/renderer2/glsl/%.c
-	$(DO_REND_CC)
-
-$(B)/rend2/%.o: $(R2DIR)/%.c
-	$(DO_REND_CC)
-
-$(B)/rend2/%.o: $(RCDIR)/%.c
-	$(DO_REND_CC)
-
-$(B)/rend2/%.o: $(CMDIR)/%.c
-	$(DO_REND_CC)
-
-$(B)/rendv/%.o: $(RVDIR)/%.c
-	$(DO_REND_CC)
-
-$(B)/rendv/%.o: $(RCDIR)/%.c
-	$(DO_REND_CC)
+$(B)/rendv/%.o: $(RCDIR)/%.cpp
+	$(DO_REND_PLUS_CC)
 
 $(B)/rendv/%.o: $(CMDIR)/%.c
 	$(DO_REND_CC)
