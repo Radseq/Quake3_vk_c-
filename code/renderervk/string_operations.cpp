@@ -3,8 +3,9 @@
 #include "q_shared.hpp"
 #include <cctype>
 #include <charconv>
+#include <string>
 
-int Q_stricmp_cpp(std::string_view s1, std::string_view s2)
+int Q_stricmp_cpp(const std::string_view s1, const std::string_view s2)
 {
     if (s1.empty())
     {
@@ -82,15 +83,18 @@ static int com_tokenline;
 static int com_lines;
 static char com_token[MAX_TOKEN_CHARS];
 
-
-static inline bool isWhitespace(char c) {
+static inline bool isWhitespace(char c)
+{
     return std::isspace(static_cast<unsigned char>(c));
 }
 
-std::string_view SkipWhitespace_cpp(std::string_view data, bool &hasNewLines) {
+std::string_view SkipWhitespace_cpp(std::string_view data, bool &hasNewLines)
+{
     hasNewLines = false;
-    while (!data.empty() && isWhitespace(data.front())) {
-        if (data.front() == '\n') {
+    while (!data.empty() && isWhitespace(data.front()))
+    {
+        if (data.front() == '\n')
+        {
             hasNewLines = true;
         }
         data.remove_prefix(1);
@@ -98,7 +102,8 @@ std::string_view SkipWhitespace_cpp(std::string_view data, bool &hasNewLines) {
     return data;
 }
 
-std::string_view COM_ParseExt_cpp(const char** text, bool allowLineBreaks) {
+std::string_view COM_ParseExt_cpp(const char **text, bool allowLineBreaks)
+{
     std::string_view data(*text);
     int c = 0, len = 0;
     bool hasNewLines = false;
@@ -107,19 +112,23 @@ std::string_view COM_ParseExt_cpp(const char** text, bool allowLineBreaks) {
     com_tokenline = 0;
 
     // make sure incoming data is valid
-    if (data.empty()) {
+    if (data.empty())
+    {
         *text = data.data();
         return std::string_view(com_token, len);
     }
 
-    while (true) {
+    while (true)
+    {
         // skip whitespace
         data = SkipWhitespace_cpp(data, hasNewLines);
-        if (data.empty()) {
+        if (data.empty())
+        {
             *text = data.data();
             return std::string_view(com_token, len);
         }
-        if (hasNewLines && !allowLineBreaks) {
+        if (hasNewLines && !allowLineBreaks)
+        {
             *text = data.data();
             return std::string_view(com_token, len);
         }
@@ -127,25 +136,33 @@ std::string_view COM_ParseExt_cpp(const char** text, bool allowLineBreaks) {
         c = data.front();
 
         // skip double slash comments
-        if (c == '/' && data.size() > 1 && data[1] == '/') {
+        if (c == '/' && data.size() > 1 && data[1] == '/')
+        {
             data.remove_prefix(2);
-            while (!data.empty() && data.front() != '\n') {
+            while (!data.empty() && data.front() != '\n')
+            {
                 data.remove_prefix(1);
             }
         }
         // skip /* */ comments
-        else if (c == '/' && data.size() > 1 && data[1] == '*') {
+        else if (c == '/' && data.size() > 1 && data[1] == '*')
+        {
             data.remove_prefix(2);
-            while (!data.empty() && (data.front() != '*' || (data.size() > 1 && data[1] != '/'))) {
-                if (data.front() == '\n') {
+            while (!data.empty() && (data.front() != '*' || (data.size() > 1 && data[1] != '/')))
+            {
+                if (data.front() == '\n')
+                {
                     com_lines++;
                 }
                 data.remove_prefix(1);
             }
-            if (!data.empty()) {
+            if (!data.empty())
+            {
                 data.remove_prefix(2);
             }
-        } else {
+        }
+        else
+        {
             break;
         }
     }
@@ -154,21 +171,27 @@ std::string_view COM_ParseExt_cpp(const char** text, bool allowLineBreaks) {
     com_tokenline = com_lines;
 
     // handle quoted strings
-    if (c == '"') {
+    if (c == '"')
+    {
         data.remove_prefix(1);
-        while (true) {
-            if (data.empty() || data.front() == '"') {
-                if (!data.empty()) {
+        while (true)
+        {
+            if (data.empty() || data.front() == '"')
+            {
+                if (!data.empty())
+                {
                     data.remove_prefix(1);
                 }
                 com_token[len] = '\0';
                 *text = data.data();
                 return std::string_view(com_token, len);
             }
-            if (data.front() == '\n') {
+            if (data.front() == '\n')
+            {
                 com_lines++;
             }
-            if (len < MAX_TOKEN_CHARS - 1) {
+            if (len < MAX_TOKEN_CHARS - 1)
+            {
                 com_token[len] = data.front();
                 len++;
             }
@@ -177,8 +200,10 @@ std::string_view COM_ParseExt_cpp(const char** text, bool allowLineBreaks) {
     }
 
     // parse a regular word
-    while (!data.empty() && data.front() > ' ') {
-        if (len < MAX_TOKEN_CHARS - 1) {
+    while (!data.empty() && data.front() > ' ')
+    {
+        if (len < MAX_TOKEN_CHARS - 1)
+        {
             com_token[len] = data.front();
             len++;
         }
@@ -191,28 +216,34 @@ std::string_view COM_ParseExt_cpp(const char** text, bool allowLineBreaks) {
     return std::string_view(com_token, len);
 }
 
-int Q_stricmpn_cpp(std::string_view s1, std::string_view s2, int n) {
+int Q_stricmpn_cpp(std::string_view s1, std::string_view s2, int n)
+{
     // Ensure the comparison length does not exceed the actual string lengths
     n = std::min(n, static_cast<int>(std::min(s1.size(), s2.size())));
 
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < n; ++i)
+    {
         char c1 = s1[i];
         char c2 = s2[i];
 
         // Convert to uppercase if lowercase
-        if (c1 >= 'a' && c1 <= 'z') {
+        if (c1 >= 'a' && c1 <= 'z')
+        {
             c1 -= ('a' - 'A');
         }
-        if (c2 >= 'a' && c2 <= 'z') {
+        if (c2 >= 'a' && c2 <= 'z')
+        {
             c2 -= ('a' - 'A');
         }
 
-        if (c1 != c2) {
+        if (c1 != c2)
+        {
             return c1 < c2 ? -1 : 1;
         }
 
         // If we've reached the end of either string, exit
-        if (c1 == '\0') {
+        if (c1 == '\0')
+        {
             break;
         }
     }
@@ -220,39 +251,62 @@ int Q_stricmpn_cpp(std::string_view s1, std::string_view s2, int n) {
     return 0; // Strings are equal up to n characters
 }
 
-bool Q_isfinite(float f) {
+bool Q_isfinite(float f)
+{
     return std::isfinite(f);
 }
 
-float Q_atof_cpp(std::string_view str) {
+float Q_atof_cpp(std::string_view str)
+{
     float result = 0.0f;
-    const char* begin = str.data();
-    const char* end = str.data() + str.size();
+    const char *begin = str.data();
+    const char *end = str.data() + str.size();
 
     // Use from_chars for conversion, which doesn't throw exceptions
     auto [ptr, ec] = std::from_chars(begin, end, result);
 
     // If the conversion failed or the value is not finite, return 0.0f
-    if (ec != std::errc() || !Q_isfinite(result)) {
+    if (ec != std::errc() || !Q_isfinite(result))
+    {
         return 0.0f;
     }
 
     return result;
 }
 
-int atoi_from_view(std::string_view sv) {
+int atoi_from_view(std::string_view sv)
+{
     int result = 0;
     std::from_chars(sv.data(), sv.data() + sv.size(), result);
     return result;
 }
 
-std::string_view COM_GetExtension_plus(std::string_view name) {
+std::string_view COM_GetExtension_plus(std::string_view name)
+{
     auto dot = name.find_last_of('.');
     auto slash = name.find_last_of('/');
 
-    if (dot != std::string_view::npos && (slash == std::string_view::npos || slash < dot)) {
+    if (dot != std::string_view::npos && (slash == std::string_view::npos || slash < dot))
+    {
         return name.substr(dot + 1);
-    } else {
+    }
+    else
+    {
         return {};
     }
+}
+
+float Q_atof_plus(const std::string_view str)
+{
+    float f = 0.0f;
+
+    f = std::stof(std::string(str)); // Convert string_view to string
+
+    // Check if the result is finite
+    if (!std::isfinite(f))
+    {
+        return 0.0f;
+    }
+
+    return f;
 }

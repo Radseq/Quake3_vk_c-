@@ -1194,9 +1194,9 @@ int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame
 		tag->axis[1][i] = start->axis[1][i] * backLerp + end->axis[1][i] * frontLerp;
 		tag->axis[2][i] = start->axis[2][i] * backLerp + end->axis[2][i] * frontLerp;
 	}
-	VectorNormalize(tag->axis[0]);
-	VectorNormalize(tag->axis[1]);
-	VectorNormalize(tag->axis[2]);
+	VectorNormalize_plus(tag->axis[0]);
+	VectorNormalize_plus(tag->axis[1]);
+	VectorNormalize_plus(tag->axis[2]);
 	return true;
 }
 

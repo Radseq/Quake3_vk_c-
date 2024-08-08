@@ -388,7 +388,7 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
                 if (dl.linear) // no support for linear lights atm
                     continue;
                 VectorSubtract(dl.origin, lightOrigin, dir);
-                d = VectorNormalize(dir);
+                d = VectorNormalize_plus(dir);
                 power = DLIGHT_AT_RADIUS * (dl.radius * dl.radius);
                 if (d < DLIGHT_MINIMUM_RADIUS)
                 {
@@ -405,7 +405,7 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
         {
             const dlight_t &dl = refdef.dlights[i];
             VectorSubtract(dl.origin, lightOrigin, dir);
-            d = VectorNormalize(dir);
+            d = VectorNormalize_plus(dir);
 
             power = DLIGHT_AT_RADIUS * (dl.radius * dl.radius);
             if (d < DLIGHT_MINIMUM_RADIUS)
@@ -439,7 +439,7 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
     ((byte *)&ent.ambientLightInt)[3] = 0xff;
 
     // transform the direction to local space
-    VectorNormalize(lightDir);
+    VectorNormalize_plus(lightDir);
     ent.lightDir[0] = DotProduct(lightDir, ent.e.axis[0]);
     ent.lightDir[1] = DotProduct(lightDir, ent.e.axis[1]);
     ent.lightDir[2] = DotProduct(lightDir, ent.e.axis[2]);
@@ -447,7 +447,7 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
 #ifdef USE_PMLIGHT
     if (r_shadows->integer == 2 && r_dlightMode->integer == 2)
     {
-        VectorNormalize(shadowLightDir);
+        VectorNormalize_plus(shadowLightDir);
         ent.shadowLightDir[0] = DotProduct(shadowLightDir, ent.e.axis[0]);
         ent.shadowLightDir[1] = DotProduct(shadowLightDir, ent.e.axis[1]);
         ent.shadowLightDir[2] = DotProduct(shadowLightDir, ent.e.axis[2]);

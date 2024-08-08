@@ -703,23 +703,23 @@ static void R_SetupProjectionZ(viewParms_t &dest)
 R_MirrorPoint
 =================
 */
-static void R_MirrorPoint(const vec3_t in, const orientation_t *surface, const orientation_t *camera, vec3_t out)
+static void R_MirrorPoint(const vec3_t in, const orientation_t &surface, const orientation_t &camera, vec3_t out)
 {
 	int i;
 	vec3_t local;
 	vec3_t transformed;
 	float d;
 
-	VectorSubtract(in, surface->origin, local);
+	VectorSubtract(in, surface.origin, local);
 
 	VectorClear(transformed);
 	for (i = 0; i < 3; i++)
 	{
-		d = DotProduct(local, surface->axis[i]);
-		VectorMA(transformed, d, camera->axis[i], transformed);
+		d = DotProduct(local, surface.axis[i]);
+		VectorMA(transformed, d, camera.axis[i], transformed);
 	}
 
-	VectorAdd(transformed, camera->origin, out);
+	VectorAdd(transformed, camera.origin, out);
 }
 
 static void R_MirrorVector(const vec3_t in, const orientation_t *surface, const orientation_t *camera, vec3_t out)
@@ -1253,7 +1253,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, int entityNum)
 		newParms.scissorHeight = maxs[1] - mins[1];
 	}
 
-	R_MirrorPoint(oldParms.ort.origin, &surface, &camera, newParms.ort.origin);
+	R_MirrorPoint(oldParms.ort.origin, surface, camera, newParms.ort.origin);
 
 	VectorSubtract(vec3_origin, camera.axis[0], newParms.portalPlane.normal);
 	newParms.portalPlane.dist = DotProduct(camera.origin, newParms.portalPlane.normal);
