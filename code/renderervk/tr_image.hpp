@@ -43,10 +43,10 @@ float R_FogFactor(float s, float t);
 
 void R_SkinList_f();
 void R_GammaCorrect(byte *buffer, int bufSize);
-void TextureMode(std::string_view string);
+void TextureMode(std::string_view texture);
 void R_ImageList_f(void);
 image_t *R_CreateImage(const char *name, const char *name2, byte *pic, int width, int height, imgFlags_t flags);
-image_t *R_FindImageFile(std::string_view name, imgFlags_t flags);
+image_t *R_FindImageFile(const char *name, imgFlags_t flags);
 void R_SetColorMappings(void);
 void R_InitImages(void);
 void R_DeleteTextures(void);

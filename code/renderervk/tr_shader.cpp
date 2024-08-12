@@ -80,10 +80,10 @@ void RE_RemapShader(const char *shaderName, const char *newShaderName, const cha
 	shader_t *sh, *sh2;
 	qhandle_t h;
 
-	sh = R_FindShaderByName(shaderName);
+	sh = R_FindShaderByName(std::string_view(shaderName));
 	if (sh == NULL || sh == tr.defaultShader)
 	{
-		h = RE_RegisterShaderLightMap(shaderName, 0);
+		h = RE_RegisterShaderLightMap(std::string_view(shaderName), 0);
 		sh = R_GetShaderByHandle(h);
 	}
 	if (sh == NULL || sh == tr.defaultShader)
@@ -92,10 +92,10 @@ void RE_RemapShader(const char *shaderName, const char *newShaderName, const cha
 		return;
 	}
 
-	sh2 = R_FindShaderByName(newShaderName);
+	sh2 = R_FindShaderByName(std::string_view(newShaderName));
 	if (sh2 == NULL || sh2 == tr.defaultShader)
 	{
-		h = RE_RegisterShaderLightMap(newShaderName, 0);
+		h = RE_RegisterShaderLightMap(std::string_view(newShaderName), 0);
 		sh2 = R_GetShaderByHandle(h);
 	}
 
@@ -377,11 +377,9 @@ static void ParseWaveForm(const char **text, waveForm_t *wave)
 ParseTexMod
 ===================
 */
-static void ParseTexMod(std::string_view _text, shaderStage_t &stage)
+static void ParseTexMod(const char *_text, shaderStage_t &stage)
 {
-	std::string_view token;
-	const char* c_str = _text.data();
-	const char **text = &c_str;
+	const char **text = &_text;
 	texModInfo_t *tmi;
 
 	if (stage.bundle[0].numTexMods == TR_MAX_TEXMODS)
@@ -393,7 +391,7 @@ static void ParseTexMod(std::string_view _text, shaderStage_t &stage)
 	tmi = &stage.bundle[0].texMods[stage.bundle[0].numTexMods];
 	stage.bundle[0].numTexMods++;
 
-	token = COM_ParseExt_cpp(text, false);
+	std::string_view token = COM_ParseExt_cpp(text, false);
 
 	//
 	// turb
@@ -3893,20 +3891,20 @@ Will always return a valid shader, but it might be the
 default shader if the real one can't be found.
 ==================
 */
-shader_t *R_FindShaderByName(const char *name)
+shader_t *R_FindShaderByName(std::string_view name)
 {
-	char strippedName[MAX_QPATH];
+	std::string_view strippedName;
 	int hash;
 	shader_t *sh;
 
-	if ((name == NULL) || (name[0] == 0))
+	if ((name.size() == 0) || (name[0] == 0))
 	{
 		return tr.defaultShader;
 	}
 
-	COM_StripExtension(name, strippedName, sizeof(strippedName));
+	COM_StripExtension_cpp(name, strippedName);
 
-	hash = generateHashValue(strippedName, FILE_HASH_SIZE);
+	hash = generateHashValue(strippedName.data(), FILE_HASH_SIZE);
 
 	//
 	// see if the shader is already loaded
@@ -3917,7 +3915,7 @@ shader_t *R_FindShaderByName(const char *name)
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
 		// have to check all default shaders otherwise for every call to R_FindShader
 		// with that same strippedName a new default shader is created.
-		if (Q_stricmp(sh->name, strippedName) == 0)
+		if (Q_stricmp_cpp(std::string_view(sh->name), strippedName) == 0)
 		{
 			// match found
 			return sh;
@@ -4115,7 +4113,7 @@ shader_t *R_FindShader(std::string_view name, int lightmapIndex, bool mipRawImag
 			flags = static_cast<imgFlags_t>(flags | IMGFLAG_CLAMPTOEDGE);
 		}
 
-		image = R_FindImageFile(name, flags);
+		image = R_FindImageFile(name.data(), flags);
 		if (!image)
 		{
 			ri.Printf(PRINT_DEVELOPER, "Couldn't find image file for shader %s\n", name);
@@ -4192,11 +4190,11 @@ This should really only be used for explicit shaders, because there is no
 way to ask for different implicit lighting modes (vertex, lightmap, etc)
 ====================
 */
-qhandle_t RE_RegisterShaderLightMap(const char *name, int lightmapIndex)
+qhandle_t RE_RegisterShaderLightMap(std::string_view name, int lightmapIndex)
 {
 	shader_t *sh;
 
-	if (strlen(name) >= MAX_QPATH)
+	if (name.size() >= MAX_QPATH)
 	{
 		ri.Printf(PRINT_ALL, "Shader name exceeds MAX_QPATH\n");
 		return 0;
@@ -4244,7 +4242,7 @@ qhandle_t RE_RegisterShader(const char *name)
 		return 0;
 	}
 
-	sh = R_FindShader(name, LIGHTMAP_2D, true);
+	sh = R_FindShader(std::string_view(name), LIGHTMAP_2D, true);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should

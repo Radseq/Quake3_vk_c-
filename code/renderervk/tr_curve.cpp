@@ -238,7 +238,7 @@ static void MakeMeshNormals(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE
 				VectorAdd(normal, sum, sum);
 			}
 
-			VectorNormalize2(sum, dv.normal);
+			VectorNormalize2_plus(sum, dv.normal);
 		}
 	}
 }

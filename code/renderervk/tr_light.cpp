@@ -252,7 +252,7 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
     VectorScale(ent.ambientLight, r_ambientScale->value, ent.ambientLight);
     VectorScale(ent.directedLight, r_directedScale->value, ent.directedLight);
 
-    VectorNormalize2(direction, ent.lightDir);
+    VectorNormalize2_plus(direction, ent.lightDir);
 }
 
 int R_LightForPoint(vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir)
