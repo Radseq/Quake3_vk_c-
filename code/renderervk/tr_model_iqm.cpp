@@ -1660,10 +1660,10 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 	{
 		mat = iqmData.bounds;
 
-		ClearBounds(&iqmData.bounds[0], &iqmData.bounds[3]);
+		ClearBounds_plus(&iqmData.bounds[0], &iqmData.bounds[3]);
 		for (i = 0; i < header.num_vertexes; i++)
 		{
-			AddPointToBounds(&iqmData.positions[i * 3], &iqmData.bounds[0], &iqmData.bounds[3]);
+			AddPointToBounds_plus(&iqmData.positions[i * 3], &iqmData.bounds[0], &iqmData.bounds[3]);
 		}
 	}
 

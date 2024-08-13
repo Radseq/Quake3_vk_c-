@@ -52,7 +52,7 @@ typedef struct vbo_s
 {
 	byte *vbo_buffer;
 	int vbo_offset;
-	int vbo_size;
+	uint32_t vbo_size;
 
 	byte *ibo_buffer;
 	int ibo_offset;

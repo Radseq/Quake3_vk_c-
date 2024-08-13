@@ -358,14 +358,14 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh(int width, int height,
 	grid->width = width;
 	grid->height = height;
 	grid->surfaceType = SF_GRID;
-	ClearBounds(grid->meshBounds[0], grid->meshBounds[1]);
+	ClearBounds_plus(grid->meshBounds[0], grid->meshBounds[1]);
 	for (i = 0; i < width; i++)
 	{
 		for (j = 0; j < height; j++)
 		{
 			vert = &grid->verts[j * width + i];
 			*vert = ctrl[j][i];
-			AddPointToBounds(vert->xyz, grid->meshBounds[0], grid->meshBounds[1]);
+			AddPointToBounds_plus(vert->xyz, grid->meshBounds[0], grid->meshBounds[1]);
 		}
 	}
 

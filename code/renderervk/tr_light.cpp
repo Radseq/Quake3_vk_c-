@@ -314,7 +314,7 @@ by the Calc_* functions
 */
 void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
 {
-    int i;
+    unsigned int i;
     float power;
     vec3_t dir;
     float d;

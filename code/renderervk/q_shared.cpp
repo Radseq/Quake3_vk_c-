@@ -178,12 +178,12 @@ static const char *SkipWhitespace(const char *data, bool *hasNewLines)
 
 const char *COM_ParseExt(const char **data_p, bool allowLineBreaks)
 {
-    int c = 0, len;
+    int c = 0;
     bool hasNewLines = false;
     const char *data;
 
     data = *data_p;
-    len = 0;
+    std::size_t len = 0;
     com_token[0] = '\0';
     com_tokenline = 0;
 

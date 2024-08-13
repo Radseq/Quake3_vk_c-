@@ -666,7 +666,7 @@ static const void *RB_StretchPic(const void *data)
 static void RB_LightingPass(void)
 {
 	dlight_t *dl;
-	int i;
+	unsigned int i;
 
 #ifdef USE_VBO
 	// VBO_Flush();

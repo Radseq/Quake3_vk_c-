@@ -240,7 +240,7 @@ void R_SetColorMappings()
 
 	shift = tr.overbrightBits;
 
-	for (i = 0; i < arrayLen(s_gammatable); i++)
+	for (i = 0; i < (int)arrayLen(s_gammatable); i++)
 	{
 		if (g == 1.0f)
 		{
@@ -262,7 +262,7 @@ void R_SetColorMappings()
 		s_gammatable[i] = inf;
 	}
 
-	for (i = 0; i < arrayLen(s_intensitytable); i++)
+	for (i = 0; i < (int)arrayLen(s_intensitytable); i++)
 	{
 		j = i * r_intensity->value;
 		if (j > 255)
@@ -364,7 +364,7 @@ void TextureMode(std::string_view texture)
 
 	if (mode == NULL)
 	{
-		ri.Printf(PRINT_ALL, "bad texture filter name '%s'\n", texture);
+		ri.Printf(PRINT_ALL, "bad texture filter name '%s'\n", texture.data());
 		return;
 	}
 
@@ -1460,7 +1460,7 @@ void R_DeleteTextures(void)
 	for (i = 0; i < tr.numImages; i++)
 	{
 		img = tr.images[i];
-		vk_destroy_image_resources(&img->handle, &img->view);
+		vk_destroy_image_resources(img->handle, img->view);
 
 		// img->descriptor will be released with pool reset
 	}
