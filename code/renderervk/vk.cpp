@@ -1673,8 +1673,6 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 
 	ri.Printf(PRINT_ALL, "...selected physical device: %i\n", device_index);
 
-	auto physical_device = VkPhysicalDevice(physical_deviceCpp);
-
 	// select surface format
 	if (!vk_select_surface_format(physical_deviceCpp, vk_surfaceCpp))
 	{
@@ -1860,8 +1858,8 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 		}
 
 #else
-		auto vkDeviceCpp = physical_deviceCpp.createDevice(device_desc);
-		vk_inst.device = static_cast<VkDevice>(vkDeviceCpp);
+		vk_inst.device = physical_deviceCpp.createDevice(device_desc);
+		// vk_inst.device = static_cast<VkDevice>(vkDeviceCpp);
 #endif
 	}
 
@@ -2299,68 +2297,67 @@ static void deinit_device_functions(void)
 	qvkDebugMarkerSetObjectNameEXT = nullptr;
 }
 
-static VkShaderModule SHADER_MODULE(const uint8_t *bytes, const int count)
+static vk::ShaderModule SHADER_MODULE(const uint8_t *bytes, const int count)
 {
-	VkShaderModuleCreateInfo desc;
-	VkShaderModule module;
+	vk::ShaderModule module;
 
 	if (count % 4 != 0)
 	{
 		ri.Error(ERR_FATAL, "Vulkan: SPIR-V binary buffer size is not a multiple of 4");
 	}
 
-	desc.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	desc.pNext = nullptr;
-	desc.flags = 0;
-	desc.codeSize = count;
-	desc.pCode = (const uint32_t *)bytes;
+	vk::ShaderModuleCreateInfo desc{{},
+									count,
+									(const uint32_t *)bytes,
+									nullptr};
 
-	VK_CHECK(qvkCreateShaderModule(vk_inst.device, &desc, nullptr, &module));
+	VK_CHECK(module = vk_inst.device.createShaderModule(desc));
 
 	return module;
 }
 
-static void vk_create_layout_binding(int binding, VkDescriptorType type, VkShaderStageFlags flags, VkDescriptorSetLayout *layout)
+static vk::DescriptorSetLayout vk_create_layout_binding(int binding, vk::DescriptorType type, vk::ShaderStageFlags flags)
 {
-	VkDescriptorSetLayoutBinding bind;
-	VkDescriptorSetLayoutCreateInfo desc;
 
-	bind.binding = binding;
-	bind.descriptorType = type;
-	bind.descriptorCount = 1;
-	bind.stageFlags = flags;
-	bind.pImmutableSamplers = nullptr;
+	vk::DescriptorSetLayoutBinding bind{binding,
+										type,
+										1,
+										flags,
+										nullptr};
 
-	desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	desc.pNext = nullptr;
-	desc.flags = 0;
-	desc.bindingCount = 1;
-	desc.pBindings = &bind;
+	vk::DescriptorSetLayoutCreateInfo desc{{},
+										   1,
+										   &bind,
+										   nullptr};
 
-	VK_CHECK(qvkCreateDescriptorSetLayout(vk_inst.device, &desc, nullptr, layout));
+#ifdef USE_VK_VALIDATION
+
+	auto resultDescSetLayout = vk_inst.device.createDescriptorSetLayout(desc);
+	if (resultDescSetLayout.result != vk::Result::eSuccess)
+	{
+		ri.Printf(PRINT_ERROR, "createDescriptorSetLayout returned %s\n", vk_result_string(resultDescSetLayout.result).data());
+	}
+	return vk_inst.device.createDescriptorSetLayout(desc);
+#else
+	return vk_inst.device.createDescriptorSetLayout(desc);
+#endif
 }
 
-void vk_update_uniform_descriptor(VkDescriptorSet descriptor, VkBuffer buffer)
+void vk_update_uniform_descriptor(const vk::DescriptorSet &descriptor, const vk::Buffer &buffer)
 {
-	VkDescriptorBufferInfo info;
-	VkWriteDescriptorSet desc;
+	vk::DescriptorBufferInfo info{buffer, 0, sizeof(vkUniform_t)};
 
-	info.buffer = buffer;
-	info.offset = 0;
-	info.range = sizeof(vkUniform_t);
+	vk::WriteDescriptorSet desc{descriptor,
+								0,
+								0,
+								1,
+								vk::DescriptorType::eUniformBufferDynamic,
+								nullptr,
+								&info,
+								nullptr,
+								nullptr};
 
-	desc.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	desc.dstSet = descriptor;
-	desc.dstBinding = 0;
-	desc.dstArrayElement = 0;
-	desc.descriptorCount = 1;
-	desc.pNext = nullptr;
-	desc.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	desc.pImageInfo = nullptr;
-	desc.pBufferInfo = &info;
-	desc.pTexelBufferView = nullptr;
-
-	qvkUpdateDescriptorSets(vk_inst.device, 1, &desc, 0, nullptr);
+	 vk_inst.device.updateDescriptorSets(desc, nullptr);
 }
 
 static VkSampler vk_find_sampler(const Vk_Sampler_Def *def)
@@ -4200,7 +4197,7 @@ void vk_initialize(void)
 	Q_strncpyz(glConfig.vendor_string, vendor_name, sizeof(glConfig.vendor_string));
 	Q_strncpyz(glConfig.renderer_string, renderer_name(&props), sizeof(glConfig.renderer_string));
 
-	SET_OBJECT_NAME((intptr_t)vk_inst.device, glConfig.renderer_string, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT);
+	SET_OBJECT_NAME((intptr_t) static_cast<VkDevice>(vk_inst.device), glConfig.renderer_string, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT);
 
 	//
 	// Sync primitives.
@@ -4279,10 +4276,10 @@ void vk_initialize(void)
 	//
 	// Descriptor set layout.
 	//
-	vk_create_layout_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &vk_inst.set_layout_sampler);
-	vk_create_layout_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT, &vk_inst.set_layout_uniform);
-	vk_create_layout_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT, &vk_inst.set_layout_storage);
-	// vk_create_layout_binding( 0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT, &vk_inst.set_layout_input );
+	vk_inst.set_layout_sampler = vk_create_layout_binding(0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
+	vk_inst.set_layout_uniform = vk_create_layout_binding(0, vk::DescriptorType::eUniformBufferDynamic, vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eVertex);
+	vk_inst.set_layout_storage = vk_create_layout_binding(0, vk::DescriptorType::eStorageBufferDynamic, vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eVertex);
+	// vk_create_layout_binding( 0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, vk::ShaderStageFlagBits::eFragment, &vk_inst.set_layout_input );
 
 	//
 	// Pipeline layouts.

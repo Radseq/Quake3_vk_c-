@@ -257,13 +257,13 @@ typedef struct vk_tess_s
 // This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.
 typedef struct
 {
-    VkPhysicalDevice physical_device;
+    vk::PhysicalDevice physical_device;
     vk::PhysicalDevice physical_deviceHpp;
     VkSurfaceFormatKHR base_format;
     VkSurfaceFormatKHR present_format;
 
     uint32_t queue_family_index;
-    VkDevice device;
+    vk::Device device;
     VkQueue queue;
 
     VkSwapchainKHR swapchain;

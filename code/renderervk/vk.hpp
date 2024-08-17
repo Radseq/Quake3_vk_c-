@@ -129,7 +129,7 @@ void vk_draw_indexed(uint32_t indexCount, uint32_t firstIndex);
 void vk_reset_descriptor(int index);
 void vk_update_descriptor(int index, VkDescriptorSet descriptor);
 void vk_update_descriptor_offset(int index, uint32_t offset);
-void vk_update_uniform_descriptor(VkDescriptorSet descriptor, VkBuffer buffer);
+void vk_update_uniform_descriptor(const vk::DescriptorSet &descriptor, const vk::Buffer &buffer);
 
 void vk_update_post_process_pipelines(void);
 
