@@ -1,15 +1,20 @@
-#include "vulkan/vulkan.h"
-
 #ifndef DEFINITIONS_HPP
 #define DEFINITIONS_HPP
 
-#define VK_NUM_BLOOM_PASSES 4
-#define MAX_VK_SAMPLERS 32
-#define MAX_IMAGE_CHUNKS 48
-#define MAX_SWAPCHAIN_IMAGES 8
-#define MAX_ATTACHMENTS_IN_POOL (8 + VK_NUM_BLOOM_PASSES * 2) // depth + msaa + msaa-resolve + depth-resolve + screenmap.msaa + screenmap.resolve + screenmap.depth + bloom_extract + blur pairs
-#define NUM_COMMAND_BUFFERS 2                                 // number of command buffers / render semaphores / framebuffer sets
-#define MAX_VK_PIPELINES (1024 + 128)
+extern "C"
+{
+#include "vulkan/vulkan.h"
+}
+
+#include "vulkan/vulkan.hpp"
+
+constexpr int VK_NUM_BLOOM_PASSES = 4;
+constexpr int MAX_VK_SAMPLERS = 32;
+constexpr int MAX_IMAGE_CHUNKS = 48;
+constexpr int MAX_SWAPCHAIN_IMAGES = 8;
+constexpr int MAX_ATTACHMENTS_IN_POOL(8 + VK_NUM_BLOOM_PASSES * 2); // depth + msaa + msaa-resolve + depth-resolve + screenmap.msaa + screenmap.resolve + screenmap.depth + bloom_extract + blur pairs
+constexpr int NUM_COMMAND_BUFFERS = 2;                              // number of command buffers / render semaphores / framebuffer sets
+constexpr int MAX_VK_PIPELINES = (1024 + 128);
 
 typedef unsigned char byte;
 
@@ -253,6 +258,7 @@ typedef struct vk_tess_s
 typedef struct
 {
     VkPhysicalDevice physical_device;
+    vk::PhysicalDevice physical_deviceHpp;
     VkSurfaceFormatKHR base_format;
     VkSurfaceFormatKHR present_format;
 

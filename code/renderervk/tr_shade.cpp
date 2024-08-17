@@ -458,18 +458,18 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 
 uint32_t VK_PushUniform(const vkUniform_t &uniform)
 {
-	const uint32_t offset = vk.cmd->uniform_read_offset = PAD(vk.cmd->vertex_buffer_offset, vk.uniform_alignment);
+	const uint32_t offset = vk_inst.cmd->uniform_read_offset = PAD(vk_inst.cmd->vertex_buffer_offset, vk_inst.uniform_alignment);
 
-	if (offset + vk.uniform_item_size > vk.geometry_buffer_size)
+	if (offset + vk_inst.uniform_item_size > vk_inst.geometry_buffer_size)
 		return ~0U;
 
 	// push uniform
-	Com_Memcpy(vk.cmd->vertex_buffer_ptr + offset, &uniform, sizeof(uniform));
-	vk.cmd->vertex_buffer_offset = offset + vk.uniform_item_size;
+	Com_Memcpy(vk_inst.cmd->vertex_buffer_ptr + offset, &uniform, sizeof(uniform));
+	vk_inst.cmd->vertex_buffer_offset = offset + vk_inst.uniform_item_size;
 
 	vk_reset_descriptor(VK_DESC_UNIFORM);
-	vk_update_descriptor(VK_DESC_UNIFORM, vk.cmd->uniform_descriptor);
-	vk_update_descriptor_offset(VK_DESC_UNIFORM, vk.cmd->uniform_read_offset);
+	vk_update_descriptor(VK_DESC_UNIFORM, vk_inst.cmd->uniform_descriptor);
+	vk_update_descriptor_offset(VK_DESC_UNIFORM, vk_inst.cmd->uniform_read_offset);
 
 	return offset;
 }
@@ -491,7 +491,7 @@ static void R_BindAnimatedImage(const textureBundle_t &bundle)
 		if (!backEnd.screenMapDone)
 			Bind(tr.blackImage);
 		else
-			vk_update_descriptor(glState.currenttmu + VK_DESC_TEXTURE_BASE, vk.screenMap.color_descriptor);
+			vk_update_descriptor(glState.currenttmu + VK_DESC_TEXTURE_BASE, vk_inst.screenMap.color_descriptor);
 		return;
 	}
 
@@ -523,7 +523,7 @@ static void R_BindAnimatedImage(const textureBundle_t &bundle)
 static void VK_SetLightParams(vkUniform_t &uniform, const dlight_t &dl)
 {
 	float radius;
-	if (!glConfig.deviceSupportsGamma && !vk.fboActive)
+	if (!glConfig.deviceSupportsGamma && !vk_inst.fboActive)
 		VectorScale(dl.color, 2 * powf(r_intensity->value, r_gamma->value), uniform.light.color);
 	else
 		VectorCopy(dl.color, uniform.light.color);
@@ -603,9 +603,9 @@ void VK_LightingPass(void)
 		vk_update_descriptor(VK_DESC_FOG_DLIGHT, tr.fogImage->descriptor);
 
 	if (tess.light->linear)
-		pipeline = vk.dlight1_pipelines_x[cull][tess.shader->polygonOffset][fog_stage][abs_light];
+		pipeline = vk_inst.dlight1_pipelines_x[cull][tess.shader->polygonOffset][fog_stage][abs_light];
 	else
-		pipeline = vk.dlight_pipelines_x[cull][tess.shader->polygonOffset][fog_stage][abs_light];
+		pipeline = vk_inst.dlight_pipelines_x[cull][tess.shader->polygonOffset][fog_stage][abs_light];
 
 	SelectTexture(0);
 	R_BindAnimatedImage(pStage->bundle[tess.shader->lightingBundle]);
@@ -903,7 +903,7 @@ static bool ProjectDlightTexture(void)
 			// re-bind index buffer for later fog pass
 			rebindIndex = true;
 		}
-		pipeline = vk.dlight_pipelines[dl.additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
+		pipeline = vk_inst.dlight_pipelines[dl.additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
 		vk_bind_pipeline(pipeline);
 		vk_bind_index_ext(numIndexes, hitIndexes);
 		vk_bind_geometry(TESS_RGBA0 | TESS_ST0);
@@ -926,7 +926,7 @@ Blends a fog texture on top of everything else
 */
 static void RB_FogPass(bool rebindIndex)
 {
-	uint32_t pipeline = vk.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
+	uint32_t pipeline = vk_inst.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
 #ifdef USE_FOG_ONLY
 	int fog_stage;
 
@@ -1039,20 +1039,20 @@ static void DrawTris(const shaderCommands_t &input)
 	{
 #ifdef USE_PMLIGHT
 		if (tess.dlightPass)
-			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk.tris_mirror_debug_red_pipeline : vk.tris_debug_red_pipeline;
+			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk_inst.tris_mirror_debug_red_pipeline : vk_inst.tris_debug_red_pipeline;
 		else
 #endif
-			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk.tris_mirror_debug_green_pipeline : vk.tris_debug_green_pipeline;
+			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk_inst.tris_mirror_debug_green_pipeline : vk_inst.tris_debug_green_pipeline;
 	}
 	else
 #endif
 	{
 #ifdef USE_PMLIGHT
 		if (tess.dlightPass)
-			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk.tris_mirror_debug_red_pipeline : vk.tris_debug_red_pipeline;
+			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk_inst.tris_mirror_debug_red_pipeline : vk_inst.tris_debug_red_pipeline;
 		else
 #endif
-			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk.tris_mirror_debug_pipeline : vk.tris_debug_pipeline;
+			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk_inst.tris_mirror_debug_pipeline : vk_inst.tris_debug_pipeline;
 	}
 
 	vk_bind_pipeline(pipeline);
@@ -1087,7 +1087,7 @@ static void DrawNormals(const shaderCommands_t &input)
 	tess.numVertexes *= 2;
 	Com_Memset(tess.svars.colors[0][0].rgba, tr.identityLightByte, tess.numVertexes * sizeof(color4ub_t));
 
-	vk_bind_pipeline(vk.normals_debug_pipeline);
+	vk_bind_pipeline(vk_inst.normals_debug_pipeline);
 	vk_bind_index();
 	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
 	vk_draw_geometry(DEPTH_RANGE_ZERO, true);

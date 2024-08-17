@@ -893,7 +893,7 @@ void VBO_RenderIBOItems(void)
 	// from device-local memory
 	if (vbo.ibo_items_count)
 	{
-		vk_bind_index_buffer(vk.vbo.vertex_buffer, tess.shader->iboOffset);
+		vk_bind_index_buffer(vk_inst.vbo.vertex_buffer, tess.shader->iboOffset);
 
 		for (i = 0; i < vbo.ibo_items_count; i++)
 		{
@@ -904,7 +904,7 @@ void VBO_RenderIBOItems(void)
 	// from host-visible memory
 	if (vbo.soft_buffer_indexes)
 	{
-		vk_bind_index_buffer(vk.cmd->vertex_buffer, vbo.soft_buffer_offset);
+		vk_bind_index_buffer(vk_inst.cmd->vertex_buffer, vbo.soft_buffer_offset);
 
 		vk_draw_indexed(vbo.soft_buffer_indexes, 0);
 	}

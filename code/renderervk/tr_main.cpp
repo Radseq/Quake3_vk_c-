@@ -1243,7 +1243,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, int entityNum)
 	}
 #endif
 
-	if (tess.numVertexes > 2 && r_fastsky->integer && vk.fastSky)
+	if (tess.numVertexes > 2 && r_fastsky->integer && vk_inst.fastSky)
 	{
 		int mins[2], maxs[2];
 		R_GetModelViewBounds(mins, maxs);
@@ -1605,7 +1605,7 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, int numDrawSurfs)
 			{
 				return;
 			}
-			if (r_fastsky->integer == 0 || !vk.fastSky)
+			if (r_fastsky->integer == 0 || !vk_inst.fastSky)
 			{
 				break; // only one mirror view at a time
 			}

@@ -191,7 +191,7 @@ int max_polys;
 int max_polyverts;
 
 #include "vk.hpp"
-Vk_Instance vk;
+Vk_Instance vk_inst;
 Vk_World vk_world;
 
 // for modular renderer
@@ -295,13 +295,13 @@ static void InitOpenGL(void)
 		gls.initTime = ri.Milliseconds();
 	}
 
-	if (!vk.active)
+	if (!vk_inst.active)
 	{
 		// might happen after REF_KEEP_WINDOW
 		vk_initialize();
 		gls.initTime = ri.Milliseconds();
 	}
-	if (vk.active)
+	if (vk_inst.active)
 	{
 		vk_init_descriptors();
 	}
@@ -929,16 +929,16 @@ static void GfxInfo(void)
 	ri.Printf(PRINT_ALL, "VK_MAX_TEXTURE_UNITS: %d\n", glConfig.numTextureUnits);
 
 	ri.Printf(PRINT_ALL, "\nPIXELFORMAT: color(%d-bits) Z(%d-bit) stencil(%d-bits)\n", glConfig.colorBits, glConfig.depthBits, glConfig.stencilBits);
-	ri.Printf(PRINT_ALL, " presentation: %s\n", vk_format_string(vk.present_format.format));
-	if (vk.color_format != vk.present_format.format)
+	ri.Printf(PRINT_ALL, " presentation: %s\n", vk_format_string(vk_inst.present_format.format).data());
+	if (vk_inst.color_format != vk_inst.present_format.format)
 	{
-		ri.Printf(PRINT_ALL, " color: %s\n", vk_format_string(vk.color_format));
+		ri.Printf(PRINT_ALL, " color: %s\n", vk_format_string(vk_inst.color_format).data());
 	}
-	if (vk.capture_format != vk.present_format.format || vk.capture_format != vk.color_format)
+	if (vk_inst.capture_format != vk_inst.present_format.format || vk_inst.capture_format != vk_inst.color_format)
 	{
-		ri.Printf(PRINT_ALL, " capture: %s\n", vk_format_string(vk.capture_format));
+		ri.Printf(PRINT_ALL, " capture: %s\n", vk_format_string(vk_inst.capture_format).data());
 	}
-	ri.Printf(PRINT_ALL, " depth: %s\n", vk_format_string(vk.depth_format));
+	ri.Printf(PRINT_ALL, " depth: %s\n", vk_format_string(vk_inst.depth_format).data());
 
 	if (glConfig.isFullscreen)
 	{
@@ -1015,11 +1015,11 @@ static void GfxInfo_f(void)
 
 static void VkInfo_f(void)
 {
-	ri.Printf(PRINT_ALL, "max_vertex_usage: %iKb\n", (int)((vk.stats.vertex_buffer_max + 1023) / 1024));
-	ri.Printf(PRINT_ALL, "max_push_size: %ib\n", vk.stats.push_size_max);
+	ri.Printf(PRINT_ALL, "max_vertex_usage: %iKb\n", (int)((vk_inst.stats.vertex_buffer_max + 1023) / 1024));
+	ri.Printf(PRINT_ALL, "max_push_size: %ib\n", vk_inst.stats.push_size_max);
 
-	ri.Printf(PRINT_ALL, "pipeline handles: %i\n", vk.pipeline_create_count);
-	ri.Printf(PRINT_ALL, "pipeline descriptors: %i, base: %i\n", vk.pipelines_count, vk.pipelines_world_base);
+	ri.Printf(PRINT_ALL, "pipeline handles: %i\n", vk_inst.pipeline_create_count);
+	ri.Printf(PRINT_ALL, "pipeline descriptors: %i, base: %i\n", vk_inst.pipelines_count, vk_inst.pipelines_world_base);
 	ri.Printf(PRINT_ALL, "image chunks: %i\n", vk_world.num_image_chunks);
 }
 
@@ -1030,7 +1030,7 @@ RE_SyncRender
 */
 static void RE_SyncRender(void)
 {
-	if (vk.device)
+	if (vk_inst.device)
 		vk_wait_idle();
 }
 

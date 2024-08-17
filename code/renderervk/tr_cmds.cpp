@@ -317,7 +317,7 @@ void RE_BeginFrame(stereoFrame_t stereoFrame)
 		cmd->buffer = 0;
 	}
 
-	if (r_fastsky->integer && vk.fastSky)
+	if (r_fastsky->integer && vk_inst.fastSky)
 	{
 		if (stereoFrame != STEREO_RIGHT)
 		{
@@ -382,7 +382,7 @@ void RE_FinishBloom()
 
 bool RE_CanMinimize()
 {
-	if (vk.fboActive || vk.offscreenRender)
+	if (vk_inst.fboActive || vk_inst.offscreenRender)
 		return true;
 	return false;
 }

@@ -705,7 +705,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			if (!Q_stricmp_cpp(token, "screenMap"))
 			{
 				flags = IMGFLAG_NONE;
-				if (vk.fboActive)
+				if (vk_inst.fboActive)
 				{
 					stage.bundle[0].isScreenMap = 1;
 					shader.hasScreenMap = 1;
@@ -2437,7 +2437,7 @@ static int CollapseMultitexture(unsigned int st0bits, shaderStage_t &st0, shader
 
 	Com_Memset((&st0 + num_stages - 1), 0, sizeof(stages[0]));
 
-	if (vk.maxBoundDescriptorSets >= 8 && num_stages >= 3 && !st0.mtEnv3)
+	if (vk_inst.maxBoundDescriptorSets >= 8 && num_stages >= 3 && !st0.mtEnv3)
 	{
 		if (mtEnv == GL_BLEND_ONE_MINUS_ALPHA || mtEnv == GL_BLEND_ALPHA || mtEnv == GL_BLEND_MIX_ALPHA || mtEnv == GL_BLEND_MIX_ONE_MINUS_ALPHA || mtEnv == GL_BLEND_DST_COLOR_SRC_ALPHA)
 		{
@@ -3435,7 +3435,7 @@ static shader_t *FinishShader(void)
 	}
 
 #ifdef USE_FOG_COLLAPSE
-	if (vk.maxBoundDescriptorSets >= 6 && !(shader.contentFlags & CONTENTS_FOG) && shader.fogPass != FP_NONE)
+	if (vk_inst.maxBoundDescriptorSets >= 6 && !(shader.contentFlags & CONTENTS_FOG) && shader.fogPass != FP_NONE)
 	{
 		fogCollapse = true;
 		if (stage == 1)

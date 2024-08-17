@@ -536,6 +536,10 @@ else
   LDFLAGS += -lm
   LDFLAGS += -Wl,--gc-sections -fvisibility=hidden
 
+  ifeq ($(USE_VULKAN),1)
+    LDFLAGS += -lvulkan
+  endif
+
   ifeq ($(USE_SDL),1)
     BASE_CFLAGS += $(SDL_INCLUDE)
     CLIENT_LDFLAGS = $(SDL_LIBS)

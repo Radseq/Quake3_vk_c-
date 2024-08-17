@@ -4,7 +4,6 @@
 #include "vulkan/vulkan.h"
 #include "tr_common.hpp"
 #include "tr_local.hpp"
-#include "definitions.hpp"
 
 #define USE_VBO
 #define USE_PMLIGHT
@@ -50,19 +49,19 @@ typedef struct vkUniform_s
       vec4_t fogColor;          // fragment
 } vkUniform_t;
 
-#define TESS_XYZ (1)
-#define TESS_RGBA0 (2)
-#define TESS_RGBA1 (4)
-#define TESS_RGBA2 (8)
-#define TESS_ST0 (16)
-#define TESS_ST1 (32)
-#define TESS_ST2 (64)
-#define TESS_NNN (128)
-#define TESS_VPOS (256)  // uniform with eyePos
-#define TESS_ENV (512)   // mark shader stage with environment mapping
-#define TESS_ENT0 (1024) // uniform with ent.color[0]
-#define TESS_ENT1 (2048) // uniform with ent.color[1]
-#define TESS_ENT2 (4096) // uniform with ent.color[2]
+constexpr int TESS_XYZ = 1;
+constexpr int TESS_RGBA0 = 2;
+constexpr int TESS_RGBA1 = 4;
+constexpr int TESS_RGBA2 = 8;
+constexpr int TESS_ST0 = 16;
+constexpr int TESS_ST1 = 32;
+constexpr int TESS_ST2 = 64;
+constexpr int TESS_NNN = 128;
+constexpr int TESS_VPOS = 256;  // uniform with eyePos
+constexpr int TESS_ENV = 512;   // mark shader stage with environment mapping
+constexpr int TESS_ENT0 = 1024; // uniform with ent.color[0]
+constexpr int TESS_ENT1 = 2048; // uniform with ent.color[1]
+constexpr int TESS_ENT2 = 4096; // uniform with ent.color[2]
 
 //
 // Initialization.
@@ -134,7 +133,7 @@ void vk_update_uniform_descriptor(VkDescriptorSet descriptor, VkBuffer buffer);
 
 void vk_update_post_process_pipelines(void);
 
-const char *vk_format_string(VkFormat format);
+std::string_view vk_format_string(VkFormat format);
 
 void VBO_PrepareQueues(void);
 void VBO_RenderIBOItems(void);
@@ -163,7 +162,7 @@ void vk_begin_blur_render_pass(uint32_t index);
 // Vk_World contains vulkan resources/state requested by the game code.
 // It is reinitialized on a map change.
 
-extern Vk_Instance vk;    // shouldn't be cleared during ref re-init
-extern Vk_World vk_world; // this data is cleared during ref re-init
+extern Vk_Instance vk_inst; // shouldn't be cleared during ref re-init
+extern Vk_World vk_world;   // this data is cleared during ref re-init
 
 #endif // VK_HPP

@@ -99,7 +99,7 @@ void R_ClearFlares(void)
 {
 	int i;
 
-	if (!vk.fragmentStores)
+	if (!vk_inst.fragmentStores)
 		return;
 
 	Com_Memset(r_flareStructs, 0, sizeof(r_flareStructs));
@@ -337,11 +337,11 @@ static void RB_TestFlare(flare_t *f)
 	*/
 
 	// we neeed only single uint32_t but take care of alignment
-	offset = (f - r_flareStructs) * vk.storage_alignment;
+	offset = (f - r_flareStructs) * vk_inst.storage_alignment;
 
 	if (f->testCount)
 	{
-		uint32_t *cnt = (uint32_t *)(vk.storage.buffer_ptr + offset);
+		uint32_t *cnt = (uint32_t *)(vk_inst.storage.buffer_ptr + offset);
 		if (*cnt)
 			visible = true;
 		else
@@ -371,10 +371,10 @@ static void RB_TestFlare(flare_t *f)
 #endif
 	// render test dot
 	vk_reset_descriptor(VK_DESC_STORAGE);
-	vk_update_descriptor(VK_DESC_STORAGE, vk.storage.descriptor);
+	vk_update_descriptor(VK_DESC_STORAGE, vk_inst.storage.descriptor);
 	vk_update_descriptor_offset(VK_DESC_STORAGE, offset);
 
-	vk_bind_pipeline(vk.dot_pipeline);
+	vk_bind_pipeline(vk_inst.dot_pipeline);
 	vk_bind_geometry(TESS_XYZ);
 	vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
 
@@ -520,7 +520,7 @@ void RB_RenderFlares(void)
 		return;
 	}
 
-	if (vk.renderPassIndex == RENDER_PASS_SCREENMAP)
+	if (vk_inst.renderPassIndex == RENDER_PASS_SCREENMAP)
 	{
 		return;
 	}

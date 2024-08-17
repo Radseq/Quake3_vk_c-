@@ -221,13 +221,13 @@ void RB_ShadowTessEnd(void)
 	// mirrors have the culling order reversed
 	if (backEnd.viewParms.portalView == PV_MIRROR)
 	{
-		pipeline[0] = vk.shadow_volume_pipelines[0][1];
-		pipeline[1] = vk.shadow_volume_pipelines[1][1];
+		pipeline[0] = vk_inst.shadow_volume_pipelines[0][1];
+		pipeline[1] = vk_inst.shadow_volume_pipelines[1][1];
 	}
 	else
 	{
-		pipeline[0] = vk.shadow_volume_pipelines[0][0];
-		pipeline[1] = vk.shadow_volume_pipelines[1][0];
+		pipeline[0] = vk_inst.shadow_volume_pipelines[0][0];
+		pipeline[1] = vk_inst.shadow_volume_pipelines[1][0];
 	}
 	vk_bind_pipeline(pipeline[0]); // back-sided
 	vk_bind_index();
@@ -297,7 +297,7 @@ void RB_ShadowFinish(void)
 	vk_world.modelview_transform[10] = 1.0f;
 	vk_world.modelview_transform[15] = 1.0f;
 
-	vk_bind_pipeline(vk.shadow_finish_pipeline);
+	vk_bind_pipeline(vk_inst.shadow_finish_pipeline);
 
 	vk_update_mvp(NULL);
 

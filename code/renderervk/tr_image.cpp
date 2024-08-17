@@ -166,7 +166,7 @@ void R_SkinList_f()
 void R_GammaCorrect(byte *buffer, int bufSize)
 {
 	int i;
-	if (vk.capture.image != VK_NULL_HANDLE)
+	if (vk_inst.capture.image != VK_NULL_HANDLE)
 		return;
 	if (!gls.deviceSupportsGamma)
 		return;
@@ -195,14 +195,14 @@ void R_SetColorMappings()
 	tr.overbrightBits = abs(r_overBrightBits->integer);
 
 	// never overbright in windowed mode
-	if (!glConfig.isFullscreen && r_overBrightBits->integer >= 0 && !vk.fboActive)
+	if (!glConfig.isFullscreen && r_overBrightBits->integer >= 0 && !vk_inst.fboActive)
 	{
 		tr.overbrightBits = 0;
 		applyGamma = false;
 	}
 	else
 	{
-		if (!glConfig.deviceSupportsGamma && !vk.fboActive)
+		if (!glConfig.deviceSupportsGamma && !vk_inst.fboActive)
 		{
 			tr.overbrightBits = 0; // need hardware gamma for overbright
 			applyGamma = false;
@@ -274,7 +274,7 @@ void R_SetColorMappings()
 
 	if (gls.deviceSupportsGamma)
 	{
-		if (vk.fboActive)
+		if (vk_inst.fboActive)
 			ri.GLimp_SetGamma(s_gammatable_linear, s_gammatable_linear, s_gammatable_linear);
 		else
 		{
@@ -301,7 +301,7 @@ static void R_LightScaleTexture(byte *in, int inwidth, int inheight, bool only_g
 
 	if (only_gamma)
 	{
-		if (!glConfig.deviceSupportsGamma && !vk.fboActive)
+		if (!glConfig.deviceSupportsGamma && !vk_inst.fboActive)
 		{
 			int i, c;
 			byte *p;
@@ -326,7 +326,7 @@ static void R_LightScaleTexture(byte *in, int inwidth, int inheight, bool only_g
 
 		c = inwidth * inheight;
 
-		if (glConfig.deviceSupportsGamma || vk.fboActive)
+		if (glConfig.deviceSupportsGamma || vk_inst.fboActive)
 		{
 			for (i = 0; i < c; i++, p += 4)
 			{
