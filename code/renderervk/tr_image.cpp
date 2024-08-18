@@ -1007,11 +1007,11 @@ image_t *R_CreateImage(const char *name, const char *name2, byte *pic, int width
 	}
 
 	if (flags & IMGFLAG_CLAMPTOBORDER)
-		image->wrapClampMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+		image->wrapClampMode = vk::SamplerAddressMode::eClampToBorder;
 	else if (flags & IMGFLAG_CLAMPTOEDGE)
-		image->wrapClampMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		image->wrapClampMode = vk::SamplerAddressMode::eClampToEdge;
 	else
-		image->wrapClampMode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		image->wrapClampMode = vk::SamplerAddressMode::eRepeat;
 
 	upload_vk_image(*image, pic);
 	return image;
