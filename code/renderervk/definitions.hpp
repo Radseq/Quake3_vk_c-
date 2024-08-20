@@ -30,9 +30,9 @@ typedef enum
 typedef struct
 {
     vk::SamplerAddressMode address_mode; // clamp/repeat texture addressing mode
-    int gl_mag_filter;                 // GL_XXX mag filter
-    int gl_min_filter;                 // GL_XXX min filter
-    bool max_lod_1_0;                  // fixed 1.0 lod
+    int gl_mag_filter;                   // GL_XXX mag filter
+    int gl_min_filter;                   // GL_XXX min filter
+    bool max_lod_1_0;                    // fixed 1.0 lod
     bool noAnisotropy;
 } Vk_Sampler_Def;
 
@@ -471,11 +471,11 @@ typedef struct
     uint32_t surface_axis_pipeline;
     uint32_t dot_pipeline;
 
-    VkPipeline gamma_pipeline;
-    VkPipeline capture_pipeline;
-    VkPipeline bloom_extract_pipeline;
-    VkPipeline blur_pipeline[VK_NUM_BLOOM_PASSES * 2]; // horizontal & vertical pairs
-    VkPipeline bloom_blend_pipeline;
+    vk::Pipeline gamma_pipeline;
+    vk::Pipeline capture_pipeline;
+    vk::Pipeline bloom_extract_pipeline;
+    std::array<vk::Pipeline, VK_NUM_BLOOM_PASSES * 2> blur_pipeline; // horizontal & vertical pairs
+    vk::Pipeline bloom_blend_pipeline;
 
     uint32_t frame_count;
     bool active;

@@ -3369,7 +3369,7 @@ void vk_update_post_process_pipelines(void)
 
 			vk_create_post_process_pipeline(1, width, height); // bloom extraction
 
-			for (i = 0; i < arrayLen(vk_inst.blur_pipeline); i += 2)
+			for (i = 0; i < vk_inst.blur_pipeline.size(); i += 2)
 			{
 				width /= 2;
 				height /= 2;
@@ -4903,23 +4903,28 @@ void vk_release_resources(void)
 	std::memset(&vk_inst.stats, 0, sizeof(vk_inst.stats));
 }
 
-static void record_buffer_memory_barrier(VkCommandBuffer cb, VkBuffer buffer, VkDeviceSize size,
-										 VkPipelineStageFlags src_stages, VkPipelineStageFlags dst_stages,
-										 VkAccessFlags src_access, VkAccessFlags dst_access)
+static void record_buffer_memory_barrier(vk::CommandBuffer cb, vk::Buffer buffer,
+										 vk::DeviceSize size, vk::PipelineStageFlags src_stages,
+										 vk::PipelineStageFlags dst_stages, vk::AccessFlags src_access,
+										 vk::AccessFlags dst_access)
 {
+	vk::BufferMemoryBarrier barrier = {src_access,
+									   dst_access,
+									   vk::QueueFamilyIgnored,
+									   vk::QueueFamilyIgnored,
+									   buffer,
+									   0,
+									   size,
+									   nullptr};
 
-	VkBufferMemoryBarrier barrier;
-	barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-	barrier.pNext = nullptr;
-	barrier.srcAccessMask = src_access;
-	barrier.dstAccessMask = dst_access;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.buffer = buffer;
-	barrier.offset = 0;
-	barrier.size = size;
-
-	qvkCmdPipelineBarrier(cb, src_stages, dst_stages, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+	cb.pipelineBarrier(
+		src_stages,
+		dst_stages,
+		vk::DependencyFlags(), // No dependencies
+		{},					   // No memory barriers
+		{barrier},			   // Single buffer memory barrier
+		{}					   // No image memory barriers
+	);
 }
 
 void vk_create_image(image_t &image, int width, int height, int mip_levels)
@@ -5085,40 +5090,39 @@ static byte *resample_image_data(const int target_format, byte *data, const int 
 void vk_upload_image_data(image_t &image, int x, int y, int width, int height, int mipmaps, byte *pixels, int size, bool update)
 {
 
-	VkCommandBuffer command_buffer;
-	VkBufferImageCopy regions[16];
-	VkBufferImageCopy region;
+	vk::CommandBuffer command_buffer;
+	constexpr std::size_t max_regions = 16; // Assuming a maximum of 16 regions
+	std::array<vk::BufferImageCopy, max_regions> regions;
 	byte *buf;
 	int bpp;
-
-	int num_regions = 0;
 	int buffer_size = 0;
+	std::size_t num_regions = 0;
 
 	buf = resample_image_data(image.internalFormat, pixels, size, &bpp);
 
 	while (true)
 	{
-		Com_Memset(&region, 0, sizeof(region));
-		region.bufferOffset = buffer_size;
-		region.bufferRowLength = 0;
-		region.bufferImageHeight = 0;
-		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		region.imageSubresource.mipLevel = num_regions;
-		region.imageSubresource.baseArrayLayer = 0;
-		region.imageSubresource.layerCount = 1;
-		region.imageOffset.x = x;
-		region.imageOffset.y = y;
-		region.imageOffset.z = 0;
-		region.imageExtent.width = width;
-		region.imageExtent.height = height;
-		region.imageExtent.depth = 1;
+		if (num_regions >= max_regions)
+		{
+			break; // Avoid overflow
+		}
+
+		vk::BufferImageCopy region = {buffer_size,
+									  0,
+									  0,
+									  {vk::ImageAspectFlagBits::eColor,
+									   num_regions,
+									   0,
+									   1},
+									  {x, y, 0},
+									  {width, height, 1}};
 
 		regions[num_regions] = region;
 		num_regions++;
 
 		buffer_size += width * height * bpp;
 
-		if (num_regions >= mipmaps || (width == 1 && height == 1) || num_regions >= (int)arrayLen(regions))
+		if (num_regions >= mipmaps || (width == 1 && height == 1) || num_regions >= max_regions)
 			break;
 
 		x >>= 1;
@@ -5134,11 +5138,11 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 	}
 
 	ensure_staging_buffer_allocation(buffer_size);
-	Com_Memcpy(vk_world.staging_buffer_ptr, buf, buffer_size);
+	std::memcpy(vk_world.staging_buffer_ptr, buf, buffer_size);
 
 	command_buffer = begin_command_buffer();
 
-	record_buffer_memory_barrier(command_buffer, vk_world.staging_buffer, VK_WHOLE_SIZE, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+	record_buffer_memory_barrier(command_buffer, vk_world.staging_buffer, vk::WholeSize, vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eHostWrite, vk::AccessFlagBits::eTransferRead);
 
 	if (update)
 	{
@@ -5148,7 +5152,13 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 	{
 		record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
 	}
-	qvkCmdCopyBufferToImage(command_buffer, vk_world.staging_buffer, image.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions);
+	// qvkCmdCopyBufferToImage(command_buffer, vk_world.staging_buffer, image.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions);
+	command_buffer.copyBufferToImage(
+		vk_world.staging_buffer,
+		image.handle,
+		vk::ImageLayout::eTransferDstOptimal,
+		std::vector<vk::BufferImageCopy>(regions.begin(), regions.begin() + num_regions));
+
 	record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 	end_command_buffer(command_buffer);
 
@@ -5160,11 +5170,7 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 
 void vk_update_descriptor_set(image_t &image, bool mipmap)
 {
-	Vk_Sampler_Def sampler_def;
-	VkDescriptorImageInfo image_info;
-	VkWriteDescriptorSet descriptor_write;
-
-	Com_Memset(&sampler_def, 0, sizeof(sampler_def));
+	Vk_Sampler_Def sampler_def = {};
 
 	sampler_def.address_mode = image.wrapClampMode;
 
@@ -5181,22 +5187,21 @@ void vk_update_descriptor_set(image_t &image, bool mipmap)
 		sampler_def.noAnisotropy = true;
 	}
 
-	image_info.sampler = vk_find_sampler(&sampler_def);
-	image_info.imageView = image.view;
-	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	vk::DescriptorImageInfo image_info{vk_find_sampler(&sampler_def),
+									   image.view,
+									   vk::ImageLayout::eShaderReadOnlyOptimal};
 
-	descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_write.dstSet = image.descriptor;
-	descriptor_write.dstBinding = 0;
-	descriptor_write.dstArrayElement = 0;
-	descriptor_write.descriptorCount = 1;
-	descriptor_write.pNext = nullptr;
-	descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptor_write.pImageInfo = &image_info;
-	descriptor_write.pBufferInfo = nullptr;
-	descriptor_write.pTexelBufferView = nullptr;
-
-	qvkUpdateDescriptorSets(vk_inst.device, 1, &descriptor_write, 0, nullptr);
+	vk::WriteDescriptorSet descriptor_write{image.descriptor,
+											0,
+											0,
+											1,
+											vk::DescriptorType::eCombinedImageSampler,
+											&image_info,
+											nullptr,
+											nullptr,
+											nullptr};
+	// qvkUpdateDescriptorSets(vk_inst.device, 1, &descriptor_write, 0, nullptr);
+	vk_inst.device.updateDescriptorSets(descriptor_write, nullptr);
 }
 
 void vk_destroy_image_resources(VkImage &image, VkImageView &imageView)
@@ -5215,15 +5220,14 @@ void vk_destroy_image_resources(VkImage &image, VkImageView &imageView)
 	}
 }
 
-static void set_shader_stage_desc(VkPipelineShaderStageCreateInfo *desc, VkShaderStageFlagBits stage, VkShaderModule shader_module, const char *entry)
+static void set_shader_stage_desc(vk::PipelineShaderStageCreateInfo &desc, vk::ShaderStageFlagBits stage, vk::ShaderModule shader_module, const char *entry)
 {
-	desc->sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	desc->pNext = nullptr;
-	desc->flags = 0;
-	desc->stage = stage;
-	desc->module = shader_module;
-	desc->pName = entry;
-	desc->pSpecializationInfo = nullptr;
+	desc.pNext = nullptr;
+	desc.flags = {};
+	desc.stage = stage;
+	desc.module = shader_module;
+	desc.pName = entry;
+	desc.pSpecializationInfo = nullptr;
 }
 
 #define FORMAT_DEPTH(format, r_bits, g_bits, b_bits) \
@@ -5267,27 +5271,13 @@ static bool vk_surface_format_color_depth(VkFormat format, int *r, int *g, int *
 
 void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t height)
 {
-	VkPipelineShaderStageCreateInfo shader_stages[2];
-	VkPipelineVertexInputStateCreateInfo vertex_input_state;
-	VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
-	VkPipelineRasterizationStateCreateInfo rasterization_state;
-	VkPipelineDepthStencilStateCreateInfo depth_stencil_state;
-	VkPipelineViewportStateCreateInfo viewport_state;
-	VkPipelineMultisampleStateCreateInfo multisample_state;
-	VkPipelineColorBlendStateCreateInfo blend_state;
-	VkPipelineColorBlendAttachmentState attachment_blend_state;
-	VkGraphicsPipelineCreateInfo create_info;
-	VkViewport viewport;
-	VkRect2D scissor;
-	VkSpecializationMapEntry spec_entries[11];
-	VkSpecializationInfo frag_spec_info;
-	VkPipeline *pipeline;
-	VkShaderModule fsmodule;
-	VkRenderPass renderpass;
-	VkPipelineLayout layout;
-	VkSampleCountFlagBits samples;
+	vk::Pipeline *pipeline;
+	vk::ShaderModule fsmodule;
+	vk::RenderPass renderpass;
+	vk::PipelineLayout layout;
+	vk::SampleCountFlagBits samples;
 	const char *pipeline_name;
-	bool blend;
+	bool blend = false;
 
 	struct FragSpecData
 	{
@@ -5311,7 +5301,7 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		fsmodule = vk_inst.modules.bloom_fs;
 		renderpass = vk_inst.render_pass.bloom_extract;
 		layout = vk_inst.pipeline_layout_post_process;
-		samples = VK_SAMPLE_COUNT_1_BIT;
+		samples = vk::SampleCountFlagBits::e1;
 		pipeline_name = "bloom extraction pipeline";
 		blend = false;
 		break;
@@ -5320,7 +5310,7 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		fsmodule = vk_inst.modules.blend_fs;
 		renderpass = vk_inst.render_pass.post_bloom;
 		layout = vk_inst.pipeline_layout_blend;
-		samples = vkSamples;
+		samples = vk::SampleCountFlagBits(vkSamples);
 		pipeline_name = "bloom blend pipeline";
 		blend = true;
 		break;
@@ -5329,7 +5319,7 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		fsmodule = vk_inst.modules.gamma_fs;
 		renderpass = vk_inst.render_pass.capture;
 		layout = vk_inst.pipeline_layout_post_process;
-		samples = VK_SAMPLE_COUNT_1_BIT;
+		samples = vk::SampleCountFlagBits::e1;
 		pipeline_name = "capture buffer pipeline";
 		blend = false;
 		break;
@@ -5338,7 +5328,7 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		fsmodule = vk_inst.modules.gamma_fs;
 		renderpass = vk_inst.render_pass.gamma;
 		layout = vk_inst.pipeline_layout_post_process;
-		samples = VK_SAMPLE_COUNT_1_BIT;
+		samples = vk::SampleCountFlagBits::e1;
 		pipeline_name = "gamma-correction pipeline";
 		blend = false;
 		break;
@@ -5346,22 +5336,18 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 
 	if (*pipeline != VK_NULL_HANDLE)
 	{
-		vk_wait_idle();
-		qvkDestroyPipeline(vk_inst.device, *pipeline, nullptr);
+
+		vk_inst.device.waitIdle();
+		vk_inst.device.destroyPipeline(*pipeline);
 		*pipeline = VK_NULL_HANDLE;
 	}
 
-	vertex_input_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertex_input_state.pNext = nullptr;
-	vertex_input_state.flags = 0;
-	vertex_input_state.vertexBindingDescriptionCount = 0;
-	vertex_input_state.pVertexBindingDescriptions = nullptr;
-	vertex_input_state.vertexAttributeDescriptionCount = 0;
-	vertex_input_state.pVertexBindingDescriptions = nullptr;
+	vk::PipelineVertexInputStateCreateInfo vertex_input_state{};
 
 	// shaders
-	set_shader_stage_desc(shader_stages + 0, VK_SHADER_STAGE_VERTEX_BIT, vk_inst.modules.gamma_vs, "main");
-	set_shader_stage_desc(shader_stages + 1, VK_SHADER_STAGE_FRAGMENT_BIT, fsmodule, "main");
+	std::array<vk::PipelineShaderStageCreateInfo, 2> shader_stages;
+	set_shader_stage_desc(shader_stages[0], vk::ShaderStageFlagBits::eVertex, vk_inst.modules.gamma_vs, "main");
+	set_shader_stage_desc(shader_stages[1], vk::ShaderStageFlagBits::eFragment, fsmodule, "main");
 
 	frag_spec_data.gamma = 1.0 / (r_gamma->value);
 	frag_spec_data.overbright = (float)(1 << tr.overbrightBits);
@@ -5375,364 +5361,254 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 	if (!vk_surface_format_color_depth(vk_inst.present_format.format, &frag_spec_data.depth_r, &frag_spec_data.depth_g, &frag_spec_data.depth_b))
 		ri.Printf(PRINT_ALL, "Format %s not recognized, dither to assume 8bpc\n", vk_format_string(vk_inst.base_format.format).data());
 
-	spec_entries[0].constantID = 0;
-	spec_entries[0].offset = offsetof(struct FragSpecData, gamma);
-	spec_entries[0].size = sizeof(frag_spec_data.gamma);
+	std::array<vk::SpecializationMapEntry, 11> spec_entries = {{
+		{0, offsetof(FragSpecData, gamma), sizeof(frag_spec_data.gamma)},
+		{1, offsetof(FragSpecData, overbright), sizeof(frag_spec_data.overbright)},
+		{2, offsetof(FragSpecData, greyscale), sizeof(frag_spec_data.greyscale)},
+		{3, offsetof(FragSpecData, bloom_threshold), sizeof(frag_spec_data.bloom_threshold)},
+		{4, offsetof(FragSpecData, bloom_intensity), sizeof(frag_spec_data.bloom_intensity)},
+		{5, offsetof(FragSpecData, bloom_threshold_mode), sizeof(frag_spec_data.bloom_threshold_mode)},
+		{6, offsetof(FragSpecData, bloom_modulate), sizeof(frag_spec_data.bloom_modulate)},
+		{7, offsetof(FragSpecData, dither), sizeof(frag_spec_data.dither)},
+		{8, offsetof(FragSpecData, depth_r), sizeof(frag_spec_data.depth_r)},
+		{9, offsetof(FragSpecData, depth_g), sizeof(frag_spec_data.depth_g)},
+		{10, offsetof(FragSpecData, depth_b), sizeof(frag_spec_data.depth_b)},
+	}};
 
-	spec_entries[1].constantID = 1;
-	spec_entries[1].offset = offsetof(struct FragSpecData, overbright);
-	spec_entries[1].size = sizeof(frag_spec_data.overbright);
-
-	spec_entries[2].constantID = 2;
-	spec_entries[2].offset = offsetof(struct FragSpecData, greyscale);
-	spec_entries[2].size = sizeof(frag_spec_data.greyscale);
-
-	spec_entries[3].constantID = 3;
-	spec_entries[3].offset = offsetof(struct FragSpecData, bloom_threshold);
-	spec_entries[3].size = sizeof(frag_spec_data.bloom_threshold);
-
-	spec_entries[4].constantID = 4;
-	spec_entries[4].offset = offsetof(struct FragSpecData, bloom_intensity);
-	spec_entries[4].size = sizeof(frag_spec_data.bloom_intensity);
-
-	spec_entries[5].constantID = 5;
-	spec_entries[5].offset = offsetof(struct FragSpecData, bloom_threshold_mode);
-	spec_entries[5].size = sizeof(frag_spec_data.bloom_threshold_mode);
-
-	spec_entries[6].constantID = 6;
-	spec_entries[6].offset = offsetof(struct FragSpecData, bloom_modulate);
-	spec_entries[6].size = sizeof(frag_spec_data.bloom_modulate);
-
-	spec_entries[7].constantID = 7;
-	spec_entries[7].offset = offsetof(struct FragSpecData, dither);
-	spec_entries[7].size = sizeof(frag_spec_data.dither);
-
-	spec_entries[8].constantID = 8;
-	spec_entries[8].offset = offsetof(struct FragSpecData, depth_r);
-	spec_entries[8].size = sizeof(frag_spec_data.depth_r);
-
-	spec_entries[9].constantID = 9;
-	spec_entries[9].offset = offsetof(struct FragSpecData, depth_g);
-	spec_entries[9].size = sizeof(frag_spec_data.depth_g);
-
-	spec_entries[10].constantID = 10;
-	spec_entries[10].offset = offsetof(struct FragSpecData, depth_b);
-	spec_entries[10].size = sizeof(frag_spec_data.depth_b);
-
-	frag_spec_info.mapEntryCount = 11;
-	frag_spec_info.pMapEntries = spec_entries;
-	frag_spec_info.dataSize = sizeof(frag_spec_data);
-	frag_spec_info.pData = &frag_spec_data;
-
+	vk::SpecializationInfo frag_spec_info{
+		static_cast<uint32_t>(spec_entries.size()),
+		spec_entries.data(),
+		sizeof(frag_spec_data),
+		&frag_spec_data};
 	shader_stages[1].pSpecializationInfo = &frag_spec_info;
 
 	//
 	// Primitive assembly.
 	//
-	input_assembly_state.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	input_assembly_state.pNext = nullptr;
-	input_assembly_state.flags = 0;
-	input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-	input_assembly_state.primitiveRestartEnable = VK_FALSE;
+	vk::PipelineInputAssemblyStateCreateInfo input_assembly_state{{}, vk::PrimitiveTopology::eTriangleStrip, VK_FALSE};
 
 	//
 	// Viewport.
 	//
-	if (program_index == 0)
-	{
-		// gamma correction
-		viewport.x = 0.0 + vk_inst.blitX0;
-		viewport.y = 0.0 + vk_inst.blitY0;
-		viewport.width = gls.windowWidth - vk_inst.blitX0 * 2;
-		viewport.height = gls.windowHeight - vk_inst.blitY0 * 2;
-	}
-	else
-	{
-		// other post-processing
-		viewport.x = 0.0;
-		viewport.y = 0.0;
-		viewport.width = width;
-		viewport.height = height;
-	}
+	vk::Viewport viewport{
+		program_index == 0 ? 0.0f + vk_inst.blitX0 : 0.0f,
+		program_index == 0 ? 0.0f + vk_inst.blitY0 : 0.0f,
+		program_index == 0 ? gls.windowWidth - vk_inst.blitX0 * 2 : static_cast<float>(width),
+		program_index == 0 ? gls.windowHeight - vk_inst.blitY0 * 2 : static_cast<float>(height),
+		0.0f,
+		1.0f};
 
-	viewport.minDepth = 0.0;
-	viewport.maxDepth = 1.0;
+	vk::Rect2D scissor{
+		{static_cast<int32_t>(viewport.x), static_cast<int32_t>(viewport.y)},
+		{static_cast<uint32_t>(viewport.width), static_cast<uint32_t>(viewport.height)}};
 
-	scissor.offset.x = viewport.x;
-	scissor.offset.y = viewport.y;
-	scissor.extent.width = viewport.width;
-	scissor.extent.height = viewport.height;
-
-	viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-	viewport_state.pNext = nullptr;
-	viewport_state.flags = 0;
-	viewport_state.viewportCount = 1;
-	viewport_state.pViewports = &viewport;
-	viewport_state.scissorCount = 1;
-	viewport_state.pScissors = &scissor;
+	vk::PipelineViewportStateCreateInfo viewport_state{{}, 1, &viewport, 1, &scissor};
 
 	//
 	// Rasterization.
 	//
-	rasterization_state.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	rasterization_state.pNext = nullptr;
-	rasterization_state.flags = 0;
-	rasterization_state.depthClampEnable = VK_FALSE;
-	rasterization_state.rasterizerDiscardEnable = VK_FALSE;
-	rasterization_state.polygonMode = VK_POLYGON_MODE_FILL;
-	// rasterization_state.cullMode = VK_CULL_MODE_BACK_BIT; // VK_CULL_MODE_NONE;
-	rasterization_state.cullMode = VK_CULL_MODE_NONE;
-	rasterization_state.frontFace = VK_FRONT_FACE_CLOCKWISE; // Q3 defaults to clockwise vertex order
-	rasterization_state.depthBiasEnable = VK_FALSE;
-	rasterization_state.depthBiasConstantFactor = 0.0f;
-	rasterization_state.depthBiasClamp = 0.0f;
-	rasterization_state.depthBiasSlopeFactor = 0.0f;
-	rasterization_state.lineWidth = 1.0f;
+	vk::PipelineRasterizationStateCreateInfo rasterization_state{{},
+																 VK_FALSE,
+																 VK_FALSE,
+																 vk::PolygonMode::eFill,
+																 vk::CullModeFlagBits::eNone,
+																 vk::FrontFace::eClockwise,
+																 VK_FALSE,
+																 0.0f,
+																 0.0f,
+																 0.0f,
+																 1.0f,
+																 nullptr};
 
-	multisample_state.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisample_state.pNext = nullptr;
-	multisample_state.flags = 0;
-	multisample_state.rasterizationSamples = samples;
-	multisample_state.sampleShadingEnable = VK_FALSE;
-	multisample_state.minSampleShading = 1.0f;
-	multisample_state.pSampleMask = nullptr;
-	multisample_state.alphaToCoverageEnable = VK_FALSE;
-	multisample_state.alphaToOneEnable = VK_FALSE;
+	vk::PipelineMultisampleStateCreateInfo multisample_state{{},
+															 samples,
+															 VK_FALSE,
+															 1.0f,
+															 nullptr,
+															 VK_FALSE,
+															 VK_FALSE,
+															 nullptr};
 
-	Com_Memset(&attachment_blend_state, 0, sizeof(attachment_blend_state));
-	attachment_blend_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	if (blend)
-	{
-		attachment_blend_state.blendEnable = VK_TRUE;
-		attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-		attachment_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	}
-	else
-	{
-		attachment_blend_state.blendEnable = VK_FALSE;
-	}
+	vk::PipelineColorBlendAttachmentState attachment_blend_state{
+		blend,
+		blend == true ? vk::BlendFactor::eOne : vk::BlendFactor::eZero,
+		blend == true ? vk::BlendFactor::eOne : vk::BlendFactor::eZero,
+		vk::BlendOp::eAdd,
+		vk::BlendFactor::eZero,
+		vk::BlendFactor::eZero,
+		vk::BlendOp::eAdd,
+		vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+			vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
 
-	blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	blend_state.pNext = nullptr;
-	blend_state.flags = 0;
-	blend_state.logicOpEnable = VK_FALSE;
-	blend_state.logicOp = VK_LOGIC_OP_COPY;
-	blend_state.attachmentCount = 1;
-	blend_state.pAttachments = &attachment_blend_state;
-	blend_state.blendConstants[0] = 0.0f;
-	blend_state.blendConstants[1] = 0.0f;
-	blend_state.blendConstants[2] = 0.0f;
-	blend_state.blendConstants[3] = 0.0f;
+	std::array<float, 4> blendConstants = {{0.0f, 0.0f, 0.0f, 0.0f}};
 
-	Com_Memset(&depth_stencil_state, 0, sizeof(depth_stencil_state));
+	vk::PipelineColorBlendStateCreateInfo blend_state{{},
+													  VK_FALSE,
+													  vk::LogicOp::eCopy,
+													  1,
+													  &attachment_blend_state,
+													  blendConstants};
 
-	depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-	depth_stencil_state.pNext = nullptr;
-	depth_stencil_state.flags = 0;
-	depth_stencil_state.depthTestEnable = VK_FALSE;
-	depth_stencil_state.depthWriteEnable = VK_FALSE;
-	depth_stencil_state.depthCompareOp = VK_COMPARE_OP_NEVER;
-	depth_stencil_state.depthBoundsTestEnable = VK_FALSE;
-	depth_stencil_state.stencilTestEnable = VK_FALSE;
-	depth_stencil_state.minDepthBounds = 0.0f;
-	depth_stencil_state.maxDepthBounds = 1.0f;
+	vk::PipelineDepthStencilStateCreateInfo depth_stencil_state{{},
+																VK_FALSE,
+																VK_FALSE,
+																vk::CompareOp::eNever,
+																VK_FALSE,
+																VK_FALSE,
+																{},
+																{},
+																0.0f,
+																1.0f,
+																nullptr};
 
-	create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	create_info.pNext = nullptr;
-	create_info.flags = 0;
-	create_info.stageCount = 2;
-	create_info.pStages = shader_stages;
-	create_info.pVertexInputState = &vertex_input_state;
-	create_info.pInputAssemblyState = &input_assembly_state;
-	create_info.pTessellationState = nullptr;
-	create_info.pViewportState = &viewport_state;
-	create_info.pRasterizationState = &rasterization_state;
-	create_info.pMultisampleState = &multisample_state;
-	create_info.pDepthStencilState = (program_index == 2) ? &depth_stencil_state : nullptr;
-	create_info.pDepthStencilState = &depth_stencil_state;
-	create_info.pColorBlendState = &blend_state;
-	create_info.pDynamicState = nullptr;
-	create_info.layout = layout;
-	create_info.renderPass = renderpass;
-	create_info.subpass = 0;
-	create_info.basePipelineHandle = VK_NULL_HANDLE;
-	create_info.basePipelineIndex = -1;
+	vk::GraphicsPipelineCreateInfo pipeline_create_info{
+		{},
+		static_cast<uint32_t>(shader_stages.size()),
+		shader_stages.data(),
+		&vertex_input_state,
+		&input_assembly_state,
+		nullptr,
+		&viewport_state,
+		&rasterization_state,
+		&multisample_state,
+		&depth_stencil_state,
+		&blend_state,
+		nullptr,
+		layout,
+		renderpass,
+		0,
+		VK_NULL_HANDLE,
+		-1};
 
-	VK_CHECK(qvkCreateGraphicsPipelines(vk_inst.device, VK_NULL_HANDLE, 1, &create_info, nullptr, pipeline));
+	*pipeline = vk_inst.device.createGraphicsPipeline(nullptr, pipeline_create_info).value;
 
-	SET_OBJECT_NAME(*pipeline, pipeline_name, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+	// VK_CHECK(qvkCreateGraphicsPipelines(vk_inst.device, VK_NULL_HANDLE, 1, &create_info, nullptr, pipeline));
+
+	// SET_OBJECT_NAME(*pipeline, pipeline_name, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
 }
 
 void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass)
 {
-	VkPipelineShaderStageCreateInfo shader_stages[2];
-	VkPipelineVertexInputStateCreateInfo vertex_input_state;
-	VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
-	VkPipelineRasterizationStateCreateInfo rasterization_state;
-	VkPipelineViewportStateCreateInfo viewport_state;
-	VkPipelineMultisampleStateCreateInfo multisample_state;
-	VkPipelineColorBlendStateCreateInfo blend_state;
-	VkPipelineColorBlendAttachmentState attachment_blend_state;
-	VkGraphicsPipelineCreateInfo create_info;
-	VkViewport viewport;
-	VkRect2D scissor;
-	float frag_spec_data[3]; // x-offset, y-offset, correction
-	VkSpecializationMapEntry spec_entries[3];
-	VkSpecializationInfo frag_spec_info;
-	VkPipeline *pipeline;
-
-	pipeline = &vk_inst.blur_pipeline[index];
+	vk::Pipeline *pipeline = &vk_inst.blur_pipeline[index];
 
 	if (*pipeline != VK_NULL_HANDLE)
 	{
-		vk_wait_idle();
-		qvkDestroyPipeline(vk_inst.device, *pipeline, nullptr);
+		vk_inst.device.waitIdle();
+		vk_inst.device.destroyPipeline(*pipeline);
 		*pipeline = VK_NULL_HANDLE;
 	}
 
-	vertex_input_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertex_input_state.pNext = nullptr;
-	vertex_input_state.flags = 0;
-	vertex_input_state.vertexBindingDescriptionCount = 0;
-	vertex_input_state.pVertexBindingDescriptions = nullptr;
-	vertex_input_state.vertexAttributeDescriptionCount = 0;
-	vertex_input_state.pVertexBindingDescriptions = nullptr;
+	vk::PipelineVertexInputStateCreateInfo vertex_input_state{};
 
 	// shaders
-	set_shader_stage_desc(shader_stages + 0, VK_SHADER_STAGE_VERTEX_BIT, vk_inst.modules.gamma_vs, "main");
-	set_shader_stage_desc(shader_stages + 1, VK_SHADER_STAGE_FRAGMENT_BIT, vk_inst.modules.blur_fs, "main");
+	std::array<vk::PipelineShaderStageCreateInfo, 2> shader_stages;
+	set_shader_stage_desc(shader_stages[0], vk::ShaderStageFlagBits::eVertex, vk_inst.modules.gamma_vs, "main");
+	set_shader_stage_desc(shader_stages[1], vk::ShaderStageFlagBits::eFragment, vk_inst.modules.blur_fs, "main");
 
-	frag_spec_data[0] = 1.2 / (float)width;	 // x offset
-	frag_spec_data[1] = 1.2 / (float)height; // y offset
-	frag_spec_data[2] = 1.0;				 // intensity?
-
-	if (horizontal_pass)
+	struct frag_spec_data_t
 	{
-		frag_spec_data[1] = 0.0;
-	}
-	else
-	{
-		frag_spec_data[0] = 0.0;
-	}
+		float is_vertical;
+		float width;
+		float height;
+	} frag_spec_data{horizontal_pass ? 0.0f : 1.0f, static_cast<float>(width), static_cast<float>(height)};
 
-	spec_entries[0].constantID = 0;
-	spec_entries[0].offset = 0 * sizeof(float);
-	spec_entries[0].size = sizeof(float);
+	std::array<vk::SpecializationMapEntry, 3> spec_entries = {{
+		{0, offsetof(frag_spec_data_t, is_vertical), sizeof(frag_spec_data.is_vertical)},
+		{1, offsetof(frag_spec_data_t, width), sizeof(frag_spec_data.width)},
+		{2, offsetof(frag_spec_data_t, height), sizeof(frag_spec_data.height)},
+	}};
 
-	spec_entries[1].constantID = 1;
-	spec_entries[1].offset = 1 * sizeof(float);
-	spec_entries[1].size = sizeof(float);
-
-	spec_entries[2].constantID = 2;
-	spec_entries[2].offset = 2 * sizeof(float);
-	spec_entries[2].size = sizeof(float);
-
-	frag_spec_info.mapEntryCount = 3;
-	frag_spec_info.pMapEntries = spec_entries;
-	frag_spec_info.dataSize = 3 * sizeof(float);
-	frag_spec_info.pData = &frag_spec_data[0];
+	vk::SpecializationInfo frag_spec_info{
+		static_cast<uint32_t>(spec_entries.size()), spec_entries.data(), sizeof(frag_spec_data),
+		&frag_spec_data.is_vertical};
 
 	shader_stages[1].pSpecializationInfo = &frag_spec_info;
 
 	//
 	// Primitive assembly.
 	//
-	input_assembly_state.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	input_assembly_state.pNext = nullptr;
-	input_assembly_state.flags = 0;
-	input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-	input_assembly_state.primitiveRestartEnable = VK_FALSE;
+	vk::PipelineInputAssemblyStateCreateInfo input_assembly_state{{},
+																  vk::PrimitiveTopology::eTriangleStrip,
+																  VK_FALSE,
+																  nullptr};
 
 	//
 	// Viewport.
 	//
-	viewport.x = 0.0;
-	viewport.y = 0.0;
-	viewport.width = width;
-	viewport.height = height;
-	viewport.minDepth = 0.0;
-	viewport.maxDepth = 1.0;
+	vk::Viewport viewport{0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f};
+	vk::Rect2D scissor{{viewport.x, viewport.y}, {viewport.width, viewport.height}};
 
-	scissor.offset.x = viewport.x;
-	scissor.offset.y = viewport.y;
-	scissor.extent.width = viewport.width;
-	scissor.extent.height = viewport.height;
-
-	viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-	viewport_state.pNext = nullptr;
-	viewport_state.flags = 0;
-	viewport_state.viewportCount = 1;
-	viewport_state.pViewports = &viewport;
-	viewport_state.scissorCount = 1;
-	viewport_state.pScissors = &scissor;
+	vk::PipelineViewportStateCreateInfo viewport_state{{}, 1, &viewport, 1, &scissor};
 
 	//
 	// Rasterization.
 	//
-	rasterization_state.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	rasterization_state.pNext = nullptr;
-	rasterization_state.flags = 0;
-	rasterization_state.depthClampEnable = VK_FALSE;
-	rasterization_state.rasterizerDiscardEnable = VK_FALSE;
-	rasterization_state.polygonMode = VK_POLYGON_MODE_FILL;
-	// rasterization_state.cullMode = VK_CULL_MODE_BACK_BIT; // VK_CULL_MODE_NONE;
-	rasterization_state.cullMode = VK_CULL_MODE_NONE;
-	rasterization_state.frontFace = VK_FRONT_FACE_CLOCKWISE; // Q3 defaults to clockwise vertex order
-	rasterization_state.depthBiasEnable = VK_FALSE;
-	rasterization_state.depthBiasConstantFactor = 0.0f;
-	rasterization_state.depthBiasClamp = 0.0f;
-	rasterization_state.depthBiasSlopeFactor = 0.0f;
-	rasterization_state.lineWidth = 1.0f;
+	vk::PipelineRasterizationStateCreateInfo rasterization_state{
+		{},
+		VK_FALSE,
+		VK_FALSE,
+		vk::PolygonMode::eFill,
+		vk::CullModeFlagBits::eNone,
+		vk::FrontFace::eClockwise,
+		VK_FALSE,
+		0.0f,
+		0.0f,
+		0.0f,
+		1.0f,
+		nullptr};
 
-	multisample_state.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisample_state.pNext = nullptr;
-	multisample_state.flags = 0;
-	multisample_state.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-	multisample_state.sampleShadingEnable = VK_FALSE;
-	multisample_state.minSampleShading = 1.0f;
-	multisample_state.pSampleMask = nullptr;
-	multisample_state.alphaToCoverageEnable = VK_FALSE;
-	multisample_state.alphaToOneEnable = VK_FALSE;
+	vk::PipelineMultisampleStateCreateInfo multisample_state{{},
+															 vk::SampleCountFlagBits::e1,
+															 VK_FALSE,
+															 1.0f,
+															 nullptr,
+															 VK_FALSE,
+															 VK_FALSE,
+															 nullptr};
 
-	Com_Memset(&attachment_blend_state, 0, sizeof(attachment_blend_state));
-	attachment_blend_state.blendEnable = VK_FALSE;
-	attachment_blend_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	vk::PipelineColorBlendAttachmentState attachment_blend_state{
+		VK_FALSE,
+		{},
+		{},
+		{},
+		{},
+		{},
+		{},
+		vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+			vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
 
-	blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	blend_state.pNext = nullptr;
-	blend_state.flags = 0;
-	blend_state.logicOpEnable = VK_FALSE;
-	blend_state.logicOp = VK_LOGIC_OP_COPY;
-	blend_state.attachmentCount = 1;
-	blend_state.pAttachments = &attachment_blend_state;
-	blend_state.blendConstants[0] = 0.0f;
-	blend_state.blendConstants[1] = 0.0f;
-	blend_state.blendConstants[2] = 0.0f;
-	blend_state.blendConstants[3] = 0.0f;
+	vk::PipelineColorBlendStateCreateInfo blend_state{
+		{},
+		VK_FALSE,
+		vk::LogicOp::eCopy,
+		1,
+		&attachment_blend_state,
+		{0.0f, 0.0f, 0.0f, 0.0f},
+		nullptr};
 
-	create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	create_info.pNext = nullptr;
-	create_info.flags = 0;
-	create_info.stageCount = 2;
-	create_info.pStages = shader_stages;
-	create_info.pVertexInputState = &vertex_input_state;
-	create_info.pInputAssemblyState = &input_assembly_state;
-	create_info.pTessellationState = nullptr;
-	create_info.pViewportState = &viewport_state;
-	create_info.pRasterizationState = &rasterization_state;
-	create_info.pMultisampleState = &multisample_state;
-	create_info.pDepthStencilState = nullptr;
-	create_info.pColorBlendState = &blend_state;
-	create_info.pDynamicState = nullptr;
-	create_info.layout = vk_inst.pipeline_layout_post_process; // one input attachment
-	create_info.renderPass = vk_inst.render_pass.blur[index];
-	create_info.subpass = 0;
-	create_info.basePipelineHandle = VK_NULL_HANDLE;
-	create_info.basePipelineIndex = -1;
+	vk::GraphicsPipelineCreateInfo create_info{
+		{},
+		static_cast<uint32_t>(shader_stages.size()),
+		shader_stages.data(),
+		&vertex_input_state,
+		&input_assembly_state,
+		nullptr,
+		&viewport_state,
+		&rasterization_state,
+		&multisample_state,
+		nullptr,
+		&blend_state,
+		nullptr,
+		vk_inst.pipeline_layout_post_process,
+		vk_inst.render_pass.blur[index],
+		0,
+		VK_NULL_HANDLE,
+		-1,
+		nullptr};
 
-	VK_CHECK(qvkCreateGraphicsPipelines(vk_inst.device, VK_NULL_HANDLE, 1, &create_info, nullptr, pipeline));
+	*pipeline = vk_inst.device.createGraphicsPipeline(nullptr, create_info).value;
 
-	SET_OBJECT_NAME(*pipeline, va("%s blur pipeline %i", horizontal_pass ? "horizontal" : "vertical", index / 2 + 1), VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+	// SET_OBJECT_NAME(*pipeline, va("%s blur pipeline %i", horizontal_pass ? "horizontal" : "vertical", index / 2 + 1), VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
 }
 
 static VkVertexInputBindingDescription bindings[8];
@@ -5778,7 +5654,6 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	VkDynamicState dynamic_state_array[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 	VkGraphicsPipelineCreateInfo create_info;
 	VkPipeline pipeline;
-	VkPipelineShaderStageCreateInfo shader_stages[2];
 	VkBool32 alphaToCoverage = VK_FALSE;
 	unsigned int atest_bits;
 	unsigned int state_bits = def.state_bits;
@@ -5981,8 +5856,9 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 		}
 	}
 
-	set_shader_stage_desc(shader_stages + 0, VK_SHADER_STAGE_VERTEX_BIT, *vs_module, "main");
-	set_shader_stage_desc(shader_stages + 1, VK_SHADER_STAGE_FRAGMENT_BIT, *fs_module, "main");
+	std::array<vk::PipelineShaderStageCreateInfo, 2> shader_stages;
+	set_shader_stage_desc(shader_stages[0], vk::ShaderStageFlagBits::eVertex, *vs_module, "main");
+	set_shader_stage_desc(shader_stages[1], vk::ShaderStageFlagBits::eFragment, *fs_module, "main");
 
 	// Com_Memset( vert_spec_data, 0, sizeof( vert_spec_data ) );
 	Com_Memset(frag_spec_data, 0, sizeof(frag_spec_data));
@@ -6207,7 +6083,9 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	frag_spec_info.pMapEntries = spec_entries + 1;
 	frag_spec_info.dataSize = sizeof(int32_t) * 11;
 	frag_spec_info.pData = &frag_spec_data[0];
-	shader_stages[1].pSpecializationInfo = &frag_spec_info;
+
+	auto frag_spec_infoCpp = vk::SpecializationInfo(frag_spec_info);
+	shader_stages[1].pSpecializationInfo = &frag_spec_infoCpp;
 
 	//
 	// Vertex input
@@ -6729,8 +6607,15 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	create_info.pNext = nullptr;
 	create_info.flags = 0;
-	create_info.stageCount = arrayLen(shader_stages);
-	create_info.pStages = shader_stages;
+	create_info.stageCount = shader_stages.size();
+
+	// Convert to VkPipelineShaderStageCreateInfo array
+	std::array<VkPipelineShaderStageCreateInfo, 2> vk_shader_stages;
+	vk_shader_stages[0] = static_cast<VkPipelineShaderStageCreateInfo>(shader_stages[0]);
+	vk_shader_stages[1] = static_cast<VkPipelineShaderStageCreateInfo>(shader_stages[1]);
+
+	create_info.pStages = vk_shader_stages.data();
+
 	create_info.pVertexInputState = &vertex_input_state;
 	create_info.pInputAssemblyState = &input_assembly_state;
 	create_info.pTessellationState = nullptr;
