@@ -219,11 +219,11 @@ typedef struct VK_Pipeline
 
 typedef struct vk_tess_s
 {
-    VkCommandBuffer command_buffer;
+    vk::CommandBuffer command_buffer;
 
     VkSemaphore image_acquired;
     VkSemaphore rendering_finished;
-    VkFence rendering_finished_fence;
+    vk::Fence rendering_finished_fence;
     bool waitForFence;
 
     VkBuffer vertex_buffer;
@@ -264,7 +264,7 @@ typedef struct
 
     uint32_t queue_family_index;
     vk::Device device;
-    VkQueue queue;
+    vk::Queue queue;
 
     VkSwapchainKHR swapchain;
     uint32_t swapchain_image_count;
@@ -489,7 +489,7 @@ typedef struct
     float maxLod;
 
     VkFormat color_format;
-    VkFormat capture_format;
+    vk::Format capture_format;
     VkFormat depth_format;
     VkFormat bloom_format;
 

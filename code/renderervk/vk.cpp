@@ -191,12 +191,11 @@ static uint32_t find_memory_type(uint32_t memory_type_bits, vk::MemoryPropertyFl
 	return ~0U;
 }
 
-static uint32_t find_memory_type2(uint32_t memory_type_bits, VkMemoryPropertyFlags properties, VkMemoryPropertyFlags *outprops)
+static uint32_t find_memory_type2(uint32_t memory_type_bits, vk::MemoryPropertyFlags properties, vk::MemoryPropertyFlags *outprops)
 {
-	VkPhysicalDeviceMemoryProperties memory_properties;
 	uint32_t i;
 
-	qvkGetPhysicalDeviceMemoryProperties(vk_inst.physical_device, &memory_properties);
+	const vk::PhysicalDeviceMemoryProperties memory_properties = vk_inst.physical_device.getMemoryProperties();
 
 	for (i = 0; i < memory_properties.memoryTypeCount; i++)
 	{
@@ -356,6 +355,22 @@ static std::string_view vk_result_string(VkResult inc_code)
 	return buffer;
 }
 
+static std::string_view vk_result_string(vk::Result code)
+{
+	static char buffer[32];
+
+	for (const auto &mapping : result_map)
+	{
+		if (mapping.result == code)
+		{
+			return mapping.name;
+		}
+	}
+
+	sprintf(buffer, "code %i", code);
+	return buffer;
+}
+
 #undef CASE_STR
 
 #ifdef VULKAN_HPP_NO_EXCEPTIONS
@@ -404,31 +419,24 @@ static VkFlags get_composite_alpha( VkCompositeAlphaFlagsKHR flags )
 }
 */
 
-static VkCommandBuffer begin_command_buffer(void)
+static vk::CommandBuffer begin_command_buffer(void)
 {
-	VkCommandBuffer command_buffer;
+	vk::CommandBuffer command_buffer;
+
 	vk::CommandBufferAllocateInfo alloc_info{
 		vk_inst.command_pool,
 		vk::CommandBufferLevel::ePrimary,
 		1,
 		nullptr};
 
-	vk::Device vkDeviceHpp(vk_inst.device);
-
-	// VK_CHECK(command_buffer = vkDeviceHpp.allocateCommandBuffers(alloc_info)[0]);
-
-	VkCommandBufferAllocateInfo aaa = static_cast<VkCommandBufferAllocateInfo>(alloc_info);
-
-	VK_CHECK(qvkAllocateCommandBuffers(vk_inst.device, &aaa, &command_buffer));
+	command_buffer = vk_inst.device.allocateCommandBuffers(alloc_info)[0];
 
 	vk::CommandBufferBeginInfo begin_info{
 		vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
 		nullptr,
 		nullptr};
 
-	// VK_CHECK(command_buffer.begin(begin_info));
-	VkCommandBufferBeginInfo bbb = static_cast<VkCommandBufferBeginInfo>(begin_info);
-	VK_CHECK(qvkBeginCommandBuffer(command_buffer, &bbb));
+	command_buffer.begin(begin_info);
 
 	return command_buffer;
 }
@@ -1602,14 +1610,13 @@ static bool vk_select_surface_format(vk::PhysicalDevice physical_deviceCpp, vk::
 	return true;
 }
 
-static void setup_surface_formats(vk::PhysicalDevice physical_deviceCpp)
+static void setup_surface_formats(vk::PhysicalDevice physical_device)
 {
-	auto physical_device = static_cast<VkPhysicalDevice>(physical_deviceCpp);
-	vk_inst.depth_format = static_cast<VkFormat>(get_depth_format(physical_deviceCpp));
+	vk_inst.depth_format = static_cast<VkFormat>(get_depth_format(physical_device));
 
 	vk_inst.color_format = static_cast<VkFormat>(get_hdr_format(vk::Format(vk_inst.base_format.format)));
 
-	vk_inst.capture_format = VK_FORMAT_R8G8B8A8_UNORM;
+	vk_inst.capture_format = vk::Format::eR8G8B8A8Unorm;
 
 	vk_inst.bloom_format = vk_inst.base_format.format;
 
@@ -1617,7 +1624,7 @@ static void setup_surface_formats(vk::PhysicalDevice physical_deviceCpp)
 
 	if (!vk_inst.blitEnabled)
 	{
-		vk_inst.capture_format = vk_inst.color_format;
+		vk_inst.capture_format = vk::Format(vk_inst.color_format);
 	}
 }
 
@@ -3451,7 +3458,7 @@ static void vk_alloc_attachments(void)
 	if (num_attachments == 1 && attachments[0].usage & VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT)
 	{
 		// try lazy memory
-		memoryTypeIndex = find_memory_type2(memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT, nullptr);
+		memoryTypeIndex = find_memory_type2(memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eLazilyAllocated, NULL);
 		if (memoryTypeIndex == ~0U)
 		{
 			memoryTypeIndex = find_memory_type(memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
@@ -3718,7 +3725,7 @@ static void vk_create_attachments(void)
 		{
 			// capture buffer
 			usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-			create_color_attachment(gls.captureWidth, gls.captureHeight, VK_SAMPLE_COUNT_1_BIT, vk_inst.capture_format,
+			create_color_attachment(gls.captureWidth, gls.captureHeight, VK_SAMPLE_COUNT_1_BIT, VkFormat(vk_inst.capture_format),
 									usage, &vk_inst.capture.image, &vk_inst.capture.image_view, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, false);
 		}
 	} // if ( vk_inst.fboActive )
@@ -3908,7 +3915,7 @@ static void vk_create_sync_primitives(void)
 
 		SET_OBJECT_NAME(vk_inst.tess[i].image_acquired, va("image_acquired semaphore %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT);
 		SET_OBJECT_NAME(vk_inst.tess[i].rendering_finished, va("rendering_finished semaphore %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT);
-		SET_OBJECT_NAME(vk_inst.tess[i].rendering_finished_fence, va("rendering_finished fence %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT);
+		SET_OBJECT_NAME(VkFence(vk_inst.tess[i].rendering_finished_fence), va("rendering_finished fence %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT);
 	}
 }
 
@@ -5209,13 +5216,13 @@ void vk_destroy_image_resources(VkImage &image, VkImageView &imageView)
 
 	if (image != VK_NULL_HANDLE)
 	{
-		qvkDestroyImage(vk_inst.device, image, nullptr);
+		vk_inst.device.destroyImage(image);
 		image = VK_NULL_HANDLE;
 	}
 
 	if (imageView != VK_NULL_HANDLE)
 	{
-		qvkDestroyImageView(vk_inst.device, imageView, nullptr);
+		vk_inst.device.destroyImageView(imageView);
 		imageView = VK_NULL_HANDLE;
 	}
 }
@@ -6718,99 +6725,102 @@ void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def &def)
 	}
 }
 
-static void get_viewport_rect(VkRect2D *r)
+static void get_viewport_rect(vk::Rect2D &r)
 {
 	if (backEnd.projection2D)
 	{
-		r->offset.x = 0;
-		r->offset.y = 0;
-		r->extent.width = vk_inst.renderWidth;
-		r->extent.height = vk_inst.renderHeight;
+		r.offset.x = 0;
+		r.offset.y = 0;
+		r.extent.width = vk_inst.renderWidth;
+		r.extent.height = vk_inst.renderHeight;
 	}
 	else
 	{
-		r->offset.x = backEnd.viewParms.viewportX * vk_inst.renderScaleX;
-		r->offset.y = vk_inst.renderHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight) * vk_inst.renderScaleY;
-		r->extent.width = (float)backEnd.viewParms.viewportWidth * vk_inst.renderScaleX;
-		r->extent.height = (float)backEnd.viewParms.viewportHeight * vk_inst.renderScaleY;
+		r.offset.x = backEnd.viewParms.viewportX * vk_inst.renderScaleX;
+
+		r.offset.y = vk_inst.renderHeight -
+					 (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight) * vk_inst.renderScaleY;
+
+		r.extent.width = (float)backEnd.viewParms.viewportWidth * vk_inst.renderScaleX;
+		r.extent.height = (float)backEnd.viewParms.viewportHeight * vk_inst.renderScaleY;
 	}
 }
 
-static void get_viewport(VkViewport *viewport, Vk_Depth_Range depth_range)
+static void get_viewport(vk::Viewport &viewport, Vk_Depth_Range depth_range)
 {
-	VkRect2D r;
+	vk::Rect2D r;
 
-	get_viewport_rect(&r);
+	get_viewport_rect(r);
 
-	viewport->x = (float)r.offset.x;
-	viewport->y = (float)r.offset.y;
-	viewport->width = (float)r.extent.width;
-	viewport->height = (float)r.extent.height;
+	viewport.x = (float)r.offset.x;
+	viewport.y = (float)r.offset.y;
+	viewport.width = (float)r.extent.width;
+	viewport.height = (float)r.extent.height;
 
 	switch (depth_range)
 	{
 	default:
 #ifdef USE_REVERSED_DEPTH
 		// case DEPTH_RANGE_NORMAL:
-		viewport->minDepth = 0.0f;
-		viewport->maxDepth = 1.0f;
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
 		break;
 	case DEPTH_RANGE_ZERO:
-		viewport->minDepth = 1.0f;
-		viewport->maxDepth = 1.0f;
+		viewport.minDepth = 1.0f;
+		viewport.maxDepth = 1.0f;
 		break;
 	case DEPTH_RANGE_ONE:
-		viewport->minDepth = 0.0f;
-		viewport->maxDepth = 0.0f;
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 0.0f;
 		break;
 	case DEPTH_RANGE_WEAPON:
-		viewport->minDepth = 0.6f;
-		viewport->maxDepth = 1.0f;
+		viewport.minDepth = 0.6f;
+		viewport.maxDepth = 1.0f;
 		break;
 #else
 		// case DEPTH_RANGE_NORMAL:
-		viewport->minDepth = 0.0f;
-		viewport->maxDepth = 1.0f;
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
 		break;
 	case DEPTH_RANGE_ZERO:
-		viewport->minDepth = 0.0f;
-		viewport->maxDepth = 0.0f;
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 0.0f;
 		break;
 	case DEPTH_RANGE_ONE:
-		viewport->minDepth = 1.0f;
-		viewport->maxDepth = 1.0f;
+		viewport.minDepth = 1.0f;
+		viewport.maxDepth = 1.0f;
 		break;
 	case DEPTH_RANGE_WEAPON:
-		viewport->minDepth = 0.0f;
-		viewport->maxDepth = 0.3f;
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 0.3f;
 		break;
 #endif
 	}
 }
 
-static void get_scissor_rect(VkRect2D *r)
+static void get_scissor_rect(vk::Rect2D &r)
 {
 
 	if (backEnd.viewParms.portalView != PV_NONE)
 	{
-		r->offset.x = backEnd.viewParms.scissorX;
-		r->offset.y = glConfig.vidHeight - backEnd.viewParms.scissorY - backEnd.viewParms.scissorHeight;
-		r->extent.width = backEnd.viewParms.scissorWidth;
-		r->extent.height = backEnd.viewParms.scissorHeight;
+		r.offset.x = backEnd.viewParms.scissorX;
+		r.offset.y = glConfig.vidHeight - backEnd.viewParms.scissorY - backEnd.viewParms.scissorHeight;
+		r.extent.width = backEnd.viewParms.scissorWidth;
+		r.extent.height = backEnd.viewParms.scissorHeight;
 	}
 	else
 	{
 		get_viewport_rect(r);
 
-		if (r->offset.x < 0)
-			r->offset.x = 0;
-		if (r->offset.y < 0)
-			r->offset.y = 0;
+		if (r.offset.x < 0)
+			r.offset.x = 0;
+		if (r.offset.y < 0)
+			r.offset.y = 0;
 
-		if (r->offset.x + r->extent.width > glConfig.vidWidth)
-			r->extent.width = glConfig.vidWidth - r->offset.x;
-		if (r->offset.y + r->extent.height > glConfig.vidHeight)
-			r->extent.height = glConfig.vidHeight - r->offset.y;
+		if (r.offset.x + r.extent.width > glConfig.vidWidth)
+			r.extent.width = glConfig.vidWidth - r.offset.x;
+		if (r.offset.y + r.extent.height > glConfig.vidHeight)
+			r.extent.height = glConfig.vidHeight - r.offset.y;
 	}
 }
 
@@ -6866,8 +6876,8 @@ static void get_mvp_transform(float *mvp)
 void vk_clear_color(const vec4_t color)
 {
 
-	VkClearAttachment attachment;
-	VkClearRect clear_rect[2];
+	vk::ClearAttachment attachment;
+	vk::ClearRect clear_rect[2];
 	uint32_t rect_count;
 
 	if (!vk_inst.active)
@@ -6878,9 +6888,9 @@ void vk_clear_color(const vec4_t color)
 	attachment.clearValue.color.float32[1] = color[1];
 	attachment.clearValue.color.float32[2] = color[2];
 	attachment.clearValue.color.float32[3] = color[3];
-	attachment.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	attachment.aspectMask = vk::ImageAspectFlagBits::eColor;
 
-	get_scissor_rect(&clear_rect[0].rect);
+	get_scissor_rect(clear_rect[0].rect);
 	clear_rect[0].baseArrayLayer = 0;
 	clear_rect[0].layerCount = 1;
 	rect_count = 1;
@@ -6901,15 +6911,14 @@ void vk_clear_color(const vec4_t color)
 		rect_count = 2;
 	}
 #endif
-
-	qvkCmdClearAttachments(vk_inst.cmd->command_buffer, 1, &attachment, rect_count, clear_rect);
+	vk_inst.cmd->command_buffer.clearAttachments(1, &attachment, rect_count, clear_rect);
 }
 
 void vk_clear_depth(bool clear_stencil)
 {
 
-	VkClearAttachment attachment;
-	VkClearRect clear_rect[1];
+	vk::ClearAttachment attachment;
+	vk::ClearRect clear_rect[1];
 
 	if (!vk_inst.active)
 		return;
@@ -6926,18 +6935,18 @@ void vk_clear_depth(bool clear_stencil)
 	attachment.clearValue.depthStencil.stencil = 0;
 	if (clear_stencil && r_stencilbits->integer)
 	{
-		attachment.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+		attachment.aspectMask = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
 	}
 	else
 	{
-		attachment.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		attachment.aspectMask = vk::ImageAspectFlagBits::eDepth;
 	}
 
-	get_scissor_rect(&clear_rect[0].rect);
+	get_scissor_rect(clear_rect[0].rect);
 	clear_rect[0].baseArrayLayer = 0;
 	clear_rect[0].layerCount = 1;
 
-	qvkCmdClearAttachments(vk_inst.cmd->command_buffer, 1, &attachment, 1, clear_rect);
+	vk_inst.cmd->command_buffer.clearAttachments(attachment, clear_rect);
 }
 
 void vk_update_mvp(const float *m)
@@ -6988,7 +6997,7 @@ static void vk_bind_attr(int index, unsigned int item_size, const void *src)
 	{
 		vk_inst.cmd->buf_offset[index] = offset;
 		Com_Memcpy(vk_inst.cmd->vertex_buffer_ptr + offset, src, size);
-		vk_inst.cmd->vertex_buffer_offset = (VkDeviceSize)offset + size;
+		vk_inst.cmd->vertex_buffer_offset = (vk::DeviceSize)offset + size;
 	}
 
 	vk_bind_index_attr(index);
@@ -7008,7 +7017,7 @@ uint32_t vk_tess_index(uint32_t numIndexes, const void *src)
 	else
 	{
 		Com_Memcpy(vk_inst.cmd->vertex_buffer_ptr + offset, src, size);
-		vk_inst.cmd->vertex_buffer_offset = (VkDeviceSize)offset + size;
+		vk_inst.cmd->vertex_buffer_offset = (vk::DeviceSize)offset + size;
 		return offset;
 	}
 }
@@ -7247,13 +7256,13 @@ void vk_bind_descriptor_sets(void)
 
 void vk_bind_pipeline(uint32_t pipeline)
 {
-	VkPipeline vkpipe;
+	vk::Pipeline vkpipe;
 
 	vkpipe = vk_gen_pipeline(pipeline);
 
-	if (vkpipe != vk_inst.cmd->last_pipeline)
+	if (vkpipe != vk::Pipeline(vk_inst.cmd->last_pipeline))
 	{
-		qvkCmdBindPipeline(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkpipe);
+		vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vkpipe);
 		vk_inst.cmd->last_pipeline = vkpipe;
 	}
 
@@ -7262,8 +7271,8 @@ void vk_bind_pipeline(uint32_t pipeline)
 
 void vk_draw_geometry(Vk_Depth_Range depth_range, bool indexed)
 {
-	VkRect2D scissor_rect;
-	VkViewport viewport;
+	vk::Rect2D scissor_rect;
+	vk::Viewport viewport;
 
 	if (vk_inst.geometry_buffer_size_new)
 	{
@@ -7278,16 +7287,16 @@ void vk_draw_geometry(Vk_Depth_Range depth_range, bool indexed)
 	{
 		vk_inst.cmd->depth_range = depth_range;
 
-		get_scissor_rect(&scissor_rect);
+		get_scissor_rect(scissor_rect);
 
 		if (memcmp(&vk_inst.cmd->scissor_rect, &scissor_rect, sizeof(scissor_rect)) != 0)
 		{
-			qvkCmdSetScissor(vk_inst.cmd->command_buffer, 0, 1, &scissor_rect);
+			vk_inst.cmd->command_buffer.setScissor(0, scissor_rect);
 			vk_inst.cmd->scissor_rect = scissor_rect;
 		}
 
-		get_viewport(&viewport, depth_range);
-		qvkCmdSetViewport(vk_inst.cmd->command_buffer, 0, 1, &viewport);
+		get_viewport(viewport, depth_range);
+		vk_inst.cmd->command_buffer.setViewport(0, viewport);
 	}
 
 	// issue draw call(s)
@@ -7296,31 +7305,30 @@ void vk_draw_geometry(Vk_Depth_Range depth_range, bool indexed)
 		VBO_RenderIBOItems();
 	else
 #endif
+
 		if (indexed)
 	{
-		qvkCmdDrawIndexed(vk_inst.cmd->command_buffer, vk_inst.cmd->num_indexes, 1, 0, 0, 0);
+		vk_inst.cmd->command_buffer.drawIndexed(vk_inst.cmd->num_indexes, 1, 0, 0, 0);
 	}
 	else
 	{
-		qvkCmdDraw(vk_inst.cmd->command_buffer, tess.numVertexes, 1, 0, 0);
+		// qvkCmdDraw(vk_inst.cmd->command_buffer, tess.numVertexes, 1, 0, 0);
+		vk_inst.cmd->command_buffer.draw(tess.numVertexes, 1, 0, 0);
 	}
 }
 
-static void vk_begin_render_pass(VkRenderPass renderPass, VkFramebuffer frameBuffer, bool clearValues, uint32_t width, uint32_t height)
+static void vk_begin_render_pass(vk::RenderPass renderPass, vk::Framebuffer frameBuffer, bool clearValues, uint32_t width, uint32_t height)
 {
-	VkRenderPassBeginInfo render_pass_begin_info;
-	VkClearValue clear_values[3];
+	vk::ClearValue clear_values[3];
 
 	// Begin render pass.
 
-	render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	render_pass_begin_info.pNext = nullptr;
-	render_pass_begin_info.renderPass = renderPass;
-	render_pass_begin_info.framebuffer = frameBuffer;
-	render_pass_begin_info.renderArea.offset.x = 0;
-	render_pass_begin_info.renderArea.offset.y = 0;
-	render_pass_begin_info.renderArea.extent.width = width;
-	render_pass_begin_info.renderArea.extent.height = height;
+	vk::RenderPassBeginInfo render_pass_begin_info{renderPass,
+												   frameBuffer,
+												   {{0, 0}, {width, height}},
+												   0,
+												   nullptr,
+												   nullptr};
 
 	if (clearValues)
 	{
@@ -7343,12 +7351,13 @@ static void vk_begin_render_pass(VkRenderPass renderPass, VkFramebuffer frameBuf
 		render_pass_begin_info.pClearValues = nullptr;
 	}
 
-	qvkCmdBeginRenderPass(vk_inst.cmd->command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+	// qvkCmdBeginRenderPass(vk_inst.cmd->command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+	vk_inst.cmd->command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 }
 
 void vk_begin_main_render_pass(void)
 {
-	VkFramebuffer frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
+	vk::Framebuffer frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
 
 	vk_inst.renderPassIndex = RENDER_PASS_MAIN;
 
@@ -7364,7 +7373,7 @@ void vk_begin_main_render_pass(void)
 
 void vk_begin_post_bloom_render_pass(void)
 {
-	VkFramebuffer frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
+	vk::Framebuffer frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
 
 	vk_inst.renderPassIndex = RENDER_PASS_POST_BLOOM;
 
@@ -7380,7 +7389,7 @@ void vk_begin_post_bloom_render_pass(void)
 
 void vk_begin_bloom_extract_render_pass(void)
 {
-	VkFramebuffer frameBuffer = vk_inst.framebuffers.bloom_extract;
+	vk::Framebuffer frameBuffer = vk_inst.framebuffers.bloom_extract;
 
 	// vk_inst.renderPassIndex = RENDER_PASS_BLOOM_EXTRACT; // doesn't matter, we will use dedicated pipelines
 
@@ -7396,7 +7405,7 @@ void vk_begin_bloom_extract_render_pass(void)
 
 void vk_begin_blur_render_pass(uint32_t index)
 {
-	VkFramebuffer frameBuffer = vk_inst.framebuffers.blur[index];
+	vk::Framebuffer frameBuffer = vk_inst.framebuffers.blur[index];
 
 	// vk_inst.renderPassIndex = RENDER_PASS_BLOOM_EXTRACT; // doesn't matter, we will use dedicated pipelines
 
@@ -7412,7 +7421,7 @@ void vk_begin_blur_render_pass(uint32_t index)
 
 static void vk_begin_screenmap_render_pass(void)
 {
-	VkFramebuffer frameBuffer = vk_inst.framebuffers.screenmap;
+	vk::Framebuffer frameBuffer = vk_inst.framebuffers.screenmap;
 
 	vk_inst.renderPassIndex = RENDER_PASS_SCREENMAP;
 
@@ -7427,7 +7436,7 @@ static void vk_begin_screenmap_render_pass(void)
 
 void vk_end_render_pass(void)
 {
-	qvkCmdEndRenderPass(vk_inst.cmd->command_buffer);
+	vk_inst.cmd->command_buffer.endRenderPass();
 
 	//	vk_inst.renderPassIndex = RENDER_PASS_MAIN;
 }
@@ -7462,9 +7471,9 @@ static bool vk_find_screenmap_drawsurfs(void)
 
 void vk_begin_frame(void)
 {
-	VkCommandBufferBeginInfo begin_info;
+
 	// VkFramebuffer frameBuffer;
-	VkResult res;
+	vk::Result res;
 
 	if (vk_inst.frame_count++) // might happen during stereo rendering
 		return;
@@ -7476,10 +7485,11 @@ void vk_begin_frame(void)
 		vk_inst.cmd_index %= NUM_COMMAND_BUFFERS;
 
 		vk_inst.cmd->waitForFence = false;
-		res = qvkWaitForFences(vk_inst.device, 1, &vk_inst.cmd->rendering_finished_fence, VK_FALSE, 1e10);
-		if (res != VK_SUCCESS)
+		// res = qvkWaitForFences(vk_inst.device, 1, &vk_inst.cmd->rendering_finished_fence, VK_FALSE, 1e10);
+		res = vk_inst.device.waitForFences(vk_inst.cmd->rendering_finished_fence, VK_FALSE, 1e10);
+		if (res != vk::Result::eSuccess)
 		{
-			if (res == VK_ERROR_DEVICE_LOST)
+			if (res == vk::Result::eErrorDeviceLost)
 			{
 				// silently discard previous command buffer
 				ri.Printf(PRINT_WARNING, "Vulkan: %s returned %s", "vkWaitForfences", vk_result_string(res).data());
@@ -7492,12 +7502,18 @@ void vk_begin_frame(void)
 
 		if (!ri.CL_IsMinimized())
 		{
-			res = qvkAcquireNextImageKHR(vk_inst.device, vk_inst.swapchain, 5 * 1000000000ULL, vk_inst.cmd->image_acquired, VK_NULL_HANDLE, &vk_inst.swapchain_image_index);
+			// res = qvkAcquireNextImageKHR(vk_inst.device, vk_inst.swapchain, 5 * 1000000000ULL, vk_inst.cmd->image_acquired, VK_NULL_HANDLE, &vk_inst.swapchain_image_index);
+
+			res = vk_inst.device.acquireNextImageKHR(vk::SwapchainKHR(vk_inst.swapchain),
+													 5 * 1000000000ULL,
+													 vk::Semaphore(vk_inst.cmd->image_acquired),
+													 VK_NULL_HANDLE,
+													 &vk_inst.swapchain_image_index);
 			// when running via RDP: "Application has already acquired the maximum number of images (0x2)"
 			// probably caused by "device lost" errors
-			if (res < 0)
+			if (res < vk::Result::eSuccess)
 			{
-				if (res == VK_ERROR_OUT_OF_DATE_KHR)
+				if (res == vk::Result::eErrorOutOfDateKHR)
 				{
 					// swapchain re-creation needed
 					vk_restart_swapchain(__func__);
@@ -7520,14 +7536,13 @@ void vk_begin_frame(void)
 		// so we will reuse it with current swapchain image as well
 	}
 
-	VK_CHECK(qvkResetFences(vk_inst.device, 1, &vk_inst.cmd->rendering_finished_fence));
+	vk_inst.device.resetFences(vk_inst.cmd->rendering_finished_fence);
 
-	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	begin_info.pNext = nullptr;
-	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-	begin_info.pInheritanceInfo = nullptr;
+	vk::CommandBufferBeginInfo begin_info{vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
+										  nullptr,
+										  nullptr};
 
-	VK_CHECK(qvkBeginCommandBuffer(vk_inst.cmd->command_buffer, &begin_info));
+	vk_inst.cmd->command_buffer.begin(begin_info);
 
 	// Ensure visibility of geometry buffers writes.
 	// record_buffer_memory_barrier( vk_inst.cmd->command_buffer, vk_inst.cmd->vertex_buffer, vk_inst.cmd->vertex_buffer_offset, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT );
@@ -7602,9 +7617,9 @@ static void vk_resize_geometry_buffer(void)
 
 	vk_end_render_pass();
 
-	VK_CHECK(qvkEndCommandBuffer(vk_inst.cmd->command_buffer));
+	vk_inst.cmd->command_buffer.end();
 
-	qvkResetCommandBuffer(vk_inst.cmd->command_buffer, 0);
+	vk_inst.cmd->command_buffer.reset();
 
 	vk_wait_idle();
 
@@ -7650,10 +7665,12 @@ void vk_end_frame(void)
 
 			// render to capture FBO
 			vk_begin_render_pass(vk_inst.render_pass.capture, vk_inst.framebuffers.capture, false, gls.captureWidth, gls.captureHeight);
-			qvkCmdBindPipeline(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.capture_pipeline);
-			qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.color_descriptor, 0, nullptr);
+			vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_inst.capture_pipeline);
 
-			qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
+			vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk::PipelineLayout(vk_inst.pipeline_layout_post_process), 0, vk::DescriptorSet(vk_inst.color_descriptor), nullptr);
+
+			// qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
+			vk_inst.cmd->command_buffer.draw(4, 1, 0, 0);
 		}
 
 		if (!ri.CL_IsMinimized())
@@ -7667,10 +7684,11 @@ void vk_end_frame(void)
 			vk_inst.renderScaleY = 1.0;
 
 			vk_begin_render_pass(vk_inst.render_pass.gamma, vk_inst.framebuffers.gamma[vk_inst.swapchain_image_index], false, vk_inst.renderWidth, vk_inst.renderHeight);
-			qvkCmdBindPipeline(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.gamma_pipeline);
-			qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.color_descriptor, 0, nullptr);
+			vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_inst.gamma_pipeline);
 
-			qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
+			vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk::PipelineLayout(vk_inst.pipeline_layout_post_process), 0, vk::DescriptorSet(vk_inst.color_descriptor), nullptr);
+
+			vk_inst.cmd->command_buffer.draw(4, 1, 0, 0);
 		}
 	}
 
@@ -7681,7 +7699,8 @@ void vk_end_frame(void)
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit_info.pNext = nullptr;
 	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &vk_inst.cmd->command_buffer;
+	auto cmdBuf = static_cast<VkCommandBuffer>(vk_inst.cmd->command_buffer);
+	submit_info.pCommandBuffers = &cmdBuf;
 	if (!ri.CL_IsMinimized())
 	{
 		submit_info.waitSemaphoreCount = 1;
@@ -7710,8 +7729,6 @@ void vk_end_frame(void)
 
 void vk_present_frame(void)
 {
-	VkPresentInfoKHR present_info;
-	VkResult res;
 
 	if (ri.CL_IsMinimized())
 		return;
@@ -7719,45 +7736,48 @@ void vk_present_frame(void)
 	if (!vk_inst.cmd->waitForFence)
 		return;
 
-	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	present_info.pNext = nullptr;
-	present_info.waitSemaphoreCount = 1;
-	present_info.pWaitSemaphores = &vk_inst.cmd->rendering_finished;
-	present_info.swapchainCount = 1;
-	present_info.pSwapchains = &vk_inst.swapchain;
-	present_info.pImageIndices = &vk_inst.swapchain_image_index;
-	present_info.pResults = nullptr;
+	auto sem = static_cast<vk::Semaphore>(vk_inst.cmd->rendering_finished);
+	auto sc = static_cast<vk::SwapchainKHR>(vk_inst.swapchain);
 
-	res = qvkQueuePresentKHR(vk_inst.queue, &present_info);
+	vk::PresentInfoKHR present_info{1,
+									&sem,
+									1,
+									&sc,
+									&vk_inst.swapchain_image_index,
+									nullptr,
+									nullptr};
+
+	vk::Result res = vk_inst.queue.presentKHR(present_info);
+
 	switch (res)
 	{
-	case VK_SUCCESS:
+	case vk::Result::eSuccess:
 		break;
-	case VK_SUBOPTIMAL_KHR:
-	case VK_ERROR_OUT_OF_DATE_KHR:
+	case vk::Result::eSuboptimalKHR:
+	case vk::Result::eErrorOutOfDateKHR:
 		// swapchain re-creation needed
 		vk_restart_swapchain(__func__);
 		break;
-	case VK_ERROR_DEVICE_LOST:
+	case vk::Result::eErrorDeviceLost:
 		// we can ignore that
 		ri.Printf(PRINT_DEVELOPER, "vkQueuePresentKHR: device lost\n");
 		break;
 	default:
 		// or we don't
-		ri.Error(ERR_FATAL, "vkQueuePresentKHR returned %s", vk_result_string(res).data());
+		ri.Error(ERR_FATAL, "vkQueuePresentKHR returned %s", vk_result_string(VkResult(res)));
 	}
 }
 
-static bool is_bgr(VkFormat format)
+static bool is_bgr(vk::Format format)
 {
 	switch (format)
 	{
-	case VK_FORMAT_B8G8R8A8_UNORM:
-	case VK_FORMAT_B8G8R8A8_SNORM:
-	case VK_FORMAT_B8G8R8A8_UINT:
-	case VK_FORMAT_B8G8R8A8_SINT:
-	case VK_FORMAT_B8G8R8A8_SRGB:
-	case VK_FORMAT_B4G4R4A4_UNORM_PACK16:
+	case vk::Format::eB8G8R8A8Unorm:
+	case vk::Format::eB8G8R8A8Snorm:
+	case vk::Format::eB8G8R8A8Uint:
+	case vk::Format::eB8G8R8A8Sint:
+	case vk::Format::eB8G8R8A8Srgb:
+	case vk::Format::eB4G4R4A4UnormPack16:
 		return true;
 	default:
 		return false;
@@ -7766,25 +7786,17 @@ static bool is_bgr(VkFormat format)
 
 void vk_read_pixels(byte *buffer, uint32_t width, uint32_t height)
 {
-	VkCommandBuffer command_buffer;
-	VkDeviceMemory memory;
-	VkMemoryRequirements memory_requirements;
-	VkMemoryPropertyFlags memory_reqs;
-	VkMemoryPropertyFlags memory_flags;
-	VkMemoryAllocateInfo alloc_info;
-	VkImageSubresource subresource;
-	VkSubresourceLayout layout;
-	VkImageCreateInfo desc;
-	VkImage srcImage;
+	vk::MemoryPropertyFlags memory_flags;
+
+	vk::Image srcImage;
 	vk::ImageLayout srcImageLayout;
-	VkImage dstImage;
 	byte *buffer_ptr;
 	byte *data;
 	uint32_t pixel_width;
 	uint32_t i, n;
 	bool invalidate_ptr;
 
-	VK_CHECK(qvkWaitForFences(vk_inst.device, 1, &vk_inst.cmd->rendering_finished_fence, VK_FALSE, 1e12));
+	vk_inst.device.waitForFences(vk_inst.cmd->rendering_finished_fence, VK_FALSE, 1e12);
 
 	if (vk_inst.fboActive)
 	{
@@ -7806,47 +7818,38 @@ void vk_read_pixels(byte *buffer, uint32_t width, uint32_t height)
 		srcImage = vk_inst.swapchain_images[vk_inst.swapchain_image_index];
 	}
 
-	Com_Memset(&desc, 0, sizeof(desc));
+	// Com_Memset(&desc, 0, sizeof(desc));
 
 	// Create image in host visible memory to serve as a destination for framebuffer pixels.
-	desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	desc.pNext = nullptr;
-	desc.flags = 0;
-	desc.imageType = VK_IMAGE_TYPE_2D;
-	desc.format = vk_inst.capture_format;
-	desc.extent.width = width;
-	desc.extent.height = height;
-	desc.extent.depth = 1;
-	desc.mipLevels = 1;
-	desc.arrayLayers = 1;
-	desc.samples = VK_SAMPLE_COUNT_1_BIT;
-	desc.tiling = VK_IMAGE_TILING_LINEAR;
-	desc.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	desc.queueFamilyIndexCount = 0;
-	desc.pQueueFamilyIndices = nullptr;
-	desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	vk::ImageCreateInfo desc{{},
+							 vk::ImageType::e2D,
+							 vk_inst.capture_format,
+							 {width, height, 1},
+							 1,
+							 1,
+							 vk::SampleCountFlagBits::e1,
+							 vk::ImageTiling::eLinear,
+							 vk::ImageUsageFlagBits::eTransferDst,
+							 vk::SharingMode::eExclusive,
+							 0,
+							 nullptr,
+							 vk::ImageLayout::eUndefined,
+							 nullptr};
 
-	VK_CHECK(qvkCreateImage(vk_inst.device, &desc, nullptr, &dstImage));
+	vk::Image dstImage = vk_inst.device.createImage(desc);
 
-	qvkGetImageMemoryRequirements(vk_inst.device, dstImage, &memory_requirements);
-
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = nullptr;
-	alloc_info.allocationSize = memory_requirements.size;
-
+	vk::MemoryRequirements memory_requirements = vk_inst.device.getImageMemoryRequirements(dstImage);
 	// host_cached bit is desirable for fast reads
-	memory_reqs = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-	alloc_info.memoryTypeIndex = find_memory_type2(memory_requirements.memoryTypeBits, memory_reqs, &memory_flags);
+	vk::MemoryPropertyFlags memory_reqs = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostCached;
+	vk::MemoryAllocateInfo alloc_info = vk::MemoryAllocateInfo(memory_requirements.size, find_memory_type2(memory_requirements.memoryTypeBits, memory_reqs, &memory_flags));
+
 	if (alloc_info.memoryTypeIndex == static_cast<uint32_t>(~0U))
 	{
-		// try less explicit flags, without host_coherent
-		memory_reqs = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+		memory_reqs = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCached;
 		alloc_info.memoryTypeIndex = find_memory_type2(memory_requirements.memoryTypeBits, memory_reqs, &memory_flags);
 		if (alloc_info.memoryTypeIndex == ~0U)
 		{
-			// slowest case
-			memory_reqs = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+			memory_reqs = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
 			alloc_info.memoryTypeIndex = find_memory_type2(memory_requirements.memoryTypeBits, memory_reqs, &memory_flags);
 			if (alloc_info.memoryTypeIndex == ~0U)
 			{
@@ -7855,20 +7858,12 @@ void vk_read_pixels(byte *buffer, uint32_t width, uint32_t height)
 		}
 	}
 
-	if (memory_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-	{
-		invalidate_ptr = false;
-	}
-	else
-	{
-		// according to specification - must be performed if host_coherent is not set
-		invalidate_ptr = true;
-	}
+	invalidate_ptr = !(memory_flags & vk::MemoryPropertyFlagBits::eHostCoherent);
 
-	VK_CHECK(qvkAllocateMemory(vk_inst.device, &alloc_info, nullptr, &memory));
-	VK_CHECK(qvkBindImageMemory(vk_inst.device, dstImage, memory, 0));
+	auto memory = vk_inst.device.allocateMemory(alloc_info);
+	vk_inst.device.bindImageMemory(dstImage, memory, 0);
 
-	command_buffer = begin_command_buffer();
+	vk::CommandBuffer command_buffer = begin_command_buffer();
 
 	if (srcImageLayout != vk::ImageLayout::eTransferSrcOptimal)
 	{
@@ -7889,12 +7884,8 @@ void vk_read_pixels(byte *buffer, uint32_t width, uint32_t height)
 
 	if (vk_inst.blitEnabled)
 	{
-		VkImageBlit region;
+		vk::ImageBlit region{{vk::ImageAspectFlagBits::eColor, 0, 0, 1}};
 
-		region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		region.srcSubresource.mipLevel = 0;
-		region.srcSubresource.baseArrayLayer = 0;
-		region.srcSubresource.layerCount = 1;
 		region.srcOffsets[0].x = 0;
 		region.srcOffsets[0].y = 0;
 		region.srcOffsets[0].z = 0;
@@ -7905,13 +7896,14 @@ void vk_read_pixels(byte *buffer, uint32_t width, uint32_t height)
 		region.dstOffsets[0] = region.srcOffsets[0];
 		region.dstOffsets[1] = region.srcOffsets[1];
 
-		qvkCmdBlitImage(command_buffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST);
+		// qvkCmdBlitImage(command_buffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST);
+		command_buffer.blitImage(srcImage, vk::ImageLayout::eTransferSrcOptimal, dstImage, vk::ImageLayout::eTransferDstOptimal, region, vk::Filter::eNearest);
 	}
 	else
 	{
-		VkImageCopy region;
+		vk::ImageCopy region;
 
-		region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
 		region.srcSubresource.mipLevel = 0;
 		region.srcSubresource.baseArrayLayer = 0;
 		region.srcSubresource.layerCount = 1;
@@ -7924,39 +7916,36 @@ void vk_read_pixels(byte *buffer, uint32_t width, uint32_t height)
 		region.extent.height = height;
 		region.extent.depth = 1;
 
-		qvkCmdCopyImage(command_buffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+		// qvkCmdCopyImage(command_buffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+		command_buffer.copyImage(srcImage, vk::ImageLayout::eTransferSrcOptimal, dstImage, vk::ImageLayout::eTransferDstOptimal, region);
 	}
 
 	end_command_buffer(command_buffer);
 
 	// Copy data from destination image to memory buffer.
-	subresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	subresource.mipLevel = 0;
-	subresource.arrayLayer = 0;
+	vk::ImageSubresource subresource{vk::ImageAspectFlagBits::eColor, 0, 0};
 
-	qvkGetImageSubresourceLayout(vk_inst.device, dstImage, &subresource, &layout);
+	// qvkGetImageSubresourceLayout(vk_inst.device, dstImage, &subresource, &layout);
 
-	VK_CHECK(qvkMapMemory(vk_inst.device, memory, 0, VK_WHOLE_SIZE, 0, (void **)&data));
+	// VK_CHECK(qvkMapMemory(vk_inst.device, memory, 0, VK_WHOLE_SIZE, 0, (void **)&data));
+
+	vk::SubresourceLayout layout = vk_inst.device.getImageSubresourceLayout(dstImage, subresource);
+	data = static_cast<uint8_t *>(vk_inst.device.mapMemory(memory, 0, vk::WholeSize));
 
 	if (invalidate_ptr)
 	{
-		VkMappedMemoryRange range;
-		range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-		range.pNext = nullptr;
-		range.memory = memory;
-		range.size = VK_WHOLE_SIZE;
-		range.offset = 0;
-		qvkInvalidateMappedMemoryRanges(vk_inst.device, 1, &range);
+		vk::MappedMemoryRange range(memory, 0, vk::WholeSize);
+		vk_inst.device.invalidateMappedMemoryRanges(range);
 	}
 
 	data += layout.offset;
 
 	switch (vk_inst.capture_format)
 	{
-	case VK_FORMAT_B4G4R4A4_UNORM_PACK16:
+	case vk::Format::eB4G4R4A4UnormPack16:
 		pixel_width = 2;
 		break;
-	case VK_FORMAT_R16G16B16A16_UNORM:
+	case vk::Format::eR16G16B16A16Unorm:
 		pixel_width = 8;
 		break;
 	default:
@@ -8021,8 +8010,8 @@ void vk_read_pixels(byte *buffer, uint32_t width, uint32_t height)
 		}
 	}
 
-	qvkDestroyImage(vk_inst.device, dstImage, nullptr);
-	qvkFreeMemory(vk_inst.device, memory, nullptr);
+	vk_inst.device.destroyImage(dstImage);
+	vk_inst.device.freeMemory(memory);
 
 	// restore previous layout
 	if (srcImageLayout != vk::ImageLayout::eTransferSrcOptimal)
