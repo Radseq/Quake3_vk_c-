@@ -214,7 +214,7 @@ typedef struct
 typedef struct VK_Pipeline
 {
     Vk_Pipeline_Def def;
-    VkPipeline handle[RENDER_PASS_COUNT];
+    vk::Pipeline handle[RENDER_PASS_COUNT];
 } VK_Pipeline_t;
 
 typedef struct vk_tess_s
@@ -288,8 +288,8 @@ typedef struct
         VkRenderPass post_bloom;
     } render_pass;
 
-    VkDescriptorPool descriptor_pool;
-    VkDescriptorSetLayout set_layout_sampler; // combined image sampler
+    vk::DescriptorPool descriptor_pool;
+    vk::DescriptorSetLayout set_layout_sampler; // combined image sampler
     VkDescriptorSetLayout set_layout_uniform; // dynamic uniform buffer
     VkDescriptorSetLayout set_layout_storage; // feedback buffer
 

@@ -578,11 +578,11 @@ typedef struct image_s
 	int internalFormat;
 
 	vk::SamplerAddressMode wrapClampMode;
-	VkImage handle;
-	VkImageView view;
+	vk::Image handle;
+	vk::ImageView view;
 	// Descriptor set that contains single descriptor used to access the given image.
 	// It is updated only once during image initialization.
-	VkDescriptorSet descriptor;
+	vk::DescriptorSet descriptor;
 #else
 	GLuint texnum; // gl texture binding
 	GLint internalFormat;
