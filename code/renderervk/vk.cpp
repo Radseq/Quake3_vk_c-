@@ -1142,14 +1142,14 @@ static void vk_create_render_passes(void)
 	SET_OBJECT_NAME(vk_inst.render_pass.screenmap, "render pass - screenmap", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
 }
 
-static void allocate_and_bind_image_memory(VkImage image)
+static void allocate_and_bind_image_memory(vk::Image image)
 {
-	VkMemoryRequirements memory_requirements;
-	VkDeviceSize alignment;
+
+	vk::DeviceSize alignment;
 	ImageChunk *chunk;
 	int i;
 
-	qvkGetImageMemoryRequirements(vk_inst.device, image, &memory_requirements);
+	auto memory_requirements = vk_inst.device.getImageMemoryRequirements(image);
 
 	if (memory_requirements.size > vk_inst.image_chunk_size)
 	{
@@ -1164,7 +1164,7 @@ static void allocate_and_bind_image_memory(VkImage image)
 	for (i = 0; i < vk_world.num_image_chunks; i++)
 	{
 		// ensure that memory region has proper alignment
-		VkDeviceSize offset = PAD(vk_world.image_chunks[i].used, alignment);
+		vk::DeviceSize offset = PAD(vk_world.image_chunks[i].used, alignment);
 
 		if (offset + memory_requirements.size <= vk_inst.image_chunk_size)
 		{
@@ -1177,79 +1177,77 @@ static void allocate_and_bind_image_memory(VkImage image)
 	// Allocate a new chunk in case we couldn't find suitable existing chunk.
 	if (chunk == nullptr)
 	{
-		VkMemoryAllocateInfo alloc_info;
-		VkDeviceMemory memory;
+		vk::DeviceMemory memory;
 
 		if (vk_world.num_image_chunks >= MAX_IMAGE_CHUNKS)
 		{
 			ri.Error(ERR_FATAL, "Vulkan: image chunk limit has been reached");
 		}
 
-		alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		alloc_info.pNext = nullptr;
-		alloc_info.allocationSize = vk_inst.image_chunk_size;
-		alloc_info.memoryTypeIndex = find_memory_type(memory_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+		vk::MemoryAllocateInfo alloc_info{vk_inst.image_chunk_size,
+										  find_memory_type(memory_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal),
+										  nullptr};
 
-		VK_CHECK(qvkAllocateMemory(vk_inst.device, &alloc_info, nullptr, &memory));
+		memory = vk_inst.device.allocateMemory(alloc_info);
 
 		chunk = &vk_world.image_chunks[vk_world.num_image_chunks];
 		chunk->memory = memory;
 		chunk->used = memory_requirements.size;
 
-		SET_OBJECT_NAME(memory, va("image memory chunk %i", vk_world.num_image_chunks), VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
+		SET_OBJECT_NAME(VkDeviceMemory(memory), va("image memory chunk %i", vk_world.num_image_chunks), VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
 
 		vk_world.num_image_chunks++;
 	}
 
-	VK_CHECK(qvkBindImageMemory(vk_inst.device, image, chunk->memory, chunk->used - memory_requirements.size));
+	// VK_CHECK(qvkBindImageMemory(vk_inst.device, image, chunk->memory, chunk->used - memory_requirements.size));
+	vk_inst.device.bindImageMemory(image, chunk->memory, chunk->used - memory_requirements.size);
 }
 
 static void ensure_staging_buffer_allocation(VkDeviceSize size)
 {
-	VkBufferCreateInfo buffer_desc;
-	VkMemoryRequirements memory_requirements;
-	VkMemoryAllocateInfo alloc_info;
-	uint32_t memory_type;
 	void *data;
 
 	if (vk_world.staging_buffer_size >= size)
 		return;
 
 	if (vk_world.staging_buffer != VK_NULL_HANDLE)
-		qvkDestroyBuffer(vk_inst.device, vk_world.staging_buffer, nullptr);
+		vk_inst.device.destroyBuffer(vk_world.staging_buffer);
 
 	if (vk_world.staging_buffer_memory != VK_NULL_HANDLE)
-		qvkFreeMemory(vk_inst.device, vk_world.staging_buffer_memory, nullptr);
+		vk_inst.device.freeMemory(vk_world.staging_buffer_memory);
 
 	vk_world.staging_buffer_size = MAX(size, 1024 * 1024);
 
-	buffer_desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_desc.pNext = nullptr;
-	buffer_desc.flags = 0;
-	buffer_desc.size = vk_world.staging_buffer_size;
-	buffer_desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	buffer_desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	buffer_desc.queueFamilyIndexCount = 0;
-	buffer_desc.pQueueFamilyIndices = nullptr;
-	VK_CHECK(qvkCreateBuffer(vk_inst.device, &buffer_desc, nullptr, &vk_world.staging_buffer));
+	vk::BufferCreateInfo buffer_desc{{},
+									 vk_world.staging_buffer_size,
+									 vk::BufferUsageFlagBits::eTransferSrc,
+									 vk::SharingMode::eExclusive,
+									 0,
+									 nullptr,
+									 nullptr};
 
-	qvkGetBufferMemoryRequirements(vk_inst.device, vk_world.staging_buffer, &memory_requirements);
+	vk_world.staging_buffer = vk_inst.device.createBuffer(buffer_desc);
 
-	memory_type = find_memory_type(memory_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+	vk::MemoryRequirements memory_requirements = vk_inst.device.getBufferMemoryRequirements(vk_world.staging_buffer);
 
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = nullptr;
-	alloc_info.allocationSize = memory_requirements.size;
-	alloc_info.memoryTypeIndex = memory_type;
+	uint32_t memory_type = find_memory_type(memory_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
-	VK_CHECK(qvkAllocateMemory(vk_inst.device, &alloc_info, nullptr, &vk_world.staging_buffer_memory));
-	VK_CHECK(qvkBindBufferMemory(vk_inst.device, vk_world.staging_buffer, vk_world.staging_buffer_memory, 0));
+	vk::MemoryAllocateInfo alloc_info{memory_requirements.size,
+									  memory_type,
+									  nullptr};
 
-	VK_CHECK(qvkMapMemory(vk_inst.device, vk_world.staging_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
+	// VK_CHECK(qvkAllocateMemory(vk_inst.device, &alloc_info, nullptr, &vk_world.staging_buffer_memory));
+	vk_world.staging_buffer_memory = vk_inst.device.allocateMemory(alloc_info);
+	// VK_CHECK(qvkBindBufferMemory(vk_inst.device, vk_world.staging_buffer, vk_world.staging_buffer_memory, 0));
+	vk_inst.device.bindBufferMemory(vk_world.staging_buffer, vk_world.staging_buffer_memory, 0);
+
+	// VK_CHECK(qvkMapMemory(vk_inst.device, vk_world.staging_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
+	vk_inst.device.mapMemory(vk_world.staging_buffer_memory, 0, vk::WholeSize, {}, &data);
+
 	vk_world.staging_buffer_ptr = (byte *)data;
 
-	SET_OBJECT_NAME(vk_world.staging_buffer, "staging buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
-	SET_OBJECT_NAME(vk_world.staging_buffer_memory, "staging buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
+	SET_OBJECT_NAME(VkBuffer(vk_world.staging_buffer), "staging buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
+	SET_OBJECT_NAME(VkDeviceMemory(vk_world.staging_buffer_memory), "staging buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
 }
 
 #ifdef USE_VK_VALIDATION
@@ -2735,7 +2733,6 @@ static void vk_create_geometry_buffers(VkDeviceSize size)
 
 static void vk_create_storage_buffer(uint32_t size)
 {
-	vk::MemoryRequirements memory_requirements;
 	uint32_t memory_type_bits;
 	uint32_t memory_type;
 
@@ -2747,12 +2744,10 @@ static void vk_create_storage_buffer(uint32_t size)
 							  nullptr,
 							  nullptr};
 
-	Com_Memset(&memory_requirements, 0, sizeof(memory_requirements));
-
 	vk_inst.storage.buffer = vk_inst.device.createBuffer(desc);
 	// VK_CHECK(qvkCreateBuffer(vk_inst.device, &desc, NULL, &vk_inst.storage.buffer));
 
-	memory_requirements = vk_inst.device.getBufferMemoryRequirements(vk_inst.storage.buffer);
+	vk::MemoryRequirements memory_requirements = vk_inst.device.getBufferMemoryRequirements(vk_inst.storage.buffer);
 	// qvkGetBufferMemoryRequirements(vk_inst.device, vk_inst.storage.buffer, &memory_requirements);
 
 	memory_type_bits = memory_requirements.memoryTypeBits;
@@ -2777,9 +2772,9 @@ static void vk_create_storage_buffer(uint32_t size)
 	vk_inst.device.bindBufferMemory(vk_inst.storage.buffer, vk_inst.storage.memory, 0);
 	// qvkBindBufferMemory(vk_inst.device, vk_inst.storage.buffer, vk_inst.storage.memory, 0);
 
-	SET_OBJECT_NAME(vk_inst.storage.buffer, "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
-	SET_OBJECT_NAME(vk_inst.storage.descriptor, "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
-	SET_OBJECT_NAME(vk_inst.storage.memory, "storage buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
+	SET_OBJECT_NAME(VkBuffer(vk_inst.storage.buffer), "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
+	SET_OBJECT_NAME(VkDescriptorSet(vk_inst.storage.descriptor), "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
+	SET_OBJECT_NAME(VkDeviceMemory(vk_inst.storage.memory), "storage buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
 }
 
 #ifdef USE_VBO
