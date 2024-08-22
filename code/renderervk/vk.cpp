@@ -6891,7 +6891,7 @@ void vk_update_mvp(const float *m)
 	vk_inst.stats.push_size += sizeof(push_constants);
 }
 
-static VkBuffer shade_bufs[8];
+static vk::Buffer shade_bufs[8];
 static int bind_base;
 static int bind_count;
 
@@ -7053,7 +7053,8 @@ void vk_bind_geometry(uint32_t flags)
 			vk_bind_index_attr(7);
 		}
 
-		qvkCmdBindVertexBuffers(vk_inst.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk_inst.cmd->vbo_offset + bind_base);
+		// qvkCmdBindVertexBuffers(vk_inst.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk_inst.cmd->vbo_offset + bind_base);
+		vk_inst.cmd->command_buffer.bindVertexBuffers(bind_base, bind_count, shade_bufs, vk_inst.cmd->vbo_offset + bind_base);
 	}
 	else
 #endif // USE_VBO
@@ -7100,7 +7101,7 @@ void vk_bind_geometry(uint32_t flags)
 			vk_bind_attr(7, sizeof(color4ub_t), tess.svars.colors[2][0].rgba);
 		}
 
-		qvkCmdBindVertexBuffers(vk_inst.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk_inst.cmd->buf_offset + bind_base);
+		vk_inst.cmd->command_buffer.bindVertexBuffers(bind_base, bind_count, shade_bufs, vk_inst.cmd->buf_offset + bind_base);
 	}
 }
 
@@ -7119,7 +7120,7 @@ void vk_bind_lighting(int stage, int bundle)
 		vk_inst.cmd->vbo_offset[1] = tess.shader->stages[stage]->tex_offset[bundle];
 		vk_inst.cmd->vbo_offset[2] = tess.shader->normalOffset;
 
-		qvkCmdBindVertexBuffers(vk_inst.cmd->command_buffer, 0, 3, shade_bufs, vk_inst.cmd->vbo_offset + 0);
+		vk_inst.cmd->command_buffer.bindVertexBuffers(0, 3, shade_bufs, vk_inst.cmd->vbo_offset);
 	}
 	else
 #endif // USE_VBO
@@ -7130,7 +7131,7 @@ void vk_bind_lighting(int stage, int bundle)
 		vk_bind_attr(1, sizeof(vec2_t), tess.svars.texcoordPtr[bundle]);
 		vk_bind_attr(2, sizeof(tess.normal[0]), tess.normal);
 
-		qvkCmdBindVertexBuffers(vk_inst.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk_inst.cmd->buf_offset + bind_base);
+		vk_inst.cmd->command_buffer.bindVertexBuffers(bind_base, bind_count, shade_bufs, vk_inst.cmd->buf_offset + bind_base);
 	}
 }
 

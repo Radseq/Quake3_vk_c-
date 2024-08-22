@@ -232,8 +232,8 @@ typedef struct vk_tess_s
 
     VkDescriptorSet uniform_descriptor;
     uint32_t uniform_read_offset;
-    VkDeviceSize buf_offset[8];
-    VkDeviceSize vbo_offset[8];
+    vk::DeviceSize buf_offset[8];
+    vk::DeviceSize vbo_offset[8];
 
     VkBuffer curr_index_buffer;
     uint32_t curr_index_offset;
