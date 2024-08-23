@@ -221,8 +221,8 @@ typedef struct vk_tess_s
 {
     vk::CommandBuffer command_buffer;
 
-    VkSemaphore image_acquired;
-    VkSemaphore rendering_finished;
+    vk::Semaphore image_acquired;
+    vk::Semaphore rendering_finished;
     vk::Fence rendering_finished_fence;
     bool waitForFence;
 
@@ -266,7 +266,7 @@ typedef struct
     vk::Device device;
     vk::Queue queue;
 
-    VkSwapchainKHR swapchain;
+    vk::SwapchainKHR swapchain;
     uint32_t swapchain_image_count;
     VkImage swapchain_images[MAX_SWAPCHAIN_IMAGES];
     VkImageView swapchain_image_views[MAX_SWAPCHAIN_IMAGES];
@@ -279,13 +279,13 @@ typedef struct
 
     struct
     {
-        VkRenderPass main;
-        VkRenderPass screenmap;
-        VkRenderPass gamma;
-        VkRenderPass capture;
-        VkRenderPass bloom_extract;
-        VkRenderPass blur[VK_NUM_BLOOM_PASSES * 2]; // horizontal-vertical pairs
-        VkRenderPass post_bloom;
+        vk::RenderPass main;
+        vk::RenderPass screenmap;
+        vk::RenderPass gamma;
+        vk::RenderPass capture;
+        vk::RenderPass bloom_extract;
+        vk::RenderPass blur[VK_NUM_BLOOM_PASSES * 2]; // horizontal-vertical pairs
+        vk::RenderPass post_bloom;
     } render_pass;
 
     vk::DescriptorPool descriptor_pool;
@@ -337,12 +337,12 @@ typedef struct
 
     struct
     {
-        VkFramebuffer blur[VK_NUM_BLOOM_PASSES * 2];
-        VkFramebuffer bloom_extract;
-        VkFramebuffer main[MAX_SWAPCHAIN_IMAGES];
-        VkFramebuffer gamma[MAX_SWAPCHAIN_IMAGES];
-        VkFramebuffer screenmap;
-        VkFramebuffer capture;
+        vk::Framebuffer blur[VK_NUM_BLOOM_PASSES * 2];
+        vk::Framebuffer bloom_extract;
+        vk::Framebuffer main[MAX_SWAPCHAIN_IMAGES];
+        vk::Framebuffer gamma[MAX_SWAPCHAIN_IMAGES];
+        vk::Framebuffer screenmap;
+        vk::Framebuffer capture;
     } framebuffers;
 
     vk_tess_t tess[NUM_COMMAND_BUFFERS], *cmd;
