@@ -444,7 +444,7 @@ static void end_command_buffer(vk::CommandBuffer command_buffer)
 
 	cmdbuf[0] = command_buffer;
 
-	VK_CHECK(qvkEndCommandBuffer(command_buffer));
+	command_buffer.end();
 
 	vk::SubmitInfo submit_info{0,
 							   nullptr,
@@ -742,15 +742,15 @@ static void vk_create_swapchain(vk::PhysicalDevice physical_device, vk::Device d
 		SET_OBJECT_NAME(vk_inst.swapchain_image_views[i], va("swapchain image %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 	}
 
-	if (vk_inst.initSwapchainLayout != VK_IMAGE_LAYOUT_UNDEFINED)
+	if (vk_inst.initSwapchainLayout != vk::ImageLayout::eUndefined)
 	{
-		VkCommandBuffer command_buffer = begin_command_buffer();
+		vk::CommandBuffer command_buffer = begin_command_buffer();
 
 		for (i = 0; i < vk_inst.swapchain_image_count; i++)
 		{
 			record_image_layout_transition(command_buffer, vk_inst.swapchain_images[i],
 										   vk::ImageAspectFlagBits::eColor,
-										   vk::ImageLayout::eUndefined, vk::ImageLayout(vk_inst.initSwapchainLayout));
+										   vk::ImageLayout::eUndefined, vk_inst.initSwapchainLayout);
 		}
 
 		end_command_buffer(command_buffer);
@@ -787,7 +787,7 @@ static void vk_create_render_passes(void)
 		attachments[0].storeOp = vk::AttachmentStoreOp::eStore; // needed for presentation
 		attachments[0].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
 		attachments[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-		attachments[0].initialLayout = vk::ImageLayout(vk_inst.initSwapchainLayout);
+		attachments[0].initialLayout = vk_inst.initSwapchainLayout;
 		attachments[0].finalLayout = vk::ImageLayout::ePresentSrcKHR;
 	}
 	else
@@ -1040,7 +1040,7 @@ static void vk_create_render_passes(void)
 	attachments[0].storeOp = vk::AttachmentStoreOp::eStore; // needed for presentation
 	attachments[0].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
 	attachments[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-	attachments[0].initialLayout = vk::ImageLayout(vk_inst.initSwapchainLayout);
+	attachments[0].initialLayout = vk_inst.initSwapchainLayout;
 	attachments[0].finalLayout = vk::ImageLayout::ePresentSrcKHR;
 
 	desc.dependencyCount = 1;
@@ -1200,7 +1200,7 @@ static void allocate_and_bind_image_memory(vk::Image image)
 	vk_inst.device.bindImageMemory(image, chunk->memory, chunk->used - memory_requirements.size);
 }
 
-static void ensure_staging_buffer_allocation(VkDeviceSize size)
+static void ensure_staging_buffer_allocation(vk::DeviceSize size)
 {
 	void *data;
 
@@ -1389,7 +1389,6 @@ static void create_instance(void)
 #else
 
 	VK_CHECK(vk_instance = createInstance(desc));
-	vk_instance = VkInstance(vk_instance);
 #endif
 
 	ri.Free((void *)extension_names);
@@ -1675,8 +1674,11 @@ static const char *renderer_nameCpp(const vk::PhysicalDeviceProperties &props)
 		break;
 	}
 
+	char charArray[256];
+	std::memcpy(charArray, props.deviceName.data(), 256);
+
 	Com_sprintf(buf, sizeof(buf), "%s %s, 0x%04x",
-				device_type, props.deviceName, props.deviceID);
+				device_type, charArray, props.deviceID);
 
 	return buf;
 }
@@ -1735,7 +1737,6 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 
 		vk::PhysicalDeviceFeatures features;
 
-		VkResult res;
 		bool swapchainSupported = false;
 		bool dedicatedAllocation = false;
 		bool memoryRequirements2 = false;
@@ -2000,7 +2001,7 @@ static void init_vulkan_library(void)
 		vk_surface = vk::SurfaceKHR(vk_surfaceC);
 	} // vk_instance == VK_NULL_HANDLE
 
-	std::vector<vk::PhysicalDevice> physical_devicesCpp = vk_instance.enumeratePhysicalDevices();
+	std::vector<vk::PhysicalDevice> physical_devices = vk_instance.enumeratePhysicalDevices();
 
 #ifdef USE_VK_VALIDATION
 	auto resultPhysicalDevices = vk_instance.enumeratePhysicalDevices();
@@ -2018,11 +2019,11 @@ static void init_vulkan_library(void)
 		return;
 	}
 
-	physical_devicesCpp = resultPhysicalDevices.value;
+	physical_devices = resultPhysicalDevices.value;
 
 #else
-	physical_devicesCpp = vk_instance.enumeratePhysicalDevices();
-	device_count = physical_devicesCpp.size();
+	physical_devices = vk_instance.enumeratePhysicalDevices();
+	device_count = physical_devices.size();
 
 	if (device_count == 0)
 	{
@@ -2036,29 +2037,18 @@ static void init_vulkan_library(void)
 
 	ri.Printf(PRINT_ALL, ".......................\nAvailable physical devices:\n");
 
-	VkPhysicalDeviceProperties props;
+	vk::PhysicalDeviceProperties props;
 
 	for (i = 0; i < device_count; i++)
 	{
-		//  auto propsCpp = vk::PhysicalDevice(physical_devices[i]).getProperties();
-		//  ri.Printf(PRINT_ALL, " %i: %s\n", i, renderer_nameCpp(propsCpp));
+		auto props = physical_devices[i].getProperties();
+		ri.Printf(PRINT_ALL, " %i: %s\n", i, renderer_nameCpp(props));
 
-		// if (device_index == -1 && propsCpp.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
-		// {
-		// 	device_index = i;
-		// }
-		// else if (device_index == -2 && propsCpp.deviceType == vk::PhysicalDeviceType::eIntegratedGpu)
-		// {
-		// 	device_index = i;
-		// }
-
-		qvkGetPhysicalDeviceProperties(VkPhysicalDevice(physical_devicesCpp[i]), &props);
-		ri.Printf(PRINT_ALL, " %i: %s\n", i, renderer_name(&props));
-		if (device_index == -1 && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+		if (device_index == -1 && props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
 		{
 			device_index = i;
 		}
-		else if (device_index == -2 && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+		else if (device_index == -2 && props.deviceType == vk::PhysicalDeviceType::eIntegratedGpu)
 		{
 			device_index = i;
 		}
@@ -2073,9 +2063,9 @@ static void init_vulkan_library(void)
 			device_index = 0;
 		}
 
-		if (vk_create_device(physical_devicesCpp[i], device_index))
+		if (vk_create_device(physical_devices[i], device_index))
 		{
-			vk_inst.physical_device = physical_devicesCpp[device_index];
+			vk_inst.physical_device = physical_devices[device_index];
 			break;
 		}
 	}
@@ -2374,10 +2364,10 @@ void vk_update_uniform_descriptor(const vk::DescriptorSet &descriptor, const vk:
 	vk_inst.device.updateDescriptorSets(desc, nullptr);
 }
 
-static VkSampler vk_find_sampler(const Vk_Sampler_Def *def)
+static vk::Sampler vk_find_sampler(const Vk_Sampler_Def *def)
 {
 	vk::SamplerAddressMode address_mode;
-	VkSampler sampler;
+	vk::Sampler sampler;
 	vk::Filter mag_filter;
 	vk::Filter min_filter;
 	vk::SamplerMipmapMode mipmap_mode;
@@ -2497,7 +2487,7 @@ static VkSampler vk_find_sampler(const Vk_Sampler_Def *def)
 
 	// VK_CHECK(qvkCreateSampler(vk_inst.device, &desc, nullptr, &sampler));
 
-	SET_OBJECT_NAME(sampler, va("image sampler %i", vk_world.num_samplers), VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT);
+	SET_OBJECT_NAME(VkSampler(sampler), va("image sampler %i", vk_world.num_samplers), VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT);
 
 	vk_world.sampler_defs[vk_world.num_samplers] = *def;
 	vk_world.samplers[vk_world.num_samplers] = sampler;
@@ -2666,7 +2656,7 @@ static void vk_release_geometry_buffers(void)
 	vk_inst.geometry_buffer_memory = VK_NULL_HANDLE;
 }
 
-static void vk_create_geometry_buffers(VkDeviceSize size)
+static void vk_create_geometry_buffers(vk::DeviceSize size)
 {
 	vk::MemoryRequirements vb_memory_requirements;
 	vk::DeviceSize vertex_buffer_offset;
@@ -3495,9 +3485,9 @@ static void vk_alloc_attachments(void)
 										  nullptr};
 
 		// Create the image view and assign it to the pointer
-		// attachments[i].image_view = new VkImageView(vk_inst.device.createImageView(view_desc));
-		auto a = static_cast<VkImageViewCreateInfo>(view_desc);
-		VK_CHECK(qvkCreateImageView(vk_inst.device, &a, nullptr, attachments[i].image_view));
+		*attachments[i].image_view = vk_inst.device.createImageView(view_desc);
+		// auto a = static_cast<VkImageViewCreateInfo>(view_desc);
+		// VK_CHECK(qvkCreateImageView(vk_inst.device, &a, nullptr, attachments[i].image_view));
 	}
 
 	// Perform layout transition
@@ -3589,7 +3579,7 @@ static void create_color_attachment(uint32_t width, uint32_t height, VkSampleCou
 									nullptr};
 
 	// VK_CHECK(qvkCreateImage(vk_inst.device, &create_desc, nullptr, image));
-	image = new VkImage(vk_inst.device.createImage(create_desc));
+	*image = vk_inst.device.createImage(create_desc);
 
 	vk_get_image_memory_requirements(*image, &memory_requirements);
 
@@ -3628,7 +3618,7 @@ static void create_depth_attachment(uint32_t width, uint32_t height, VkSampleCou
 		image_aspect_flags |= VK_IMAGE_ASPECT_STENCIL_BIT;
 
 	// VK_CHECK(qvkCreateImage(vk_inst.device, &create_desc, nullptr, image));
-	image = new VkImage(vk_inst.device.createImage(create_desc));
+	*image = vk_inst.device.createImage(create_desc);
 
 	vk_get_image_memory_requirements(*image, &memory_requirements);
 
@@ -4199,8 +4189,7 @@ void vk_initialize(void)
 	}
 
 	Q_strncpyz(glConfig.vendor_string, vendor_name, sizeof(glConfig.vendor_string));
-	VkPhysicalDeviceProperties a = static_cast<VkPhysicalDeviceProperties>(props);
-	Q_strncpyz(glConfig.renderer_string, renderer_name(&a), sizeof(glConfig.renderer_string));
+	Q_strncpyz(glConfig.renderer_string, renderer_nameCpp(props), sizeof(glConfig.renderer_string));
 
 	SET_OBJECT_NAME((intptr_t) static_cast<VkDevice>(vk_inst.device), glConfig.renderer_string, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT);
 
@@ -4378,7 +4367,7 @@ void vk_initialize(void)
 	vk_inst.renderPassIndex = RENDER_PASS_MAIN; // default render pass
 
 	// swapchain
-	vk_inst.initSwapchainLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	vk_inst.initSwapchainLayout = vk::ImageLayout::ePresentSrcKHR;
 	// vk_inst.initSwapchainLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
 	vk_create_swapchain(vk_inst.physical_device, vk_inst.device, vk_surface, vk_inst.present_format, &vk_inst.swapchain);

@@ -493,7 +493,7 @@ typedef struct
     VkFormat depth_format;
     VkFormat bloom_format;
 
-    VkImageLayout initSwapchainLayout;
+    vk::ImageLayout initSwapchainLayout;
 
     bool fastSky; // requires VK_IMAGE_USAGE_TRANSFER_DST_BIT
     bool fboActive;
