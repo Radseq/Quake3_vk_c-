@@ -1698,7 +1698,7 @@ static void init_vulkan_library(void)
 	uint32_t i;
 
 	vk_inst = {};
-	
+
 	if (vk_instance == VK_NULL_HANDLE)
 	{
 
@@ -3246,7 +3246,7 @@ static void vk_alloc_attachments(void)
 	num_attachments = 0;
 }
 
-static void vk_add_attachment_desc(vk::Image desc, vk::ImageView *image_view, vk::ImageUsageFlags usage,
+static void vk_add_attachment_desc(const vk::Image &desc, vk::ImageView *image_view, vk::ImageUsageFlags usage,
 								   vk::MemoryRequirements *reqs, vk::Format image_format,
 								   vk::ImageAspectFlags aspect_flags, vk::ImageLayout image_layout)
 {
@@ -3268,7 +3268,7 @@ static void vk_add_attachment_desc(vk::Image desc, vk::ImageView *image_view, vk
 	}
 }
 
-static void vk_get_image_memory_requirements(vk::Image image, vk::MemoryRequirements *memory_requirements)
+static void vk_get_image_memory_requirements(const vk::Image &image, vk::MemoryRequirements *memory_requirements)
 {
 	vk::DispatchLoaderDynamic dldi;
 
@@ -4312,7 +4312,8 @@ static void vk_destroy_pipelines(bool resetCounter)
 	// Reset the pipeline count and clear the memory if requested
 	if (resetCounter)
 	{
-		std::memset(&vk_inst.pipelines, 0, sizeof(vk_inst.pipelines));
+		// std::memset(&vk_inst.pipelines, 0, sizeof(vk_inst.pipelines));
+		std::fill(std::begin(vk_inst.pipelines), std::end(vk_inst.pipelines), VK_Pipeline_t{});
 		vk_inst.pipelines_count = 0;
 	}
 
@@ -4608,10 +4609,12 @@ void vk_release_resources(void)
 		vk_inst.tess[i].vertex_buffer_offset = 0;
 	}
 
-	std::memset(vk_inst.cmd->buf_offset, 0, sizeof(vk_inst.cmd->buf_offset));
-	std::memset(vk_inst.cmd->vbo_offset, 0, sizeof(vk_inst.cmd->vbo_offset));
+	// std::fill_n(vk_inst.cmd->buf_offset, sizeof(vk_inst.cmd->buf_offset), vk::DeviceSize{0});
+	// std::fill_n(vk_inst.cmd->vbo_offset, sizeof(vk_inst.cmd->vbo_offset), vk::DeviceSize{0});
+	Com_Memset(vk_inst.cmd->buf_offset, 0, sizeof(vk_inst.cmd->buf_offset));
+	Com_Memset(vk_inst.cmd->vbo_offset, 0, sizeof(vk_inst.cmd->vbo_offset));
 
-	std::memset(&vk_inst.stats, 0, sizeof(vk_inst.stats));
+	vk_inst.stats = {};
 }
 
 static void record_buffer_memory_barrier(vk::CommandBuffer cb, vk::Buffer buffer,
@@ -6320,7 +6323,6 @@ vk::Pipeline vk_gen_pipeline(uint32_t index)
 
 uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def)
 {
-	VK_Pipeline_t *pipeline;
 	if (vk_inst.pipelines_count >= MAX_VK_PIPELINES)
 	{
 		ri.Error(ERR_DROP, "alloc_pipeline: MAX_VK_PIPELINES reached");
@@ -6329,11 +6331,11 @@ uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def)
 	else
 	{
 		int j;
-		pipeline = &vk_inst.pipelines[vk_inst.pipelines_count];
-		pipeline->def = def;
+		VK_Pipeline_t &pipeline = vk_inst.pipelines[vk_inst.pipelines_count];
+		pipeline.def = def;
 		for (j = 0; j < RENDER_PASS_COUNT; j++)
 		{
-			pipeline->handle[j] = VK_NULL_HANDLE;
+			pipeline.handle[j] = VK_NULL_HANDLE;
 		}
 		return vk_inst.pipelines_count++;
 	}
@@ -6449,7 +6451,6 @@ static void get_viewport(vk::Viewport &viewport, Vk_Depth_Range depth_range)
 
 static void get_scissor_rect(vk::Rect2D &r)
 {
-
 	if (backEnd.viewParms.portalView != PV_NONE)
 	{
 		r.offset.x = backEnd.viewParms.scissorX;
@@ -6525,19 +6526,15 @@ static void get_mvp_transform(float *mvp)
 void vk_clear_color(const vec4_t color)
 {
 
-	vk::ClearAttachment attachment;
 	vk::ClearRect clear_rect[2]{};
 	uint32_t rect_count;
 
 	if (!vk_inst.active)
 		return;
 
-	attachment.colorAttachment = 0;
-	attachment.clearValue.color.float32[0] = color[0];
-	attachment.clearValue.color.float32[1] = color[1];
-	attachment.clearValue.color.float32[2] = color[2];
-	attachment.clearValue.color.float32[3] = color[3];
-	attachment.aspectMask = vk::ImageAspectFlagBits::eColor;
+	vk::ClearAttachment attachment{vk::ImageAspectFlagBits::eColor,
+								   0,
+								   vk::ClearColorValue{color[0], color[1], color[2], color[3]}};
 
 	get_scissor_rect(clear_rect[0].rect);
 	clear_rect[0].baseArrayLayer = 0;
@@ -6910,7 +6907,7 @@ void vk_bind_pipeline(uint32_t pipeline)
 
 	vkpipe = vk_gen_pipeline(pipeline);
 
-	if (vkpipe != vk::Pipeline(vk_inst.cmd->last_pipeline))
+	if (vkpipe != vk_inst.cmd->last_pipeline)
 	{
 		vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vkpipe);
 		vk_inst.cmd->last_pipeline = vkpipe;
@@ -6967,7 +6964,7 @@ void vk_draw_geometry(Vk_Depth_Range depth_range, bool indexed)
 	}
 }
 
-static void vk_begin_render_pass(vk::RenderPass renderPass, vk::Framebuffer frameBuffer, bool clearValues, uint32_t width, uint32_t height)
+static void vk_begin_render_pass(const vk::RenderPass &renderPass, const vk::Framebuffer &frameBuffer, bool clearValues, uint32_t width, uint32_t height)
 {
 	vk::ClearValue clear_values[3]{};
 
@@ -7001,7 +6998,7 @@ static void vk_begin_render_pass(vk::RenderPass renderPass, vk::Framebuffer fram
 
 void vk_begin_main_render_pass(void)
 {
-	vk::Framebuffer frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
+	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
 
 	vk_inst.renderPassIndex = RENDER_PASS_MAIN;
 
@@ -7017,7 +7014,7 @@ void vk_begin_main_render_pass(void)
 
 void vk_begin_post_bloom_render_pass(void)
 {
-	vk::Framebuffer frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
+	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
 
 	vk_inst.renderPassIndex = RENDER_PASS_POST_BLOOM;
 
@@ -7033,7 +7030,7 @@ void vk_begin_post_bloom_render_pass(void)
 
 void vk_begin_bloom_extract_render_pass(void)
 {
-	vk::Framebuffer frameBuffer = vk_inst.framebuffers.bloom_extract;
+	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.bloom_extract;
 
 	// vk_inst.renderPassIndex = RENDER_PASS_BLOOM_EXTRACT; // doesn't matter, we will use dedicated pipelines
 
@@ -7049,7 +7046,7 @@ void vk_begin_bloom_extract_render_pass(void)
 
 void vk_begin_blur_render_pass(uint32_t index)
 {
-	vk::Framebuffer frameBuffer = vk_inst.framebuffers.blur[index];
+	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.blur[index];
 
 	// vk_inst.renderPassIndex = RENDER_PASS_BLOOM_EXTRACT; // doesn't matter, we will use dedicated pipelines
 
@@ -7065,7 +7062,7 @@ void vk_begin_blur_render_pass(uint32_t index)
 
 static void vk_begin_screenmap_render_pass(void)
 {
-	vk::Framebuffer frameBuffer = vk_inst.framebuffers.screenmap;
+	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.screenmap;
 
 	vk_inst.renderPassIndex = RENDER_PASS_SCREENMAP;
 
@@ -7117,20 +7114,18 @@ void vk_begin_frame(void)
 {
 
 	// VkFramebuffer frameBuffer;
-	vk::Result res;
 
 	if (vk_inst.frame_count++) // might happen during stereo rendering
 		return;
 
 	if (vk_inst.cmd->waitForFence)
 	{
-
 		vk_inst.cmd = &vk_inst.tess[vk_inst.cmd_index++];
 		vk_inst.cmd_index %= NUM_COMMAND_BUFFERS;
 
 		vk_inst.cmd->waitForFence = false;
 		// res = qvkWaitForFences(vk_inst.device, 1, &vk_inst.cmd->rendering_finished_fence, VK_FALSE, 1e10);
-		res = vk_inst.device.waitForFences(vk_inst.cmd->rendering_finished_fence, VK_FALSE, 1e10);
+		vk::Result res = vk_inst.device.waitForFences(vk_inst.cmd->rendering_finished_fence, VK_FALSE, 1e10);
 		if (res != vk::Result::eSuccess)
 		{
 			if (res == vk::Result::eErrorDeviceLost)
@@ -7234,7 +7229,9 @@ void vk_begin_frame(void)
 	vk_inst.cmd->uniform_read_offset = 0;
 	vk_inst.cmd->vertex_buffer_offset = 0;
 	Com_Memset(vk_inst.cmd->buf_offset, 0, sizeof(vk_inst.cmd->buf_offset));
+	// std::fill_n(vk_inst.cmd->buf_offset, sizeof(vk_inst.cmd->buf_offset), vk::DeviceSize{0});
 	Com_Memset(vk_inst.cmd->vbo_offset, 0, sizeof(vk_inst.cmd->vbo_offset));
+	// std::fill_n(vk_inst.cmd->vbo_offset, sizeof(vk_inst.cmd->vbo_offset), vk::DeviceSize{0});
 	vk_inst.cmd->curr_index_buffer = VK_NULL_HANDLE;
 	vk_inst.cmd->curr_index_offset = 0;
 
@@ -7242,7 +7239,7 @@ void vk_begin_frame(void)
 	vk_inst.cmd->descriptor_set.start = ~0U;
 	// vk_inst.cmd->descriptor_set.end = 0;
 
-	Com_Memset(&vk_inst.cmd->scissor_rect, 0, sizeof(vk_inst.cmd->scissor_rect));
+	// Com_Memset(&vk_inst.cmd->scissor_rect, 0, sizeof(vk_inst.cmd->scissor_rect));
 	vk_inst.cmd->scissor_rect = vk::Rect2D{};
 
 	vk_update_descriptor(VK_DESC_TEXTURE0, tr.whiteImage->descriptor);
