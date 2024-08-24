@@ -1666,11 +1666,9 @@ static void vk_destroy_instance(void)
 {
 	if (vk_surface != VK_NULL_HANDLE)
 	{
-		if (qvkDestroySurfaceKHR != nullptr)
-		{
-			vk_instance.destroySurfaceKHR(vk_surface);
-			// qvkDestroySurfaceKHR(vk_instance, vk_surface, nullptr);
-		}
+		vk_instance.destroySurfaceKHR(vk_surface);
+		// qvkDestroySurfaceKHR(vk_instance, vk_surface, nullptr);
+
 		vk_surface = VK_NULL_HANDLE;
 	}
 
@@ -1687,10 +1685,8 @@ static void vk_destroy_instance(void)
 
 	if (vk_instance != VK_NULL_HANDLE)
 	{
-		if (qvkDestroyInstance)
-		{
-			qvkDestroyInstance(vk_instance, nullptr);
-		}
+		vk_instance.destroy();
+
 		vk_instance = VK_NULL_HANDLE;
 	}
 }
@@ -1700,10 +1696,9 @@ static void init_vulkan_library(void)
 	uint32_t device_count;
 	int device_index;
 	uint32_t i;
-	VkResult res;
 
-	Com_Memset(&vk_inst, 0, sizeof(vk_inst));
-
+	vk_inst = {};
+	
 	if (vk_instance == VK_NULL_HANDLE)
 	{
 
@@ -1797,8 +1792,6 @@ static void init_vulkan_library(void)
 	device_index = r_device->integer;
 
 	ri.Printf(PRINT_ALL, ".......................\nAvailable physical devices:\n");
-
-	vk::PhysicalDeviceProperties props;
 
 	for (i = 0; i < device_count; i++)
 	{
@@ -2416,7 +2409,6 @@ static void vk_release_geometry_buffers(void)
 static void vk_create_geometry_buffers(vk::DeviceSize size)
 {
 	vk::MemoryRequirements vb_memory_requirements{};
-	vk::DeviceSize vertex_buffer_offset;
 	uint32_t memory_type_bits;
 	uint32_t memory_type;
 	void *data;
@@ -2454,7 +2446,7 @@ static void vk_create_geometry_buffers(vk::DeviceSize size)
 	// VK_CHECK(qvkMapMemory(vk_inst.device, vk_inst.geometry_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
 	VK_CHECK(vk_inst.device.mapMemory(vk_inst.geometry_buffer_memory, 0, vk::WholeSize, {}, &data));
 
-	vertex_buffer_offset = 0;
+	vk::DeviceSize vertex_buffer_offset{0};
 
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++)
 	{
@@ -2471,53 +2463,50 @@ static void vk_create_geometry_buffers(vk::DeviceSize size)
 
 	vk_inst.geometry_buffer_size = vb_memory_requirements.size;
 
-	Com_Memset(&vk_inst.stats, 0, sizeof(vk_inst.stats));
+	vk_inst.stats = {};
 }
 
 static void vk_create_storage_buffer(uint32_t size)
 {
-    vk::BufferCreateInfo bufferCreateInfo{
-        {},
-        size,
-        vk::BufferUsageFlagBits::eStorageBuffer,
-        vk::SharingMode::eExclusive
-    };
+	vk::BufferCreateInfo bufferCreateInfo{
+		{},
+		size,
+		vk::BufferUsageFlagBits::eStorageBuffer,
+		vk::SharingMode::eExclusive};
 
-    // Create the buffer
-    vk_inst.storage.buffer = vk_inst.device.createBuffer(bufferCreateInfo);
+	// Create the buffer
+	vk_inst.storage.buffer = vk_inst.device.createBuffer(bufferCreateInfo);
 
-    // Get memory requirements for the buffer
-    vk::MemoryRequirements memoryRequirements = vk_inst.device.getBufferMemoryRequirements(vk_inst.storage.buffer);
-    uint32_t memoryTypeBits = memoryRequirements.memoryTypeBits;
+	// Get memory requirements for the buffer
+	vk::MemoryRequirements memoryRequirements = vk_inst.device.getBufferMemoryRequirements(vk_inst.storage.buffer);
+	uint32_t memoryTypeBits = memoryRequirements.memoryTypeBits;
 
-    // Find a suitable memory type
-    uint32_t memoryType = find_memory_type(memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+	// Find a suitable memory type
+	uint32_t memoryType = find_memory_type(memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
-    vk::MemoryAllocateInfo memoryAllocateInfo{
-        memoryRequirements.size,
-        memoryType
-    };
+	vk::MemoryAllocateInfo memoryAllocateInfo{
+		memoryRequirements.size,
+		memoryType};
 
-    // Allocate memory for the buffer
-    vk_inst.storage.memory = vk_inst.device.allocateMemory(memoryAllocateInfo);
+	// Allocate memory for the buffer
+	vk_inst.storage.memory = vk_inst.device.allocateMemory(memoryAllocateInfo);
 
-    // Bind the memory to the buffer
-    vk_inst.device.bindBufferMemory(vk_inst.storage.buffer, vk_inst.storage.memory, 0);
+	// Bind the memory to the buffer
+	vk_inst.device.bindBufferMemory(vk_inst.storage.buffer, vk_inst.storage.memory, 0);
 
-    // Map the memory and initialize it
-    void* mappedMemory = vk_inst.device.mapMemory(vk_inst.storage.memory, 0, vk::WholeSize, {});
-    std::memset(mappedMemory, 0, size); // Initialize the memory
-    vk_inst.storage.buffer_ptr = static_cast<byte*>(mappedMemory); // Store the pointer to the buffer
+	// Map the memory and initialize it
+	void *mappedMemory = vk_inst.device.mapMemory(vk_inst.storage.memory, 0, vk::WholeSize, {});
+	std::memset(mappedMemory, 0, size);								// Initialize the memory
+	vk_inst.storage.buffer_ptr = static_cast<byte *>(mappedMemory); // Store the pointer to the buffer
 
-    // Unmap the memory
-    vk_inst.device.unmapMemory(vk_inst.storage.memory);
+	// Unmap the memory
+	vk_inst.device.unmapMemory(vk_inst.storage.memory);
 
-    // Set object names for debugging
-    SET_OBJECT_NAME(VkBuffer(vk_inst.storage.buffer), "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
-    SET_OBJECT_NAME(VkDescriptorSet(vk_inst.storage.descriptor), "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
-    SET_OBJECT_NAME(VkDeviceMemory(vk_inst.storage.memory), "storage buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
+	// Set object names for debugging
+	SET_OBJECT_NAME(VkBuffer(vk_inst.storage.buffer), "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
+	SET_OBJECT_NAME(VkDescriptorSet(vk_inst.storage.descriptor), "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
+	SET_OBJECT_NAME(VkDeviceMemory(vk_inst.storage.memory), "storage buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
 }
-
 
 #ifdef USE_VBO
 void vk_release_vbo(void)
@@ -2855,11 +2844,10 @@ static void vk_create_shader_modules(void)
 static void vk_alloc_persistent_pipelines(void)
 {
 	unsigned int state_bits;
-	Vk_Pipeline_Def def;
+	Vk_Pipeline_Def def{};
 
 	// skybox
 	{
-		Com_Memset(&def, 0, sizeof(def));
 		def.shader_type = TYPE_SIGNLE_TEXTURE_FIXED_COLOR;
 		def.color.rgb = tr.identityLightByte;
 		def.color.alpha = tr.identityLightByte;
@@ -2875,7 +2863,7 @@ static void vk_alloc_persistent_pipelines(void)
 		bool mirror_flags[2] = {false, true};
 		int i, j;
 
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.polygon_offset = false;
 		def.state_bits = 0;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
@@ -2892,7 +2880,7 @@ static void vk_alloc_persistent_pipelines(void)
 		}
 	}
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.face_culling = CT_FRONT_SIDED;
 		def.polygon_offset = false;
 		def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO;
@@ -2916,7 +2904,7 @@ static void vk_alloc_persistent_pipelines(void)
 		bool polygon_offset[2] = {false, true};
 		int i, j, k, l;
 
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.mirror = false;
 
@@ -2981,7 +2969,7 @@ static void vk_alloc_persistent_pipelines(void)
 
 	// RT_BEAM surface
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.state_bits = GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.face_culling = CT_FRONT_SIDED;
 		def.primitives = TRIANGLE_STRIP;
@@ -2990,7 +2978,7 @@ static void vk_alloc_persistent_pipelines(void)
 
 	// axis for missing models
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.state_bits = GLS_DEFAULT;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.face_culling = CT_TWO_SIDED;
@@ -3002,7 +2990,7 @@ static void vk_alloc_persistent_pipelines(void)
 
 	// flare visibility test dot
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		// def.state_bits = GLS_DEFAULT;
 		def.face_culling = CT_TWO_SIDED;
 		def.shader_type = TYPE_DOT;
@@ -3013,42 +3001,42 @@ static void vk_alloc_persistent_pipelines(void)
 	// DrawTris()
 	state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE;
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_WHITE;
 		def.face_culling = CT_FRONT_SIDED;
 		vk_inst.tris_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_WHITE;
 		def.face_culling = CT_BACK_SIDED;
 		vk_inst.tris_mirror_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_GREEN;
 		def.face_culling = CT_FRONT_SIDED;
 		vk_inst.tris_debug_green_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_GREEN;
 		def.face_culling = CT_BACK_SIDED;
 		vk_inst.tris_mirror_debug_green_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_RED;
 		def.face_culling = CT_FRONT_SIDED;
 		vk_inst.tris_debug_red_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_RED;
 		def.face_culling = CT_BACK_SIDED;
@@ -3057,7 +3045,7 @@ static void vk_alloc_persistent_pipelines(void)
 
 	// DrawNormals()
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.state_bits = GLS_DEPTHMASK_TRUE;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.primitives = LINE_LIST;
@@ -3066,13 +3054,13 @@ static void vk_alloc_persistent_pipelines(void)
 
 	// RB_DebugPolygon()
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		vk_inst.surface_debug_pipeline_solid = vk_find_pipeline_ext(0, def, false);
 	}
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.primitives = LINE_LIST;
@@ -3081,7 +3069,7 @@ static void vk_alloc_persistent_pipelines(void)
 
 	// RB_ShowImages
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 		def.state_bits = GLS_DEPTHTEST_DISABLE | GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.primitives = TRIANGLE_STRIP;
@@ -3214,8 +3202,7 @@ static void vk_alloc_attachments(void)
 	}
 
 	// Allocate memory
-	vk::DeviceMemory memory;
-	memory = vk_inst.device.allocateMemory(alloc_info);
+	vk::DeviceMemory memory = vk_inst.device.allocateMemory(alloc_info);
 
 	vk_inst.image_memory[vk_inst.image_memory_count++] = memory;
 
@@ -3708,7 +3695,7 @@ static void vk_restart_swapchain(const char *funcname)
 
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++)
 	{
-		qvkResetCommandBuffer(vk_inst.tess[i].command_buffer, 0);
+		vk_inst.tess[i].command_buffer.reset();
 	}
 
 	vk_destroy_pipelines(false);
@@ -4530,8 +4517,8 @@ __cleanup:
 
 	deinit_device_functions();
 
-	std::memset(&vk_inst, 0, sizeof(vk_inst));
-	std::memset(&vk_world, 0, sizeof(vk_world));
+	vk_inst = {};
+	vk_world = {};
 
 	if (code != REF_KEEP_CONTEXT)
 	{
@@ -4612,7 +4599,7 @@ void vk_release_resources(void)
 		}
 	}
 
-	std::memset(&vk_world, 0, sizeof(vk_world));
+	vk_world = {};
 
 	// Reset geometry buffers offsets
 	for (i = 0; i < NUM_COMMAND_BUFFERS; ++i)
@@ -5489,7 +5476,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	vk::ShaderModule *vs_module = nullptr;
 	vk::ShaderModule *fs_module = nullptr;
 	// int32_t vert_spec_data[1]; // clippping
-	floatint_t frag_spec_data[11]; // 0:alpha-test-func, 1:alpha-test-value, 2:depth-fragment, 3:alpha-to-coverage, 4:color_mode, 5:abs_light, 6:multitexture mode, 7:discard mode, 8: ident.color, 9 - ident.alpha, 10 - acff
+	floatint_t frag_spec_data[11]{}; // 0:alpha-test-func, 1:alpha-test-value, 2:depth-fragment, 3:alpha-to-coverage, 4:color_mode, 5:abs_light, 6:multitexture mode, 7:discard mode, 8: ident.color, 9 - ident.alpha, 10 - acff
 
 	// VkSpecializationInfo vert_spec_info;
 
@@ -5703,7 +5690,6 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	set_shader_stage_desc(shader_stages[1], vk::ShaderStageFlagBits::eFragment, *fs_module, "main");
 
 	// Com_Memset( vert_spec_data, 0, sizeof( vert_spec_data ) );
-	Com_Memset(frag_spec_data, 0, sizeof(frag_spec_data));
 
 	// vert_spec_data[0] = def.clipping_plane ? 1 : 0;
 
@@ -6380,7 +6366,7 @@ void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def &def)
 {
 	if (pipeline >= vk_inst.pipelines_count)
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		def = {};
 	}
 	else
 	{
@@ -6540,7 +6526,7 @@ void vk_clear_color(const vec4_t color)
 {
 
 	vk::ClearAttachment attachment;
-	vk::ClearRect clear_rect[2];
+	vk::ClearRect clear_rect[2]{};
 	uint32_t rect_count;
 
 	if (!vk_inst.active)
@@ -6579,35 +6565,25 @@ void vk_clear_color(const vec4_t color)
 
 void vk_clear_depth(bool clear_stencil)
 {
-
-	vk::ClearAttachment attachment;
-	vk::ClearRect clear_rect[1];
-
-	if (!vk_inst.active)
+	if (!vk_inst.active || vk_world.dirty_depth_attachment == 0)
 		return;
 
-	if (vk_world.dirty_depth_attachment == 0)
-		return;
+	vk::ClearRect clear_rect{};
+	get_scissor_rect(clear_rect.rect);
+	clear_rect.baseArrayLayer = 0;
+	clear_rect.layerCount = 1;
 
-	attachment.colorAttachment = 0;
+	vk::ClearAttachment attachment{
+		clear_stencil && r_stencilbits->integer ? vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil
+												: vk::ImageAspectFlagBits::eDepth,
+		0,
+		{vk::ClearDepthStencilValue{0, 1}}};
+
 #ifdef USE_REVERSED_DEPTH
 	attachment.clearValue.depthStencil.depth = 0.0f;
 #else
 	attachment.clearValue.depthStencil.depth = 1.0f;
 #endif
-	attachment.clearValue.depthStencil.stencil = 0;
-	if (clear_stencil && r_stencilbits->integer)
-	{
-		attachment.aspectMask = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-	}
-	else
-	{
-		attachment.aspectMask = vk::ImageAspectFlagBits::eDepth;
-	}
-
-	get_scissor_rect(clear_rect[0].rect);
-	clear_rect[0].baseArrayLayer = 0;
-	clear_rect[0].layerCount = 1;
 
 	vk_inst.cmd->command_buffer.clearAttachments(attachment, clear_rect);
 }
@@ -6624,7 +6600,7 @@ void vk_update_mvp(const float *m)
 	else
 		get_mvp_transform(push_constants);
 
-	qvkCmdPushConstants(vk_inst.cmd->command_buffer, vk_inst.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push_constants), push_constants);
+	vk_inst.cmd->command_buffer.pushConstants(vk_inst.pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(push_constants), push_constants);
 
 	vk_inst.stats.push_size += sizeof(push_constants);
 }
@@ -6688,7 +6664,7 @@ uint32_t vk_tess_index(uint32_t numIndexes, const void *src)
 void vk_bind_index_buffer(vk::Buffer buffer, uint32_t offset)
 {
 	if (vk_inst.cmd->curr_index_buffer != buffer || vk_inst.cmd->curr_index_offset != offset)
-		qvkCmdBindIndexBuffer(vk_inst.cmd->command_buffer, buffer, offset, VK_INDEX_TYPE_UINT32);
+		vk_inst.cmd->command_buffer.bindIndexBuffer(buffer, offset, vk::IndexType::eUint32);
 
 	vk_inst.cmd->curr_index_buffer = buffer;
 	vk_inst.cmd->curr_index_offset = offset;
@@ -6696,7 +6672,8 @@ void vk_bind_index_buffer(vk::Buffer buffer, uint32_t offset)
 
 void vk_draw_indexed(uint32_t indexCount, uint32_t firstIndex)
 {
-	qvkCmdDrawIndexed(vk_inst.cmd->command_buffer, indexCount, 1, firstIndex, 0, 0);
+	// qvkCmdDrawIndexed(vk_inst.cmd->command_buffer, indexCount, 1, firstIndex, 0, 0);
+	vk_inst.cmd->command_buffer.drawIndexed(indexCount, 1, firstIndex, 0, 0);
 }
 
 void vk_bind_index(void)
@@ -6992,7 +6969,7 @@ void vk_draw_geometry(Vk_Depth_Range depth_range, bool indexed)
 
 static void vk_begin_render_pass(vk::RenderPass renderPass, vk::Framebuffer frameBuffer, bool clearValues, uint32_t width, uint32_t height)
 {
-	vk::ClearValue clear_values[3];
+	vk::ClearValue clear_values[3]{};
 
 	// Begin render pass.
 
@@ -7009,7 +6986,6 @@ static void vk_begin_render_pass(vk::RenderPass renderPass, vk::Framebuffer fram
 		// [0] - resolve/color/presentation
 		// [1] - depth/stencil
 		// [2] - multisampled color, optional
-		Com_Memset(clear_values, 0, sizeof(clear_values));
 #ifndef USE_REVERSED_DEPTH
 		clear_values[1].depthStencil.depth = 1.0;
 #endif
