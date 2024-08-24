@@ -24,29 +24,34 @@ constexpr int MIN_SWAPCHAIN_IMAGES_MAILBOX = 3;
 constexpr int VERTEX_BUFFER_SIZE = (4 * 1024 * 1024);
 constexpr int IMAGE_CHUNK_SIZE = (32 * 1024 * 1024);
 
-constexpr VkSampleCountFlagBits convertToVkSampleCountFlagBits(int sampleCountInt)
+constexpr vk::SampleCountFlagBits convertToVkSampleCountFlagBits(int sampleCountInt)
 {
 	switch (sampleCountInt)
 	{
 	case 1:
-		return VK_SAMPLE_COUNT_1_BIT;
+		return vk::SampleCountFlagBits::e1;
 	case 2:
-		return VK_SAMPLE_COUNT_2_BIT;
+		return vk::SampleCountFlagBits::e2;
 	case 4:
-		return VK_SAMPLE_COUNT_4_BIT;
+		return vk::SampleCountFlagBits::e4;
 	case 8:
-		return VK_SAMPLE_COUNT_8_BIT;
-	// Add more cases for other sample counts as needed
+		return vk::SampleCountFlagBits::e8;
+	case 16:
+		return vk::SampleCountFlagBits::e16;
+	case 32:
+		return vk::SampleCountFlagBits::e32;
+	case 64:
+		return vk::SampleCountFlagBits::e64;
 	default:
 		// Handle unsupported sample count
 		// For example, throw an exception or return a default value
 		ri.Printf(PRINT_DEVELOPER, "Wrong vk_inst.simple count, use 1 bit: %d\n", sampleCountInt);
-		return VK_SAMPLE_COUNT_1_BIT;
+		return vk::SampleCountFlagBits::e1;
 	}
 }
 
-static VkSampleCountFlagBits vkSamples = VK_SAMPLE_COUNT_1_BIT;
-static int vkMaxSamples = VK_SAMPLE_COUNT_1_BIT;
+static vk::SampleCountFlagBits vkSamples = vk::SampleCountFlagBits::e1;
+static vk::SampleCountFlagBits vkMaxSamples = vk::SampleCountFlagBits::e1;
 
 static vk::Instance vk_instance = VK_NULL_HANDLE;
 static VkSurfaceKHR vk_surfaceC = VK_NULL_HANDLE;
@@ -257,7 +262,7 @@ constexpr std::array<FormatMapping, 22> format_map = {
 	 {vk::Format::eB8G8R8A8Snorm, "VK_FORMAT_B8G8R8A8_SNORM"},
 	 {vk::Format::eR8G8B8A8Snorm, "VK_FORMAT_R8G8B8A8_SNORM"},
 	 {vk::Format::eB8G8R8A8Unorm, "VK_FORMAT_B8G8R8A8_UNORM"},
-	 {vk::Format::eR8G8B8A8Unorm, "VK_FORMAT_R8G8B8A8_UNORM"},
+	 {vk::Format::eR8G8B8A8Unorm, "vk::Format::eR8G8B8A8Unorm"},
 	 {vk::Format::eB4G4R4A4UnormPack16, "VK_FORMAT_B4G4R4A4_UNORM_PACK16"},
 	 {vk::Format::eR4G4B4A4UnormPack16, "VK_FORMAT_R4G4B4A4_UNORM_PACK16"},
 	 {vk::Format::eR16G16B16A16Unorm, "VK_FORMAT_R16G16B16A16_UNORM"},
@@ -272,9 +277,8 @@ constexpr std::array<FormatMapping, 22> format_map = {
 	 {vk::Format::eD32Sfloat, "VK_FORMAT_D32_SFLOAT"},
 	 {vk::Format::eD32SfloatS8Uint, "VK_FORMAT_D32_SFLOAT_S8_UINT"}}};
 
-std::string_view vk_format_string(VkFormat inc_format)
+std::string_view vk_format_string(vk::Format format)
 {
-	vk::Format format = static_cast<vk::Format>(inc_format);
 	static char buf[16];
 
 	for (const auto &mapping : format_map)
@@ -284,7 +288,7 @@ std::string_view vk_format_string(VkFormat inc_format)
 			return mapping.name;
 		}
 	}
-	Com_sprintf(buf, sizeof(buf), "#%i", inc_format);
+	Com_sprintf(buf, sizeof(buf), "#%i", format);
 	return buf;
 }
 
@@ -727,7 +731,7 @@ static void vk_create_swapchain(vk::PhysicalDevice physical_device, vk::Device d
 		vk::ImageViewCreateInfo view{{},
 									 vk_inst.swapchain_images[i],
 									 vk::ImageViewType::e2D,
-									 vk::Format(vk_inst.present_format.format),
+									 vk_inst.present_format.format,
 									 {},
 									 {vk::ImageAspectFlagBits::eColor,
 									  0,
@@ -738,8 +742,8 @@ static void vk_create_swapchain(vk::PhysicalDevice physical_device, vk::Device d
 
 		vk_inst.swapchain_image_views[i] = vk_inst.device.createImageView(view);
 
-		SET_OBJECT_NAME(vk_inst.swapchain_images[i], va("swapchain image %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
-		SET_OBJECT_NAME(vk_inst.swapchain_image_views[i], va("swapchain image %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
+		SET_OBJECT_NAME(VkImage(vk_inst.swapchain_images[i]), va("swapchain image %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
+		SET_OBJECT_NAME(VkImageView(vk_inst.swapchain_image_views[i]), va("swapchain image %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 	}
 
 	if (vk_inst.initSwapchainLayout != vk::ImageLayout::eUndefined)
@@ -1560,10 +1564,10 @@ static bool vk_select_surface_format(vk::PhysicalDevice physical_deviceCpp, vk::
 	if (format_count == 1 && candidatesCpp[0].format == vk::Format::eUndefined)
 	{
 		// special case that means we can choose any format
-		vk_inst.base_format.format = static_cast<VkFormat>(base_bgr);
-		vk_inst.base_format.colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
-		vk_inst.present_format.format = static_cast<VkFormat>(ext_bgr);
-		vk_inst.present_format.colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+		vk_inst.base_format.format = base_bgr;
+		vk_inst.base_format.colorSpace = vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear;
+		vk_inst.present_format.format = ext_bgr;
+		vk_inst.present_format.colorSpace = vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear;
 	}
 	else
 	{
@@ -1604,53 +1608,23 @@ static bool vk_select_surface_format(vk::PhysicalDevice physical_deviceCpp, vk::
 
 static void setup_surface_formats(vk::PhysicalDevice physical_device)
 {
-	vk_inst.depth_format = static_cast<VkFormat>(get_depth_format(physical_device));
+	vk_inst.depth_format = get_depth_format(physical_device);
 
-	vk_inst.color_format = static_cast<VkFormat>(get_hdr_format(vk::Format(vk_inst.base_format.format)));
+	vk_inst.color_format = get_hdr_format(vk_inst.base_format.format);
 
 	vk_inst.capture_format = vk::Format::eR8G8B8A8Unorm;
 
 	vk_inst.bloom_format = vk_inst.base_format.format;
 
-	vk_inst.blitEnabled = vk_blit_enabled(physical_device, vk::Format(vk_inst.color_format), vk::Format(vk_inst.capture_format));
+	vk_inst.blitEnabled = vk_blit_enabled(physical_device, vk_inst.color_format, vk_inst.capture_format);
 
 	if (!vk_inst.blitEnabled)
 	{
-		vk_inst.capture_format = vk::Format(vk_inst.color_format);
+		vk_inst.capture_format = vk_inst.color_format;
 	}
 }
 
-static const char *renderer_name(const VkPhysicalDeviceProperties *props)
-{
-	static char buf[sizeof(props->deviceName) + 64];
-	const char *device_type;
-
-	switch (props->deviceType)
-	{
-	case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-		device_type = "Integrated";
-		break;
-	case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-		device_type = "Discrete";
-		break;
-	case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-		device_type = "Virtual";
-		break;
-	case VK_PHYSICAL_DEVICE_TYPE_CPU:
-		device_type = "CPU";
-		break;
-	default:
-		device_type = "OTHER";
-		break;
-	}
-
-	Com_sprintf(buf, sizeof(buf), "%s %s, 0x%04x",
-				device_type, props->deviceName, props->deviceID);
-
-	return buf;
-}
-
-static const char *renderer_nameCpp(const vk::PhysicalDeviceProperties &props)
+static const char *renderer_name(const vk::PhysicalDeviceProperties &props)
 {
 	static char buf[sizeof(props.deviceName) + 64];
 	const char *device_type;
@@ -2042,7 +2016,7 @@ static void init_vulkan_library(void)
 	for (i = 0; i < device_count; i++)
 	{
 		auto props = physical_devices[i].getProperties();
-		ri.Printf(PRINT_ALL, " %i: %s\n", i, renderer_nameCpp(props));
+		ri.Printf(PRINT_ALL, " %i: %s\n", i, renderer_name(props));
 
 		if (device_index == -1 && props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
 		{
@@ -2514,7 +2488,7 @@ static void vk_update_attachment_descriptors(void)
 									 vk_inst.color_image_view,
 									 vk::ImageLayout::eShaderReadOnlyOptimal};
 
-		vk::WriteDescriptorSet desc{vk::DescriptorSet(vk_inst.color_descriptor),
+		vk::WriteDescriptorSet desc{vk_inst.color_descriptor,
 									0,
 									0,
 									1,
@@ -2533,8 +2507,8 @@ static void vk_update_attachment_descriptors(void)
 
 		info.sampler = vk_find_sampler(&sd);
 
-		info.imageView = vk::ImageView(vk_inst.screenMap.color_image_view);
-		desc.dstSet = vk::DescriptorSet(vk_inst.screenMap.color_descriptor);
+		info.imageView = vk_inst.screenMap.color_image_view;
+		desc.dstSet = vk_inst.screenMap.color_descriptor;
 
 		vk_inst.device.updateDescriptorSets(desc, nullptr);
 
@@ -2559,7 +2533,7 @@ void vk_init_descriptors(void)
 
 	auto layout_storage = vk::DescriptorSetLayout(vk_inst.set_layout_storage);
 
-	vk::DescriptorSetAllocateInfo alloc{vk::DescriptorPool(vk_inst.descriptor_pool),
+	vk::DescriptorSetAllocateInfo alloc{vk_inst.descriptor_pool,
 										1,
 										&layout_storage,
 										nullptr};
@@ -2589,11 +2563,9 @@ void vk_init_descriptors(void)
 	// allocated and update descriptor set
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++)
 	{
-		auto layout_uniform = vk::DescriptorSetLayout(vk_inst.set_layout_uniform);
-
 		alloc.descriptorPool = vk_inst.descriptor_pool;
 		alloc.descriptorSetCount = 1;
-		alloc.pSetLayouts = &layout_uniform;
+		alloc.pSetLayouts = &vk_inst.set_layout_uniform;
 
 		std::vector<vk::DescriptorSet> descriptorSetsInner;
 		VK_CHECK(descriptorSetsInner = vk_inst.device.allocateDescriptorSets(alloc));
@@ -2602,7 +2574,7 @@ void vk_init_descriptors(void)
 
 		vk_update_uniform_descriptor(vk_inst.tess[i].uniform_descriptor, vk_inst.tess[i].vertex_buffer);
 
-		SET_OBJECT_NAME(vk_inst.tess[i].uniform_descriptor, va("uniform descriptor %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
+		SET_OBJECT_NAME(VkDescriptorSet(vk_inst.tess[i].uniform_descriptor), va("uniform descriptor %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
 	}
 
 	if (vk_inst.color_image_view)
@@ -2709,10 +2681,10 @@ static void vk_create_geometry_buffers(vk::DeviceSize size)
 		vk_inst.tess[i].vertex_buffer_offset = 0;
 		vertex_buffer_offset += vb_memory_requirements.size;
 
-		SET_OBJECT_NAME(vk_inst.tess[i].vertex_buffer, va("geometry buffer %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
+		SET_OBJECT_NAME(VkBuffer(vk_inst.tess[i].vertex_buffer), va("geometry buffer %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
 	}
 
-	SET_OBJECT_NAME(vk_inst.geometry_buffer_memory, "geometry buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
+	SET_OBJECT_NAME(VkDeviceMemory(vk_inst.geometry_buffer_memory), "geometry buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
 
 	vk_inst.geometry_buffer_size = vb_memory_requirements.size;
 
@@ -2866,8 +2838,8 @@ bool vk_alloc_vbo(const byte *vbo_data, uint32_t vbo_size)
 	// qvkFreeMemory(vk_inst.device, staging_buffer_memory, NULL);
 	vk_inst.device.freeMemory(staging_buffer_memory);
 
-	SET_OBJECT_NAME(vk_inst.vbo.vertex_buffer, "static VBO", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
-	SET_OBJECT_NAME(vk_inst.vbo.buffer_memory, "static VBO memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
+	SET_OBJECT_NAME(VkBuffer(vk_inst.vbo.vertex_buffer), "static VBO", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
+	SET_OBJECT_NAME(VkDeviceMemory(vk_inst.vbo.buffer_memory), "static VBO memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
 
 	return true;
 }
@@ -2919,7 +2891,7 @@ static void vk_create_shader_modules(void)
 				for (l = 0; l < 2; l++)
 				{
 					const char *s = va("%s-texture%s%s%s vertex module", tx[i], cl[j], env[k], fog[l]);
-					SET_OBJECT_NAME(vk_inst.modules.vert.gen[i][j][k][l], s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+					SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.vert.gen[i][j][k][l]), s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 				}
 			}
 		}
@@ -2927,7 +2899,7 @@ static void vk_create_shader_modules(void)
 
 	// specialized depth-fragment shader
 	vk_inst.modules.frag.gen0_df = SHADER_MODULE(frag_tx0_df);
-	SET_OBJECT_NAME(vk_inst.modules.frag.gen0_df, "single-texture df fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.gen0_df), "single-texture df fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 
 	// fixed-color (1.0) shader modules
 	vk_inst.modules.vert.ident1[0][0][0] = SHADER_MODULE(vert_tx0_ident1);
@@ -2948,7 +2920,7 @@ static void vk_create_shader_modules(void)
 			for (k = 0; k < 2; k++)
 			{
 				const char *s = va("%s-texture identity%s%s vertex module", tx[i], env[j], fog[k]);
-				SET_OBJECT_NAME(vk_inst.modules.vert.ident1[i][j][k], s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+				SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.vert.ident1[i][j][k]), s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 			}
 		}
 	}
@@ -2964,7 +2936,7 @@ static void vk_create_shader_modules(void)
 		for (j = 0; j < 2; j++)
 		{
 			const char *s = va("%s-texture identity%s fragment module", tx[i], fog[j]);
-			SET_OBJECT_NAME(vk_inst.modules.frag.ident1[i][j], s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+			SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.ident1[i][j]), s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 		}
 	}
 
@@ -2986,7 +2958,7 @@ static void vk_create_shader_modules(void)
 			for (k = 0; k < 2; k++)
 			{
 				const char *s = va("%s-texture fixed-color%s%s vertex module", tx[i], env[j], fog[k]);
-				SET_OBJECT_NAME(vk_inst.modules.vert.fixed[i][j][k], s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+				SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.vert.fixed[i][j][k]), s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 			}
 		}
 	}
@@ -3002,7 +2974,7 @@ static void vk_create_shader_modules(void)
 		for (j = 0; j < 2; j++)
 		{
 			const char *s = va("%s-texture fixed-color%s fragment module", tx[i], fog[j]);
-			SET_OBJECT_NAME(vk_inst.modules.frag.fixed[i][j], s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+			SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.fixed[i][j]), s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 		}
 	}
 
@@ -3017,7 +2989,7 @@ static void vk_create_shader_modules(void)
 		for (j = 0; j < 2; j++)
 		{
 			const char *s = va("%s-texture entity-color%s fragment module", tx[i], fog[j]);
-			SET_OBJECT_NAME(vk_inst.modules.frag.ent[i][j], s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+			SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.ent[i][j]), s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 		}
 	}
 
@@ -3046,56 +3018,56 @@ static void vk_create_shader_modules(void)
 			for (k = 0; k < 2; k++)
 			{
 				const char *s = va("%s-texture%s%s fragment module", tx[i], cl[j], fog[k]);
-				SET_OBJECT_NAME(vk_inst.modules.frag.gen[i][j][k], s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+				SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.gen[i][j][k]), s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 			}
 		}
 	}
 
 	vk_inst.modules.vert.light[0] = SHADER_MODULE(vert_light);
 	vk_inst.modules.vert.light[1] = SHADER_MODULE(vert_light_fog);
-	SET_OBJECT_NAME(vk_inst.modules.vert.light[0], "light vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-	SET_OBJECT_NAME(vk_inst.modules.vert.light[1], "light fog vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.vert.light[0]), "light vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.vert.light[1]), "light fog vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 
 	vk_inst.modules.frag.light[0][0] = SHADER_MODULE(frag_light);
 	vk_inst.modules.frag.light[0][1] = SHADER_MODULE(frag_light_fog);
 	vk_inst.modules.frag.light[1][0] = SHADER_MODULE(frag_light_line);
 	vk_inst.modules.frag.light[1][1] = SHADER_MODULE(frag_light_line_fog);
-	SET_OBJECT_NAME(vk_inst.modules.frag.light[0][0], "light fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-	SET_OBJECT_NAME(vk_inst.modules.frag.light[0][1], "light fog fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-	SET_OBJECT_NAME(vk_inst.modules.frag.light[1][0], "linear light fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-	SET_OBJECT_NAME(vk_inst.modules.frag.light[1][1], "linear light fog fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.light[0][0]), "light fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.light[0][1]), "light fog fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.light[1][0]), "linear light fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.light[1][1]), "linear light fog fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 
 	vk_inst.modules.color_fs = SHADER_MODULE(color_frag_spv);
 	vk_inst.modules.color_vs = SHADER_MODULE(color_vert_spv);
 
-	SET_OBJECT_NAME(vk_inst.modules.color_vs, "single-color vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-	SET_OBJECT_NAME(vk_inst.modules.color_fs, "single-color fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.color_vs), "single-color vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.color_fs), "single-color fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 
 	vk_inst.modules.fog_vs = SHADER_MODULE(fog_vert_spv);
 	vk_inst.modules.fog_fs = SHADER_MODULE(fog_frag_spv);
 
-	SET_OBJECT_NAME(vk_inst.modules.fog_vs, "fog-only vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-	SET_OBJECT_NAME(vk_inst.modules.fog_fs, "fog-only fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.fog_vs), "fog-only vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.fog_fs), "fog-only fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 
 	vk_inst.modules.dot_vs = SHADER_MODULE(dot_vert_spv);
 	vk_inst.modules.dot_fs = SHADER_MODULE(dot_frag_spv);
 
-	SET_OBJECT_NAME(vk_inst.modules.dot_vs, "dot vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-	SET_OBJECT_NAME(vk_inst.modules.dot_fs, "dot fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.dot_vs), "dot vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.dot_fs), "dot fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 
 	vk_inst.modules.bloom_fs = SHADER_MODULE(bloom_frag_spv);
 	vk_inst.modules.blur_fs = SHADER_MODULE(blur_frag_spv);
 	vk_inst.modules.blend_fs = SHADER_MODULE(blend_frag_spv);
 
-	SET_OBJECT_NAME(vk_inst.modules.bloom_fs, "bloom extraction fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-	SET_OBJECT_NAME(vk_inst.modules.blur_fs, "gaussian blur fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-	SET_OBJECT_NAME(vk_inst.modules.blend_fs, "final bloom blend fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.bloom_fs), "bloom extraction fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.blur_fs), "gaussian blur fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.blend_fs), "final bloom blend fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 
 	vk_inst.modules.gamma_fs = SHADER_MODULE(gamma_frag_spv);
 	vk_inst.modules.gamma_vs = SHADER_MODULE(gamma_vert_spv);
 
-	SET_OBJECT_NAME(vk_inst.modules.gamma_fs, "gamma post-processing fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-	SET_OBJECT_NAME(vk_inst.modules.gamma_vs, "gamma post-processing vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.gamma_fs), "gamma post-processing fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.gamma_vs), "gamma post-processing vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 }
 
 static void vk_alloc_persistent_pipelines(void)
@@ -3372,16 +3344,16 @@ void vk_update_post_process_pipelines(void)
 
 typedef struct vk_attach_desc_s
 {
-	VkImage descriptor;
-	VkImageView *image_view;
-	VkImageUsageFlags usage;
-	VkMemoryRequirements reqs;
+	vk::Image descriptor;
+	vk::ImageView *image_view;
+	vk::ImageUsageFlags usage;
+	vk::MemoryRequirements reqs;
 	uint32_t memoryTypeIndex;
-	VkDeviceSize memory_offset;
+	vk::DeviceSize memory_offset;
 	// for layout transition:
-	VkImageAspectFlags aspect_flags;
-	VkImageLayout image_layout;
-	VkFormat image_format;
+	vk::ImageAspectFlags aspect_flags;
+	vk::ImageLayout image_layout;
+	vk::Format image_format;
 } vk_attach_desc_t;
 
 static vk_attach_desc_t attachments[MAX_ATTACHMENTS_IN_POOL];
@@ -3427,7 +3399,7 @@ static void vk_alloc_attachments(void)
 	}
 
 	uint32_t memoryTypeIndex;
-	if (num_attachments == 1 && (attachments[0].usage & VkImageUsageFlags(vk::ImageUsageFlagBits::eTransientAttachment)))
+	if (num_attachments == 1 && (attachments[0].usage & vk::ImageUsageFlagBits::eTransientAttachment))
 	{
 		memoryTypeIndex = find_memory_type2(memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eLazilyAllocated, nullptr);
 		if (memoryTypeIndex == ~0U)
@@ -3471,12 +3443,12 @@ static void vk_alloc_attachments(void)
 		vk_inst.device.bindImageMemory(attachments[i].descriptor, memory, attachments[i].memory_offset);
 
 		vk::ImageViewCreateInfo view_desc{{},
-										  vk::Image(attachments[i].descriptor),
+										  attachments[i].descriptor,
 										  vk::ImageViewType::e2D,
-										  vk::Format(attachments[i].image_format),
+										  attachments[i].image_format,
 										  {},
 										  {
-											  vk::ImageAspectFlags(attachments[i].aspect_flags),
+											  attachments[i].aspect_flags,
 											  0,
 											  1,
 											  0,
@@ -3505,7 +3477,9 @@ static void vk_alloc_attachments(void)
 	num_attachments = 0;
 }
 
-static void vk_add_attachment_desc(VkImage desc, VkImageView *image_view, VkImageUsageFlags usage, vk::MemoryRequirements *reqs, VkFormat image_format, VkImageAspectFlags aspect_flags, VkImageLayout image_layout)
+static void vk_add_attachment_desc(vk::Image desc, vk::ImageView *image_view, vk::ImageUsageFlags usage,
+								   vk::MemoryRequirements *reqs, vk::Format image_format,
+								   vk::ImageAspectFlags aspect_flags, vk::ImageLayout image_layout)
 {
 	if (num_attachments >= arrayLen(attachments))
 	{
@@ -3554,24 +3528,25 @@ static void vk_get_image_memory_requirements(vk::Image image, vk::MemoryRequirem
 	}
 }
 
-static void create_color_attachment(uint32_t width, uint32_t height, VkSampleCountFlagBits samples, VkFormat format,
-									VkImageUsageFlags usage, VkImage *image, VkImageView *image_view, VkImageLayout image_layout, bool multisample)
+static void create_color_attachment(uint32_t width, uint32_t height, vk::SampleCountFlagBits samples,
+									vk::Format format, vk::ImageUsageFlags usage, vk::Image *image,
+									vk::ImageView *image_view, vk::ImageLayout image_layout, bool multisample)
 {
 	vk::MemoryRequirements memory_requirements;
 
-	if (multisample && !(usage & VK_IMAGE_USAGE_SAMPLED_BIT))
-		usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+	if (multisample && !(usage & vk::ImageUsageFlagBits::eSampled))
+		usage |= vk::ImageUsageFlagBits::eTransientAttachment;
 
 	// create color image
 	vk::ImageCreateInfo create_desc{{},
 									vk::ImageType::e2D,
-									vk::Format(format),
+									format,
 									{width, height, 1},
 									1,
 									1,
-									vk::SampleCountFlagBits(samples),
+									samples,
 									vk::ImageTiling::eOptimal,
-									vk::ImageUsageFlags(usage),
+									usage,
 									vk::SharingMode::eExclusive,
 									0,
 									nullptr,
@@ -3583,13 +3558,14 @@ static void create_color_attachment(uint32_t width, uint32_t height, VkSampleCou
 
 	vk_get_image_memory_requirements(*image, &memory_requirements);
 
-	vk_add_attachment_desc(*image, image_view, usage, &memory_requirements, format, VK_IMAGE_ASPECT_COLOR_BIT, image_layout);
+	vk_add_attachment_desc(*image, image_view, usage, &memory_requirements, format, vk::ImageAspectFlagBits::eColor, image_layout);
 }
 
-static void create_depth_attachment(uint32_t width, uint32_t height, VkSampleCountFlagBits samples, VkImage *image, VkImageView *image_view, bool allowTransient)
+static void create_depth_attachment(uint32_t width, uint32_t height, vk::SampleCountFlagBits samples,
+									vk::Image *image, vk::ImageView *image_view, bool allowTransient)
 {
 	vk::MemoryRequirements memory_requirements;
-	VkImageAspectFlags image_aspect_flags;
+	vk::ImageAspectFlags image_aspect_flags;
 
 	vk::ImageUsageFlags usage{vk::ImageUsageFlagBits::eDepthStencilAttachment};
 	if (allowTransient)
@@ -3604,7 +3580,7 @@ static void create_depth_attachment(uint32_t width, uint32_t height, VkSampleCou
 									{width, height, 1},
 									1,
 									1,
-									vk::SampleCountFlagBits(samples),
+									samples,
 									vk::ImageTiling::eOptimal,
 									usage,
 									vk::SharingMode::eExclusive,
@@ -3613,16 +3589,17 @@ static void create_depth_attachment(uint32_t width, uint32_t height, VkSampleCou
 									vk::ImageLayout::eUndefined,
 									nullptr};
 
-	image_aspect_flags = VK_IMAGE_ASPECT_DEPTH_BIT;
+	image_aspect_flags = vk::ImageAspectFlagBits::eDepth;
 	if (r_stencilbits->integer)
-		image_aspect_flags |= VK_IMAGE_ASPECT_STENCIL_BIT;
+		image_aspect_flags |= vk::ImageAspectFlagBits::eStencil;
 
 	// VK_CHECK(qvkCreateImage(vk_inst.device, &create_desc, nullptr, image));
 	*image = vk_inst.device.createImage(create_desc);
 
 	vk_get_image_memory_requirements(*image, &memory_requirements);
 
-	vk_add_attachment_desc(*image, image_view, VkImageUsageFlags(create_desc.usage), &memory_requirements, vk_inst.depth_format, image_aspect_flags, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	vk_add_attachment_desc(*image, image_view, create_desc.usage, &memory_requirements, vk_inst.depth_format,
+						   image_aspect_flags, vk::ImageLayout::eDepthStencilAttachmentOptimal);
 }
 
 static void vk_create_attachments(void)
@@ -3640,7 +3617,7 @@ static void vk_create_attachments(void)
 	if (vk_inst.fboActive)
 	{
 
-		VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled;
 
 		// bloom
 		if (r_bloom->integer)
@@ -3648,51 +3625,52 @@ static void vk_create_attachments(void)
 			uint32_t width = gls.captureWidth;
 			uint32_t height = gls.captureHeight;
 
-			create_color_attachment(width, height, VK_SAMPLE_COUNT_1_BIT, vk_inst.bloom_format,
-									usage, &vk_inst.bloom_image[0], &vk_inst.bloom_image_view[0], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, false);
+			create_color_attachment(width, height, vk::SampleCountFlagBits::e1, vk_inst.bloom_format,
+									usage, &vk_inst.bloom_image[0], &vk_inst.bloom_image_view[0],
+									vk::ImageLayout::eShaderReadOnlyOptimal, false);
 
 			for (i = 1; i < arrayLen(vk_inst.bloom_image); i += 2)
 			{
 				width /= 2;
 				height /= 2;
-				create_color_attachment(width, height, VK_SAMPLE_COUNT_1_BIT, vk_inst.bloom_format,
-										usage, &vk_inst.bloom_image[i + 0], &vk_inst.bloom_image_view[i + 0], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, false);
+				create_color_attachment(width, height, vk::SampleCountFlagBits::e1, vk_inst.bloom_format,
+										usage, &vk_inst.bloom_image[i + 0], &vk_inst.bloom_image_view[i + 0], vk::ImageLayout::eShaderReadOnlyOptimal, false);
 
-				create_color_attachment(width, height, VK_SAMPLE_COUNT_1_BIT, vk_inst.bloom_format,
-										usage, &vk_inst.bloom_image[i + 1], &vk_inst.bloom_image_view[i + 1], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, false);
+				create_color_attachment(width, height, vk::SampleCountFlagBits::e1, vk_inst.bloom_format,
+										usage, &vk_inst.bloom_image[i + 1], &vk_inst.bloom_image_view[i + 1], vk::ImageLayout::eShaderReadOnlyOptimal, false);
 			}
 		}
 
 		// post-processing/msaa-resolve
-		create_color_attachment(glConfig.vidWidth, glConfig.vidHeight, VK_SAMPLE_COUNT_1_BIT, vk_inst.color_format,
-								usage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, &vk_inst.color_image, &vk_inst.color_image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, false);
+		create_color_attachment(glConfig.vidWidth, glConfig.vidHeight, vk::SampleCountFlagBits::e1, vk_inst.color_format,
+								usage | vk::ImageUsageFlagBits::eTransferSrc, &vk_inst.color_image, &vk_inst.color_image_view, vk::ImageLayout::eShaderReadOnlyOptimal, false);
 
 		// screenmap-msaa
 		if (vk_inst.screenMapSamples > vk::SampleCountFlagBits::e1)
 		{
-			create_color_attachment(vk_inst.screenMapWidth, vk_inst.screenMapHeight, VkSampleCountFlagBits(vk_inst.screenMapSamples), vk_inst.color_format,
-									VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, &vk_inst.screenMap.color_image_msaa, &vk_inst.screenMap.color_image_view_msaa, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
+			create_color_attachment(vk_inst.screenMapWidth, vk_inst.screenMapHeight, vk_inst.screenMapSamples, vk_inst.color_format,
+									vk::ImageUsageFlagBits::eColorAttachment, &vk_inst.screenMap.color_image_msaa, &vk_inst.screenMap.color_image_view_msaa, vk::ImageLayout::eColorAttachmentOptimal, true);
 		}
 
 		// screenmap/msaa-resolve
-		create_color_attachment(vk_inst.screenMapWidth, vk_inst.screenMapHeight, VK_SAMPLE_COUNT_1_BIT, vk_inst.color_format,
-								usage, &vk_inst.screenMap.color_image, &vk_inst.screenMap.color_image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, false);
+		create_color_attachment(vk_inst.screenMapWidth, vk_inst.screenMapHeight, vk::SampleCountFlagBits::e1, vk_inst.color_format,
+								usage, &vk_inst.screenMap.color_image, &vk_inst.screenMap.color_image_view, vk::ImageLayout::eShaderReadOnlyOptimal, false);
 
 		// screenmap depth
-		create_depth_attachment(vk_inst.screenMapWidth, vk_inst.screenMapHeight, VkSampleCountFlagBits(vk_inst.screenMapSamples), &vk_inst.screenMap.depth_image, &vk_inst.screenMap.depth_image_view, true);
+		create_depth_attachment(vk_inst.screenMapWidth, vk_inst.screenMapHeight, vk_inst.screenMapSamples, &vk_inst.screenMap.depth_image, &vk_inst.screenMap.depth_image_view, true);
 
 		if (vk_inst.msaaActive)
 		{
 			create_color_attachment(glConfig.vidWidth, glConfig.vidHeight, vkSamples, vk_inst.color_format,
-									VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, &vk_inst.msaa_image, &vk_inst.msaa_image_view, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
+									vk::ImageUsageFlagBits::eColorAttachment, &vk_inst.msaa_image, &vk_inst.msaa_image_view, vk::ImageLayout::eColorAttachmentOptimal, true);
 		}
 
 		if (r_ext_supersample->integer)
 		{
 			// capture buffer
-			usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-			create_color_attachment(gls.captureWidth, gls.captureHeight, VK_SAMPLE_COUNT_1_BIT, VkFormat(vk_inst.capture_format),
-									usage, &vk_inst.capture.image, &vk_inst.capture.image_view, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, false);
+			usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc;
+			create_color_attachment(gls.captureWidth, gls.captureHeight, vk::SampleCountFlagBits::e1, vk_inst.capture_format,
+									usage, &vk_inst.capture.image, &vk_inst.capture.image_view, vk::ImageLayout::eTransferSrcOptimal, false);
 		}
 	} // if ( vk_inst.fboActive )
 
@@ -3705,22 +3683,22 @@ static void vk_create_attachments(void)
 
 	for (i = 0; i < vk_inst.image_memory_count; i++)
 	{
-		SET_OBJECT_NAME(vk_inst.image_memory[i], va("framebuffer memory chunk %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
+		SET_OBJECT_NAME(VkDeviceMemory(vk_inst.image_memory[i]), va("framebuffer memory chunk %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
 	}
 
-	SET_OBJECT_NAME(vk_inst.depth_image, "depth attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
-	SET_OBJECT_NAME(vk_inst.depth_image_view, "depth attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
+	SET_OBJECT_NAME(VkImage(vk_inst.depth_image), "depth attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
+	SET_OBJECT_NAME(VkImageView(vk_inst.depth_image_view), "depth attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 
-	SET_OBJECT_NAME(vk_inst.color_image, "color attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
-	SET_OBJECT_NAME(vk_inst.color_image_view, "color attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
+	SET_OBJECT_NAME(VkImage(vk_inst.color_image), "color attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
+	SET_OBJECT_NAME(VkImageView(vk_inst.color_image_view), "color attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 
-	SET_OBJECT_NAME(vk_inst.capture.image, "capture image", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
-	SET_OBJECT_NAME(vk_inst.capture.image_view, "capture image view", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
+	SET_OBJECT_NAME(VkImage(vk_inst.capture.image), "capture image", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
+	SET_OBJECT_NAME(VkImageView(vk_inst.capture.image_view), "capture image view", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 
 	for (i = 0; i < arrayLen(vk_inst.bloom_image); i++)
 	{
-		SET_OBJECT_NAME(vk_inst.bloom_image[i], va("bloom attachment %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
-		SET_OBJECT_NAME(vk_inst.bloom_image_view[i], va("bloom attachment %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
+		SET_OBJECT_NAME(VkImage(vk_inst.bloom_image[i]), va("bloom attachment %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
+		SET_OBJECT_NAME(VkImageView(vk_inst.bloom_image_view[i]), va("bloom attachment %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 	}
 }
 
@@ -4014,6 +3992,25 @@ static void vk_set_render_scale(void)
 	}
 }
 
+constexpr int sampleCountFlagsToInt(vk::SampleCountFlags sampleCountFlags)
+{
+	if (sampleCountFlags & vk::SampleCountFlagBits::e1)
+		return 1;
+	if (sampleCountFlags & vk::SampleCountFlagBits::e2)
+		return 2;
+	if (sampleCountFlags & vk::SampleCountFlagBits::e4)
+		return 4;
+	if (sampleCountFlags & vk::SampleCountFlagBits::e8)
+		return 8;
+	if (sampleCountFlags & vk::SampleCountFlagBits::e16)
+		return 16;
+	if (sampleCountFlags & vk::SampleCountFlagBits::e32)
+		return 32;
+	if (sampleCountFlags & vk::SampleCountFlagBits::e64)
+		return 64;
+	return 0; // Default case for unsupported or undefined sample counts
+}
+
 void vk_initialize(void)
 {
 	char buf[64], driver_version[64];
@@ -4063,25 +4060,26 @@ void vk_initialize(void)
 
 	// multisampling
 
-	vkMaxSamples = MIN(static_cast<VkSampleCountFlags>(props.limits.sampledImageColorSampleCounts), static_cast<VkSampleCountFlags>(props.limits.sampledImageDepthSampleCounts));
+	vkMaxSamples = convertToVkSampleCountFlagBits(MIN(sampleCountFlagsToInt(props.limits.sampledImageColorSampleCounts),
+													  sampleCountFlagsToInt(props.limits.sampledImageDepthSampleCounts)));
 
 	if (/*vk_inst.fboActive &&*/ vk_inst.msaaActive)
 	{
-		VkSampleCountFlags mask = vkMaxSamples;
-		vkSamples = convertToVkSampleCountFlagBits(std::max(log2pad_plus(r_ext_multisample->integer, 1), static_cast<unsigned int>(VK_SAMPLE_COUNT_2_BIT)));
+		vk::SampleCountFlags mask = vkMaxSamples;
+		vkSamples = convertToVkSampleCountFlagBits(MAX(log2pad_plus(r_ext_multisample->integer, 1), sampleCountFlagsToInt(vk::SampleCountFlagBits::e2)));
 		while (vkSamples > mask)
 		{
 			int shiftAmount = 1;
-			vkSamples = static_cast<VkSampleCountFlagBits>(vkSamples >> shiftAmount);
+			vkSamples = static_cast<vk::SampleCountFlagBits>(sampleCountFlagsToInt(vkSamples) >> shiftAmount);
 		}
 		ri.Printf(PRINT_ALL, "...using %ix MSAA\n", vkSamples);
 	}
 	else
 	{
-		vkSamples = VK_SAMPLE_COUNT_1_BIT;
+		vkSamples = vk::SampleCountFlagBits::e1;
 	}
 
-	vk_inst.screenMapSamples = vk::SampleCountFlagBits(MIN(vkMaxSamples, (int)vk::SampleCountFlagBits::e4));
+	vk_inst.screenMapSamples = vk::SampleCountFlagBits(MIN((int)vkMaxSamples, (int)vk::SampleCountFlagBits::e4));
 
 	vk_inst.screenMapWidth = (float)glConfig.vidWidth / 16.0;
 	if (vk_inst.screenMapWidth < 4)
@@ -4189,7 +4187,7 @@ void vk_initialize(void)
 	}
 
 	Q_strncpyz(glConfig.vendor_string, vendor_name, sizeof(glConfig.vendor_string));
-	Q_strncpyz(glConfig.renderer_string, renderer_nameCpp(props), sizeof(glConfig.renderer_string));
+	Q_strncpyz(glConfig.renderer_string, renderer_name(props), sizeof(glConfig.renderer_string));
 
 	SET_OBJECT_NAME((intptr_t) static_cast<VkDevice>(vk_inst.device), glConfig.renderer_string, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT);
 
@@ -4206,7 +4204,7 @@ void vk_initialize(void)
 		vk_inst.command_pool = vk_inst.device.createCommandPool(desc);
 		// VK_CHECK(qvkCreateCommandPool(vk_inst.device, &desc, nullptr, &vk_inst.command_pool));
 
-		SET_OBJECT_NAME(vk_inst.command_pool, "command pool", VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT);
+		SET_OBJECT_NAME(VkCommandPool(vk_inst.command_pool), "command pool", VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT);
 	}
 
 	//
@@ -4343,9 +4341,9 @@ void vk_initialize(void)
 		vk_inst.pipeline_layout_blend = vk_inst.device.createPipelineLayout(desc);
 		// VK_CHECK(qvkCreatePipelineLayout(vk_inst.device, &desc, nullptr, &vk_inst.pipeline_layout_blend));
 
-		SET_OBJECT_NAME(vk_inst.pipeline_layout, "pipeline layout - main", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT);
-		SET_OBJECT_NAME(vk_inst.pipeline_layout_post_process, "pipeline layout - post-processing", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT);
-		SET_OBJECT_NAME(vk_inst.pipeline_layout_blend, "pipeline layout - blend", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT);
+		SET_OBJECT_NAME(VkPipelineLayout(vk_inst.pipeline_layout), "pipeline layout - main", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT);
+		SET_OBJECT_NAME(VkPipelineLayout(vk_inst.pipeline_layout_post_process), "pipeline layout - post-processing", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT);
+		SET_OBJECT_NAME(VkPipelineLayout(vk_inst.pipeline_layout_blend), "pipeline layout - blend", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT);
 	}
 
 	vk_inst.geometry_buffer_size_new = VERTEX_BUFFER_SIZE;
@@ -4370,7 +4368,8 @@ void vk_initialize(void)
 	vk_inst.initSwapchainLayout = vk::ImageLayout::ePresentSrcKHR;
 	// vk_inst.initSwapchainLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-	vk_create_swapchain(vk_inst.physical_device, vk_inst.device, vk_surface, vk_inst.present_format, &vk_inst.swapchain);
+	vk_create_swapchain(vk_inst.physical_device, vk_inst.device, vk_surface, vk_inst.present_format,
+						&vk_inst.swapchain);
 
 	// color/depth attachments
 	vk_create_attachments();
@@ -4874,7 +4873,7 @@ static void record_buffer_memory_barrier(vk::CommandBuffer cb, vk::Buffer buffer
 void vk_create_image(image_t &image, int width, int height, int mip_levels)
 {
 
-	vk::Format format = static_cast<vk::Format>(image.internalFormat);
+	vk::Format format = vk::Format(image.internalFormat);
 
 	if (image.handle)
 	{
@@ -5158,38 +5157,52 @@ static void set_shader_stage_desc(vk::PipelineShaderStageCreateInfo &desc, vk::S
 	desc.pSpecializationInfo = nullptr;
 }
 
-#define FORMAT_DEPTH(format, r_bits, g_bits, b_bits) \
-	case (VK_FORMAT_##format):                       \
-		*r = r_bits;                                 \
-		*b = b_bits;                                 \
-		*g = g_bits;                                 \
-		return true;
-static bool vk_surface_format_color_depth(VkFormat format, int *r, int *g, int *b)
+// Define a struct to hold the RGB values
+struct ColorDepth
 {
-	switch (format)
+	int r;
+	int g;
+	int b;
+};
+
+// Populate the map with known VkFormats and their corresponding color depths
+static const std::unordered_map<vk::Format, ColorDepth> formatColorDepthMap = {
+	{vk::Format::eB8G8R8A8Unorm, {255, 255, 255}},
+	{vk::Format::eB8G8R8A8Srgb, {255, 255, 255}},
+	{vk::Format::eA2B10G10R10UnormPack32, {1023, 1023, 1023}},
+	{vk::Format::eR8G8B8A8Unorm, {255, 255, 255}},
+	{vk::Format::eR8G8B8A8Srgb, {255, 255, 255}},
+	{vk::Format::eA2R10G10B10UnormPack32, {1023, 1023, 1023}},
+	{vk::Format::eR5G6B5UnormPack16, {31, 63, 31}},
+	{vk::Format::eR8G8B8A8Snorm, {255, 255, 255}},
+	{vk::Format::eA8B8G8R8UnormPack32, {255, 255, 255}},
+	{vk::Format::eA8B8G8R8SnormPack32, {255, 255, 255}},
+	{vk::Format::eA8B8G8R8SrgbPack32, {255, 255, 255}},
+	{vk::Format::eR16G16B16A16Unorm, {65535, 65535, 65535}},
+	{vk::Format::eR16G16B16A16Snorm, {65535, 65535, 65535}},
+	{vk::Format::eB5G6R5UnormPack16, {31, 63, 31}},
+	{vk::Format::eB8G8R8A8Snorm, {255, 255, 255}},
+	{vk::Format::eR4G4B4A4UnormPack16, {15, 15, 15}},
+	{vk::Format::eB4G4R4A4UnormPack16, {15, 15, 15}},
+	{vk::Format::eA1R5G5B5UnormPack16, {31, 31, 31}},
+	{vk::Format::eR5G5B5A1UnormPack16, {31, 31, 31}},
+	{vk::Format::eB5G5R5A1UnormPack16, {31, 31, 31}},
+};
+
+static bool vk_surface_format_color_depth(vk::Format format, int *r, int *g, int *b)
+{
+	// Use the map to find the corresponding color depth
+	auto it = formatColorDepthMap.find(format);
+	if (it != formatColorDepthMap.end())
 	{
-		// Common formats from https://vulkan.gpuinfo.org/listsurfaceformats.php
-		FORMAT_DEPTH(B8G8R8A8_UNORM, 255, 255, 255)
-		FORMAT_DEPTH(B8G8R8A8_SRGB, 255, 255, 255)
-		FORMAT_DEPTH(A2B10G10R10_UNORM_PACK32, 1023, 1023, 1023)
-		FORMAT_DEPTH(R8G8B8A8_UNORM, 255, 255, 255)
-		FORMAT_DEPTH(R8G8B8A8_SRGB, 255, 255, 255)
-		FORMAT_DEPTH(A2R10G10B10_UNORM_PACK32, 1023, 1023, 1023)
-		FORMAT_DEPTH(R5G6B5_UNORM_PACK16, 31, 63, 31)
-		FORMAT_DEPTH(R8G8B8A8_SNORM, 255, 255, 255)
-		FORMAT_DEPTH(A8B8G8R8_UNORM_PACK32, 255, 255, 255)
-		FORMAT_DEPTH(A8B8G8R8_SNORM_PACK32, 255, 255, 255)
-		FORMAT_DEPTH(A8B8G8R8_SRGB_PACK32, 255, 255, 255)
-		FORMAT_DEPTH(R16G16B16A16_UNORM, 65535, 65535, 65535)
-		FORMAT_DEPTH(R16G16B16A16_SNORM, 65535, 65535, 65535)
-		FORMAT_DEPTH(B5G6R5_UNORM_PACK16, 31, 63, 31)
-		FORMAT_DEPTH(B8G8R8A8_SNORM, 255, 255, 255)
-		FORMAT_DEPTH(R4G4B4A4_UNORM_PACK16, 15, 15, 15)
-		FORMAT_DEPTH(B4G4R4A4_UNORM_PACK16, 15, 15, 15)
-		FORMAT_DEPTH(A1R5G5B5_UNORM_PACK16, 31, 31, 31)
-		FORMAT_DEPTH(R5G5B5A1_UNORM_PACK16, 31, 31, 31)
-		FORMAT_DEPTH(B5G5R5A1_UNORM_PACK16, 31, 31, 31)
-	default:
+		*r = it->second.r;
+		*g = it->second.g;
+		*b = it->second.b;
+		return true;
+	}
+	else
+	{
+		// Default case
 		*r = 255;
 		*g = 255;
 		*b = 255;
@@ -5552,16 +5565,16 @@ static void push_bind(uint32_t binding, uint32_t stride)
 	num_binds++;
 }
 
-static void push_attr(uint32_t location, uint32_t binding, VkFormat format)
+static void push_attr(uint32_t location, uint32_t binding, vk::Format format)
 {
 	attribsCpp[num_attrs].location = location;
 	attribsCpp[num_attrs].binding = binding;
-	attribsCpp[num_attrs].format = vk::Format(format);
+	attribsCpp[num_attrs].format = format;
 	attribsCpp[num_attrs].offset = 0;
 	num_attrs++;
 }
 
-static vk::PrimitiveTopology GetTopologyByPrimitivies(const Vk_Pipeline_Def &def)
+static constexpr vk::PrimitiveTopology GetTopologyByPrimitivies(const Vk_Pipeline_Def &def)
 {
 	switch (def.primitives)
 	{
@@ -5692,8 +5705,8 @@ vk::PipelineColorBlendAttachmentState createBlendAttachmentState(uint32_t state_
 
 vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIndex)
 {
-	VkShaderModule *vs_module = nullptr;
-	VkShaderModule *fs_module = nullptr;
+	vk::ShaderModule *vs_module = nullptr;
+	vk::ShaderModule *fs_module = nullptr;
 	// int32_t vert_spec_data[1]; // clippping
 	floatint_t frag_spec_data[11]; // 0:alpha-test-func, 1:alpha-test-value, 2:depth-fragment, 3:alpha-to-coverage, 4:color_mode, 5:abs_light, 6:multitexture mode, 7:discard mode, 8: ident.color, 9 - ident.alpha, 10 - acff
 
@@ -6113,7 +6126,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	case TYPE_FOG_ONLY:
 	case TYPE_DOT:
 		push_bind(0, sizeof(vec4_t)); // xyz array
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
 	case TYPE_COLOR_BLACK:
@@ -6121,7 +6134,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	case TYPE_COLOR_GREEN:
 	case TYPE_COLOR_RED:
 		push_bind(0, sizeof(vec4_t)); // xyz array
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
 	case TYPE_SIGNLE_TEXTURE_DF:
@@ -6130,17 +6143,17 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	case TYPE_SIGNLE_TEXTURE_ENT_COLOR:
 		push_bind(0, sizeof(vec4_t)); // xyz array
 		push_bind(2, sizeof(vec2_t)); // st0 array
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(2, 2, VK_FORMAT_R32G32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(2, 2, vk::Format::eR32G32Sfloat);
 		break;
 
 	case TYPE_SIGNLE_TEXTURE:
 		push_bind(0, sizeof(vec4_t));	  // xyz array
 		push_bind(1, sizeof(color4ub_t)); // color array
 		push_bind(2, sizeof(vec2_t));	  // st0 array
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(1, 1, VK_FORMAT_R8G8B8A8_UNORM);
-		push_attr(2, 2, VK_FORMAT_R32G32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
+		push_attr(2, 2, vk::Format::eR32G32Sfloat);
 		break;
 
 	case TYPE_SIGNLE_TEXTURE_ENV:
@@ -6148,10 +6161,10 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 		push_bind(1, sizeof(color4ub_t)); // color array
 		// push_bind( 2, sizeof( vec2_t ) );					// st0 array
 		push_bind(5, sizeof(vec4_t)); // normals
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(1, 1, VK_FORMAT_R8G8B8A8_UNORM);
-		// push_attr( 2, 2, VK_FORMAT_R8G8B8A8_UNORM );
-		push_attr(5, 5, VK_FORMAT_R32G32B32A32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
+		// push_attr( 2, 2, vk::Format::eR8G8B8A8Unorm );
+		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
 	case TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
@@ -6159,8 +6172,8 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	case TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
 		push_bind(0, sizeof(vec4_t)); // xyz array
 		push_bind(5, sizeof(vec4_t)); // normals
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(5, 5, VK_FORMAT_R32G32B32A32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
 	case TYPE_SIGNLE_TEXTURE_LIGHTING:
@@ -6168,9 +6181,9 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 		push_bind(0, sizeof(vec4_t)); // xyz array
 		push_bind(1, sizeof(vec2_t)); // st0 array
 		push_bind(2, sizeof(vec4_t)); // normals array
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(1, 1, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(2, 2, VK_FORMAT_R32G32B32A32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR32G32Sfloat);
+		push_attr(2, 2, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
 	case TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
@@ -6180,9 +6193,9 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 		push_bind(0, sizeof(vec4_t)); // xyz array
 		push_bind(2, sizeof(vec2_t)); // st0 array
 		push_bind(3, sizeof(vec2_t)); // st1 array
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(2, 2, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(3, 3, VK_FORMAT_R32G32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(2, 2, vk::Format::eR32G32Sfloat);
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
 		break;
 
 	case TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV:
@@ -6192,9 +6205,9 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 		push_bind(0, sizeof(vec4_t)); // xyz array
 		push_bind(3, sizeof(vec2_t)); // st1 array
 		push_bind(5, sizeof(vec4_t)); // normals
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(3, 3, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(5, 5, VK_FORMAT_R32G32B32A32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
+		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
 	case TYPE_MULTI_TEXTURE_MUL2:
@@ -6204,10 +6217,10 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 		push_bind(1, sizeof(color4ub_t)); // color array
 		push_bind(2, sizeof(vec2_t));	  // st0 array
 		push_bind(3, sizeof(vec2_t));	  // st1 array
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(1, 1, VK_FORMAT_R8G8B8A8_UNORM);
-		push_attr(2, 2, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(3, 3, VK_FORMAT_R32G32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
+		push_attr(2, 2, vk::Format::eR32G32Sfloat);
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
 		break;
 
 	case TYPE_MULTI_TEXTURE_MUL2_ENV:
@@ -6218,11 +6231,11 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 		// push_bind( 2, sizeof( vec2_t ) );					// st0 array
 		push_bind(3, sizeof(vec2_t)); // st1 array
 		push_bind(5, sizeof(vec4_t)); // normals
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(1, 1, VK_FORMAT_R8G8B8A8_UNORM);
-		// push_attr( 2, 2, VK_FORMAT_R32G32_SFLOAT );
-		push_attr(3, 3, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(5, 5, VK_FORMAT_R32G32B32A32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
+		// push_attr( 2, 2, vk::Format::eR32G32Sfloat );
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
+		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
 	case TYPE_MULTI_TEXTURE_MUL3:
@@ -6233,11 +6246,11 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 		push_bind(2, sizeof(vec2_t));	  // st0 array
 		push_bind(3, sizeof(vec2_t));	  // st1 array
 		push_bind(4, sizeof(vec2_t));	  // st2 array
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(1, 1, VK_FORMAT_R8G8B8A8_UNORM);
-		push_attr(2, 2, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(3, 3, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(4, 4, VK_FORMAT_R32G32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
+		push_attr(2, 2, vk::Format::eR32G32Sfloat);
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
+		push_attr(4, 4, vk::Format::eR32G32Sfloat);
 		break;
 
 	case TYPE_MULTI_TEXTURE_MUL3_ENV:
@@ -6249,12 +6262,12 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 		push_bind(3, sizeof(vec2_t)); // st1 array
 		push_bind(4, sizeof(vec2_t)); // st2 array
 		push_bind(5, sizeof(vec4_t)); // normals
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(1, 1, VK_FORMAT_R8G8B8A8_UNORM);
-		// push_attr( 2, 2, VK_FORMAT_R32G32_SFLOAT );
-		push_attr(3, 3, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(4, 4, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(5, 5, VK_FORMAT_R32G32B32A32_SFLOAT);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
+		// push_attr( 2, 2, vk::Format::eR32G32Sfloat );
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
+		push_attr(4, 4, vk::Format::eR32G32Sfloat);
+		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
 	case TYPE_BLEND2_ADD:
@@ -6269,11 +6282,11 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 		push_bind(2, sizeof(vec2_t));	  // st0 array
 		push_bind(3, sizeof(vec2_t));	  // st1 array
 		push_bind(6, sizeof(color4ub_t)); // color1 array
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(1, 1, VK_FORMAT_R8G8B8A8_UNORM);
-		push_attr(2, 2, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(3, 3, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(6, 6, VK_FORMAT_R8G8B8A8_UNORM);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
+		push_attr(2, 2, vk::Format::eR32G32Sfloat);
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
+		push_attr(6, 6, vk::Format::eR8G8B8A8Unorm);
 		break;
 
 	case TYPE_BLEND2_ADD_ENV:
@@ -6289,12 +6302,12 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 		push_bind(3, sizeof(vec2_t));	  // st1 array
 		push_bind(5, sizeof(vec4_t));	  // normals
 		push_bind(6, sizeof(color4ub_t)); // color1 array
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(1, 1, VK_FORMAT_R8G8B8A8_UNORM);
-		// push_attr( 2, 2, VK_FORMAT_R32G32_SFLOAT );
-		push_attr(3, 3, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(5, 5, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(6, 6, VK_FORMAT_R8G8B8A8_UNORM);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
+		// push_attr( 2, 2, vk::Format::eR32G32Sfloat );
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
+		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(6, 6, vk::Format::eR8G8B8A8Unorm);
 		break;
 
 	case TYPE_BLEND3_ADD:
@@ -6311,13 +6324,13 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 		push_bind(4, sizeof(vec2_t));	  // st2 array
 		push_bind(6, sizeof(color4ub_t)); // color1 array
 		push_bind(7, sizeof(color4ub_t)); // color2 array
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(1, 1, VK_FORMAT_R8G8B8A8_UNORM);
-		push_attr(2, 2, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(3, 3, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(4, 4, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(6, 6, VK_FORMAT_R8G8B8A8_UNORM);
-		push_attr(7, 7, VK_FORMAT_R8G8B8A8_UNORM);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
+		push_attr(2, 2, vk::Format::eR32G32Sfloat);
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
+		push_attr(4, 4, vk::Format::eR32G32Sfloat);
+		push_attr(6, 6, vk::Format::eR8G8B8A8Unorm);
+		push_attr(7, 7, vk::Format::eR8G8B8A8Unorm);
 		break;
 
 	case TYPE_BLEND3_ADD_ENV:
@@ -6335,14 +6348,14 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 		push_bind(5, sizeof(vec4_t));	  // normals
 		push_bind(6, sizeof(color4ub_t)); // color1 array
 		push_bind(7, sizeof(color4ub_t)); // color2 array
-		push_attr(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(1, 1, VK_FORMAT_R8G8B8A8_UNORM);
-		// push_attr( 2, 2, VK_FORMAT_R32G32_SFLOAT );
-		push_attr(3, 3, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(4, 4, VK_FORMAT_R32G32_SFLOAT);
-		push_attr(5, 5, VK_FORMAT_R32G32B32A32_SFLOAT);
-		push_attr(6, 6, VK_FORMAT_R8G8B8A8_UNORM);
-		push_attr(7, 7, VK_FORMAT_R8G8B8A8_UNORM);
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
+		// push_attr( 2, 2, vk::Format::eR32G32Sfloat );
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
+		push_attr(4, 4, vk::Format::eR32G32Sfloat);
+		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(6, 6, vk::Format::eR8G8B8A8Unorm);
+		push_attr(7, 7, vk::Format::eR8G8B8A8Unorm);
 		break;
 
 	default:
@@ -6470,7 +6483,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 
 	if (attachment_blend_state.blendEnable)
 	{
-		if (def.allow_discard && vkSamples != VkSampleCountFlagBits(vk::SampleCountFlagBits::e1))
+		if (def.allow_discard && vkSamples != vk::SampleCountFlagBits::e1)
 		{
 			// try to reduce pixel fillrate for transparent surfaces, this yields 1..10% fps increase when multisampling in enabled
 			if (attachment_blend_state.srcColorBlendFactor == vk::BlendFactor::eSrcAlpha && attachment_blend_state.dstColorBlendFactor == vk::BlendFactor::eOneMinusSrcAlpha)
@@ -6891,7 +6904,7 @@ uint32_t vk_tess_index(uint32_t numIndexes, const void *src)
 	}
 }
 
-void vk_bind_index_buffer(VkBuffer buffer, uint32_t offset)
+void vk_bind_index_buffer(vk::Buffer buffer, uint32_t offset)
 {
 	if (vk_inst.cmd->curr_index_buffer != buffer || vk_inst.cmd->curr_index_offset != offset)
 		qvkCmdBindIndexBuffer(vk_inst.cmd->command_buffer, buffer, offset, VK_INDEX_TYPE_UINT32);
@@ -7084,7 +7097,7 @@ void vk_reset_descriptor(int index)
 	vk_inst.cmd->descriptor_set.current[index] = VK_NULL_HANDLE;
 }
 
-void vk_update_descriptor(int index, VkDescriptorSet descriptor)
+void vk_update_descriptor(int index, vk::DescriptorSet descriptor)
 {
 	if (vk_inst.cmd->descriptor_set.current[index] != descriptor)
 	{
@@ -7118,7 +7131,16 @@ void vk_bind_descriptor_sets(void)
 
 	count = end - start + 1;
 
-	qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.pipeline_layout, start, count, vk_inst.cmd->descriptor_set.current + start, offset_count, offsets);
+	//qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout, start, count, vk_inst.cmd->descriptor_set.current + start, offset_count, offsets);
+	//vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout, start, vk_inst.cmd->descriptor_set.current + start, offsets);
+	vk_inst.cmd->command_buffer.bindDescriptorSets(
+		vk::PipelineBindPoint::eGraphics,
+		vk_inst.pipeline_layout,
+		start,
+		count,
+		vk_inst.cmd->descriptor_set.current + start,
+		offset_count,
+		offsets);
 
 	vk_inst.cmd->descriptor_set.end = 0;
 	vk_inst.cmd->descriptor_set.start = ~0U;
@@ -7907,38 +7929,47 @@ bool vk_bloom(void)
 
 	// bloom extraction
 	vk_begin_bloom_extract_render_pass();
-	qvkCmdBindPipeline(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.bloom_extract_pipeline);
-	qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.color_descriptor, 0, nullptr);
-	qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
+	// qvkCmdBindPipeline(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.bloom_extract_pipeline);
+	vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_inst.bloom_extract_pipeline);
+	// qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.color_descriptor, 0, nullptr);
+	vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, vk_inst.color_descriptor, nullptr);
+	//	qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
+	vk_inst.cmd->command_buffer.draw(4, 1, 0, 0);
 	vk_end_render_pass();
 
 	for (i = 0; i < VK_NUM_BLOOM_PASSES * 2; i += 2)
 	{
 		// horizontal blur
 		vk_begin_blur_render_pass(i + 0);
-		qvkCmdBindPipeline(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.blur_pipeline[i + 0]);
-		qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.bloom_image_descriptor[i + 0], 0, nullptr);
-		qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
+		// qvkCmdBindPipeline(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.blur_pipeline[i + 0]);
+		vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_inst.blur_pipeline[i + 0]);
+		// qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.bloom_image_descriptor[i + 0], 0, nullptr);
+		vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, vk_inst.bloom_image_descriptor[i + 0], nullptr);
+		// qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
+		vk_inst.cmd->command_buffer.draw(4, 1, 0, 0);
 		vk_end_render_pass();
 
 		// vectical blur
 		vk_begin_blur_render_pass(i + 1);
-		qvkCmdBindPipeline(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.blur_pipeline[i + 1]);
-		qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.bloom_image_descriptor[i + 1], 0, nullptr);
-		qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
+		// qvkCmdBindPipeline(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.blur_pipeline[i + 1]);
+		vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_inst.blur_pipeline[i + 1]);
+		// qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.bloom_image_descriptor[i + 1], 0, nullptr);
+		vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, vk_inst.bloom_image_descriptor[i + 1], nullptr);
+		// qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
+		vk_inst.cmd->command_buffer.draw(4, 1, 0, 0);
 		vk_end_render_pass();
 #if 0
 		// horizontal blur
 		vk_begin_blur_render_pass( i+0 );
-		qvkCmdBindPipeline( vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.blur_pipeline[i+0] );
-		qvkCmdBindDescriptorSets( vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.bloom_image_descriptor[i+2], 0, nullptr );
+		qvkCmdBindPipeline( vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.blur_pipeline[i+0] );
+		qvkCmdBindDescriptorSets( vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.bloom_image_descriptor[i+2], 0, nullptr );
 		qvkCmdDraw( vk_inst.cmd->command_buffer, 4, 1, 0, 0 );
 		vk_end_render_pass();
 
 		// vectical blur
 		vk_begin_blur_render_pass( i+1 );
-		qvkCmdBindPipeline( vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.blur_pipeline[i+1] );
-		qvkCmdBindDescriptorSets( vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.bloom_image_descriptor[i+1], 0, nullptr );
+		qvkCmdBindPipeline( vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.blur_pipeline[i+1] );
+		qvkCmdBindDescriptorSets( vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.bloom_image_descriptor[i+1], 0, nullptr );
 		qvkCmdDraw( vk_inst.cmd->command_buffer, 4, 1, 0, 0 );
 		vk_end_render_pass();
 #endif
@@ -7946,7 +7977,7 @@ bool vk_bloom(void)
 
 	vk_begin_post_bloom_render_pass(); // begin post-bloom
 	{
-		VkDescriptorSet dset[VK_NUM_BLOOM_PASSES];
+		vk::DescriptorSet dset[VK_NUM_BLOOM_PASSES];
 
 		for (i = 0; i < VK_NUM_BLOOM_PASSES; i++)
 		{
@@ -7954,9 +7985,12 @@ bool vk_bloom(void)
 		}
 
 		// blend downscaled buffers to main fbo
-		qvkCmdBindPipeline(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.bloom_blend_pipeline);
-		qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.pipeline_layout_blend, 0, arrayLen(dset), dset, 0, nullptr);
-		qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
+		// qvkCmdBindPipeline(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.bloom_blend_pipeline);
+		vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_inst.bloom_blend_pipeline);
+		// qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_blend, 0, arrayLen(dset), dset, 0, nullptr);
+		vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_blend, 0, dset, nullptr);
+		// qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
+		vk_inst.cmd->command_buffer.draw(4, 1, 0, 0);
 	}
 
 	// invalidate pipeline state cache
@@ -7965,7 +7999,8 @@ bool vk_bloom(void)
 	if (vk_inst.cmd->last_pipeline != VK_NULL_HANDLE)
 	{
 		// restore last pipeline
-		qvkCmdBindPipeline(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.cmd->last_pipeline);
+		// qvkCmdBindPipeline(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.cmd->last_pipeline);
+		vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_inst.cmd->last_pipeline);
 
 		vk_update_mvp(nullptr);
 
@@ -7978,9 +8013,9 @@ bool vk_bloom(void)
 			if (vk_inst.cmd->descriptor_set.current[i] != VK_NULL_HANDLE)
 			{
 				if (i == VK_DESC_UNIFORM || i == VK_DESC_STORAGE)
-					qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.pipeline_layout, i, 1, &vk_inst.cmd->descriptor_set.current[i], 1, &vk_inst.cmd->descriptor_set.offset[i]);
+					vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout, i, vk_inst.cmd->descriptor_set.current[i], vk_inst.cmd->descriptor_set.offset[i]);
 				else
-					qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_inst.pipeline_layout, i, 1, &vk_inst.cmd->descriptor_set.current[i], 0, nullptr);
+					vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout, i, vk_inst.cmd->descriptor_set.current[i], nullptr);
 			}
 		}
 	}

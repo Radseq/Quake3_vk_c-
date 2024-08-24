@@ -123,17 +123,17 @@ bool vk_bloom(void);
 void vk_update_mvp(const float *m);
 
 uint32_t vk_tess_index(uint32_t numIndexes, const void *src);
-void vk_bind_index_buffer(VkBuffer buffer, uint32_t offset);
+void vk_bind_index_buffer(vk::Buffer buffer, uint32_t offset);
 void vk_draw_indexed(uint32_t indexCount, uint32_t firstIndex);
 
 void vk_reset_descriptor(int index);
-void vk_update_descriptor(int index, VkDescriptorSet descriptor);
+void vk_update_descriptor(int index, vk::DescriptorSet descriptor);
 void vk_update_descriptor_offset(int index, uint32_t offset);
 void vk_update_uniform_descriptor(const vk::DescriptorSet &descriptor, const vk::Buffer &buffer);
 
 void vk_update_post_process_pipelines(void);
 
-std::string_view vk_format_string(VkFormat format);
+std::string_view vk_format_string(vk::Format format);
 
 void VBO_PrepareQueues(void);
 void VBO_RenderIBOItems(void);

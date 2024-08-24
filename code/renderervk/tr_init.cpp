@@ -35,6 +35,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_light.hpp"
 #include "tr_model.hpp"
 
+#include <cstddef>  // For size_t
+
 glconfig_t glConfig;
 
 bool textureFilterAnisotropic;
@@ -934,9 +936,9 @@ static void GfxInfo(void)
 	{
 		ri.Printf(PRINT_ALL, " color: %s\n", vk_format_string(vk_inst.color_format).data());
 	}
-	if (VkFormat(vk_inst.capture_format) != vk_inst.present_format.format || VkFormat(vk_inst.capture_format) != vk_inst.color_format)
+	if (vk_inst.capture_format != vk_inst.present_format.format || vk_inst.capture_format != vk_inst.color_format)
 	{
-		ri.Printf(PRINT_ALL, " capture: %s\n", vk_format_string(VkFormat(vk_inst.capture_format)).data());
+		ri.Printf(PRINT_ALL, " capture: %s\n", vk_format_string(vk_inst.capture_format).data());
 	}
 	ri.Printf(PRINT_ALL, " depth: %s\n", vk_format_string(vk_inst.depth_format).data());
 
