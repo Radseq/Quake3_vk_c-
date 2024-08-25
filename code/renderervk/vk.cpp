@@ -71,9 +71,6 @@ static PFN_vkCreateDebugReportCallbackEXT qvkCreateDebugReportCallbackEXT;
 static PFN_vkDestroyDebugReportCallbackEXT qvkDestroyDebugReportCallbackEXT;
 #endif
 
-static PFN_vkGetBufferMemoryRequirements2KHR qvkGetBufferMemoryRequirements2KHR;
-static PFN_vkGetImageMemoryRequirements2KHR qvkGetImageMemoryRequirements2KHR;
-
 static PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;
 
 ////////////////////////////////////////////////////////////////////////////
@@ -1202,7 +1199,7 @@ static void get_present_format(int present_bits, vk::Format &bgr, vk::Format &rg
 	}
 }
 
-static bool vk_select_surface_format(vk::PhysicalDevice physical_deviceCpp, vk::SurfaceKHR surfaceCpp)
+static bool vk_select_surface_format(vk::PhysicalDevice physical_device, vk::SurfaceKHR surface)
 {
 	vk::Format base_bgr, base_rgb;
 	vk::Format ext_bgr, ext_rgb;
@@ -1213,7 +1210,7 @@ static bool vk_select_surface_format(vk::PhysicalDevice physical_deviceCpp, vk::
 
 #ifdef USE_VK_VALIDATION
 
-	auto resultSurfaceFormatsKHR = physical_deviceCpp.getSurfaceFormatsKHR(surfaceCpp);
+	auto resultSurfaceFormatsKHR = physical_device.getSurfaceFormatsKHR(surface);
 
 	if (resultSurfaceFormatsKHR.result != vk::Result::eSuccess)
 	{
@@ -1231,7 +1228,7 @@ static bool vk_select_surface_format(vk::PhysicalDevice physical_deviceCpp, vk::
 	candidatesCpp = resultSurfaceFormatsKHR.value;
 
 #else
-	candidatesCpp = physical_deviceCpp.getSurfaceFormatsKHR(surfaceCpp);
+	candidatesCpp = physical_device.getSurfaceFormatsKHR(surface);
 	format_count = candidatesCpp.size();
 
 	if (format_count == 0)
@@ -1396,7 +1393,7 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 	// create VkDevice
 	{
 		const char *device_extension_list[4];
-		uint32_t device_extension_count;
+		uint32_t device_extension_count = 0;
 		const char *end;
 		char *str;
 		const float priority = 1.0;
@@ -1429,6 +1426,8 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 			else if (ext == vk::KHRGetMemoryRequirements2ExtensionName)
 			{
 				memoryRequirements2 = true;
+				device_extension_list[device_extension_count++] = vk::KHRDedicatedAllocationExtensionName;
+				device_extension_list[device_extension_count++] = vk::KHRGetMemoryRequirements2ExtensionName;
 			}
 			else if (ext == vk::EXTDebugMarkerExtensionName)
 			{
@@ -1449,8 +1448,6 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 
 		// ri.Free(extension_properties);
 
-		device_extension_count = 0;
-
 		if (!swapchainSupported)
 		{
 			ri.Printf(PRINT_ERROR, "...required device extension is not available: %s\n", vk::KHRSwapchainExtensionName);
@@ -1459,20 +1456,14 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 
 		if (!memoryRequirements2)
 			dedicatedAllocation = false;
-		else
-			vk_inst.dedicatedAllocation = dedicatedAllocation;
+
+		vk_inst.dedicatedAllocation = dedicatedAllocation;
 
 #ifndef USE_DEDICATED_ALLOCATION
 		vk_inst.dedicatedAllocation = false;
 #endif
 
 		device_extension_list[device_extension_count++] = vk::KHRSwapchainExtensionName;
-
-		if (vk_inst.dedicatedAllocation)
-		{
-			device_extension_list[device_extension_count++] = vk::KHRDedicatedAllocationExtensionName;
-			device_extension_list[device_extension_count++] = vk::KHRGetMemoryRequirements2ExtensionName;
-		}
 
 		if (debugMarker)
 		{
@@ -1721,20 +1712,6 @@ static void init_vulkan_library(void)
 	// Get device level functions.
 	//
 
-
-
-
-
-	if (vk_inst.dedicatedAllocation)
-	{
-		INIT_DEVICE_FUNCTION_EXT(vkGetBufferMemoryRequirements2KHR);
-		INIT_DEVICE_FUNCTION_EXT(vkGetImageMemoryRequirements2KHR);
-		if (!qvkGetBufferMemoryRequirements2KHR || !qvkGetImageMemoryRequirements2KHR)
-		{
-			vk_inst.dedicatedAllocation = false;
-		}
-	}
-
 	if (vk_inst.debugMarkers)
 	{
 		INIT_DEVICE_FUNCTION_EXT(vkDebugMarkerSetObjectNameEXT)
@@ -1760,12 +1737,6 @@ static void deinit_instance_functions(void)
 static void deinit_device_functions(void)
 {
 	// device functions:
-
-
-
-	qvkGetBufferMemoryRequirements2KHR = nullptr;
-	qvkGetImageMemoryRequirements2KHR = nullptr;
-
 	qvkDebugMarkerSetObjectNameEXT = nullptr;
 }
 
