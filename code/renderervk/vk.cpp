@@ -137,7 +137,7 @@ static std::string_view pmode_to_str(vk::PresentModeKHR mode)
 			return mapping.name;
 		}
 	}
-	sprintf(buf, "mode#%x", mode);
+	sprintf(buf, "mode#%x", (int)mode);
 	return buf;
 }
 
@@ -188,7 +188,7 @@ std::string_view vk_format_string(vk::Format format)
 			return mapping.name;
 		}
 	}
-	Com_sprintf(buf, sizeof(buf), "#%i", format);
+	Com_sprintf(buf, sizeof(buf), "#%i", (int)format);
 	return buf;
 }
 
@@ -251,7 +251,7 @@ static std::string_view vk_result_string(vk::Result code)
 		}
 	}
 
-	sprintf(buffer, "code %i", code);
+	sprintf(buffer, "code %i", (int)code);
 	return buffer;
 }
 
@@ -394,7 +394,7 @@ static void record_image_layout_transition(vk::CommandBuffer command_buffer, vk:
 		barrier.srcAccessMask = vk::AccessFlagBits::eNone;
 		break;
 	default:
-		ri.Error(ERR_DROP, "unsupported old layout %i", old_layout);
+		ri.Error(ERR_DROP, "unsupported old layout %i", (int)old_layout);
 		src_stage = vk::PipelineStageFlagBits::eAllCommands;
 		barrier.srcAccessMask = vk::AccessFlagBits::eNone;
 		break;
@@ -427,7 +427,7 @@ static void record_image_layout_transition(vk::CommandBuffer command_buffer, vk:
 		barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eInputAttachmentRead;
 		break;
 	default:
-		ri.Error(ERR_DROP, "unsupported new layout %i", new_layout);
+		ri.Error(ERR_DROP, "unsupported new layout %i", (int)new_layout);
 		dst_stage = vk::PipelineStageFlagBits::eAllCommands;
 		barrier.dstAccessMask = vk::AccessFlagBits::eNone;
 		break;
@@ -1040,7 +1040,7 @@ static void create_instance(void)
 		0x0,
 		nullptr,
 		0x0,
-		VK_API_VERSION_1_0,
+		VK_API_VERSION_1_1,
 		nullptr};
 
 	// create instance
@@ -1206,7 +1206,7 @@ static bool vk_select_surface_format(vk::PhysicalDevice physical_device, vk::Sur
 
 	uint32_t format_count;
 
-	std::vector<vk::SurfaceFormatKHR> candidatesCpp;
+	std::vector<vk::SurfaceFormatKHR> candidates;
 
 #ifdef USE_VK_VALIDATION
 
@@ -1225,11 +1225,11 @@ static bool vk_select_surface_format(vk::PhysicalDevice physical_device, vk::Sur
 		return false;
 	}
 
-	candidatesCpp = resultSurfaceFormatsKHR.value;
+	candidates = resultSurfaceFormatsKHR.value;
 
 #else
-	candidatesCpp = physical_device.getSurfaceFormatsKHR(surface);
-	format_count = candidatesCpp.size();
+	candidates = physical_device.getSurfaceFormatsKHR(surface);
+	format_count = candidates.size();
 
 	if (format_count == 0)
 	{
@@ -1250,7 +1250,7 @@ static bool vk_select_surface_format(vk::PhysicalDevice physical_device, vk::Sur
 		ext_rgb = base_rgb;
 	}
 
-	if (format_count == 1 && candidatesCpp[0].format == vk::Format::eUndefined)
+	if (format_count == 1 && candidates[0].format == vk::Format::eUndefined)
 	{
 		// special case that means we can choose any format
 		vk_inst.base_format.format = base_bgr;
@@ -1263,21 +1263,21 @@ static bool vk_select_surface_format(vk::PhysicalDevice physical_device, vk::Sur
 		uint32_t i;
 		for (i = 0; i < format_count; i++)
 		{
-			if ((candidatesCpp[i].format == base_bgr || candidatesCpp[i].format == base_rgb) && candidatesCpp[i].colorSpace == vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear)
+			if ((candidates[i].format == base_bgr || candidates[i].format == base_rgb) && candidates[i].colorSpace == vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear)
 			{
-				vk_inst.base_format = candidatesCpp[i];
+				vk_inst.base_format = candidates[i];
 				break;
 			}
 		}
 		if (i == format_count)
 		{
-			vk_inst.base_format = candidatesCpp[0];
+			vk_inst.base_format = candidates[0];
 		}
 		for (i = 0; i < format_count; i++)
 		{
-			if ((candidatesCpp[i].format == ext_bgr || candidatesCpp[i].format == ext_rgb) && candidatesCpp[i].colorSpace == vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear)
+			if ((candidates[i].format == ext_bgr || candidates[i].format == ext_rgb) && candidates[i].colorSpace == vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear)
 			{
-				vk_inst.present_format = candidatesCpp[i];
+				vk_inst.present_format = candidates[i];
 				break;
 			}
 		}
@@ -1346,18 +1346,18 @@ static const char *renderer_name(const vk::PhysicalDeviceProperties &props)
 	return buf;
 }
 
-static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_index)
+static bool vk_create_device(vk::PhysicalDevice physical_device, int device_index)
 {
 
 	ri.Printf(PRINT_ALL, "...selected physical device: %i\n", device_index);
 
 	// select surface format
-	if (!vk_select_surface_format(physical_deviceCpp, vk_surface))
+	if (!vk_select_surface_format(physical_device, vk_surface))
 	{
 		return false;
 	}
 
-	setup_surface_formats(physical_deviceCpp);
+	setup_surface_formats(physical_device);
 
 	// select queue family
 	{
@@ -1365,7 +1365,7 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 		uint32_t queue_family_count;
 		uint32_t i;
 
-		queue_families = physical_deviceCpp.getQueueFamilyProperties();
+		queue_families = physical_device.getQueueFamilyProperties();
 
 		queue_family_count = queue_families.size();
 
@@ -1373,7 +1373,7 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 		vk_inst.queue_family_index = ~0U;
 		for (i = 0; i < queue_family_count; i++)
 		{
-			vk::Bool32 presentation_supported = physical_deviceCpp.getSurfaceSupportKHR(i, vk_surface);
+			vk::Bool32 presentation_supported = physical_device.getSurfaceSupportKHR(i, vk_surface);
 
 			if (presentation_supported && (queue_families[i].queueFlags & vk::QueueFlagBits::eGraphics) != vk::QueueFlags{})
 			{
@@ -1392,8 +1392,9 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 
 	// create VkDevice
 	{
-		const char *device_extension_list[4];
-		uint32_t device_extension_count = 0;
+		std::vector<const char *> device_extension_list;
+		// const char *device_extension_list[4];
+		// uint32_t device_extension_count = 0;
 		const char *end;
 		char *str;
 		const float priority = 1.0;
@@ -1404,7 +1405,7 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 		bool debugMarker = false;
 		uint32_t i, len, count = 0;
 
-		auto extension_properties = physical_deviceCpp.enumerateDeviceExtensionProperties();
+		auto extension_properties = physical_device.enumerateDeviceExtensionProperties();
 		count = extension_properties.size();
 
 		// fill glConfig.extensions_string
@@ -1426,8 +1427,8 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 			else if (ext == vk::KHRGetMemoryRequirements2ExtensionName)
 			{
 				memoryRequirements2 = true;
-				device_extension_list[device_extension_count++] = vk::KHRDedicatedAllocationExtensionName;
-				device_extension_list[device_extension_count++] = vk::KHRGetMemoryRequirements2ExtensionName;
+				device_extension_list.push_back(vk::KHRDedicatedAllocationExtensionName);
+				device_extension_list.push_back(vk::KHRGetMemoryRequirements2ExtensionName);
 			}
 			else if (ext == vk::EXTDebugMarkerExtensionName)
 			{
@@ -1463,15 +1464,15 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 		vk_inst.dedicatedAllocation = false;
 #endif
 
-		device_extension_list[device_extension_count++] = vk::KHRSwapchainExtensionName;
+		device_extension_list.push_back(vk::KHRSwapchainExtensionName);
 
 		if (debugMarker)
 		{
-			device_extension_list[device_extension_count++] = vk::EXTDebugMarkerExtensionName;
+			device_extension_list.push_back(vk::EXTDebugMarkerExtensionName);
 			vk_inst.debugMarkers = true;
 		}
 
-		auto device_features = physical_deviceCpp.getFeatures();
+		auto device_features = physical_device.getFeatures();
 
 		if (device_features.fillModeNonSolid == VK_FALSE)
 		{
@@ -1511,14 +1512,14 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 										 &queue_desc,
 										 0,
 										 nullptr,
-										 device_extension_count,
-										 device_extension_list,
+										 (uint32_t)device_extension_list.size(),
+										 device_extension_list.data(),
 										 &features,
 										 nullptr};
 
 #ifdef USE_VK_VALIDATION
 
-		auto resultCreateDevice = physical_deviceCpp.createDevice(device_desc);
+		auto resultCreateDevice = physical_device.createDevice(device_desc);
 
 		if (resultCreateDevice.result != vk::Result::eSuccess)
 		{
@@ -1527,7 +1528,7 @@ static bool vk_create_device(vk::PhysicalDevice physical_deviceCpp, int device_i
 		}
 
 #else
-		vk_inst.device = physical_deviceCpp.createDevice(device_desc);
+		vk_inst.device = physical_device.createDevice(device_desc);
 		// vk_inst.device = static_cast<VkDevice>(vkDeviceCpp);
 #endif
 	}
@@ -1750,7 +1751,7 @@ static vk::ShaderModule SHADER_MODULE(const uint8_t *bytes, const int count)
 	}
 
 	vk::ShaderModuleCreateInfo desc{{},
-									count,
+									(std::size_t)count,
 									(const uint32_t *)bytes,
 									nullptr};
 
@@ -1762,7 +1763,7 @@ static vk::ShaderModule SHADER_MODULE(const uint8_t *bytes, const int count)
 static vk::DescriptorSetLayout vk_create_layout_binding(int binding, vk::DescriptorType type, vk::ShaderStageFlags flags)
 {
 
-	vk::DescriptorSetLayoutBinding bind{binding,
+	vk::DescriptorSetLayoutBinding bind{(uint32_t)binding,
 										type,
 										1,
 										flags,
@@ -3526,7 +3527,7 @@ void vk_initialize(void)
 			int shiftAmount = 1;
 			vkSamples = static_cast<vk::SampleCountFlagBits>(sampleCountFlagsToInt(vkSamples) >> shiftAmount);
 		}
-		ri.Printf(PRINT_ALL, "...using %ix MSAA\n", vkSamples);
+		ri.Printf(PRINT_ALL, "...using %ix MSAA\n", sampleCountFlagsToInt(vkSamples));
 	}
 	else
 	{
@@ -3938,7 +3939,7 @@ static void vk_destroy_render_passes()
 		vk_inst.render_pass.bloom_extract = nullptr;
 	}
 
-	for (int i = 0; i < arrayLen(vk_inst.render_pass.blur); i++)
+	for (std::size_t i = 0; i < arrayLen(vk_inst.render_pass.blur); i++)
 	{
 		if (vk_inst.render_pass.blur[i] != VK_NULL_HANDLE)
 		{
@@ -4348,8 +4349,8 @@ void vk_create_image(image_t &image, int width, int height, int mip_levels)
 	vk::ImageCreateInfo desc{{},
 							 vk::ImageType::e2D,
 							 format,
-							 {width, height, 1},
-							 mip_levels,
+							 {(uint32_t)width, (uint32_t)height, 1},
+							 (uint32_t)mip_levels,
 							 1,
 							 vk::SampleCountFlagBits::e1,
 							 vk::ImageTiling::eOptimal,
@@ -4479,7 +4480,7 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 	byte *buf;
 	int bpp;
 	int buffer_size = 0;
-	std::size_t num_regions = 0;
+	uint32_t num_regions = 0;
 
 	buf = resample_image_data(image.internalFormat, pixels, size, &bpp);
 
@@ -4498,14 +4499,14 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 									   0,
 									   1},
 									  {x, y, 0},
-									  {width, height, 1}};
+									  {(uint32_t)width, (uint32_t)height, 1}};
 
 		regions[num_regions] = region;
 		num_regions++;
 
 		buffer_size += width * height * bpp;
 
-		if (num_regions >= mipmaps || (width == 1 && height == 1) || num_regions >= max_regions)
+		if (num_regions >= (uint32_t)mipmaps || (width == 1 && height == 1) || num_regions >= (uint32_t)max_regions)
 			break;
 
 		x >>= 1;
@@ -4881,7 +4882,7 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 
 	// VK_CHECK(qvkCreateGraphicsPipelines(vk_inst.device, VK_NULL_HANDLE, 1, &create_info, nullptr, pipeline));
 
-	// SET_OBJECT_NAME(*pipeline, pipeline_name, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+	SET_OBJECT_NAME(VkPipeline(&pipeline), pipeline_name, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
 }
 
 void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass)
@@ -4933,7 +4934,7 @@ void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bo
 	// Viewport.
 	//
 	vk::Viewport viewport{0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f};
-	vk::Rect2D scissor{{viewport.x, viewport.y}, {viewport.width, viewport.height}};
+	vk::Rect2D scissor{{(int32_t)viewport.x, (int32_t)viewport.y}, {(uint32_t)viewport.width, (uint32_t)viewport.height}};
 
 	vk::PipelineViewportStateCreateInfo viewport_state{{}, 1, &viewport, 1, &scissor};
 
@@ -7207,11 +7208,11 @@ void vk_read_pixels(byte *buffer, uint32_t width, uint32_t height)
 			// srcSubresource
 			{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
 			// srcOffsets[0]
-			{vk::Offset3D{0, 0, 0}, vk::Offset3D{width, height, 1}},
+			{vk::Offset3D{0, 0, 0}, vk::Offset3D{(int32_t)width, (int32_t)height, 1}},
 			// dstSubresource (initialized to the same as srcSubresource)
 			{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
 			// dstOffsets[0]
-			{vk::Offset3D{0, 0, 0}, vk::Offset3D{width, height, 1}}};
+			{vk::Offset3D{0, 0, 0}, vk::Offset3D{(int32_t)width, (int32_t)height, 1}}};
 
 		command_buffer.blitImage(srcImage, vk::ImageLayout::eTransferSrcOptimal, dstImage, vk::ImageLayout::eTransferDstOptimal, region, vk::Filter::eNearest);
 	}

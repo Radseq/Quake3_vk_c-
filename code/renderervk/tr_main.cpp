@@ -1487,7 +1487,7 @@ void R_AddLitSurf(surfaceType_t *surface, shader_t &shader, int fogIndex)
 {
 	struct litSurf_s *litsurf;
 
-	if (tr.refdef.numLitSurfs >= arrayLen(backEndData->litSurfs))
+	if (tr.refdef.numLitSurfs >= (int)arrayLen(backEndData->litSurfs))
 		return;
 
 	tr.pc.c_lit_surfs++;
