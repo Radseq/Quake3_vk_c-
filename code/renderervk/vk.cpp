@@ -166,7 +166,7 @@ static PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;
 ////////////////////////////////////////////////////////////////////////////
 
 // forward declaration
-VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIndex);
+VkPipeline create_pipeline(const Vk_Pipeline_Def *def, renderPass_t renderPassIndex);
 
 static uint32_t find_memory_type(uint32_t memory_type_bits, VkMemoryPropertyFlags properties)
 {
@@ -1188,33 +1188,33 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags
 static bool used_instance_extension(std::string_view ext)
 {
 	// Find the last underscore
-	size_t pos = ext.find_last_of('_');
+    size_t pos = ext.find_last_of('_');
 
-	// allow all VK_*_surface extensions
-	if (pos != std::string_view::npos && Q_stricmp_cpp(ext.substr(pos + 1), "surface") == 0)
-		return true;
+    // allow all VK_*_surface extensions
+    if (pos != std::string_view::npos && Q_stricmp_cpp(ext.substr(pos + 1), "surface") == 0)
+        return true;
 
-	if (Q_stricmp_cpp(ext, VK_KHR_DISPLAY_EXTENSION_NAME) == 0)
-		return true; // needed for KMSDRM instances/devices?
+    if (Q_stricmp_cpp(ext, VK_KHR_DISPLAY_EXTENSION_NAME) == 0)
+        return true; // needed for KMSDRM instances/devices?
 
-	if (Q_stricmp_cpp(ext, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0)
-		return true;
+    if (Q_stricmp_cpp(ext, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0)
+        return true;
 
 #ifdef USE_VK_VALIDATION
-	if (Q_stricmp_cpp(ext, VK_EXT_DEBUG_REPORT_EXTENSION_NAME) == 0)
-		return true;
+    if (Q_stricmp_cpp(ext, VK_EXT_DEBUG_REPORT_EXTENSION_NAME) == 0)
+        return true;
 #endif
 
-	if (Q_stricmp_cpp(ext, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0)
-		return true;
+    if (Q_stricmp_cpp(ext, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0)
+        return true;
 
-	if (Q_stricmp_cpp(ext, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) == 0)
-		return true;
+    if (Q_stricmp_cpp(ext, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) == 0)
+        return true;
 
-	if (Q_stricmp_cpp(ext, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME) == 0)
-		return true;
+    if (Q_stricmp_cpp(ext, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME) == 0)
+        return true;
 
-	return false;
+    return false;
 }
 
 static void create_instance(void)
@@ -1418,7 +1418,7 @@ static const present_format_t present_formats[] = {
 static void get_present_format(int present_bits, VkFormat *bgr, VkFormat *rgb)
 {
 	const present_format_t *pf, *sel;
-	std::size_t i;
+	int i;
 
 	sel = NULL;
 	pf = present_formats;
@@ -2625,7 +2625,7 @@ void vk_release_vbo(void)
 	vk.vbo.buffer_memory = VK_NULL_HANDLE;
 }
 
-bool vk_alloc_vbo(const byte *vbo_data, uint32_t vbo_size)
+bool vk_alloc_vbo(const byte *vbo_data, int vbo_size)
 {
 	VkMemoryRequirements vb_mem_reqs;
 	VkMemoryAllocateInfo alloc_info;
@@ -2947,7 +2947,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.face_culling = CT_FRONT_SIDED;
 		def.polygon_offset = false;
 		def.mirror = false;
-		vk.skybox_pipeline = vk_find_pipeline_ext(0, def, true);
+		vk.skybox_pipeline = vk_find_pipeline_ext(0, &def, true);
 	}
 
 	// stencil shadows
@@ -2968,7 +2968,7 @@ static void vk_alloc_persistent_pipelines(void)
 			for (j = 0; j < 2; j++)
 			{
 				def.mirror = mirror_flags[j];
-				vk.shadow_volume_pipelines[i][j] = vk_find_pipeline_ext(0, def, r_shadows->integer ? true : false);
+				vk.shadow_volume_pipelines[i][j] = vk_find_pipeline_ext(0, &def, r_shadows->integer ? true : false);
 			}
 		}
 	}
@@ -2981,7 +2981,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.mirror = false;
 		def.shadow_phase = SHADOW_FS_QUAD;
 		def.primitives = TRIANGLE_STRIP;
-		vk.shadow_finish_pipeline = vk_find_pipeline_ext(0, def, r_shadows->integer ? true : false);
+		vk.shadow_finish_pipeline = vk_find_pipeline_ext(0, &def, r_shadows->integer ? true : false);
 	}
 
 	// fog and dlights
@@ -3019,15 +3019,15 @@ static void vk_alloc_persistent_pipelines(void)
 					def.shader_type = TYPE_SIGNLE_TEXTURE;
 #endif
 					def.state_bits = fog_state;
-					vk.fog_pipelines[i][j][k] = vk_find_pipeline_ext(0, def, true);
+					vk.fog_pipelines[i][j][k] = vk_find_pipeline_ext(0, &def, true);
 
 					def.shader_type = TYPE_SIGNLE_TEXTURE;
 					def.state_bits = dlight_state;
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
-					vk.dlight_pipelines[i][j][k] = vk_find_pipeline_ext(0, def, r_dlightMode->integer == 0 ? true : false);
+					vk.dlight_pipelines[i][j][k] = vk_find_pipeline_ext(0, &def, r_dlightMode->integer == 0 ? true : false);
 #else
-					vk.dlight_pipelines[i][j][k] = vk_find_pipeline_ext(0, def, true);
+					vk.dlight_pipelines[i][j][k] = vk_find_pipeline_ext(0, &def, true);
 #endif
 #endif
 				}
@@ -3050,9 +3050,9 @@ static void vk_alloc_persistent_pipelines(void)
 					{
 						def.abs_light = l;
 						def.shader_type = TYPE_SIGNLE_TEXTURE_LIGHTING;
-						vk.dlight_pipelines_x[i][j][k][l] = vk_find_pipeline_ext(0, def, false);
+						vk.dlight_pipelines_x[i][j][k][l] = vk_find_pipeline_ext(0, &def, false);
 						def.shader_type = TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR;
-						vk.dlight1_pipelines_x[i][j][k][l] = vk_find_pipeline_ext(0, def, false);
+						vk.dlight1_pipelines_x[i][j][k][l] = vk_find_pipeline_ext(0, &def, false);
 					}
 				}
 			}
@@ -3066,7 +3066,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.face_culling = CT_FRONT_SIDED;
 		def.primitives = TRIANGLE_STRIP;
-		vk.surface_beam_pipeline = vk_find_pipeline_ext(0, def, false);
+		vk.surface_beam_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 
 	// axis for missing models
@@ -3078,7 +3078,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.primitives = LINE_LIST;
 		if (vk.wideLines)
 			def.line_width = 3;
-		vk.surface_axis_pipeline = vk_find_pipeline_ext(0, def, false);
+		vk.surface_axis_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 
 	// flare visibility test dot
@@ -3088,7 +3088,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.face_culling = CT_TWO_SIDED;
 		def.shader_type = TYPE_DOT;
 		def.primitives = POINT_LIST;
-		vk.dot_pipeline = vk_find_pipeline_ext(0, def, true);
+		vk.dot_pipeline = vk_find_pipeline_ext(0, &def, true);
 	}
 
 	// DrawTris()
@@ -3098,42 +3098,42 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_WHITE;
 		def.face_culling = CT_FRONT_SIDED;
-		vk.tris_debug_pipeline = vk_find_pipeline_ext(0, def, false);
+		vk.tris_debug_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 	{
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_WHITE;
 		def.face_culling = CT_BACK_SIDED;
-		vk.tris_mirror_debug_pipeline = vk_find_pipeline_ext(0, def, false);
+		vk.tris_mirror_debug_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 	{
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_GREEN;
 		def.face_culling = CT_FRONT_SIDED;
-		vk.tris_debug_green_pipeline = vk_find_pipeline_ext(0, def, false);
+		vk.tris_debug_green_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 	{
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_GREEN;
 		def.face_culling = CT_BACK_SIDED;
-		vk.tris_mirror_debug_green_pipeline = vk_find_pipeline_ext(0, def, false);
+		vk.tris_mirror_debug_green_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 	{
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_RED;
 		def.face_culling = CT_FRONT_SIDED;
-		vk.tris_debug_red_pipeline = vk_find_pipeline_ext(0, def, false);
+		vk.tris_debug_red_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 	{
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_RED;
 		def.face_culling = CT_BACK_SIDED;
-		vk.tris_mirror_debug_red_pipeline = vk_find_pipeline_ext(0, def, false);
+		vk.tris_mirror_debug_red_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 
 	// DrawNormals()
@@ -3142,7 +3142,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = GLS_DEPTHMASK_TRUE;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.primitives = LINE_LIST;
-		vk.normals_debug_pipeline = vk_find_pipeline_ext(0, def, false);
+		vk.normals_debug_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 
 	// RB_DebugPolygon()
@@ -3150,14 +3150,14 @@ static void vk_alloc_persistent_pipelines(void)
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
-		vk.surface_debug_pipeline_solid = vk_find_pipeline_ext(0, def, false);
+		vk.surface_debug_pipeline_solid = vk_find_pipeline_ext(0, &def, false);
 	}
 	{
 		Com_Memset(&def, 0, sizeof(def));
 		def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.primitives = LINE_LIST;
-		vk.surface_debug_pipeline_outline = vk_find_pipeline_ext(0, def, false);
+		vk.surface_debug_pipeline_outline = vk_find_pipeline_ext(0, &def, false);
 	}
 
 	// RB_ShowImages
@@ -3166,7 +3166,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = GLS_DEPTHTEST_DISABLE | GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.primitives = TRIANGLE_STRIP;
-		vk.images_debug_pipeline = vk_find_pipeline_ext(0, def, false);
+		vk.images_debug_pipeline = vk_find_pipeline_ext(0, &def, false);
 	}
 }
 
@@ -4906,7 +4906,7 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 
 		buffer_size += width * height * bpp;
 
-		if (num_regions >= mipmaps || (width == 1 && height == 1) || num_regions >= (int)arrayLen(regions))
+		if (num_regions >= mipmaps || (width == 1 && height == 1) || num_regions >= arrayLen(regions))
 			break;
 
 		x >>= 1;
@@ -4988,19 +4988,23 @@ void vk_update_descriptor_set(image_t &image, bool mipmap)
 	qvkUpdateDescriptorSets(vk.device, 1, &descriptor_write, 0, NULL);
 }
 
-void vk_destroy_image_resources(VkImage &image, VkImageView &imageView)
+void vk_destroy_image_resources(VkImage *image, VkImageView *imageView)
 {
-
-	if (image != VK_NULL_HANDLE)
+	if (image != NULL)
 	{
-		qvkDestroyImage(vk.device, image, NULL);
-		image = VK_NULL_HANDLE;
+		if (*image != VK_NULL_HANDLE)
+		{
+			qvkDestroyImage(vk.device, *image, NULL);
+			*image = VK_NULL_HANDLE;
+		}
 	}
-
-	if (imageView != VK_NULL_HANDLE)
+	if (imageView != NULL)
 	{
-		qvkDestroyImageView(vk.device, imageView, NULL);
-		imageView = VK_NULL_HANDLE;
+		if (*imageView != VK_NULL_HANDLE)
+		{
+			qvkDestroyImageView(vk.device, *imageView, NULL);
+			*imageView = VK_NULL_HANDLE;
+		}
 	}
 }
 
@@ -5546,7 +5550,7 @@ static void push_attr(uint32_t location, uint32_t binding, VkFormat format)
 	num_attrs++;
 }
 
-VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIndex)
+VkPipeline create_pipeline(const Vk_Pipeline_Def *def, renderPass_t renderPassIndex)
 {
 	VkShaderModule *vs_module = NULL;
 	VkShaderModule *fs_module = NULL;
@@ -5570,9 +5574,9 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	VkPipelineShaderStageCreateInfo shader_stages[2];
 	VkBool32 alphaToCoverage = VK_FALSE;
 	unsigned int atest_bits;
-	unsigned int state_bits = def.state_bits;
+	unsigned int state_bits = def->state_bits;
 
-	switch (def.shader_type)
+	switch (def->shader_type)
 	{
 
 	case TYPE_SIGNLE_TEXTURE_LIGHTING:
@@ -5746,13 +5750,13 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 		break;
 
 	default:
-		ri.Error(ERR_DROP, "create_pipeline_plus: unknown shader type %i\n", def.shader_type);
+		ri.Error(ERR_DROP, "create_pipeline_plus: unknown shader type %i\n", def->shader_type);
 		return 0;
 	}
 
-	if (def.fog_stage)
+	if (def->fog_stage)
 	{
-		switch (def.shader_type)
+		switch (def->shader_type)
 		{
 		case TYPE_FOG_ONLY:
 		case TYPE_DOT:
@@ -5776,7 +5780,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	// Com_Memset( vert_spec_data, 0, sizeof( vert_spec_data ) );
 	Com_Memset(frag_spec_data, 0, sizeof(frag_spec_data));
 
-	// vert_spec_data[0] = def.clipping_plane ? 1 : 0;
+	// vert_spec_data[0] = def->clipping_plane ? 1 : 0;
 
 	// fragment shader specialization data
 	atest_bits = state_bits & GLS_ATEST_BITS;
@@ -5811,7 +5815,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 #endif
 
 	// constant color
-	switch (def.shader_type)
+	switch (def->shader_type)
 	{
 	default:
 		frag_spec_data[4].i = 0;
@@ -5828,17 +5832,17 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	}
 
 	// abs lighting
-	switch (def.shader_type)
+	switch (def->shader_type)
 	{
 	case TYPE_SIGNLE_TEXTURE_LIGHTING:
 	case TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
-		frag_spec_data[5].i = def.abs_light ? 1 : 0;
+		frag_spec_data[5].i = def->abs_light ? 1 : 0;
 	default:
 		break;
 	}
 
 	// multutexture mode
-	switch (def.shader_type)
+	switch (def->shader_type)
 	{
 	case TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
 	case TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV:
@@ -5916,12 +5920,12 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 		break;
 	}
 
-	frag_spec_data[8].f = ((float)def.color.rgb) / 255.0;
-	frag_spec_data[9].f = ((float)def.color.alpha) / 255.0;
+	frag_spec_data[8].f = ((float)def->color.rgb) / 255.0;
+	frag_spec_data[9].f = ((float)def->color.alpha) / 255.0;
 
-	if (def.fog_stage)
+	if (def->fog_stage)
 	{
-		frag_spec_data[10].i = def.acff;
+		frag_spec_data[10].i = def->acff;
 	}
 	else
 	{
@@ -6002,7 +6006,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	// Vertex input
 	//
 	num_binds = num_attrs = 0;
-	switch (def.shader_type)
+	switch (def->shader_type)
 	{
 
 	case TYPE_FOG_ONLY:
@@ -6241,7 +6245,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 		break;
 
 	default:
-		ri.Error(ERR_DROP, "%s: invalid shader type - %i", __func__, def.shader_type);
+		ri.Error(ERR_DROP, "%s: invalid shader type - %i", __func__, def->shader_type);
 		break;
 	}
 
@@ -6261,7 +6265,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	input_assembly_state.flags = 0;
 	input_assembly_state.primitiveRestartEnable = VK_FALSE;
 
-	switch (def.primitives)
+	switch (def->primitives)
 	{
 	case LINE_LIST:
 		input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
@@ -6296,7 +6300,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	rasterization_state.flags = 0;
 	rasterization_state.depthClampEnable = VK_FALSE;
 	rasterization_state.rasterizerDiscardEnable = VK_FALSE;
-	if (def.shader_type == TYPE_DOT)
+	if (def->shader_type == TYPE_DOT)
 	{
 		rasterization_state.polygonMode = VK_POLYGON_MODE_POINT;
 	}
@@ -6305,26 +6309,26 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 		rasterization_state.polygonMode = (state_bits & GLS_POLYMODE_LINE) ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
 	}
 
-	switch (def.face_culling)
+	switch (def->face_culling)
 	{
 	case CT_TWO_SIDED:
 		rasterization_state.cullMode = VK_CULL_MODE_NONE;
 		break;
 	case CT_FRONT_SIDED:
-		rasterization_state.cullMode = (def.mirror ? VK_CULL_MODE_FRONT_BIT : VK_CULL_MODE_BACK_BIT);
+		rasterization_state.cullMode = (def->mirror ? VK_CULL_MODE_FRONT_BIT : VK_CULL_MODE_BACK_BIT);
 		break;
 	case CT_BACK_SIDED:
-		rasterization_state.cullMode = (def.mirror ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_FRONT_BIT);
+		rasterization_state.cullMode = (def->mirror ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_FRONT_BIT);
 		break;
 	default:
-		ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode %i\n", def.face_culling);
+		ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode %i\n", def->face_culling);
 		break;
 	}
 
 	rasterization_state.frontFace = VK_FRONT_FACE_CLOCKWISE; // Q3 defaults to clockwise vertex order
 
 	// depth bias state
-	if (def.polygon_offset)
+	if (def->polygon_offset)
 	{
 		rasterization_state.depthBiasEnable = VK_TRUE;
 		rasterization_state.depthBiasClamp = 0.0f;
@@ -6344,8 +6348,8 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 		rasterization_state.depthBiasSlopeFactor = 0.0f;
 	}
 
-	if (def.line_width)
-		rasterization_state.lineWidth = (float)def.line_width;
+	if (def->line_width)
+		rasterization_state.lineWidth = (float)def->line_width;
 	else
 		rasterization_state.lineWidth = 1.0f;
 
@@ -6374,12 +6378,12 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	depth_stencil_state.depthCompareOp = (state_bits & GLS_DEPTHFUNC_EQUAL) ? VK_COMPARE_OP_EQUAL : VK_COMPARE_OP_LESS_OR_EQUAL;
 #endif
 	depth_stencil_state.depthBoundsTestEnable = VK_FALSE;
-	depth_stencil_state.stencilTestEnable = (def.shadow_phase != SHADOW_DISABLED) ? VK_TRUE : VK_FALSE;
+	depth_stencil_state.stencilTestEnable = (def->shadow_phase != SHADOW_DISABLED) ? VK_TRUE : VK_FALSE;
 
-	if (def.shadow_phase == SHADOW_EDGES)
+	if (def->shadow_phase == SHADOW_EDGES)
 	{
 		depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
-		depth_stencil_state.front.passOp = (def.face_culling == CT_FRONT_SIDED) ? VK_STENCIL_OP_INCREMENT_AND_CLAMP : VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+		depth_stencil_state.front.passOp = (def->face_culling == CT_FRONT_SIDED) ? VK_STENCIL_OP_INCREMENT_AND_CLAMP : VK_STENCIL_OP_DECREMENT_AND_CLAMP;
 		depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
 		depth_stencil_state.front.compareOp = VK_COMPARE_OP_ALWAYS;
 		depth_stencil_state.front.compareMask = 255;
@@ -6388,7 +6392,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 
 		depth_stencil_state.back = depth_stencil_state.front;
 	}
-	else if (def.shadow_phase == SHADOW_FS_QUAD)
+	else if (def->shadow_phase == SHADOW_FS_QUAD)
 	{
 		depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
 		depth_stencil_state.front.passOp = VK_STENCIL_OP_KEEP;
@@ -6407,7 +6411,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	Com_Memset(&attachment_blend_state, 0, sizeof(attachment_blend_state));
 	attachment_blend_state.blendEnable = (state_bits & (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)) ? VK_TRUE : VK_FALSE;
 
-	if (def.shadow_phase == SHADOW_EDGES || def.shader_type == TYPE_SIGNLE_TEXTURE_DF)
+	if (def->shadow_phase == SHADOW_EDGES || def->shader_type == TYPE_SIGNLE_TEXTURE_DF)
 		attachment_blend_state.colorWriteMask = 0;
 	else
 		attachment_blend_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -6483,7 +6487,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 		attachment_blend_state.colorBlendOp = VK_BLEND_OP_ADD;
 		attachment_blend_state.alphaBlendOp = VK_BLEND_OP_ADD;
 
-		if (def.allow_discard && vkSamples != VK_SAMPLE_COUNT_1_BIT)
+		if (def->allow_discard && vkSamples != VK_SAMPLE_COUNT_1_BIT)
 		{
 			// try to reduce pixel fillrate for transparent surfaces, this yields 1..10% fps increase when multisampling in enabled
 			if (attachment_blend_state.srcColorBlendFactor == VK_BLEND_FACTOR_SRC_ALPHA && attachment_blend_state.dstColorBlendFactor == VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA)
@@ -6530,7 +6534,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	create_info.pColorBlendState = &blend_state;
 	create_info.pDynamicState = &dynamic_state;
 
-	// if ( def.shader_type == TYPE_DOT )
+	// if ( def->shader_type == TYPE_DOT )
 	//	create_info.layout = vk.pipeline_layout_storage;
 	// else
 	create_info.layout = vk.pipeline_layout;
@@ -6551,7 +6555,7 @@ VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIn
 	return pipeline;
 }
 
-uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def)
+uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def *def)
 {
 	VK_Pipeline_t *pipeline;
 	if (vk.pipelines_count >= MAX_VK_PIPELINES)
@@ -6563,7 +6567,7 @@ uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def)
 	{
 		int j;
 		pipeline = &vk.pipelines[vk.pipelines_count];
-		pipeline->def = def;
+		pipeline->def = *def;
 		for (j = 0; j < RENDER_PASS_COUNT; j++)
 		{
 			pipeline->handle[j] = VK_NULL_HANDLE;
@@ -6578,7 +6582,7 @@ VkPipeline vk_gen_pipeline(uint32_t index)
 	{
 		VK_Pipeline_t *pipeline = vk.pipelines + index;
 		if (pipeline->handle[vk.renderPassIndex] == VK_NULL_HANDLE)
-			pipeline->handle[vk.renderPassIndex] = create_pipeline(pipeline->def, vk.renderPassIndex);
+			pipeline->handle[vk.renderPassIndex] = create_pipeline(&pipeline->def, vk.renderPassIndex);
 		return pipeline->handle[vk.renderPassIndex];
 	}
 	else
@@ -6587,7 +6591,7 @@ VkPipeline vk_gen_pipeline(uint32_t index)
 	}
 }
 
-uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def &def, bool use)
+uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def *def, bool use)
 {
 	const Vk_Pipeline_Def *cur_def;
 	uint32_t index;
@@ -6595,7 +6599,7 @@ uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def &def, bool us
 	for (index = base; index < vk.pipelines_count; index++)
 	{
 		cur_def = &vk.pipelines[index].def;
-		if (memcmp(cur_def, &def, sizeof(def)) == 0)
+		if (memcmp(cur_def, def, sizeof(*def)) == 0)
 		{
 			goto found;
 		}
@@ -6610,15 +6614,15 @@ found:
 	return index;
 }
 
-void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def &def)
+void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def *def)
 {
 	if (pipeline >= vk.pipelines_count)
 	{
-		Com_Memset(&def, 0, sizeof(def));
+		Com_Memset(def, 0, sizeof(*def));
 	}
 	else
 	{
-		Com_Memcpy(&def, &vk.pipelines[pipeline].def, sizeof(def));
+		Com_Memcpy(def, &vk.pipelines[pipeline].def, sizeof(*def));
 	}
 }
 

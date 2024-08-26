@@ -317,7 +317,7 @@ static genFunc_t NameToGenFunc(std::string_view funcname)
 		return GF_NOISE;
 	}
 
-	ri.Printf(PRINT_WARNING, "WARNING: invalid genfunc name '%s' in shader '%s'\n", funcname.data(), shader.name);
+	ri.Printf(PRINT_WARNING, "WARNING: invalid genfunc name '%s' in shader '%s'\n", funcname, shader.name);
 	return GF_SIN;
 }
 
@@ -690,7 +690,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 
 				if (!stage.bundle[0].image[0])
 				{
-					ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token.data(), shader.name);
+					ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token, shader.name);
 					return false;
 				}
 			}
@@ -1856,8 +1856,7 @@ FinishStage
 */
 static void FinishStage(shaderStage_t &stage)
 {
-	int n;
-	uint32_t i;
+	int i, n;
 
 	if (!tr.mergeLightmaps)
 	{
@@ -2480,7 +2479,7 @@ static int rgbWeight( const textureBundle_t *bundle ) {
 static const textureBundle_t *lightingBundle(int stageIndex, const textureBundle_t *selected)
 {
 	const shaderStage_t *stage = &stages[stageIndex];
-	uint32_t i;
+	int i;
 
 	for (i = 0; i < stage->numTexBundles; i++)
 	{
@@ -3177,8 +3176,7 @@ from the current global working shader
 */
 static shader_t *FinishShader(void)
 {
-	int stage, i, m;
-	uint32_t n;
+	int stage, i, n, m;
 	bool hasLightmapStage;
 	bool vertexLightmap;
 	bool colorBlend;
@@ -3745,18 +3743,18 @@ static shader_t *FinishShader(void)
 			}
 
 			def.mirror = false;
-			pStage->vk_pipeline[0] = vk_find_pipeline_ext(0, def, true);
+			pStage->vk_pipeline[0] = vk_find_pipeline_ext(0, &def, true);
 			def.mirror = true;
-			pStage->vk_mirror_pipeline[0] = vk_find_pipeline_ext(0, def, false);
+			pStage->vk_mirror_pipeline[0] = vk_find_pipeline_ext(0, &def, false);
 
 			if (pStage->depthFragment)
 			{
 				def.mirror = false;
 				def.shader_type = TYPE_SIGNLE_TEXTURE_DF;
-				pStage->vk_pipeline_df = vk_find_pipeline_ext(0, def, true);
+				pStage->vk_pipeline_df = vk_find_pipeline_ext(0, &def, true);
 				def.mirror = true;
 				def.shader_type = TYPE_SIGNLE_TEXTURE_DF;
-				pStage->vk_mirror_pipeline_df = vk_find_pipeline_ext(0, def, false);
+				pStage->vk_mirror_pipeline_df = vk_find_pipeline_ext(0, &def, false);
 			}
 
 #ifdef USE_FOG_COLLAPSE
@@ -3765,16 +3763,16 @@ static shader_t *FinishShader(void)
 				Vk_Pipeline_Def def;
 				Vk_Pipeline_Def def_mirror;
 
-				vk_get_pipeline_def(pStage->vk_pipeline[0], def);
-				vk_get_pipeline_def(pStage->vk_mirror_pipeline[0], def_mirror);
+				vk_get_pipeline_def(pStage->vk_pipeline[0], &def);
+				vk_get_pipeline_def(pStage->vk_mirror_pipeline[0], &def_mirror);
 
 				def.fog_stage = 1;
 				def_mirror.fog_stage = 1;
 				def.acff = pStage->bundle[0].adjustColorsForFog;
 				def_mirror.acff = pStage->bundle[0].adjustColorsForFog;
 
-				pStage->vk_pipeline[1] = vk_find_pipeline_ext(0, def, false);
-				pStage->vk_mirror_pipeline[1] = vk_find_pipeline_ext(0, def_mirror, false);
+				pStage->vk_pipeline[1] = vk_find_pipeline_ext(0, &def, false);
+				pStage->vk_mirror_pipeline[1] = vk_find_pipeline_ext(0, &def_mirror, false);
 
 				pStage->bundle[0].adjustColorsForFog = ACFF_NONE; // will be handled in shader from now
 
@@ -4043,7 +4041,7 @@ shader_t *R_FindShader(std::string_view name, int lightmapIndex, bool mipRawImag
 	else if (lightmapIndex < LIGHTMAP_2D)
 	{
 		// negative lightmap indexes cause stray pointers (think tr.lightmaps[lightmapIndex])
-		ri.Printf(PRINT_WARNING, "WARNING: shader '%s' has invalid lightmap index of %d\n", name.data(), lightmapIndex);
+		ri.Printf(PRINT_WARNING, "WARNING: shader '%s' has invalid lightmap index of %d\n", name, lightmapIndex);
 		lightmapIndex = LIGHTMAP_BY_VERTEX;
 	}
 
@@ -4118,7 +4116,7 @@ shader_t *R_FindShader(std::string_view name, int lightmapIndex, bool mipRawImag
 		image = R_FindImageFile(name.data(), flags);
 		if (!image)
 		{
-			ri.Printf(PRINT_DEVELOPER, "Couldn't find image file for shader %s\n", name.data());
+			ri.Printf(PRINT_DEVELOPER, "Couldn't find image file for shader %s\n", name);
 			shader.defaultShader = true;
 			return FinishShader();
 		}

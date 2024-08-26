@@ -417,6 +417,8 @@ void MakeNormalVectors(const vec3_t &forward, vec3_t &right, vec3_t &up)
 #include <intrin.h>
 #endif
 
+
+
 float Q_fabs(float f)
 {
 	floatint_t fi;
@@ -622,26 +624,26 @@ float RadiusFromBounds(const vec3_t &mins, const vec3_t &maxs)
 	return VectorLength(corner);
 }
 
-void ClearBounds_plus(vec_t *mins, vec_t *maxs)
+void ClearBounds(vec3_t mins, vec3_t maxs)
 {
 	mins[0] = mins[1] = mins[2] = 99999;
 	maxs[0] = maxs[1] = maxs[2] = -99999;
 }
 
-vec_t VectorNormalize(vec4_t &v)
-{
-	vec_t lengthSquared = v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3];
-	if (lengthSquared > 0.0f)
-	{
-		vec_t invLength = 1.0f / std::sqrt(lengthSquared);
-		v[0] *= invLength;
-		v[1] *= invLength;
-		v[2] *= invLength;
-		v[3] *= invLength;
-		return lengthSquared * invLength;
-	}
-	return 0.0f;
+
+vec_t VectorNormalize(vec4_t &v) {
+    vec_t lengthSquared = v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3];
+    if (lengthSquared > 0.0f) {
+        vec_t invLength = 1.0f / std::sqrt(lengthSquared);
+        v[0] *= invLength;
+        v[1] *= invLength;
+        v[2] *= invLength;
+        v[3] *= invLength;
+        return lengthSquared * invLength;
+    }
+    return 0.0f;
 }
+
 
 vec_t VectorNormalize_plus(vec3_t &v)
 {
@@ -661,19 +663,19 @@ vec_t VectorNormalize_plus(vec3_t &v)
 
 vec_t VectorNormalize_plus(vec4_t &v)
 {
-	vec_t lengthSquared = v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3];
+    vec_t lengthSquared = v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3];
 
-	if (lengthSquared > 0.0f)
-	{
-		vec_t invLength = 1.0f / std::sqrt(lengthSquared);
-		v[0] *= invLength;
-		v[1] *= invLength;
-		v[2] *= invLength;
-		v[3] *= invLength;
-		return lengthSquared * invLength;
-	}
+    if (lengthSquared > 0.0f)
+    {
+        vec_t invLength = 1.0f / std::sqrt(lengthSquared);
+        v[0] *= invLength;
+        v[1] *= invLength;
+        v[2] *= invLength;
+        v[3] *= invLength;
+        return lengthSquared * invLength;
+    }
 
-	return 0.0f;
+    return 0.0f;
 }
 
 vec_t VectorNormalize2(const vec3_t v, vec3_t out)
@@ -779,6 +781,42 @@ void MatrixMultiply(float in1[3][3], float in2[3][3], float out[3][3])
 				in1[2][2] * in2[2][1];
 	out[2][2] = in1[2][0] * in2[0][2] + in1[2][1] * in2[1][2] +
 				in1[2][2] * in2[2][2];
+}
+
+void AngleVectors(const vec3_t &angles, vec3_t &forward, vec3_t &right, vec3_t &up)
+{
+	float angle;
+	static float sr, sp, sy, cr, cp, cy;
+	// static to help MS compiler fp bugs
+
+	angle = angles[YAW] * (M_PI * 2 / 360);
+	sy = sin(angle);
+	cy = cos(angle);
+	angle = angles[PITCH] * (M_PI * 2 / 360);
+	sp = sin(angle);
+	cp = cos(angle);
+	angle = angles[ROLL] * (M_PI * 2 / 360);
+	sr = sin(angle);
+	cr = cos(angle);
+
+	if (forward)
+	{
+		forward[0] = cp * cy;
+		forward[1] = cp * sy;
+		forward[2] = -sp;
+	}
+	if (right)
+	{
+		right[0] = (-1 * sr * sp * cy + -1 * cr * -sy);
+		right[1] = (-1 * sr * sp * sy + -1 * cr * cy);
+		right[2] = -1 * sr * cp;
+	}
+	if (up)
+	{
+		up[0] = (cr * sp * cy + -sr * -sy);
+		up[1] = (cr * sp * sy + -sr * cy);
+		up[2] = cr * cp;
+	}
 }
 
 /*
@@ -943,32 +981,3 @@ void SetPlaneSignbits(cplane_t *out)
 	out->signbits = bits;
 }
 
-void AddPointToBounds_plus(const vec_t *v, vec_t *mins, vec_t *maxs)
-{
-	if (v[0] < mins[0])
-	{
-		mins[0] = v[0];
-	}
-	if (v[0] > maxs[0])
-	{
-		maxs[0] = v[0];
-	}
-
-	if (v[1] < mins[1])
-	{
-		mins[1] = v[1];
-	}
-	if (v[1] > maxs[1])
-	{
-		maxs[1] = v[1];
-	}
-
-	if (v[2] < mins[2])
-	{
-		mins[2] = v[2];
-	}
-	if (v[2] > maxs[2])
-	{
-		maxs[2] = v[2];
-	}
-}

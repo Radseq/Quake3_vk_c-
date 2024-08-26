@@ -47,6 +47,8 @@ static int lightmapHeight;
 static int lightmapCountX;
 static int lightmapCountY;
 
+
+
 /*
 
 Loads and prepares a map file for scene rendering.
@@ -908,7 +910,7 @@ static void ParseTriSurf(const dsurface_t &ds, const drawVert_t *verts, msurface
 	surf.data = (surfaceType_t *)tri;
 
 	// copy vertexes
-	ClearBounds_plus(tri->bounds[0], tri->bounds[1]);
+	ClearBounds(tri->bounds[0], tri->bounds[1]);
 	verts += LittleLong(ds.firstVert);
 	for (i = 0; i < numVerts; i++)
 	{
@@ -917,7 +919,7 @@ static void ParseTriSurf(const dsurface_t &ds, const drawVert_t *verts, msurface
 			tri->verts[i].xyz[j] = LittleFloat(verts[i].xyz[j]);
 			tri->verts[i].normal[j] = LittleFloat(verts[i].normal[j]);
 		}
-		AddPointToBounds_plus(tri->verts[i].xyz, tri->bounds[0], tri->bounds[1]);
+		AddPointToBounds(tri->verts[i].xyz, tri->bounds[0], tri->bounds[1]);
 		for (j = 0; j < 2; j++)
 		{
 			tri->verts[i].st[j] = LittleFloat(verts[i].st[j]);
@@ -1939,7 +1941,7 @@ R_SetParent
 static void R_SetParent(mnode_t *node, mnode_t *parent)
 {
 	node->parent = parent;
-	if (node->contents != (int)CONTENTS_NODE)
+	if (node->contents != CONTENTS_NODE)
 		return;
 	R_SetParent(node->children[0], node);
 	R_SetParent(node->children[1], node);
@@ -2515,7 +2517,7 @@ void RE_LoadWorldMap(const char *name)
 	{
 		ri.Error(ERR_DROP, "%s: couldn't load %s", __func__, name);
 	}
-	if (size < (int)sizeof(dheader_t))
+	if (size < sizeof(dheader_t))
 	{
 		ri.Error(ERR_DROP, "%s: %s has truncated header", __func__, name);
 	}
@@ -2539,7 +2541,7 @@ void RE_LoadWorldMap(const char *name)
 	fileBase = (byte *)header;
 
 	// swap all the lumps
-	for (i = 0; i < (int)sizeof(dheader_t) / 4; i++)
+	for (i = 0; i < sizeof(dheader_t) / 4; i++)
 	{
 		((int32_t *)header)[i] = LittleLong(((int32_t *)header)[i]);
 	}
