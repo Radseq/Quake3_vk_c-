@@ -245,14 +245,3 @@ int atoi_from_view(std::string_view sv) {
     std::from_chars(sv.data(), sv.data() + sv.size(), result);
     return result;
 }
-
-std::string_view COM_GetExtension_plus(std::string_view name) {
-    auto dot = name.find_last_of('.');
-    auto slash = name.find_last_of('/');
-
-    if (dot != std::string_view::npos && (slash == std::string_view::npos || slash < dot)) {
-        return name.substr(dot + 1);
-    } else {
-        return {};
-    }
-}

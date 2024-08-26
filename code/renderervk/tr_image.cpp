@@ -20,7 +20,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 // tr_image.c
-#include "string_operations.hpp"
 #include "tr_image.hpp"
 #include "tr_bsp.hpp"
 #include "vk.hpp"
@@ -35,10 +34,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define generateHashValue(fname) Com_GenerateHashValue((fname), FILE_HASH_SIZE)
 
-#include <string>
-#include <cctype>
-#include <cstring>
-#include <iostream>
 #include <algorithm> // for std::clamp
 #include <cstdint>	 // for std::uint32_t
 #include <algorithm>
@@ -351,7 +346,7 @@ static void R_LightScaleTexture(byte *in, int inwidth, int inheight, bool only_g
 	}
 }
 
-void TextureMode(std::string_view string)
+void TextureMode(const char *string)
 {
 	const textureMode_t *mode;
 	image_t *img;
@@ -360,7 +355,7 @@ void TextureMode(std::string_view string)
 	mode = NULL;
 	for (i = 0; i < arrayLen(modes); i++)
 	{
-		if (!Q_stricmp_cpp(modes[i].name, string))
+		if (!Q_stricmp(modes[i].name, string))
 		{
 			mode = &modes[i];
 			break;
@@ -1030,10 +1025,10 @@ Loads any of the supported image types into a canonical
 32 bit format.
 =================
 */
-static const char *R_LoadImage(std::string_view name, byte **pic, int *width, int *height)
+static const char *R_LoadImage(const char *name, byte **pic, int *width, int *height)
 {
 	static char localName[MAX_QPATH];
-	const char *altName;
+	const char *altName, *ext;
 	// bool orgNameFailed = false;
 	int orgLoader = -1;
 	int i;
@@ -1042,15 +1037,15 @@ static const char *R_LoadImage(std::string_view name, byte **pic, int *width, in
 	*width = 0;
 	*height = 0;
 
-	Q_strncpyz(localName, name.data(), sizeof(localName));
+	Q_strncpyz(localName, name, sizeof(localName));
 
-	std::string_view ext = COM_GetExtension_plus(localName);
-	if (ext.size() > 0)
+	ext = COM_GetExtension(localName);
+	if (*ext)
 	{
 		// Look for the correct loader and use it
 		for (i = 0; i < numImageLoaders; i++)
 		{
-			if (!Q_stricmp_cpp(ext, imageLoaders[i].ext))
+			if (!Q_stricmp(ext, imageLoaders[i].ext))
 			{
 				// Load
 				imageLoaders[i].ImageLoader(localName, pic, width, height);
@@ -1067,7 +1062,7 @@ static const char *R_LoadImage(std::string_view name, byte **pic, int *width, in
 				// try again without the extension
 				// orgNameFailed = true;
 				orgLoader = i;
-				COM_StripExtension(name.data(), localName, MAX_QPATH);
+				COM_StripExtension(name, localName, MAX_QPATH);
 			}
 			else
 			{
@@ -1114,7 +1109,7 @@ Finds or loads the given image.
 Returns NULL if it fails, not a default image.
 ==============
 */
-image_t *R_FindImageFile(std::string_view name, imgFlags_t flags)
+image_t *R_FindImageFile(const char *name, imgFlags_t flags)
 {
 	image_t *image;
 	const char *localName;
@@ -1123,39 +1118,39 @@ image_t *R_FindImageFile(std::string_view name, imgFlags_t flags)
 	byte *pic;
 	int hash;
 
-	if (name.size() == 0)
+	if (!name)
 	{
 		return NULL;
 	}
 
-	hash = generateHashValue(name.data());
+	hash = generateHashValue(name);
 
 	//
 	// see if the image is already loaded
 	//
 	for (image = hashTable[hash]; image; image = image->next)
 	{
-		if (!Q_stricmp_cpp(name, std::string_view(image->imgName)))
+		if (!Q_stricmp(name, image->imgName))
 		{
 			// the white image can be used with any set of parms, but other mismatches are errors
-			if (name.compare("*white"))
+			if (strcmp(name, "*white"))
 			{
 				if (image->flags != flags)
 				{
-					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name.data(), image->flags, flags);
+					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name, image->flags, flags);
 				}
 			}
 			return image;
 		}
 	}
 
-	if (strrchr(name.data(), '.') > name)
+	if (strrchr(name, '.') > name)
 	{
 		// try with stripped extension
-		COM_StripExtension(name.data(), strippedName, sizeof(strippedName));
+		COM_StripExtension(name, strippedName, sizeof(strippedName));
 		for (image = hashTable[hash]; image; image = image->next)
 		{
-			if (!Q_stricmp_cpp(std::string_view(strippedName), std::string_view(image->imgName)))
+			if (!Q_stricmp(strippedName, image->imgName))
 			{
 				// if ( strcmp( strippedName, "*white" ) ) {
 				if (image->flags != flags)
@@ -1200,7 +1195,7 @@ image_t *R_FindImageFile(std::string_view name, imgFlags_t flags)
 		}
 	}
 
-	image = R_CreateImage(name.data(), localName, pic, width, height, flags);
+	image = R_CreateImage(name, localName, pic, width, height, flags);
 	ri.Free(pic);
 	return image;
 }
@@ -1485,83 +1480,111 @@ This is unfortunate, but the skin files aren't
 compatible with our normal parsing rules.
 ==================
 */
-static std::string CommaParse(const char** data_p) {
-    //const int MAX_TOKEN_CHARS = 1024;
-    std::string com_token;
-    com_token.reserve(MAX_TOKEN_CHARS);
+static const char *CommaParse(const char **data_p)
+{
+	int c, len;
+	const char *data;
+	static char com_token[MAX_TOKEN_CHARS];
 
-    if (!data_p || !*data_p) {
-        return com_token;
-    }
+	data = *data_p;
+	com_token[0] = '\0';
 
-    std::string_view data(*data_p);
+	// make sure incoming data is valid
+	if (!data)
+	{
+		*data_p = NULL;
+		return com_token;
+	}
 
-    while (!data.empty()) {
-        // Skip whitespace
-        while (!data.empty() && std::isspace(data.front())) {
-            data.remove_prefix(1);
-        }
+	len = 0;
 
-        if (data.empty()) {
-            *data_p = nullptr;
-            return com_token;
-        }
+	while (1)
+	{
+		// skip whitespace
+		while ((c = *data) <= ' ')
+		{
+			if (c == '\0')
+			{
+				break;
+			}
+			data++;
+		}
 
-        // Skip double slash comments
-        if (data.size() > 1 && data[0] == '/' && data[1] == '/') {
-            data.remove_prefix(2);
-            while (!data.empty() && data.front() != '\n') {
-                data.remove_prefix(1);
-            }
-            continue;
-        }
+		c = *data;
 
-        // Skip /* */ comments
-        if (data.size() > 1 && data[0] == '/' && data[1] == '*') {
-            data.remove_prefix(2);
-            while (data.size() > 1 && !(data[0] == '*' && data[1] == '/')) {
-                data.remove_prefix(1);
-            }
-            if (data.size() > 1) {
-                data.remove_prefix(2);
-            }
-            continue;
-        }
+		// skip double slash comments
+		if (c == '/' && data[1] == '/')
+		{
+			data += 2;
+			while (*data && *data != '\n')
+			{
+				data++;
+			}
+		}
+		// skip /* */ comments
+		else if (c == '/' && data[1] == '*')
+		{
+			data += 2;
+			while (*data && (*data != '*' || data[1] != '/'))
+			{
+				data++;
+			}
+			if (*data)
+			{
+				data += 2;
+			}
+		}
+		else
+		{
+			break;
+		}
+	}
 
-        break;
-    }
+	if (c == '\0')
+	{
+		return "";
+	}
 
-    if (data.empty()) {
-        *data_p = nullptr;
-        return com_token;
-    }
+	// handle quoted strings
+	if (c == '\"')
+	{
+		data++;
+		while (1)
+		{
+			c = *data;
+			if (c == '\"' || c == '\0')
+			{
+				if (c == '\"')
+					data++;
+				com_token[len] = '\0';
+				*data_p = data;
+				return com_token;
+			}
+			data++;
+			if (len < MAX_TOKEN_CHARS - 1)
+			{
+				com_token[len] = c;
+				len++;
+			}
+		}
+	}
 
-    // Handle quoted strings
-    if (data.front() == '"') {
-        data.remove_prefix(1);
-        while (!data.empty() && data.front() != '"') {
-            if (com_token.size() < MAX_TOKEN_CHARS - 1) {
-                com_token += data.front();
-            }
-            data.remove_prefix(1);
-        }
-        if (!data.empty() && data.front() == '"') {
-            data.remove_prefix(1);
-        }
-        *data_p = data.data();
-        return com_token;
-    }
+	// parse a regular word
+	do
+	{
+		if (len < MAX_TOKEN_CHARS - 1)
+		{
+			com_token[len] = c;
+			len++;
+		}
+		data++;
+		c = *data;
+	} while (c > ' ' && c != ',');
 
-    // Parse a regular word
-    while (!data.empty() && !std::isspace(data.front()) && data.front() != ',') {
-        if (com_token.size() < MAX_TOKEN_CHARS - 1) {
-            com_token += data.front();
-        }
-        data.remove_prefix(1);
-    }
+	com_token[len] = '\0';
 
-    *data_p = data.data();
-    return com_token;
+	*data_p = data;
+	return com_token;
 }
 
 qhandle_t RE_RegisterSkin(const char *name)
@@ -1576,7 +1599,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 		void *v;
 	} text;
 	const char *text_p;
-	std::string_view token;
+	const char *token;
 	char surfName[MAX_QPATH];
 	int totalSurfaces;
 
@@ -1623,7 +1646,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 	{
 		skin->numSurfaces = 1;
 		skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
-		skin->surfaces[0].shader = R_FindShader(std::string_view(name), LIGHTMAP_NONE, true);
+		skin->surfaces[0].shader = R_FindShader(name, LIGHTMAP_NONE, true);
 		return hSkin;
 	}
 
@@ -1640,7 +1663,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 	{
 		// get surface name
 		token = CommaParse(&text_p);
-		Q_strncpyz(surfName, token.data(), sizeof(surfName));
+		Q_strncpyz(surfName, token, sizeof(surfName));
 
 		if (!token[0])
 		{
@@ -1654,7 +1677,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 			text_p++;
 		}
 
-		if (strstr(token.data(), "tag_"))
+		if (strstr(token, "tag_"))
 		{
 			continue;
 		}
