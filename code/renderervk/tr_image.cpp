@@ -354,6 +354,7 @@ static void R_LightScaleTexture(byte *in, int inwidth, int inheight, bool only_g
 void TextureMode(std::string_view string)
 {
 	const textureMode_t *mode;
+	image_t *img;
 	int i;
 
 	mode = NULL;
@@ -378,8 +379,8 @@ void TextureMode(std::string_view string)
 	vk_wait_idle();
 	for (i = 0; i < tr.numImages; i++)
 	{
-		image_t &img = *tr.images[i];
-		if (img.flags & IMGFLAG_MIPMAP)
+		img = tr.images[i];
+		if (img->flags & IMGFLAG_MIPMAP)
 		{
 			vk_update_descriptor_set(img, true);
 		}
@@ -716,22 +717,22 @@ static void R_MipMap(byte *out, byte *in, int width, int height)
 	}
 }
 
-static void generate_image_upload_data(image_t &image, byte *data, Image_Upload_Data *upload_data)
+static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_Data *upload_data)
 {
 
-	bool mipmap = image.flags & IMGFLAG_MIPMAP;
-	bool picmip = image.flags & IMGFLAG_PICMIP;
+	bool mipmap = image->flags & IMGFLAG_MIPMAP;
+	bool picmip = image->flags & IMGFLAG_PICMIP;
 	byte *resampled_buffer = NULL;
 	int scaled_width, scaled_height;
-	int width = image.width;
-	int height = image.height;
+	int width = image->width;
+	int height = image->height;
 	unsigned *scaled_buffer;
 	int mip_level_size;
 	int miplevel;
 
 	Com_Memset(upload_data, 0, sizeof(*upload_data));
 
-	if (image.flags & IMGFLAG_NOSCALE)
+	if (image->flags & IMGFLAG_NOSCALE)
 	{
 		//
 		// keep original dimensions
@@ -788,7 +789,7 @@ static void generate_image_upload_data(image_t &image, byte *data, Image_Upload_
 	}
 	else
 	{
-		if (image.flags & IMGFLAG_COLORSHIFT)
+		if (image->flags & IMGFLAG_COLORSHIFT)
 		{
 			byte *p = data;
 			int i, n = width * height;
@@ -862,7 +863,7 @@ static void generate_image_upload_data(image_t &image, byte *data, Image_Upload_
 	scaled_buffer = (unsigned int *)ri.Hunk_AllocateTempMemory(sizeof(unsigned) * scaled_width * scaled_height);
 	Com_Memcpy(scaled_buffer, data, scaled_width * scaled_height * 4);
 
-	if (!(image.flags & IMGFLAG_NOLIGHTSCALE))
+	if (!(image->flags & IMGFLAG_NOLIGHTSCALE))
 	{
 		R_LightScaleTexture((byte *)scaled_buffer, scaled_width, scaled_height, !mipmap);
 	}
@@ -908,7 +909,7 @@ static void generate_image_upload_data(image_t &image, byte *data, Image_Upload_
 		ri.Hunk_FreeTempMemory(resampled_buffer);
 }
 
-static void upload_vk_image(image_t &image, byte *pic)
+static void upload_vk_image(image_t *image, byte *pic)
 {
 
 	Image_Upload_Data upload_data;
@@ -919,23 +920,23 @@ static void upload_vk_image(image_t &image, byte *pic)
 	w = upload_data.base_level_width;
 	h = upload_data.base_level_height;
 
-	if (r_texturebits->integer > 16 || r_texturebits->integer == 0 || (image.flags & IMGFLAG_LIGHTMAP))
+	if (r_texturebits->integer > 16 || r_texturebits->integer == 0 || (image->flags & IMGFLAG_LIGHTMAP))
 	{
-		image.internalFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		image->internalFormat = VK_FORMAT_R8G8B8A8_UNORM;
 		// image->internalFormat = VK_FORMAT_B8G8R8A8_UNORM;
 	}
 	else
 	{
 		bool has_alpha = RawImage_HasAlpha(upload_data.buffer, w * h);
-		image.internalFormat = has_alpha ? VK_FORMAT_B4G4R4A4_UNORM_PACK16 : VK_FORMAT_A1R5G5B5_UNORM_PACK16;
+		image->internalFormat = has_alpha ? VK_FORMAT_B4G4R4A4_UNORM_PACK16 : VK_FORMAT_A1R5G5B5_UNORM_PACK16;
 	}
 
-	image.handle = VK_NULL_HANDLE;
-	image.view = VK_NULL_HANDLE;
-	image.descriptor = VK_NULL_HANDLE;
+	image->handle = VK_NULL_HANDLE;
+	image->view = VK_NULL_HANDLE;
+	image->descriptor = VK_NULL_HANDLE;
 
-	image.uploadWidth = w;
-	image.uploadHeight = h;
+	image->uploadWidth = w;
+	image->uploadHeight = h;
 
 	vk_create_image(image, w, h, upload_data.mip_levels);
 	vk_upload_image_data(image, 0, 0, w, h, upload_data.mip_levels, upload_data.buffer, upload_data.buffer_size, false);
@@ -1017,7 +1018,7 @@ image_t *R_CreateImage(const char *name, const char *name2, byte *pic, int width
 	else
 		image->wrapClampMode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
-	upload_vk_image(*image, pic);
+	upload_vk_image(image, pic);
 	return image;
 }
 

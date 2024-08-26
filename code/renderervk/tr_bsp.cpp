@@ -356,20 +356,20 @@ int R_GetLightmapCoords(const int lightmapIndex, float *x, float *y)
 R_LoadMergedLightmaps
 ===============
 */
-static void R_LoadMergedLightmaps(const lump_t &l, byte *image)
+static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 {
 	const byte *buf;
 	int offs;
 	int i, x, y;
 	float maxIntensity = 0;
 
-	if (l.filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
+	if (l->filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
 		return;
 
-	buf = fileBase + l.fileofs;
+	buf = fileBase + l->fileofs;
 
 	// create all the lightmaps
-	tr.numLightmaps = l.filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
+	tr.numLightmaps = l->filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
 
 	tr.numLightmaps = SetLightmapParams(tr.numLightmaps, glConfig.maxTextureSize);
 
@@ -383,17 +383,17 @@ static void R_LoadMergedLightmaps(const lump_t &l, byte *image)
 
 		for (y = 0; y < lightmapCountY; y++)
 		{
-			if (offs >= l.filelen)
+			if (offs >= l->filelen)
 				break;
 
 			for (x = 0; x < lightmapCountX; x++)
 			{
-				if (offs >= l.filelen)
+				if (offs >= l->filelen)
 					break;
 
 				R_ProcessLightmap(image, buf + offs, maxIntensity);
 
-				vk_upload_image_data(*tr.lightmaps[i], x * LIGHTMAP_LEN, y * LIGHTMAP_LEN, LIGHTMAP_LEN, LIGHTMAP_LEN, 1, image, LIGHTMAP_LEN * LIGHTMAP_LEN * 4, true);
+				vk_upload_image_data(tr.lightmaps[i], x * LIGHTMAP_LEN, y * LIGHTMAP_LEN, LIGHTMAP_LEN, LIGHTMAP_LEN, 1, image, LIGHTMAP_LEN * LIGHTMAP_LEN * 4, true);
 
 				offs += LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3;
 			}
@@ -410,7 +410,7 @@ static void R_LoadMergedLightmaps(const lump_t &l, byte *image)
 R_LoadLightmaps
 ===============
 */
-static void R_LoadLightmaps(const lump_t &l)
+static void R_LoadLightmaps(const lump_t *l)
 {
 	const byte *buf;
 	byte image[LIGHTMAP_LEN * LIGHTMAP_LEN * 4];
@@ -429,7 +429,7 @@ static void R_LoadLightmaps(const lump_t &l)
 	lightmapCountX = 1;
 	lightmapCountY = 1;
 
-	if (l.filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
+	if (l->filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
 	{
 		return;
 	}
@@ -440,7 +440,7 @@ static void R_LoadLightmaps(const lump_t &l)
 		return;
 	}
 
-	numLightmaps = l.filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
+	numLightmaps = l->filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
 
 	if (r_mergeLightmaps->integer && numLightmaps > 1)
 	{
@@ -453,7 +453,7 @@ static void R_LoadLightmaps(const lump_t &l)
 		}
 	}
 
-	buf = fileBase + l.fileofs;
+	buf = fileBase + l->fileofs;
 
 	// create all the lightmaps
 	tr.numLightmaps = numLightmaps;
@@ -2507,7 +2507,7 @@ void RE_LoadWorldMap(const char *name)
 	tr.sunDirection[1] = 0.3f;
 	tr.sunDirection[2] = 0.9f;
 
-	VectorNormalize_plus(tr.sunDirection);
+	VectorNormalize(tr.sunDirection);
 
 	tr.worldMapLoaded = true;
 
@@ -2562,7 +2562,7 @@ void RE_LoadWorldMap(const char *name)
 	}
 
 	// load into heap
-	R_LoadLightmaps(header->lumps[LUMP_LIGHTMAPS]);
+	R_LoadLightmaps(&header->lumps[LUMP_LIGHTMAPS]);
 	R_PreLoadFogs(&header->lumps[LUMP_FOGS]);
 	R_LoadShaders(&header->lumps[LUMP_SHADERS]);
 	R_LoadPlanes(&header->lumps[LUMP_PLANES]);

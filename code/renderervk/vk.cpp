@@ -4710,21 +4710,21 @@ static void record_buffer_memory_barrier(VkCommandBuffer cb, VkBuffer buffer, Vk
 	qvkCmdPipelineBarrier(cb, src_stages, dst_stages, 0, 0, NULL, 1, &barrier, 0, NULL);
 }
 
-void vk_create_image(image_t &image, int width, int height, int mip_levels)
+void vk_create_image(image_t *image, int width, int height, int mip_levels)
 {
 
-	VkFormat format = static_cast<VkFormat>(image.internalFormat);
+	VkFormat format = static_cast<VkFormat>(image->internalFormat);
 
-	if (image.handle)
+	if (image->handle)
 	{
-		qvkDestroyImage(vk.device, image.handle, NULL);
-		image.handle = VK_NULL_HANDLE;
+		qvkDestroyImage(vk.device, image->handle, NULL);
+		image->handle = VK_NULL_HANDLE;
 	}
 
-	if (image.view)
+	if (image->view)
 	{
-		qvkDestroyImageView(vk.device, image.view, NULL);
-		image.view = VK_NULL_HANDLE;
+		qvkDestroyImageView(vk.device, image->view, NULL);
+		image->view = VK_NULL_HANDLE;
 	}
 
 	// create image
@@ -4749,9 +4749,9 @@ void vk_create_image(image_t &image, int width, int height, int mip_levels)
 		desc.pQueueFamilyIndices = NULL;
 		desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-		VK_CHECK(qvkCreateImage(vk.device, &desc, NULL, &image.handle));
+		VK_CHECK(qvkCreateImage(vk.device, &desc, NULL, &image->handle));
 
-		allocate_and_bind_image_memory(image.handle);
+		allocate_and_bind_image_memory(image->handle);
 	}
 
 	// create image view
@@ -4761,7 +4761,7 @@ void vk_create_image(image_t &image, int width, int height, int mip_levels)
 		desc.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		desc.pNext = NULL;
 		desc.flags = 0;
-		desc.image = image.handle;
+		desc.image = image->handle;
 		desc.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		desc.format = format;
 		desc.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -4774,11 +4774,11 @@ void vk_create_image(image_t &image, int width, int height, int mip_levels)
 		desc.subresourceRange.baseArrayLayer = 0;
 		desc.subresourceRange.layerCount = 1;
 
-		VK_CHECK(qvkCreateImageView(vk.device, &desc, NULL, &image.view));
+		VK_CHECK(qvkCreateImageView(vk.device, &desc, NULL, &image->view));
 	}
 
 	// create associated descriptor set
-	if (image.descriptor == VK_NULL_HANDLE)
+	if (image->descriptor == VK_NULL_HANDLE)
 	{
 		VkDescriptorSetAllocateInfo desc;
 
@@ -4788,14 +4788,14 @@ void vk_create_image(image_t &image, int width, int height, int mip_levels)
 		desc.descriptorSetCount = 1;
 		desc.pSetLayouts = &vk.set_layout_sampler;
 
-		VK_CHECK(qvkAllocateDescriptorSets(vk.device, &desc, &image.descriptor));
+		VK_CHECK(qvkAllocateDescriptorSets(vk.device, &desc, &image->descriptor));
 	}
 
 	vk_update_descriptor_set(image, mip_levels > 1 ? true : false);
 
-	SET_OBJECT_NAME(image.handle, image.imgName, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
-	SET_OBJECT_NAME(image.view, image.imgName, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
-	SET_OBJECT_NAME(image.descriptor, image.imgName, VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
+	SET_OBJECT_NAME(image->handle, image->imgName, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
+	SET_OBJECT_NAME(image->view, image->imgName, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
+	SET_OBJECT_NAME(image->descriptor, image->imgName, VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
 }
 
 static byte *resample_image_data(const int target_format, byte *data, const int data_size, int *bytes_per_pixel)
@@ -4870,7 +4870,7 @@ static byte *resample_image_data(const int target_format, byte *data, const int 
 	}
 }
 
-void vk_upload_image_data(image_t &image, int x, int y, int width, int height, int mipmaps, byte *pixels, int size, bool update)
+void vk_upload_image_data(image_t *image, int x, int y, int width, int height, int mipmaps, byte *pixels, int size, bool update)
 {
 
 	VkCommandBuffer command_buffer;
@@ -4882,7 +4882,7 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 	int num_regions = 0;
 	int buffer_size = 0;
 
-	buf = resample_image_data(image.internalFormat, pixels, size, &bpp);
+	buf = resample_image_data(image->internalFormat, pixels, size, &bpp);
 
 	while (true)
 	{
@@ -4930,14 +4930,14 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 
 	if (update)
 	{
-		record_image_layout_transition(command_buffer, image.handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		record_image_layout_transition(command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	}
 	else
 	{
-		record_image_layout_transition(command_buffer, image.handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		record_image_layout_transition(command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	}
-	qvkCmdCopyBufferToImage(command_buffer, vk_world.staging_buffer, image.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions);
-	record_image_layout_transition(command_buffer, image.handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	qvkCmdCopyBufferToImage(command_buffer, vk_world.staging_buffer, image->handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions);
+	record_image_layout_transition(command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	end_command_buffer(command_buffer);
 
@@ -4947,7 +4947,7 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 	}
 }
 
-void vk_update_descriptor_set(image_t &image, bool mipmap)
+void vk_update_descriptor_set(image_t *image, bool mipmap)
 {
 	Vk_Sampler_Def sampler_def;
 	VkDescriptorImageInfo image_info;
@@ -4955,7 +4955,7 @@ void vk_update_descriptor_set(image_t &image, bool mipmap)
 
 	Com_Memset(&sampler_def, 0, sizeof(sampler_def));
 
-	sampler_def.address_mode = image.wrapClampMode;
+	sampler_def.address_mode = image->wrapClampMode;
 
 	if (mipmap)
 	{
@@ -4971,11 +4971,11 @@ void vk_update_descriptor_set(image_t &image, bool mipmap)
 	}
 
 	image_info.sampler = vk_find_sampler(&sampler_def);
-	image_info.imageView = image.view;
+	image_info.imageView = image->view;
 	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_write.dstSet = image.descriptor;
+	descriptor_write.dstSet = image->descriptor;
 	descriptor_write.dstBinding = 0;
 	descriptor_write.dstArrayElement = 0;
 	descriptor_write.descriptorCount = 1;

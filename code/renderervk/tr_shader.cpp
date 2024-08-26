@@ -377,11 +377,10 @@ static void ParseWaveForm(const char **text, waveForm_t *wave)
 ParseTexMod
 ===================
 */
-static void ParseTexMod(std::string_view _text, shaderStage_t &stage)
+static void ParseTexMod(const char *_text, shaderStage_t &stage)
 {
-	std::string_view token;
-	const char* c_str = _text.data();
-	const char **text = &c_str;
+	const char *token;
+	const char **text = &_text;
 	texModInfo_t *tmi;
 
 	if (stage.bundle[0].numTexMods == TR_MAX_TEXMODS)
@@ -393,213 +392,213 @@ static void ParseTexMod(std::string_view _text, shaderStage_t &stage)
 	tmi = &stage.bundle[0].texMods[stage.bundle[0].numTexMods];
 	stage.bundle[0].numTexMods++;
 
-	token = COM_ParseExt_cpp(text, false);
+	token = COM_ParseExt(text, false);
 
 	//
 	// turb
 	//
-	if (!Q_stricmp_cpp(token, "turb"))
+	if (!Q_stricmp(token, "turb"))
 	{
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod turb parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.base = Q_atof_plus(token);
-		token = COM_ParseExt_cpp(text, false);
+		tmi->wave.base = Q_atof(token);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod turb in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.amplitude = Q_atof_plus(token);
-		token = COM_ParseExt_cpp(text, false);
+		tmi->wave.amplitude = Q_atof(token);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod turb in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.phase = Q_atof_plus(token);
-		token = COM_ParseExt_cpp(text, false);
+		tmi->wave.phase = Q_atof(token);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod turb in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.frequency = Q_atof_plus(token);
+		tmi->wave.frequency = Q_atof(token);
 
 		tmi->type = TMOD_TURBULENT;
 	}
 	//
 	// scale
 	//
-	else if (!Q_stricmp_cpp(token, "scale"))
+	else if (!Q_stricmp(token, "scale"))
 	{
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing scale parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->scale[0] = Q_atof_plus(token);
+		tmi->scale[0] = Q_atof(token);
 
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing scale parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->scale[1] = Q_atof_plus(token);
+		tmi->scale[1] = Q_atof(token);
 		tmi->type = TMOD_SCALE;
 	}
 	//
 	// scroll
 	//
-	else if (!Q_stricmp_cpp(token, "scroll"))
+	else if (!Q_stricmp(token, "scroll"))
 	{
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing scale scroll parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->scroll[0] = Q_atof_plus(token);
-		token = COM_ParseExt_cpp(text, false);
+		tmi->scroll[0] = Q_atof(token);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing scale scroll parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->scroll[1] = Q_atof_plus(token);
+		tmi->scroll[1] = Q_atof(token);
 		tmi->type = TMOD_SCROLL;
 	}
 	//
 	// stretch
 	//
-	else if (!Q_stricmp_cpp(token, "stretch"))
+	else if (!Q_stricmp(token, "stretch"))
 	{
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.func = NameToGenFunc(token);
+		tmi->wave.func = NameToGenFunc(std::string_view(token));
 
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.base = Q_atof_plus(token);
+		tmi->wave.base = Q_atof(token);
 
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.amplitude = Q_atof_plus(token);
+		tmi->wave.amplitude = Q_atof(token);
 
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.phase = Q_atof_plus(token);
+		tmi->wave.phase = Q_atof(token);
 
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.frequency = Q_atof_plus(token);
+		tmi->wave.frequency = Q_atof(token);
 
 		tmi->type = TMOD_STRETCH;
 	}
 	//
 	// transform
 	//
-	else if (!Q_stricmp_cpp(token, "transform"))
+	else if (!Q_stricmp(token, "transform"))
 	{
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->matrix[0][0] = Q_atof_plus(token);
+		tmi->matrix[0][0] = Q_atof(token);
 
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->matrix[0][1] = Q_atof_plus(token);
+		tmi->matrix[0][1] = Q_atof(token);
 
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->matrix[1][0] = Q_atof_plus(token);
+		tmi->matrix[1][0] = Q_atof(token);
 
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->matrix[1][1] = Q_atof_plus(token);
+		tmi->matrix[1][1] = Q_atof(token);
 
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->translate[0] = Q_atof_plus(token);
+		tmi->translate[0] = Q_atof(token);
 
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->translate[1] = Q_atof_plus(token);
+		tmi->translate[1] = Q_atof(token);
 
 		tmi->type = TMOD_TRANSFORM;
 	}
 	//
 	// rotate
 	//
-	else if (!Q_stricmp_cpp(token, "rotate"))
+	else if (!Q_stricmp(token, "rotate"))
 	{
-		token = COM_ParseExt_cpp(text, false);
+		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod rotate parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->rotateSpeed = Q_atof_plus(token);
+		tmi->rotateSpeed = Q_atof(token);
 		tmi->type = TMOD_ROTATE;
 	}
 	//
 	// entityTranslate
 	//
-	else if (!Q_stricmp_cpp(token, "entityTranslate"))
+	else if (!Q_stricmp(token, "entityTranslate"))
 	{
 		tmi->type = TMOD_ENTITY_TRANSLATE;
 	}
 	else
 	{
-		ri.Printf(PRINT_WARNING, "WARNING: unknown tcMod '%s' in shader '%s'\n", token.data(), shader.name);
+		ri.Printf(PRINT_WARNING, "WARNING: unknown tcMod '%s' in shader '%s'\n", token, shader.name);
 	}
 }
 
@@ -2016,7 +2015,7 @@ static bool ParseShader(const char **text)
 			token = COM_ParseExt(text, false);
 			tr.sunLight[2] = Q_atof(token);
 
-			VectorNormalize_plus(tr.sunLight);
+			VectorNormalize(tr.sunLight);
 
 			token = COM_ParseExt(text, false);
 			a = Q_atof(token);
