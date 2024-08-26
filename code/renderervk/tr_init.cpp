@@ -196,25 +196,25 @@ Vk_World vk_world;
 
 // for modular renderer
 #ifdef USE_RENDERER_DLOPEN
-void QDECL Com_Error(errorParm_t code, const char *fmt, ...)
+void QDECL Com_Error( errorParm_t code, const char *fmt, ... )
 {
-	char buf[4096];
-	va_list argptr;
-	va_start(argptr, fmt);
-	Q_vsnprintf(buf, sizeof(buf), fmt, argptr);
-	va_end(argptr);
-	ri.Error(code, "%s", buf);
+	char buf[ 4096 ];
+	va_list	argptr;
+	va_start( argptr, fmt );
+	Q_vsnprintf( buf, sizeof( buf ), fmt, argptr );
+	va_end( argptr );
+	ri.Error( code, "%s", buf );
 }
 
-void QDECL Com_Printf(const char *fmt, ...)
+void QDECL Com_Printf( const char *fmt, ... )
 {
-	char buf[MAXPRINTMSG];
-	va_list argptr;
-	va_start(argptr, fmt);
-	Q_vsnprintf(buf, sizeof(buf), fmt, argptr);
-	va_end(argptr);
+	char buf[ MAXPRINTMSG ];
+	va_list	argptr;
+	va_start( argptr, fmt );
+	Q_vsnprintf( buf, sizeof( buf ), fmt, argptr );
+	va_end( argptr );
 
-	ri.Printf(PRINT_ALL, "%s", buf);
+	ri.Printf( PRINT_ALL, "%s", buf );
 }
 #endif
 
@@ -1558,81 +1558,78 @@ static void RE_EndRegistration(void)
 	// so we can't issue RB_ShowImages() there
 }
 
-extern "C"
-{
+extern "C" {
 
 #ifdef USE_RENDERER_DLOPEN
-	Q_EXPORT refexport_t *QDECL GetRefAPI(int apiVersion, refimport_t *rimp)
-	{
+Q_EXPORT refexport_t* QDECL GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 #else
-	refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp)
-	{
+refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 #endif
-		static refexport_t re;
+	static refexport_t re;
 
-		ri = *rimp;
+	ri = *rimp;
 
-		Com_Memset(&re, 0, sizeof(re));
+	Com_Memset(&re, 0, sizeof(re));
 
-		if (apiVersion != REF_API_VERSION)
-		{
-			ri.Printf(PRINT_ALL, "Mismatched REF_API_VERSION: expected %i, got %i\n",
-					  REF_API_VERSION, apiVersion);
-			return NULL;
-		}
-
-		// the RE_ functions are Renderer Entry points
-
-		re.Shutdown = RE_Shutdown;
-
-		re.BeginRegistration = RE_BeginRegistration;
-		re.RegisterModel = RE_RegisterModel;
-		re.RegisterSkin = RE_RegisterSkin;
-		re.RegisterShader = RE_RegisterShader;
-		re.RegisterShaderNoMip = RE_RegisterShaderNoMip;
-		re.LoadWorld = RE_LoadWorldMap;
-		re.SetWorldVisData = RE_SetWorldVisData;
-		re.EndRegistration = RE_EndRegistration;
-
-		re.BeginFrame = RE_BeginFrame;
-		re.EndFrame = RE_EndFrame;
-
-		re.MarkFragments = R_MarkFragments;
-		re.LerpTag = R_LerpTag;
-		re.ModelBounds = R_ModelBounds;
-
-		re.ClearScene = RE_ClearScene;
-		re.AddRefEntityToScene = RE_AddRefEntityToScene;
-		re.AddPolyToScene = RE_AddPolyToScene;
-		re.LightForPoint = R_LightForPoint;
-		re.AddLightToScene = RE_AddLightToScene;
-		re.AddAdditiveLightToScene = RE_AddAdditiveLightToScene;
-		re.AddLinearLightToScene = RE_AddLinearLightToScene;
-
-		re.RenderScene = RE_RenderScene;
-
-		re.SetColor = RE_SetColor;
-		re.DrawStretchPic = RE_StretchPic;
-		re.DrawStretchRaw = RE_StretchRaw;
-		re.UploadCinematic = RE_UploadCinematic;
-
-		re.RegisterFont = RE_RegisterFont;
-		re.RemapShader = RE_RemapShader;
-		re.GetEntityToken = RE_GetEntityToken;
-		re.inPVS = R_inPVS;
-
-		re.TakeVideoFrame = RE_TakeVideoFrame;
-		re.SetColorMappings = R_SetColorMappings;
-
-		re.ThrottleBackend = RE_ThrottleBackend;
-		re.FinishBloom = RE_FinishBloom;
-		re.CanMinimize = RE_CanMinimize;
-		re.GetConfig = RE_GetConfig;
-		re.VertexLighting = RE_VertexLighting;
-		re.SyncRender = RE_SyncRender;
-
-		return &re;
+	if (apiVersion != REF_API_VERSION)
+	{
+		ri.Printf(PRINT_ALL, "Mismatched REF_API_VERSION: expected %i, got %i\n",
+				  REF_API_VERSION, apiVersion);
+		return NULL;
 	}
+
+	// the RE_ functions are Renderer Entry points
+
+	re.Shutdown = RE_Shutdown;
+
+	re.BeginRegistration = RE_BeginRegistration;
+	re.RegisterModel = RE_RegisterModel;
+	re.RegisterSkin = RE_RegisterSkin;
+	re.RegisterShader = RE_RegisterShader;
+	re.RegisterShaderNoMip = RE_RegisterShaderNoMip;
+	re.LoadWorld = RE_LoadWorldMap;
+	re.SetWorldVisData = RE_SetWorldVisData;
+	re.EndRegistration = RE_EndRegistration;
+
+	re.BeginFrame = RE_BeginFrame;
+	re.EndFrame = RE_EndFrame;
+
+	re.MarkFragments = R_MarkFragments;
+	re.LerpTag = R_LerpTag;
+	re.ModelBounds = R_ModelBounds;
+
+	re.ClearScene = RE_ClearScene;
+	re.AddRefEntityToScene = RE_AddRefEntityToScene;
+	re.AddPolyToScene = RE_AddPolyToScene;
+	re.LightForPoint = R_LightForPoint;
+	re.AddLightToScene = RE_AddLightToScene;
+	re.AddAdditiveLightToScene = RE_AddAdditiveLightToScene;
+	re.AddLinearLightToScene = RE_AddLinearLightToScene;
+
+	re.RenderScene = RE_RenderScene;
+
+	re.SetColor = RE_SetColor;
+	re.DrawStretchPic = RE_StretchPic;
+	re.DrawStretchRaw = RE_StretchRaw;
+	re.UploadCinematic = RE_UploadCinematic;
+
+	re.RegisterFont = RE_RegisterFont;
+	re.RemapShader = RE_RemapShader;
+	re.GetEntityToken = RE_GetEntityToken;
+	re.inPVS = R_inPVS;
+
+	re.TakeVideoFrame = RE_TakeVideoFrame;
+	re.SetColorMappings = R_SetColorMappings;
+
+	re.ThrottleBackend = RE_ThrottleBackend;
+	re.FinishBloom = RE_FinishBloom;
+	re.CanMinimize = RE_CanMinimize;
+	re.GetConfig = RE_GetConfig;
+	re.VertexLighting = RE_VertexLighting;
+	re.SyncRender = RE_SyncRender;
+
+	return &re;
+}
 }
 
 // refexport_t *GetRefAPI_cplus(int apiVersion, refimport_t *rimp)

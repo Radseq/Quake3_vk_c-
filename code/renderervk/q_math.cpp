@@ -256,6 +256,19 @@ unsigned ColorBytes4(float r, float g, float b, float a)
 	return i;
 }
 
+vec_t VectorNormalize(vec4_t &v) {
+    vec_t lengthSquared = v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3];
+    if (lengthSquared > 0.0f) {
+        vec_t invLength = 1.0f / std::sqrt(lengthSquared);
+        v[0] *= invLength;
+        v[1] *= invLength;
+        v[2] *= invLength;
+        v[3] *= invLength;
+        return lengthSquared * invLength;
+    }
+    return 0.0f;
+}
+
 /*
 =====================
 PlaneFromPoints
@@ -271,7 +284,7 @@ bool PlaneFromPoints(vec4_t &plane, const vec3_t &a, const vec3_t &b, const vec3
 	VectorSubtract(b, a, d1);
 	VectorSubtract(c, a, d2);
 	CrossProduct(d2, d1, plane);
-	if (VectorNormalize_plus(plane) == 0)
+	if (VectorNormalize(plane) == 0)
 	{
 		return false;
 	}
@@ -417,8 +430,6 @@ void MakeNormalVectors(const vec3_t &forward, vec3_t &right, vec3_t &up)
 #include <intrin.h>
 #endif
 
-
-
 float Q_fabs(float f)
 {
 	floatint_t fi;
@@ -531,7 +542,7 @@ BoxOnPlaneSide
 Returns 1, 2, or 1 + 2
 ==================
 */
-int BoxOnPlaneSide_plus(const vec3_t &emins, const vec3_t &emaxs, struct cplane_s &p)
+int BoxOnPlaneSide(const vec3_t &emins, const vec3_t &emaxs, struct cplane_s &p)
 {
 	float dist[2];
 	int sides, b, i;
@@ -567,42 +578,6 @@ int BoxOnPlaneSide_plus(const vec3_t &emins, const vec3_t &emaxs, struct cplane_
 	return sides;
 }
 
-int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, struct cplane_s *p)
-{
-	float dist[2];
-	int sides, b, i;
-
-	// fast axial cases
-	if (p->type < 3)
-	{
-		if (p->dist <= emins[p->type])
-			return 1;
-		if (p->dist >= emaxs[p->type])
-			return 2;
-		return 3;
-	}
-
-	// general case
-	dist[0] = dist[1] = 0;
-	if (p->signbits < 8) // >= 8: default case is original code (dist[0]=dist[1]=0)
-	{
-		for (i = 0; i < 3; i++)
-		{
-			b = (p->signbits >> i) & 1;
-			dist[b] += p->normal[i] * emaxs[i];
-			dist[!b] += p->normal[i] * emins[i];
-		}
-	}
-
-	sides = 0;
-	if (dist[0] >= p->dist)
-		sides = 1;
-	if (dist[1] < p->dist)
-		sides |= 2;
-
-	return sides;
-}
-
 /*
 =================
 RadiusFromBounds
@@ -630,21 +605,6 @@ void ClearBounds(vec3_t mins, vec3_t maxs)
 	maxs[0] = maxs[1] = maxs[2] = -99999;
 }
 
-
-vec_t VectorNormalize(vec4_t &v) {
-    vec_t lengthSquared = v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3];
-    if (lengthSquared > 0.0f) {
-        vec_t invLength = 1.0f / std::sqrt(lengthSquared);
-        v[0] *= invLength;
-        v[1] *= invLength;
-        v[2] *= invLength;
-        v[3] *= invLength;
-        return lengthSquared * invLength;
-    }
-    return 0.0f;
-}
-
-
 vec_t VectorNormalize_plus(vec3_t &v)
 {
 	vec_t lengthSquared = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
@@ -661,48 +621,7 @@ vec_t VectorNormalize_plus(vec3_t &v)
 	return 0.0f;
 }
 
-vec_t VectorNormalize_plus(vec4_t &v)
-{
-    vec_t lengthSquared = v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3];
-
-    if (lengthSquared > 0.0f)
-    {
-        vec_t invLength = 1.0f / std::sqrt(lengthSquared);
-        v[0] *= invLength;
-        v[1] *= invLength;
-        v[2] *= invLength;
-        v[3] *= invLength;
-        return lengthSquared * invLength;
-    }
-
-    return 0.0f;
-}
-
-vec_t VectorNormalize2(const vec3_t v, vec3_t out)
-{
-	float length, ilength;
-
-	length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-
-	if (length)
-	{
-		/* writing it this way allows gcc to recognize that rsqrt can be used */
-		ilength = 1 / (float)sqrt(length);
-		/* sqrt(length) = length * (1 / sqrt(length)) */
-		length *= ilength;
-		out[0] = v[0] * ilength;
-		out[1] = v[1] * ilength;
-		out[2] = v[2] * ilength;
-	}
-	else
-	{
-		VectorClear(out);
-	}
-
-	return length;
-}
-
-vec_t VectorNormalize2_plus(const vec3_t &v, vec3_t &out)
+vec_t VectorNormalize2(const vec3_t &v, vec3_t &out)
 {
 	float length, ilength;
 
@@ -980,4 +899,3 @@ void SetPlaneSignbits(cplane_t *out)
 	}
 	out->signbits = bits;
 }
-

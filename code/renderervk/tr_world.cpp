@@ -33,7 +33,7 @@ Returns true if the grid is completely culled away.
 Also sets the clipped hint bit in tess
 =================
 */
-static bool R_CullTriSurf(const srfTriangles_t &cv)
+static bool R_CullTriSurf(srfTriangles_t &cv)
 {
 	int boxCull;
 
@@ -54,7 +54,7 @@ Returns true if the grid is completely culled away.
 Also sets the clipped hint bit in tess
 =================
 */
-static bool R_CullGrid(const srfGridMesh_t &cv)
+static bool R_CullGrid(srfGridMesh_t &cv)
 {
 	if (r_nocurves->integer)
 	{
@@ -117,9 +117,8 @@ added to the sorting list.
 This will also allow mirrors on both sides of a model without recursion.
 ================
 */
-static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
+static bool R_CullSurface(const surfaceType_t *surface, shader_t *shader)
 {
-	srfSurfaceFace_t *sface;
 	float d;
 
 	if (r_nocull->integer)
@@ -129,12 +128,12 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 
 	if (*surface == SF_GRID)
 	{
-		return R_CullGrid(*reinterpret_cast<const srfGridMesh_t *>(surface));
+		return R_CullGrid((srfGridMesh_t &)surface);
 	}
 
 	if (*surface == SF_TRIANGLES)
 	{
-		return R_CullTriSurf(*reinterpret_cast<const srfTriangles_t *>(surface));
+		return R_CullTriSurf((srfTriangles_t &)surface);
 	}
 
 	if (*surface != SF_FACE)
@@ -142,7 +141,7 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 		return false;
 	}
 
-	if (shader.cullType == CT_TWO_SIDED)
+	if (shader->cullType == CT_TWO_SIDED)
 	{
 		return false;
 	}
@@ -153,22 +152,22 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 		return false;
 	}
 
-	sface = (srfSurfaceFace_t *)surface;
-	d = DotProduct(tr.ort.viewOrigin, sface->plane.normal);
+	srfSurfaceFace_t &sface = (srfSurfaceFace_t &)surface;
+	d = DotProduct(tr.ort.viewOrigin, sface.plane.normal);
 
 	// don't cull exactly on the plane, because there are levels of rounding
 	// through the BSP, ICD, and hardware that may cause pixel gaps if an
 	// epsilon isn't allowed here
-	if (shader.cullType == CT_FRONT_SIDED)
+	if (shader->cullType == CT_FRONT_SIDED)
 	{
-		if (d < sface->plane.dist - 8)
+		if (d < sface.plane.dist - 8)
 		{
 			return true;
 		}
 	}
 	else
 	{
-		if (d > sface->plane.dist + 8)
+		if (d > sface.plane.dist + 8)
 		{
 			return true;
 		}
@@ -218,20 +217,20 @@ bool R_LightCullBounds(const dlight_t &dl, const vec3_t mins, const vec3_t maxs)
 	return false;
 }
 
-static bool R_LightCullFace(const srfSurfaceFace_t &face, const dlight_t &dl)
+static bool R_LightCullFace(const srfSurfaceFace_t &face, const dlight_t *dl)
 {
-	float d = DotProduct(dl.transformed, face.plane.normal) - face.plane.dist;
-	if (dl.linear)
+	float d = DotProduct(dl->transformed, face.plane.normal) - face.plane.dist;
+	if (dl->linear)
 	{
-		float d2 = DotProduct(dl.transformed2, face.plane.normal) - face.plane.dist;
-		if ((d < -dl.radius) && (d2 < -dl.radius))
+		float d2 = DotProduct(dl->transformed2, face.plane.normal) - face.plane.dist;
+		if ((d < -dl->radius) && (d2 < -dl->radius))
 			return true;
-		if ((d > dl.radius) && (d2 > dl.radius))
+		if ((d > dl->radius) && (d2 > dl->radius))
 			return true;
 	}
 	else
 	{
-		if ((d < -dl.radius) || (d > dl.radius))
+		if ((d < -dl->radius) || (d > dl->radius))
 			return true;
 	}
 
@@ -243,16 +242,16 @@ static bool R_LightCullSurface(const surfaceType_t *surface, const dlight_t &dl)
 	switch (*surface)
 	{
 	case SF_FACE:
-		return R_LightCullFace(*reinterpret_cast<const srfSurfaceFace_t *>(surface), dl);
+		return R_LightCullFace((const srfSurfaceFace_t &)surface, &dl);
 	case SF_GRID:
 	{
-		const srfGridMesh_t *grid = (const srfGridMesh_t *)surface;
-		return R_LightCullBounds(dl, grid->meshBounds[0], grid->meshBounds[1]);
+		const srfGridMesh_t &grid = (const srfGridMesh_t &)surface;
+		return R_LightCullBounds(dl, grid.meshBounds[0], grid.meshBounds[1]);
 	}
 	case SF_TRIANGLES:
 	{
-		const srfTriangles_t *tris = (const srfTriangles_t *)surface;
-		return R_LightCullBounds(dl, tris->bounds[0], tris->bounds[1]);
+		const srfTriangles_t &tris = (const srfTriangles_t &)surface;
+		return R_LightCullBounds(dl, tris.bounds[0], tris.bounds[1]);
 	}
 	default:
 		return false;
@@ -366,15 +365,15 @@ static int R_DlightSurface(msurface_t &surf, int dlightBits)
 {
 	if (*surf.data == SF_FACE)
 	{
-		dlightBits = R_DlightFace(*reinterpret_cast<srfSurfaceFace_t *>(surf.data), dlightBits);
+		dlightBits = R_DlightFace((srfSurfaceFace_t &)surf.data, dlightBits);
 	}
 	else if (*surf.data == SF_GRID)
 	{
-		dlightBits = R_DlightGrid(*reinterpret_cast<srfGridMesh_t *>(surf.data), dlightBits);
+		dlightBits = R_DlightGrid((srfGridMesh_t &)surf.data, dlightBits);
 	}
 	else if (*surf.data == SF_TRIANGLES)
 	{
-		dlightBits = R_DlightTrisurf(*reinterpret_cast<srfTriangles_t *>(surf.data), dlightBits);
+		dlightBits = R_DlightTrisurf((srfTriangles_t &)surf.data, dlightBits);
 	}
 	else
 	{
@@ -406,7 +405,7 @@ static void R_AddWorldSurface(msurface_t &surf, int dlightBits)
 	// FIXME: bmodel fog?
 
 	// try to cull before dlighting or adding
-	if (R_CullSurface(surf.data, *surf.shader))
+	if (R_CullSurface(surf.data, surf.shader))
 	{
 		return;
 	}
