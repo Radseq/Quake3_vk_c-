@@ -210,7 +210,7 @@ static void MakeMeshNormals(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE
 						break; // edge of patch
 					}
 					VectorSubtract(ctrl[y][x].xyz, base, temp);
-					if (VectorNormalize_plus(temp) < 0.001f)
+					if (VectorNormalize(temp) < 0.001f)
 					{
 						continue; // degenerate edge, get more dist
 					}
@@ -231,14 +231,14 @@ static void MakeMeshNormals(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE
 					continue; // didn't get two points
 				}
 				CrossProduct(around[(k + 1) & 7], around[k], normal);
-				if (VectorNormalize_plus(normal) < 0.001f)
+				if (VectorNormalize(normal) < 0.001f)
 				{
 					continue;
 				}
 				VectorAdd(normal, sum, sum);
 			}
 
-			VectorNormalize2_plus(sum, dv.normal);
+			VectorNormalize2(sum, dv.normal);
 		}
 	}
 }
@@ -358,14 +358,14 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh(int width, int height,
 	grid->width = width;
 	grid->height = height;
 	grid->surfaceType = SF_GRID;
-	ClearBounds_plus(grid->meshBounds[0], grid->meshBounds[1]);
+	ClearBounds(grid->meshBounds[0], grid->meshBounds[1]);
 	for (i = 0; i < width; i++)
 	{
 		for (j = 0; j < height; j++)
 		{
 			vert = &grid->verts[j * width + i];
 			*vert = ctrl[j][i];
-			AddPointToBounds_plus(vert->xyz, grid->meshBounds[0], grid->meshBounds[1]);
+			AddPointToBounds(vert->xyz, grid->meshBounds[0], grid->meshBounds[1]);
 		}
 	}
 
@@ -455,7 +455,7 @@ srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
 				// dist-from-midpoint
 				VectorSubtract(midxyz, ctrl[i][j].xyz, midxyz);
 				VectorSubtract(ctrl[i][j + 2].xyz, ctrl[i][j].xyz, dir);
-				VectorNormalize_plus(dir);
+				VectorNormalize(dir);
 
 				d = DotProduct(midxyz, dir);
 				VectorScale(dir, d, projected);

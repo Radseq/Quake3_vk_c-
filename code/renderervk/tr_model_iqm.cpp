@@ -1391,7 +1391,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 			surface->surfaceType = SF_IQM;
 			Q_strncpyz(surface->name, str + mesh->name, sizeof(surface->name));
 			Q_strlwr(surface->name); // lowercase the surface name so skin compares are faster
-			surface->shader = R_FindShader(std::string_view(str + mesh->material), LIGHTMAP_NONE, true);
+			surface->shader = R_FindShader(str + mesh->material, LIGHTMAP_NONE, true);
 			if (surface->shader->defaultShader)
 				surface->shader = tr.defaultShader;
 			surface->data = &iqmData;
@@ -1660,10 +1660,10 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 	{
 		mat = iqmData.bounds;
 
-		ClearBounds_plus(&iqmData.bounds[0], &iqmData.bounds[3]);
+		ClearBounds(&iqmData.bounds[0], &iqmData.bounds[3]);
 		for (i = 0; i < header.num_vertexes; i++)
 		{
-			AddPointToBounds_plus(&iqmData.positions[i * 3], &iqmData.bounds[0], &iqmData.bounds[3]);
+			AddPointToBounds(&iqmData.positions[i * 3], &iqmData.bounds[0], &iqmData.bounds[3]);
 		}
 	}
 

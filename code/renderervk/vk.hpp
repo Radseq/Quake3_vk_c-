@@ -12,17 +12,17 @@
 #define USE_REVERSED_DEPTH
 #define USE_DEDICATED_ALLOCATION
 
-constexpr int VK_DESC_STORAGE = 0;
-constexpr int VK_DESC_UNIFORM = 1;
-constexpr int VK_DESC_TEXTURE0 = 2;
-constexpr int VK_DESC_TEXTURE1 = 3;
-constexpr int VK_DESC_TEXTURE2 = 4;
-constexpr int VK_DESC_FOG_COLLAPSE = 5;
-constexpr int VK_DESC_COUNT = 6;
+#define VK_DESC_STORAGE 0
+#define VK_DESC_UNIFORM 1
+#define VK_DESC_TEXTURE0 2
+#define VK_DESC_TEXTURE1 3
+#define VK_DESC_TEXTURE2 4
+#define VK_DESC_FOG_COLLAPSE 5
+#define VK_DESC_COUNT 6
 
-constexpr int VK_DESC_TEXTURE_BASE = VK_DESC_TEXTURE0;
-constexpr int VK_DESC_FOG_ONLY = VK_DESC_TEXTURE1;
-constexpr int VK_DESC_FOG_DLIGHT = VK_DESC_TEXTURE1;
+#define VK_DESC_TEXTURE_BASE VK_DESC_TEXTURE0
+#define VK_DESC_FOG_ONLY VK_DESC_TEXTURE1
+#define VK_DESC_FOG_DLIGHT VK_DESC_TEXTURE1
 
 // this structure must be in sync with shader uniforms!
 typedef struct vkUniform_s
@@ -91,8 +91,8 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 void vk_update_descriptor_set(image_t &image, bool mipmap);
 void vk_destroy_image_resources(vk::Image &image, vk::ImageView &imageView);
 
-uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def &def, bool use);
-void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def &def);
+uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def *def, bool use);
+void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def *def);
 
 void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t height);
 void vk_create_pipelines(void);
@@ -143,11 +143,11 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 
 #ifdef USE_VBO
 void vk_release_vbo(void);
-bool vk_alloc_vbo(const byte *vbo_data, uint32_t vbo_size);
+bool vk_alloc_vbo(const byte *vbo_data, int vbo_size);
 #endif
 
 void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass);
-uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def);
+uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def *def);
 
 vk::Pipeline vk_gen_pipeline(uint32_t index);
 void vk_bind_descriptor_sets(void);

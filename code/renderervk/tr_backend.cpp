@@ -590,14 +590,14 @@ void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client
 	{
 		image->width = image->uploadWidth = cols;
 		image->height = image->uploadHeight = rows;
-		vk_create_image(*image, cols, rows, 1);
-		vk_upload_image_data(*image, 0, 0, cols, rows, 1, data, cols * rows * 4, false);
+		vk_create_image(image, cols, rows, 1);
+		vk_upload_image_data(image, 0, 0, cols, rows, 1, data, cols * rows * 4, false);
 	}
 	else if (dirty)
 	{
 		// otherwise, just subimage upload it so that drivers can tell we are going to be changing
 		// it and don't try and do a texture compression
-		vk_upload_image_data(*image, 0, 0, cols, rows, 1, data, cols * rows * 4, true);
+		vk_upload_image_data(image, 0, 0, cols, rows, 1, data, cols * rows * 4, true);
 	}
 }
 
@@ -666,7 +666,7 @@ static const void *RB_StretchPic(const void *data)
 static void RB_LightingPass(void)
 {
 	dlight_t *dl;
-	unsigned int i;
+	int i;
 
 #ifdef USE_VBO
 	// VBO_Flush();

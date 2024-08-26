@@ -178,12 +178,12 @@ static const char *SkipWhitespace(const char *data, bool *hasNewLines)
 
 const char *COM_ParseExt(const char **data_p, bool allowLineBreaks)
 {
-    int c = 0;
+    int c = 0, len;
     bool hasNewLines = false;
     const char *data;
 
     data = *data_p;
-    std::size_t len = 0;
+    len = 0;
     com_token[0] = '\0';
     com_tokenline = 0;
 
@@ -601,7 +601,7 @@ used in renderer and filesystem
 ==================
 */
 // ASCII lowcase conversion table with '\\' turned to '/' and '.' to '\0'
-static constexpr byte hash_locase[256] =
+static const byte hash_locase[256] =
     {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
         0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,

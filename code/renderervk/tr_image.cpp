@@ -20,7 +20,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 // tr_image.c
-#include "string_operations.hpp"
 #include "tr_image.hpp"
 #include "tr_bsp.hpp"
 #include "vk.hpp"
@@ -240,7 +239,7 @@ void R_SetColorMappings()
 
 	shift = tr.overbrightBits;
 
-	for (i = 0; i < (int)arrayLen(s_gammatable); i++)
+	for (i = 0; i < arrayLen(s_gammatable); i++)
 	{
 		if (g == 1.0f)
 		{
@@ -262,7 +261,7 @@ void R_SetColorMappings()
 		s_gammatable[i] = inf;
 	}
 
-	for (i = 0; i < (int)arrayLen(s_intensitytable); i++)
+	for (i = 0; i < arrayLen(s_intensitytable); i++)
 	{
 		j = i * r_intensity->value;
 		if (j > 255)
@@ -347,15 +346,16 @@ static void R_LightScaleTexture(byte *in, int inwidth, int inheight, bool only_g
 	}
 }
 
-void TextureMode(std::string_view texture)
+void TextureMode(const char *string)
 {
 	const textureMode_t *mode;
+	image_t *img;
 	int i;
 
 	mode = NULL;
 	for (i = 0; i < arrayLen(modes); i++)
 	{
-		if (!Q_stricmp_cpp(modes[i].name, texture))
+		if (!Q_stricmp(modes[i].name, string))
 		{
 			mode = &modes[i];
 			break;
@@ -364,7 +364,7 @@ void TextureMode(std::string_view texture)
 
 	if (mode == NULL)
 	{
-		ri.Printf(PRINT_ALL, "bad texture filter name '%s'\n", texture.data());
+		ri.Printf(PRINT_ALL, "bad texture filter name '%s'\n", string);
 		return;
 	}
 
@@ -374,8 +374,8 @@ void TextureMode(std::string_view texture)
 	vk_wait_idle();
 	for (i = 0; i < tr.numImages; i++)
 	{
-		image_t &img = *tr.images[i];
-		if (img.flags & IMGFLAG_MIPMAP)
+		img = tr.images[i];
+		if (img->flags & IMGFLAG_MIPMAP)
 		{
 			vk_update_descriptor_set(img, true);
 		}
@@ -712,22 +712,22 @@ static void R_MipMap(byte *out, byte *in, int width, int height)
 	}
 }
 
-static void generate_image_upload_data(image_t &image, byte *data, Image_Upload_Data *upload_data)
+static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_Data *upload_data)
 {
 
-	bool mipmap = image.flags & IMGFLAG_MIPMAP;
-	bool picmip = image.flags & IMGFLAG_PICMIP;
+	bool mipmap = image->flags & IMGFLAG_MIPMAP;
+	bool picmip = image->flags & IMGFLAG_PICMIP;
 	byte *resampled_buffer = NULL;
 	int scaled_width, scaled_height;
-	int width = image.width;
-	int height = image.height;
+	int width = image->width;
+	int height = image->height;
 	unsigned *scaled_buffer;
 	int mip_level_size;
 	int miplevel;
 
 	Com_Memset(upload_data, 0, sizeof(*upload_data));
 
-	if (image.flags & IMGFLAG_NOSCALE)
+	if (image->flags & IMGFLAG_NOSCALE)
 	{
 		//
 		// keep original dimensions
@@ -784,7 +784,7 @@ static void generate_image_upload_data(image_t &image, byte *data, Image_Upload_
 	}
 	else
 	{
-		if (image.flags & IMGFLAG_COLORSHIFT)
+		if (image->flags & IMGFLAG_COLORSHIFT)
 		{
 			byte *p = data;
 			int i, n = width * height;
@@ -858,7 +858,7 @@ static void generate_image_upload_data(image_t &image, byte *data, Image_Upload_
 	scaled_buffer = (unsigned int *)ri.Hunk_AllocateTempMemory(sizeof(unsigned) * scaled_width * scaled_height);
 	Com_Memcpy(scaled_buffer, data, scaled_width * scaled_height * 4);
 
-	if (!(image.flags & IMGFLAG_NOLIGHTSCALE))
+	if (!(image->flags & IMGFLAG_NOLIGHTSCALE))
 	{
 		R_LightScaleTexture((byte *)scaled_buffer, scaled_width, scaled_height, !mipmap);
 	}
@@ -904,7 +904,7 @@ static void generate_image_upload_data(image_t &image, byte *data, Image_Upload_
 		ri.Hunk_FreeTempMemory(resampled_buffer);
 }
 
-static void upload_vk_image(image_t &image, byte *pic)
+static void upload_vk_image(image_t *image, byte *pic)
 {
 
 	Image_Upload_Data upload_data;
@@ -915,23 +915,23 @@ static void upload_vk_image(image_t &image, byte *pic)
 	w = upload_data.base_level_width;
 	h = upload_data.base_level_height;
 
-	if (r_texturebits->integer > 16 || r_texturebits->integer == 0 || (image.flags & IMGFLAG_LIGHTMAP))
+	if (r_texturebits->integer > 16 || r_texturebits->integer == 0 || (image->flags & IMGFLAG_LIGHTMAP))
 	{
-		image.internalFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		image->internalFormat = VK_FORMAT_R8G8B8A8_UNORM;
 		// image->internalFormat = VK_FORMAT_B8G8R8A8_UNORM;
 	}
 	else
 	{
 		bool has_alpha = RawImage_HasAlpha(upload_data.buffer, w * h);
-		image.internalFormat = has_alpha ? VK_FORMAT_B4G4R4A4_UNORM_PACK16 : VK_FORMAT_A1R5G5B5_UNORM_PACK16;
+		image->internalFormat = has_alpha ? VK_FORMAT_B4G4R4A4_UNORM_PACK16 : VK_FORMAT_A1R5G5B5_UNORM_PACK16;
 	}
 
-	image.handle = VK_NULL_HANDLE;
-	image.view = VK_NULL_HANDLE;
-	image.descriptor = VK_NULL_HANDLE;
+	image->handle = VK_NULL_HANDLE;
+	image->view = VK_NULL_HANDLE;
+	image->descriptor = VK_NULL_HANDLE;
 
-	image.uploadWidth = w;
-	image.uploadHeight = h;
+	image->uploadWidth = w;
+	image->uploadHeight = h;
 
 	vk_create_image(image, w, h, upload_data.mip_levels);
 	vk_upload_image_data(image, 0, 0, w, h, upload_data.mip_levels, upload_data.buffer, upload_data.buffer_size, false);
@@ -1013,7 +1013,7 @@ image_t *R_CreateImage(const char *name, const char *name2, byte *pic, int width
 	else
 		image->wrapClampMode = vk::SamplerAddressMode::eRepeat;
 
-	upload_vk_image(*image, pic);
+	upload_vk_image(image, pic);
 	return image;
 }
 
@@ -1025,10 +1025,10 @@ Loads any of the supported image types into a canonical
 32 bit format.
 =================
 */
-static const char *R_LoadImage(std::string_view name, byte **pic, int *width, int *height)
+static const char *R_LoadImage(const char *name, byte **pic, int *width, int *height)
 {
 	static char localName[MAX_QPATH];
-	const char *altName;
+	const char *altName, *ext;
 	// bool orgNameFailed = false;
 	int orgLoader = -1;
 	int i;
@@ -1037,15 +1037,15 @@ static const char *R_LoadImage(std::string_view name, byte **pic, int *width, in
 	*width = 0;
 	*height = 0;
 
-	Q_strncpyz(localName, name.data(), sizeof(localName));
+	Q_strncpyz(localName, name, sizeof(localName));
 
-	std::string_view ext = COM_GetExtension_plus(localName);
-	if (ext.size() > 0)
+	ext = COM_GetExtension(localName);
+	if (*ext)
 	{
 		// Look for the correct loader and use it
 		for (i = 0; i < numImageLoaders; i++)
 		{
-			if (!Q_stricmp_cpp(ext, imageLoaders[i].ext))
+			if (!Q_stricmp(ext, imageLoaders[i].ext))
 			{
 				// Load
 				imageLoaders[i].ImageLoader(localName, pic, width, height);
@@ -1062,7 +1062,7 @@ static const char *R_LoadImage(std::string_view name, byte **pic, int *width, in
 				// try again without the extension
 				// orgNameFailed = true;
 				orgLoader = i;
-				COM_StripExtension(name.data(), localName, MAX_QPATH);
+				COM_StripExtension(name, localName, MAX_QPATH);
 			}
 			else
 			{
@@ -1079,7 +1079,7 @@ static const char *R_LoadImage(std::string_view name, byte **pic, int *width, in
 		if (i == orgLoader)
 			continue;
 
-		altName = va("%s.%s", localName, imageLoaders[i].ext.data());
+		altName = va("%s.%s", localName, imageLoaders[i].ext);
 
 		// Load
 		imageLoaders[i].ImageLoader(altName, pic, width, height);
@@ -1460,7 +1460,7 @@ void R_DeleteTextures(void)
 	for (i = 0; i < tr.numImages; i++)
 	{
 		img = tr.images[i];
-		vk_destroy_image_resources(img->handle, img->view);
+		vk_destroy_image_resources(&img->handle, &img->view);
 
 		// img->descriptor will be released with pool reset
 	}
@@ -1646,7 +1646,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 	{
 		skin->numSurfaces = 1;
 		skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
-		skin->surfaces[0].shader = R_FindShader(std::string_view(name), LIGHTMAP_NONE, true);
+		skin->surfaces[0].shader = R_FindShader(name, LIGHTMAP_NONE, true);
 		return hSkin;
 	}
 
@@ -1689,7 +1689,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 		{
 			surf = &parseSurfaces[skin->numSurfaces];
 			Q_strncpyz(surf->name, surfName, sizeof(surf->name));
-			surf->shader = R_FindShader(std::string_view(token), LIGHTMAP_NONE, true);
+			surf->shader = R_FindShader(token, LIGHTMAP_NONE, true);
 			skin->numSurfaces++;
 		}
 
