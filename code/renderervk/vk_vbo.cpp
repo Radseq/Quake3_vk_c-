@@ -381,7 +381,7 @@ static void VBO_AddGeometry(vbo_t &vbo, vbo_item_t &vi, shaderCommands_t &input)
 	memcpy(vbo.vbo_buffer + offs, input.indexes, size);
 
 	// fill soft buffer too
-	if (vbo.ibo_offset + size > (uint32_t)vbo.ibo_size)
+	if (vbo.ibo_offset + size > vbo.ibo_size)
 	{
 		ri.Error(ERR_DROP, "Index1 overflow");
 	}

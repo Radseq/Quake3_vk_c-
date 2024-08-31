@@ -355,7 +355,7 @@ static void RB_TestFlare(flare_t *f)
 	}
 
 	// reset test result in storage buffer
-	// *((uint32_t*)(vk.storage.buffer_ptr + offset)) = 0x00;
+	// *((uint32_t*)(vk_inst.storage.buffer_ptr + offset)) = 0x00;
 
 	m = vk_ortho(backEnd.viewParms.viewportX, backEnd.viewParms.viewportX + backEnd.viewParms.viewportWidth,
 				 backEnd.viewParms.viewportY, backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight, 0, 1);

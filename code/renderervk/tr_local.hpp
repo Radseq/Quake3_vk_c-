@@ -49,7 +49,6 @@ extern "C"
 }
 
 #include "qcommon.hpp"
-#include "../qcommon/tr_public.h"
 #include "tr_common.hpp"
 #include "iqm.hpp"
 #include "definitions.hpp"
