@@ -86,13 +86,13 @@ void vk_wait_idle(void);
 //
 // Resources allocation.
 //
-void vk_create_image(image_t *image, int width, int height, int mip_levels);
-void vk_upload_image_data(image_t *image, int x, int y, int width, int height, int miplevels, byte *pixels, int size, bool update);
-void vk_update_descriptor_set(image_t *image, bool mipmap);
-void vk_destroy_image_resources(vk::Image *image, vk::ImageView *imageView);
+void vk_create_image(image_t &image, int width, int height, int mip_levels);
+void vk_upload_image_data(image_t &image, int x, int y, int width, int height, int miplevels, byte *pixels, int size, bool update);
+void vk_update_descriptor_set(image_t &image, bool mipmap);
+void vk_destroy_image_resources(vk::Image &image, vk::ImageView &imageView);
 
-uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def *def, bool use);
-void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def *def);
+uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def &def, bool use);
+void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def &def);
 
 void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t height);
 void vk_create_pipelines(void);
@@ -147,7 +147,7 @@ bool vk_alloc_vbo(const byte *vbo_data, uint32_t vbo_size);
 #endif
 
 void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass);
-uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def *def);
+uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def);
 
 vk::Pipeline vk_gen_pipeline(uint32_t index);
 void vk_bind_descriptor_sets(void);

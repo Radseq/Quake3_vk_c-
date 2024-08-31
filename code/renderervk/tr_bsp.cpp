@@ -393,7 +393,7 @@ static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 
 				R_ProcessLightmap(image, buf + offs, maxIntensity);
 
-				vk_upload_image_data(tr.lightmaps[i], x * LIGHTMAP_LEN, y * LIGHTMAP_LEN, LIGHTMAP_LEN, LIGHTMAP_LEN, 1, image, LIGHTMAP_LEN * LIGHTMAP_LEN * 4, true);
+				vk_upload_image_data(*tr.lightmaps[i], x * LIGHTMAP_LEN, y * LIGHTMAP_LEN, LIGHTMAP_LEN, LIGHTMAP_LEN, 1, image, LIGHTMAP_LEN * LIGHTMAP_LEN * 4, true);
 
 				offs += LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3;
 			}

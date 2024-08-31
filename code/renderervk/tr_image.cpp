@@ -377,7 +377,7 @@ void TextureMode(const char *string)
 		img = tr.images[i];
 		if (img->flags & IMGFLAG_MIPMAP)
 		{
-			vk_update_descriptor_set(img, true);
+			vk_update_descriptor_set(*img, true);
 		}
 	}
 }
@@ -933,8 +933,8 @@ static void upload_vk_image(image_t *image, byte *pic)
 	image->uploadWidth = w;
 	image->uploadHeight = h;
 
-	vk_create_image(image, w, h, upload_data.mip_levels);
-	vk_upload_image_data(image, 0, 0, w, h, upload_data.mip_levels, upload_data.buffer, upload_data.buffer_size, false);
+	vk_create_image(*image, w, h, upload_data.mip_levels);
+	vk_upload_image_data(*image, 0, 0, w, h, upload_data.mip_levels, upload_data.buffer, upload_data.buffer_size, false);
 
 	ri.Hunk_FreeTempMemory(upload_data.buffer);
 }
@@ -1460,7 +1460,7 @@ void R_DeleteTextures(void)
 	for (i = 0; i < tr.numImages; i++)
 	{
 		img = tr.images[i];
-		vk_destroy_image_resources(&img->handle, &img->view);
+		vk_destroy_image_resources(img->handle, img->view);
 
 		// img->descriptor will be released with pool reset
 	}

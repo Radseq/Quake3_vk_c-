@@ -2540,7 +2540,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.face_culling = CT_FRONT_SIDED;
 		def.polygon_offset = false;
 		def.mirror = false;
-		vk_inst.skybox_pipeline = vk_find_pipeline_ext(0, &def, true);
+		vk_inst.skybox_pipeline = vk_find_pipeline_ext(0, def, true);
 	}
 
 	// stencil shadows
@@ -2561,7 +2561,7 @@ static void vk_alloc_persistent_pipelines(void)
 			for (j = 0; j < 2; j++)
 			{
 				def.mirror = mirror_flags[j];
-				vk_inst.shadow_volume_pipelines[i][j] = vk_find_pipeline_ext(0, &def, r_shadows->integer ? true : false);
+				vk_inst.shadow_volume_pipelines[i][j] = vk_find_pipeline_ext(0, def, r_shadows->integer ? true : false);
 			}
 		}
 	}
@@ -2574,7 +2574,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.mirror = false;
 		def.shadow_phase = SHADOW_FS_QUAD;
 		def.primitives = TRIANGLE_STRIP;
-		vk_inst.shadow_finish_pipeline = vk_find_pipeline_ext(0, &def, r_shadows->integer ? true : false);
+		vk_inst.shadow_finish_pipeline = vk_find_pipeline_ext(0, def, r_shadows->integer ? true : false);
 	}
 
 	// fog and dlights
@@ -2612,15 +2612,15 @@ static void vk_alloc_persistent_pipelines(void)
 					def.shader_type = TYPE_SIGNLE_TEXTURE;
 #endif
 					def.state_bits = fog_state;
-					vk_inst.fog_pipelines[i][j][k] = vk_find_pipeline_ext(0, &def, true);
+					vk_inst.fog_pipelines[i][j][k] = vk_find_pipeline_ext(0, def, true);
 
 					def.shader_type = TYPE_SIGNLE_TEXTURE;
 					def.state_bits = dlight_state;
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
-					vk_inst.dlight_pipelines[i][j][k] = vk_find_pipeline_ext(0, &def, r_dlightMode->integer == 0 ? true : false);
+					vk_inst.dlight_pipelines[i][j][k] = vk_find_pipeline_ext(0, def, r_dlightMode->integer == 0 ? true : false);
 #else
-					vk_inst.dlight_pipelines[i][j][k] = vk_find_pipeline_ext(0, &def, true);
+					vk_inst.dlight_pipelines[i][j][k] = vk_find_pipeline_ext(0, def, true);
 #endif
 #endif
 				}
@@ -2643,9 +2643,9 @@ static void vk_alloc_persistent_pipelines(void)
 					{
 						def.abs_light = l;
 						def.shader_type = TYPE_SIGNLE_TEXTURE_LIGHTING;
-						vk_inst.dlight_pipelines_x[i][j][k][l] = vk_find_pipeline_ext(0, &def, false);
+						vk_inst.dlight_pipelines_x[i][j][k][l] = vk_find_pipeline_ext(0, def, false);
 						def.shader_type = TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR;
-						vk_inst.dlight1_pipelines_x[i][j][k][l] = vk_find_pipeline_ext(0, &def, false);
+						vk_inst.dlight1_pipelines_x[i][j][k][l] = vk_find_pipeline_ext(0, def, false);
 					}
 				}
 			}
@@ -2659,7 +2659,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.face_culling = CT_FRONT_SIDED;
 		def.primitives = TRIANGLE_STRIP;
-		vk_inst.surface_beam_pipeline = vk_find_pipeline_ext(0, &def, false);
+		vk_inst.surface_beam_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 
 	// axis for missing models
@@ -2671,7 +2671,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.primitives = LINE_LIST;
 		if (vk_inst.wideLines)
 			def.line_width = 3;
-		vk_inst.surface_axis_pipeline = vk_find_pipeline_ext(0, &def, false);
+		vk_inst.surface_axis_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 
 	// flare visibility test dot
@@ -2681,7 +2681,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.face_culling = CT_TWO_SIDED;
 		def.shader_type = TYPE_DOT;
 		def.primitives = POINT_LIST;
-		vk_inst.dot_pipeline = vk_find_pipeline_ext(0, &def, true);
+		vk_inst.dot_pipeline = vk_find_pipeline_ext(0, def, true);
 	}
 
 	// DrawTris()
@@ -2691,42 +2691,42 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_WHITE;
 		def.face_culling = CT_FRONT_SIDED;
-		vk_inst.tris_debug_pipeline = vk_find_pipeline_ext(0, &def, false);
+		vk_inst.tris_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_WHITE;
 		def.face_culling = CT_BACK_SIDED;
-		vk_inst.tris_mirror_debug_pipeline = vk_find_pipeline_ext(0, &def, false);
+		vk_inst.tris_mirror_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_GREEN;
 		def.face_culling = CT_FRONT_SIDED;
-		vk_inst.tris_debug_green_pipeline = vk_find_pipeline_ext(0, &def, false);
+		vk_inst.tris_debug_green_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_GREEN;
 		def.face_culling = CT_BACK_SIDED;
-		vk_inst.tris_mirror_debug_green_pipeline = vk_find_pipeline_ext(0, &def, false);
+		vk_inst.tris_mirror_debug_green_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_RED;
 		def.face_culling = CT_FRONT_SIDED;
-		vk_inst.tris_debug_red_pipeline = vk_find_pipeline_ext(0, &def, false);
+		vk_inst.tris_debug_red_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = TYPE_COLOR_RED;
 		def.face_culling = CT_BACK_SIDED;
-		vk_inst.tris_mirror_debug_red_pipeline = vk_find_pipeline_ext(0, &def, false);
+		vk_inst.tris_mirror_debug_red_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 
 	// DrawNormals()
@@ -2735,7 +2735,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = GLS_DEPTHMASK_TRUE;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.primitives = LINE_LIST;
-		vk_inst.normals_debug_pipeline = vk_find_pipeline_ext(0, &def, false);
+		vk_inst.normals_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 
 	// RB_DebugPolygon()
@@ -2743,14 +2743,14 @@ static void vk_alloc_persistent_pipelines(void)
 		def = {};
 		def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
-		vk_inst.surface_debug_pipeline_solid = vk_find_pipeline_ext(0, &def, false);
+		vk_inst.surface_debug_pipeline_solid = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.primitives = LINE_LIST;
-		vk_inst.surface_debug_pipeline_outline = vk_find_pipeline_ext(0, &def, false);
+		vk_inst.surface_debug_pipeline_outline = vk_find_pipeline_ext(0, def, false);
 	}
 
 	// RB_ShowImages
@@ -2759,7 +2759,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = GLS_DEPTHTEST_DISABLE | GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
 		def.shader_type = TYPE_SIGNLE_TEXTURE;
 		def.primitives = TRIANGLE_STRIP;
-		vk_inst.images_debug_pipeline = vk_find_pipeline_ext(0, &def, false);
+		vk_inst.images_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 }
 
@@ -4327,21 +4327,21 @@ static void record_buffer_memory_barrier(vk::CommandBuffer cb, vk::Buffer buffer
 	);
 }
 
-void vk_create_image(image_t *image, int width, int height, int mip_levels)
+void vk_create_image(image_t &image, int width, int height, int mip_levels)
 {
 
-	vk::Format format = vk::Format(image->internalFormat);
+	vk::Format format = vk::Format(image.internalFormat);
 
-	if (image->handle)
+	if (image.handle)
 	{
-		vk_inst.device.destroyImage(image->handle);
-		image->handle = VK_NULL_HANDLE;
+		vk_inst.device.destroyImage(image.handle);
+		image.handle = VK_NULL_HANDLE;
 	}
 
-	if (image->view)
+	if (image.view)
 	{
-		vk_inst.device.destroyImageView(image->view);
-		image->view = VK_NULL_HANDLE;
+		vk_inst.device.destroyImageView(image.view);
+		image.view = VK_NULL_HANDLE;
 	}
 
 	// create image
@@ -4361,13 +4361,13 @@ void vk_create_image(image_t *image, int width, int height, int mip_levels)
 							 vk::ImageLayout::eUndefined,
 							 nullptr};
 
-	image->handle = vk_inst.device.createImage(desc);
+	image.handle = vk_inst.device.createImage(desc);
 
-	allocate_and_bind_image_memory(image->handle);
+	allocate_and_bind_image_memory(image.handle);
 
 	// create image view
 	vk::ImageViewCreateInfo descImageView{{},
-										  image->handle,
+										  image.handle,
 										  vk::ImageViewType::e2D,
 										  format,
 										  {},
@@ -4379,24 +4379,24 @@ void vk_create_image(image_t *image, int width, int height, int mip_levels)
 										  nullptr};
 
 	// VK_CHECK(qvkCreateImageView(vk_inst.device, &desc, nullptr, &image.view));
-	image->view = vk_inst.device.createImageView(descImageView);
+	image.view = vk_inst.device.createImageView(descImageView);
 
 	// create associated descriptor set
-	if (image->descriptor == VK_NULL_HANDLE)
+	if (image.descriptor == VK_NULL_HANDLE)
 	{
 		vk::DescriptorSetAllocateInfo descSetAlloc{vk_inst.descriptor_pool,
 												   1,
 												   &vk_inst.set_layout_sampler,
 												   nullptr};
 
-		image->descriptor = vk_inst.device.allocateDescriptorSets(descSetAlloc)[0];
+		image.descriptor = vk_inst.device.allocateDescriptorSets(descSetAlloc)[0];
 	}
 
 	vk_update_descriptor_set(image, mip_levels > 1 ? true : false);
 
-	SET_OBJECT_NAME(VkImage(image->handle), image->imgName, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
-	SET_OBJECT_NAME(VkImageView(image->view), image->imgName, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
-	SET_OBJECT_NAME(VkDescriptorSet(image->descriptor), image->imgName, VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
+	SET_OBJECT_NAME(VkImage(image.handle), image.imgName, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
+	SET_OBJECT_NAME(VkImageView(image.view), image.imgName, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
+	SET_OBJECT_NAME(VkDescriptorSet(image.descriptor), image.imgName, VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
 }
 
 static byte *resample_image_data(const int target_format, byte *data, const int data_size, int *bytes_per_pixel)
@@ -4471,7 +4471,7 @@ static byte *resample_image_data(const int target_format, byte *data, const int 
 	}
 }
 
-void vk_upload_image_data(image_t *image, int x, int y, int width, int height, int mipmaps, byte *pixels, int size, bool update)
+void vk_upload_image_data(image_t &image, int x, int y, int width, int height, int mipmaps, byte *pixels, int size, bool update)
 {
 
 	vk::CommandBuffer command_buffer;
@@ -4482,7 +4482,7 @@ void vk_upload_image_data(image_t *image, int x, int y, int width, int height, i
 	int buffer_size = 0;
 	uint32_t num_regions = 0;
 
-	buf = resample_image_data(image->internalFormat, pixels, size, &bpp);
+	buf = resample_image_data(image.internalFormat, pixels, size, &bpp);
 
 	while (true)
 	{
@@ -4530,20 +4530,20 @@ void vk_upload_image_data(image_t *image, int x, int y, int width, int height, i
 
 	if (update)
 	{
-		record_image_layout_transition(command_buffer, image->handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eTransferDstOptimal);
+		record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eTransferDstOptimal);
 	}
 	else
 	{
-		record_image_layout_transition(command_buffer, image->handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+		record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
 	}
 	// qvkCmdCopyBufferToImage(command_buffer, vk_world.staging_buffer, image.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions);
 	command_buffer.copyBufferToImage(
 		vk_world.staging_buffer,
-		image->handle,
+		image.handle,
 		vk::ImageLayout::eTransferDstOptimal,
 		std::vector<vk::BufferImageCopy>(regions.begin(), regions.begin() + num_regions));
 
-	record_image_layout_transition(command_buffer, image->handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+	record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 	end_command_buffer(command_buffer);
 
 	if (buf != pixels)
@@ -4552,11 +4552,11 @@ void vk_upload_image_data(image_t *image, int x, int y, int width, int height, i
 	}
 }
 
-void vk_update_descriptor_set(image_t *image, bool mipmap)
+void vk_update_descriptor_set(image_t &image, bool mipmap)
 {
 	Vk_Sampler_Def sampler_def = {};
 
-	sampler_def.address_mode = image->wrapClampMode;
+	sampler_def.address_mode = image.wrapClampMode;
 
 	if (mipmap)
 	{
@@ -4572,10 +4572,10 @@ void vk_update_descriptor_set(image_t *image, bool mipmap)
 	}
 
 	vk::DescriptorImageInfo image_info{vk_find_sampler(&sampler_def),
-									   image->view,
+									   image.view,
 									   vk::ImageLayout::eShaderReadOnlyOptimal};
 
-	vk::WriteDescriptorSet descriptor_write{image->descriptor,
+	vk::WriteDescriptorSet descriptor_write{image.descriptor,
 											0,
 											0,
 											1,
@@ -4588,18 +4588,18 @@ void vk_update_descriptor_set(image_t *image, bool mipmap)
 	vk_inst.device.updateDescriptorSets(descriptor_write, nullptr);
 }
 
-void vk_destroy_image_resources(vk::Image *image, vk::ImageView *imageView)
+void vk_destroy_image_resources(vk::Image &image, vk::ImageView &imageView)
 {
 
 	if (image != VK_NULL_HANDLE)
 	{
-		vk_inst.device.destroyImage(*image);
+		vk_inst.device.destroyImage(image);
 		image = VK_NULL_HANDLE;
 	}
 
 	if (imageView != VK_NULL_HANDLE)
 	{
-		vk_inst.device.destroyImageView(*imageView);
+		vk_inst.device.destroyImageView(imageView);
 		imageView = VK_NULL_HANDLE;
 	}
 }
@@ -6007,7 +6007,7 @@ vk::Pipeline vk_gen_pipeline(uint32_t index)
 	}
 }
 
-uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def *def)
+uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def)
 {
 	VK_Pipeline_t *pipeline;
 	if (vk_inst.pipelines_count >= MAX_VK_PIPELINES)
@@ -6019,7 +6019,7 @@ uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def *def)
 	{
 		int j;
 		pipeline = &vk_inst.pipelines[vk_inst.pipelines_count];
-		pipeline->def = *def;
+		pipeline->def = def;
 		for (j = 0; j < RENDER_PASS_COUNT; j++)
 		{
 			pipeline->handle[j] = VK_NULL_HANDLE;
@@ -6028,7 +6028,7 @@ uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def *def)
 	}
 }
 
-uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def *def, bool use)
+uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def &def, bool use)
 {
 	const Vk_Pipeline_Def *cur_def;
 	uint32_t index;
@@ -6036,7 +6036,7 @@ uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def *def, bool us
 	for (index = base; index < vk_inst.pipelines_count; index++)
 	{
 		cur_def = &vk_inst.pipelines[index].def;
-		if (memcmp(cur_def, def, sizeof(*def)) == 0)
+		if (memcmp(cur_def, &def, sizeof(def)) == 0)
 		{
 			goto found;
 		}
@@ -6051,15 +6051,15 @@ found:
 	return index;
 }
 
-void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def *def)
+void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def &def)
 {
 	if (pipeline >= vk_inst.pipelines_count)
 	{
-		Com_Memset(def, 0, sizeof(*def));
+		def = {};
 	}
 	else
 	{
-		Com_Memcpy(def, &vk_inst.pipelines[pipeline].def, sizeof(*def));
+		Com_Memcpy(&def, &vk_inst.pipelines[pipeline].def, sizeof(def));
 	}
 }
 

@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #ifdef USE_VBO
 
-#define MAX_VBO_STAGES MAX_SHADER_STAGES
+constexpr int MAX_VBO_STAGES = MAX_SHADER_STAGES;
 
 constexpr int MIN_IBO_RUN = 320;
 
@@ -733,7 +733,7 @@ void R_BuildWorldVBO(msurface_t &surf, int surfCount)
 
 	// release host memory
 	ri.Hunk_FreeTempMemory(vbo.vbo_buffer);
-	vbo.vbo_buffer = NULL;
+	vbo.vbo_buffer = nullptr;
 
 	// release GPU resources
 	// VBO_Cleanup();
