@@ -327,17 +327,13 @@ static vk::CommandBuffer begin_command_buffer(void)
 
 static void end_command_buffer(vk::CommandBuffer command_buffer)
 {
-	vk::CommandBuffer cmdbuf[1];
-
-	cmdbuf[0] = command_buffer;
-
 	command_buffer.end();
 
 	vk::SubmitInfo submit_info{0,
 							   nullptr,
 							   nullptr,
 							   1,
-							   cmdbuf,
+							   &command_buffer,
 							   0,
 							   nullptr,
 							   nullptr};
@@ -348,7 +344,7 @@ static void end_command_buffer(vk::CommandBuffer command_buffer)
 	// VK_CHECK(qvkQueueWaitIdle(vk_inst.queue));
 	vk_inst.device.freeCommandBuffers(vk_inst.command_pool,
 									  1,
-									  cmdbuf);
+									  &command_buffer);
 
 	// qvkFreeCommandBuffers(vk_inst.device, vk_inst.command_pool, 1, cmdbuf);
 }
@@ -994,7 +990,6 @@ static void create_instance(void)
 #endif
 
 	vk::InstanceCreateFlags flags = {};
-	const char **extension_names;
 	uint32_t i, n, count, extension_count;
 
 	extension_count = 0;
@@ -1002,11 +997,12 @@ static void create_instance(void)
 	VK_CHECK(extension_properties = vk::enumerateInstanceExtensionProperties());
 
 	count = extension_properties.size();
-	extension_names = (const char **)ri.Malloc(sizeof(char *) * count);
+	// extension_names = (const char **)ri.Malloc(sizeof(char *) * count);
+	std::vector<const char *> extension_names(count);
 
 	for (i = 0; i < count; i++)
 	{
-		const char *ext = std::string_view(extension_properties[i].extensionName).data();
+		const char *ext = extension_properties[i].extensionName.data();
 
 		if (!used_instance_extension(ext))
 		{
@@ -1049,7 +1045,7 @@ static void create_instance(void)
 								0,
 								nullptr,
 								extension_count,
-								extension_names,
+								extension_names.data(),
 								nullptr};
 
 #ifdef USE_VK_VALIDATION
@@ -1084,7 +1080,7 @@ static void create_instance(void)
 	VK_CHECK(vk_instance = createInstance(desc));
 #endif
 
-	ri.Free((void *)extension_names);
+	// ri.Free((void *)extension_names);
 }
 
 static vk::Format get_depth_format(vk::PhysicalDevice physical_device)
@@ -1804,7 +1800,7 @@ void vk_update_uniform_descriptor(const vk::DescriptorSet &descriptor, const vk:
 	vk_inst.device.updateDescriptorSets(desc, nullptr);
 }
 
-static vk::Sampler vk_find_sampler(const Vk_Sampler_Def *def)
+static vk::Sampler vk_find_sampler(const Vk_Sampler_Def &def)
 {
 	vk::SamplerAddressMode address_mode;
 	vk::Sampler sampler;
@@ -1818,7 +1814,7 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def *def)
 	for (i = 0; i < vk_world.num_samplers; i++)
 	{
 		const Vk_Sampler_Def *cur_def = &vk_world.sampler_defs[i];
-		if (memcmp(cur_def, def, sizeof(*def)) == 0)
+		if (memcmp(cur_def, &def, sizeof(def)) == 0)
 		{
 			return vk_world.samplers[i];
 		}
@@ -1830,13 +1826,13 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def *def)
 		ri.Error(ERR_DROP, "vk_find_sampler: MAX_VK_SAMPLERS hit\n");
 	}
 
-	address_mode = def->address_mode;
+	address_mode = def.address_mode;
 
-	if (def->gl_mag_filter == GL_NEAREST)
+	if (def.gl_mag_filter == GL_NEAREST)
 	{
 		mag_filter = vk::Filter::eNearest;
 	}
-	else if (def->gl_mag_filter == GL_LINEAR)
+	else if (def.gl_mag_filter == GL_LINEAR)
 	{
 		mag_filter = vk::Filter::eLinear;
 	}
@@ -1848,34 +1844,34 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def *def)
 
 	maxLod = vk_inst.maxLod;
 
-	if (def->gl_min_filter == GL_NEAREST)
+	if (def.gl_min_filter == GL_NEAREST)
 	{
 		min_filter = vk::Filter::eNearest;
 		mipmap_mode = vk::SamplerMipmapMode::eNearest;
 		maxLod = 0.25f; // used to emulate OpenGL's GL_LINEAR/GL_NEAREST minification filter
 	}
-	else if (def->gl_min_filter == GL_LINEAR)
+	else if (def.gl_min_filter == GL_LINEAR)
 	{
 		min_filter = vk::Filter::eLinear;
 		mipmap_mode = vk::SamplerMipmapMode::eNearest;
 		maxLod = 0.25f; // used to emulate OpenGL's GL_LINEAR/GL_NEAREST minification filter
 	}
-	else if (def->gl_min_filter == GL_NEAREST_MIPMAP_NEAREST)
+	else if (def.gl_min_filter == GL_NEAREST_MIPMAP_NEAREST)
 	{
 		min_filter = vk::Filter::eNearest;
 		mipmap_mode = vk::SamplerMipmapMode::eNearest;
 	}
-	else if (def->gl_min_filter == GL_LINEAR_MIPMAP_NEAREST)
+	else if (def.gl_min_filter == GL_LINEAR_MIPMAP_NEAREST)
 	{
 		min_filter = vk::Filter::eLinear;
 		mipmap_mode = vk::SamplerMipmapMode::eNearest;
 	}
-	else if (def->gl_min_filter == GL_NEAREST_MIPMAP_LINEAR)
+	else if (def.gl_min_filter == GL_NEAREST_MIPMAP_LINEAR)
 	{
 		min_filter = vk::Filter::eNearest;
 		mipmap_mode = vk::SamplerMipmapMode::eLinear;
 	}
-	else if (def->gl_min_filter == GL_LINEAR_MIPMAP_LINEAR)
+	else if (def.gl_min_filter == GL_LINEAR_MIPMAP_LINEAR)
 	{
 		min_filter = vk::Filter::eLinear;
 		mipmap_mode = vk::SamplerMipmapMode::eLinear;
@@ -1886,7 +1882,7 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def *def)
 		return VK_NULL_HANDLE;
 	}
 
-	if (def->max_lod_1_0)
+	if (def.max_lod_1_0)
 	{
 		maxLod = 1.0f;
 	}
@@ -1909,7 +1905,7 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def *def)
 							   VK_FALSE,
 							   nullptr};
 
-	if (def->noAnisotropy || mipmap_mode == vk::SamplerMipmapMode::eNearest || mag_filter == vk::Filter::eNearest)
+	if (def.noAnisotropy || mipmap_mode == vk::SamplerMipmapMode::eNearest || mag_filter == vk::Filter::eNearest)
 	{
 		desc.anisotropyEnable = VK_FALSE;
 		desc.maxAnisotropy = 1.0f;
@@ -1929,7 +1925,7 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def *def)
 
 	SET_OBJECT_NAME(VkSampler(sampler), va("image sampler %i", vk_world.num_samplers), VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT);
 
-	vk_world.sampler_defs[vk_world.num_samplers] = *def;
+	vk_world.sampler_defs[vk_world.num_samplers] = def;
 	vk_world.samplers[vk_world.num_samplers] = sampler;
 	vk_world.num_samplers++;
 
@@ -1942,13 +1938,9 @@ static void vk_update_attachment_descriptors(void)
 	if (vk_inst.color_image_view)
 	{
 
-		Vk_Sampler_Def sd{};
-		sd.gl_mag_filter = sd.gl_min_filter = vk_inst.blitFilter;
-		sd.address_mode = vk::SamplerAddressMode::eClampToEdge;
-		sd.max_lod_1_0 = true;
-		sd.noAnisotropy = true;
+		Vk_Sampler_Def sd{vk::SamplerAddressMode::eClampToEdge, vk_inst.blitFilter, vk_inst.blitFilter, true, true};
 
-		vk::DescriptorImageInfo info{vk_find_sampler(&sd),
+		vk::DescriptorImageInfo info{vk_find_sampler(sd),
 									 vk_inst.color_image_view,
 									 vk::ImageLayout::eShaderReadOnlyOptimal};
 
@@ -1969,7 +1961,7 @@ static void vk_update_attachment_descriptors(void)
 		sd.max_lod_1_0 = false;
 		sd.noAnisotropy = true;
 
-		info.sampler = vk_find_sampler(&sd);
+		info.sampler = vk_find_sampler(sd);
 
 		info.imageView = vk_inst.screenMap.color_image_view;
 		desc.dstSet = vk_inst.screenMap.color_descriptor;
@@ -4571,7 +4563,7 @@ void vk_update_descriptor_set(image_t &image, bool mipmap)
 		sampler_def.noAnisotropy = true;
 	}
 
-	vk::DescriptorImageInfo image_info{vk_find_sampler(&sampler_def),
+	vk::DescriptorImageInfo image_info{vk_find_sampler(sampler_def),
 									   image.view,
 									   vk::ImageLayout::eShaderReadOnlyOptimal};
 
