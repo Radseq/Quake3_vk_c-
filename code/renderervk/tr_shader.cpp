@@ -174,7 +174,7 @@ static bool ParseVector(const char **text, int count, float *v)
 NameToAFunc
 ===============
 */
-static unsigned NameToAFunc(std::string_view funcname)
+static constexpr unsigned NameToAFunc(std::string_view funcname)
 {
 	if (!Q_stricmp_cpp(funcname, "GT0"))
 	{
@@ -198,7 +198,7 @@ static unsigned NameToAFunc(std::string_view funcname)
 NameToSrcBlendMode
 ===============
 */
-static int NameToSrcBlendMode(std::string_view name)
+static constexpr int NameToSrcBlendMode(std::string_view name)
 {
 	if (!Q_stricmp_cpp(name, "GL_ONE"))
 	{
@@ -246,7 +246,7 @@ static int NameToSrcBlendMode(std::string_view name)
 NameToDstBlendMode
 ===============
 */
-static int NameToDstBlendMode(std::string_view name)
+static constexpr int NameToDstBlendMode(std::string_view name)
 {
 	if (!Q_stricmp_cpp(name, "GL_ONE"))
 	{
@@ -290,7 +290,7 @@ static int NameToDstBlendMode(std::string_view name)
 NameToGenFunc
 ===============
 */
-static genFunc_t NameToGenFunc(std::string_view funcname)
+static constexpr genFunc_t NameToGenFunc(std::string_view funcname)
 {
 	if (!Q_stricmp_cpp(funcname, "sin"))
 	{
@@ -379,7 +379,6 @@ ParseTexMod
 */
 static void ParseTexMod(const char *_text, shaderStage_t &stage)
 {
-	const char *token;
 	const char **text = &_text;
 	texModInfo_t *tmi;
 
@@ -392,93 +391,93 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 	tmi = &stage.bundle[0].texMods[stage.bundle[0].numTexMods];
 	stage.bundle[0].numTexMods++;
 
-	token = COM_ParseExt(text, false);
+	std::string_view token = COM_ParseExt_cpp(text, false);
 
 	//
 	// turb
 	//
-	if (!Q_stricmp(token, "turb"))
+	if (!Q_stricmp_cpp(token, "turb"))
 	{
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod turb parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.base = Q_atof(token);
-		token = COM_ParseExt(text, false);
+		tmi->wave.base = Q_atof_cpp(token);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod turb in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.amplitude = Q_atof(token);
-		token = COM_ParseExt(text, false);
+		tmi->wave.amplitude = Q_atof_cpp(token);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod turb in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.phase = Q_atof(token);
-		token = COM_ParseExt(text, false);
+		tmi->wave.phase = Q_atof_cpp(token);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod turb in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.frequency = Q_atof(token);
+		tmi->wave.frequency = Q_atof_cpp(token);
 
 		tmi->type = TMOD_TURBULENT;
 	}
 	//
 	// scale
 	//
-	else if (!Q_stricmp(token, "scale"))
+	else if (!Q_stricmp_cpp(token, "scale"))
 	{
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing scale parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->scale[0] = Q_atof(token);
+		tmi->scale[0] = Q_atof_cpp(token);
 
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing scale parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->scale[1] = Q_atof(token);
+		tmi->scale[1] = Q_atof_cpp(token);
 		tmi->type = TMOD_SCALE;
 	}
 	//
 	// scroll
 	//
-	else if (!Q_stricmp(token, "scroll"))
+	else if (!Q_stricmp_cpp(token, "scroll"))
 	{
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing scale scroll parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->scroll[0] = Q_atof(token);
-		token = COM_ParseExt(text, false);
+		tmi->scroll[0] = Q_atof_cpp(token);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing scale scroll parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->scroll[1] = Q_atof(token);
+		tmi->scroll[1] = Q_atof_cpp(token);
 		tmi->type = TMOD_SCROLL;
 	}
 	//
 	// stretch
 	//
-	else if (!Q_stricmp(token, "stretch"))
+	else if (!Q_stricmp_cpp(token, "stretch"))
 	{
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
@@ -486,113 +485,113 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 		}
 		tmi->wave.func = NameToGenFunc(std::string_view(token));
 
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.base = Q_atof(token);
+		tmi->wave.base = Q_atof_cpp(token);
 
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.amplitude = Q_atof(token);
+		tmi->wave.amplitude = Q_atof_cpp(token);
 
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.phase = Q_atof(token);
+		tmi->wave.phase = Q_atof_cpp(token);
 
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->wave.frequency = Q_atof(token);
+		tmi->wave.frequency = Q_atof_cpp(token);
 
 		tmi->type = TMOD_STRETCH;
 	}
 	//
 	// transform
 	//
-	else if (!Q_stricmp(token, "transform"))
+	else if (!Q_stricmp_cpp(token, "transform"))
 	{
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->matrix[0][0] = Q_atof(token);
+		tmi->matrix[0][0] = Q_atof_cpp(token);
 
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->matrix[0][1] = Q_atof(token);
+		tmi->matrix[0][1] = Q_atof_cpp(token);
 
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->matrix[1][0] = Q_atof(token);
+		tmi->matrix[1][0] = Q_atof_cpp(token);
 
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->matrix[1][1] = Q_atof(token);
+		tmi->matrix[1][1] = Q_atof_cpp(token);
 
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->translate[0] = Q_atof(token);
+		tmi->translate[0] = Q_atof_cpp(token);
 
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->translate[1] = Q_atof(token);
+		tmi->translate[1] = Q_atof_cpp(token);
 
 		tmi->type = TMOD_TRANSFORM;
 	}
 	//
 	// rotate
 	//
-	else if (!Q_stricmp(token, "rotate"))
+	else if (!Q_stricmp_cpp(token, "rotate"))
 	{
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod rotate parms in shader '%s'\n", shader.name);
 			return;
 		}
-		tmi->rotateSpeed = Q_atof(token);
+		tmi->rotateSpeed = Q_atof_cpp(token);
 		tmi->type = TMOD_ROTATE;
 	}
 	//
 	// entityTranslate
 	//
-	else if (!Q_stricmp(token, "entityTranslate"))
+	else if (!Q_stricmp_cpp(token, "entityTranslate"))
 	{
 		tmi->type = TMOD_ENTITY_TRANSLATE;
 	}

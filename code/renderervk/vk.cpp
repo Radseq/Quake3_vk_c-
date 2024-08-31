@@ -1,4 +1,3 @@
-#include "string_operations.hpp"
 #include "vk.hpp"
 #include <stdexcept>
 #include <algorithm>
@@ -15,6 +14,7 @@
 
 #include <unordered_map>
 #include <numeric>
+#include "string_operations.hpp"
 
 constexpr int MIN_SWAPCHAIN_IMAGES_IMM = 3;
 constexpr int MIN_SWAPCHAIN_IMAGES_FIFO = 3;
