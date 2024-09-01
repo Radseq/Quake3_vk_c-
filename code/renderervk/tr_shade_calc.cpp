@@ -1217,7 +1217,7 @@ void RB_CalcRotateTexCoords(float degsPerSecond, float *src, float *dst)
 **
 ** Calculates specular coefficient and places it in the alpha channel
 */
-vec3_t lightOrigin = {-960, 1980, 96}; // FIXME: track dynamically
+constexpr vec3_t lightOrigin = {-960, 1980, 96}; // FIXME: track dynamically
 
 void RB_CalcSpecularAlpha(unsigned char *alphas)
 {
