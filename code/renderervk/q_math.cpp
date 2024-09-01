@@ -538,8 +538,6 @@ void VectorRotate(const vec3_t in, const vec3_t matrix[3], vec3_t out)
 #include <intrin.h>
 #endif
 
-
-
 float Q_fabs(float f)
 {
 	floatint_t fi;
@@ -659,37 +657,38 @@ BoxOnPlaneSide
 Returns 1, 2, or 1 + 2
 ==================
 */
-int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, struct cplane_s *p)
+
+int BoxOnPlaneSide_cpp(vec3_t emins, vec3_t emaxs, cplane_s &p)
 {
 	float dist[2];
 	int sides, b, i;
 
 	// fast axial cases
-	if (p->type < 3)
+	if (p.type < 3)
 	{
-		if (p->dist <= emins[p->type])
+		if (p.dist <= emins[p.type])
 			return 1;
-		if (p->dist >= emaxs[p->type])
+		if (p.dist >= emaxs[p.type])
 			return 2;
 		return 3;
 	}
 
 	// general case
 	dist[0] = dist[1] = 0;
-	if (p->signbits < 8) // >= 8: default case is original code (dist[0]=dist[1]=0)
+	if (p.signbits < 8) // >= 8: default case is original code (dist[0]=dist[1]=0)
 	{
 		for (i = 0; i < 3; i++)
 		{
-			b = (p->signbits >> i) & 1;
-			dist[b] += p->normal[i] * emaxs[i];
-			dist[!b] += p->normal[i] * emins[i];
+			b = (p.signbits >> i) & 1;
+			dist[b] += p.normal[i] * emaxs[i];
+			dist[!b] += p.normal[i] * emins[i];
 		}
 	}
 
 	sides = 0;
-	if (dist[0] >= p->dist)
+	if (dist[0] >= p.dist)
 		sides = 1;
-	if (dist[1] < p->dist)
+	if (dist[1] < p.dist)
 		sides |= 2;
 
 	return sides;
@@ -721,7 +720,6 @@ void ClearBounds(vec3_t mins, vec3_t maxs)
 	mins[0] = mins[1] = mins[2] = 99999;
 	maxs[0] = maxs[1] = maxs[2] = -99999;
 }
-
 
 bool BoundsIntersect(const vec3_t mins, const vec3_t maxs,
 					 const vec3_t mins2, const vec3_t maxs2)
@@ -1118,4 +1116,3 @@ void SetPlaneSignbits(cplane_t *out)
 	}
 	out->signbits = bits;
 }
-
