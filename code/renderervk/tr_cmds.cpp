@@ -197,7 +197,7 @@ void R_AddDrawSurfCmd(drawSurf_t &drawSurfs, int numDrawSurfs)
 	}
 }
 
-constexpr vec4_t colorWhite = {1, 1, 1, 1};
+constexpr vec4_t		colorWhite	= {1, 1, 1, 1};
 
 /*
 =============
@@ -237,7 +237,7 @@ RE_StretchPic
 =============
 */
 void RE_StretchPic(float x, float y, float w, float h,
-				   float s1, float t1, float s2, float t2, qhandle_t hShader)
+						float s1, float t1, float s2, float t2, qhandle_t hShader)
 {
 	stretchPicCommand_t *cmd;
 
@@ -317,7 +317,7 @@ void RE_BeginFrame(stereoFrame_t stereoFrame)
 		cmd->buffer = 0;
 	}
 
-	if (r_fastsky->integer && vk.fastSky)
+	if (r_fastsky->integer && vk_inst.fastSky)
 	{
 		if (stereoFrame != STEREO_RIGHT)
 		{
@@ -337,7 +337,7 @@ RE_TakeVideoFrame
 =============
 */
 void RE_TakeVideoFrame(int width, int height,
-					   byte *captureBuffer, byte *encodeBuffer, bool motionJpeg)
+							byte *captureBuffer, byte *encodeBuffer, bool motionJpeg)
 {
 	if (!tr.registered)
 	{
@@ -382,7 +382,7 @@ void RE_FinishBloom()
 
 bool RE_CanMinimize()
 {
-	if (vk.fboActive || vk.offscreenRender)
+	if (vk_inst.fboActive || vk_inst.offscreenRender)
 		return true;
 	return false;
 }
@@ -448,7 +448,7 @@ void RE_EndFrame(int *frontEndMsec, int *backEndMsec)
 		// texturemode stuff
 		if (r_textureMode->modified)
 		{
-			TextureMode(std::string_view(r_textureMode->string));
+			TextureMode(r_textureMode->string);
 		}
 
 		// gamma stuff

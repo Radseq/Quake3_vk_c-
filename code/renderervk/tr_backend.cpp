@@ -133,7 +133,7 @@ static void SetViewportAndScissor(void)
 	// Com_Memcpy( vk_world.modelview_transform, backEnd.ort.modelMatrix, 64 );
 	// vk_update_mvp();
 	//  force depth range and viewport/scissor updates
-	vk.cmd->depth_range = DEPTH_RANGE_COUNT;
+	vk_inst.cmd->depth_range = DEPTH_RANGE_COUNT;
 }
 
 /*
@@ -223,7 +223,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 		}
 
 		R_DecomposeSort(drawSurf->sort, &entityNum, &shader, &fogNum, &dlighted);
-		if (vk.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
+		if (vk_inst.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
 		{
 			continue;
 		}
@@ -398,7 +398,7 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 
 		R_DecomposeLitSort(litSurf->sort, &entityNum, &shader, &fogNum);
 
-		if (vk.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
+		if (vk_inst.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
 		{
 			continue;
 		}
@@ -514,7 +514,7 @@ static void RB_SetGL2D(void)
 	vk_update_mvp(NULL);
 
 	// force depth range and viewport/scissor updates
-	vk.cmd->depth_range = DEPTH_RANGE_COUNT;
+	vk_inst.cmd->depth_range = DEPTH_RANGE_COUNT;
 
 	// set time for 2D shaders
 	backEnd.refdef.time = ri.Milliseconds();
@@ -666,7 +666,7 @@ static const void *RB_StretchPic(const void *data)
 static void RB_LightingPass(void)
 {
 	dlight_t *dl;
-	unsigned int i;
+	int i;
 
 #ifdef USE_VBO
 	// VBO_Flush();
@@ -760,7 +760,7 @@ static void RB_DebugPolygon(int color, int numPoints, float *points)
 	}
 
 	vk_bind_index();
-	vk_bind_pipeline(vk.surface_debug_pipeline_solid);
+	vk_bind_pipeline(vk_inst.surface_debug_pipeline_solid);
 	vk_bind_geometry(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
 	vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
 
@@ -775,7 +775,7 @@ static void RB_DebugPolygon(int color, int numPoints, float *points)
 	tess.numVertexes = numPoints * 2;
 	tess.numIndexes = 0;
 
-	vk_bind_pipeline(vk.surface_debug_pipeline_outline);
+	vk_bind_pipeline(vk_inst.surface_debug_pipeline_outline);
 	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
 	vk_draw_geometry(DEPTH_RANGE_ZERO, false);
 	tess.numVertexes = 0;
@@ -882,7 +882,7 @@ static const void *RB_DrawBuffer(const void *data)
 	tess.depthRange = DEPTH_RANGE_NORMAL;
 
 	// force depth range and viewport/scissor updates
-	vk.cmd->depth_range = DEPTH_RANGE_COUNT;
+	vk_inst.cmd->depth_range = DEPTH_RANGE_COUNT;
 
 	if (r_clear->integer)
 	{
@@ -967,7 +967,7 @@ vec4_t		colorBlack	= {0, 0, 0, 1};
 
 		tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
 
-		vk_bind_pipeline(vk.images_debug_pipeline);
+		vk_bind_pipeline(vk_inst.images_debug_pipeline);
 		vk_bind_geometry(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
 		vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
 	}
@@ -1068,7 +1068,7 @@ static const void *RB_SwapBuffers(const void *data)
 
 	vk_end_frame();
 
-	if (backEnd.screenshotMask && vk.cmd->waitForFence)
+	if (backEnd.screenshotMask && vk_inst.cmd->waitForFence)
 	{
 		if (backEnd.screenshotMask & SCREENSHOT_TGA && backEnd.screenshotTGA[0])
 		{
@@ -1161,7 +1161,7 @@ void RB_ExecuteRenderCommands(const void *data)
 		case RC_END_OF_LIST:
 		default:
 			// stop rendering
-			if (vk.frame_count)
+			if (vk_inst.frame_count)
 			{
 				vk_end_frame();
 			}

@@ -1,15 +1,20 @@
-#include "vulkan/vulkan.h"
-
 #ifndef DEFINITIONS_HPP
 #define DEFINITIONS_HPP
 
-#define VK_NUM_BLOOM_PASSES 4
-#define MAX_VK_SAMPLERS 32
-#define MAX_IMAGE_CHUNKS 48
-#define MAX_SWAPCHAIN_IMAGES 8
-#define MAX_ATTACHMENTS_IN_POOL (8 + VK_NUM_BLOOM_PASSES * 2) // depth + msaa + msaa-resolve + depth-resolve + screenmap.msaa + screenmap.resolve + screenmap.depth + bloom_extract + blur pairs
-#define NUM_COMMAND_BUFFERS 2                                 // number of command buffers / render semaphores / framebuffer sets
-#define MAX_VK_PIPELINES (1024 + 128)
+extern "C"
+{
+#include "vulkan/vulkan.h"
+}
+
+#include "vulkan/vulkan.hpp"
+
+constexpr int VK_NUM_BLOOM_PASSES = 4;
+constexpr int MAX_VK_SAMPLERS = 32;
+constexpr int MAX_IMAGE_CHUNKS = 48;
+constexpr int MAX_SWAPCHAIN_IMAGES = 8;
+constexpr int MAX_ATTACHMENTS_IN_POOL(8 + VK_NUM_BLOOM_PASSES * 2); // depth + msaa + msaa-resolve + depth-resolve + screenmap.msaa + screenmap.resolve + screenmap.depth + bloom_extract + blur pairs
+constexpr int NUM_COMMAND_BUFFERS = 2;                              // number of command buffers / render semaphores / framebuffer sets
+constexpr int MAX_VK_PIPELINES = (1024 + 128);
 
 typedef unsigned char byte;
 
@@ -24,17 +29,17 @@ typedef enum
 
 typedef struct
 {
-    VkSamplerAddressMode address_mode; // clamp/repeat texture addressing mode
-    int gl_mag_filter;                 // GL_XXX mag filter
-    int gl_min_filter;                 // GL_XXX min filter
-    bool max_lod_1_0;                  // fixed 1.0 lod
+    vk::SamplerAddressMode address_mode; // clamp/repeat texture addressing mode
+    int gl_mag_filter;                   // GL_XXX mag filter
+    int gl_min_filter;                   // GL_XXX min filter
+    bool max_lod_1_0;                    // fixed 1.0 lod
     bool noAnisotropy;
 } Vk_Sampler_Def;
 
 typedef struct
 {
-    VkDeviceMemory memory;
-    VkDeviceSize used;
+    vk::DeviceMemory memory;
+    vk::DeviceSize used;
 } ImageChunk;
 
 typedef struct
@@ -44,7 +49,7 @@ typedef struct
     //
     int num_samplers;
     Vk_Sampler_Def sampler_defs[MAX_VK_SAMPLERS];
-    VkSampler samplers[MAX_VK_SAMPLERS];
+    vk::Sampler samplers[MAX_VK_SAMPLERS];
 
     //
     // Memory allocations.
@@ -53,9 +58,9 @@ typedef struct
     ImageChunk image_chunks[MAX_IMAGE_CHUNKS];
 
     // Host visible memory used to copy image data to device local memory.
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_buffer_memory;
-    VkDeviceSize staging_buffer_size;
+    vk::Buffer staging_buffer;
+    vk::DeviceMemory staging_buffer_memory;
+    vk::DeviceSize staging_buffer_size;
     byte *staging_buffer_ptr; // pointer to mapped staging buffer
 
     //
@@ -209,134 +214,135 @@ typedef struct
 typedef struct VK_Pipeline
 {
     Vk_Pipeline_Def def;
-    VkPipeline handle[RENDER_PASS_COUNT];
+    vk::Pipeline handle[RENDER_PASS_COUNT];
 } VK_Pipeline_t;
 
 typedef struct vk_tess_s
 {
-    VkCommandBuffer command_buffer;
+    vk::CommandBuffer command_buffer;
 
-    VkSemaphore image_acquired;
-    VkSemaphore rendering_finished;
-    VkFence rendering_finished_fence;
+    vk::Semaphore image_acquired;
+    vk::Semaphore rendering_finished;
+    vk::Fence rendering_finished_fence;
     bool waitForFence;
 
-    VkBuffer vertex_buffer;
+    vk::Buffer vertex_buffer;
     byte *vertex_buffer_ptr; // pointer to mapped vertex buffer
-    VkDeviceSize vertex_buffer_offset;
+    vk::DeviceSize vertex_buffer_offset;
 
-    VkDescriptorSet uniform_descriptor;
+    vk::DescriptorSet uniform_descriptor;
     uint32_t uniform_read_offset;
-    VkDeviceSize buf_offset[8];
-    VkDeviceSize vbo_offset[8];
+    vk::DeviceSize buf_offset[8];
+    vk::DeviceSize vbo_offset[8];
 
-    VkBuffer curr_index_buffer;
+    vk::Buffer curr_index_buffer;
     uint32_t curr_index_offset;
 
     struct
     {
         uint32_t start, end;
-        VkDescriptorSet current[6]; // 0:storage, 1:uniform, 2:color0, 3:color1, 4:color2, 5:fog
+        vk::DescriptorSet current[6]; // 0:storage, 1:uniform, 2:color0, 3:color1, 4:color2, 5:fog
         uint32_t offset[2];         // 0 (uniform) and 5 (storage)
     } descriptor_set;
 
     Vk_Depth_Range depth_range;
-    VkPipeline last_pipeline;
+    vk::Pipeline last_pipeline;
 
     uint32_t num_indexes; // value from most recent vk_bind_index() call
 
-    VkRect2D scissor_rect;
+    vk::Rect2D scissor_rect;
 } vk_tess_t;
 
 // Vk_Instance contains engine-specific vulkan resources that persist entire renderer lifetime.
 // This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.
 typedef struct
 {
-    VkPhysicalDevice physical_device;
-    VkSurfaceFormatKHR base_format;
-    VkSurfaceFormatKHR present_format;
+    vk::PhysicalDevice physical_device;
+    vk::PhysicalDevice physical_deviceHpp;
+    vk::SurfaceFormatKHR base_format;
+    vk::SurfaceFormatKHR present_format;
 
     uint32_t queue_family_index;
-    VkDevice device;
-    VkQueue queue;
+    vk::Device device;
+    vk::Queue queue;
 
-    VkSwapchainKHR swapchain;
+    vk::SwapchainKHR swapchain;
     uint32_t swapchain_image_count;
-    VkImage swapchain_images[MAX_SWAPCHAIN_IMAGES];
-    VkImageView swapchain_image_views[MAX_SWAPCHAIN_IMAGES];
+    vk::Image swapchain_images[MAX_SWAPCHAIN_IMAGES];
+    vk::ImageView swapchain_image_views[MAX_SWAPCHAIN_IMAGES];
     uint32_t swapchain_image_index;
 
-    VkCommandPool command_pool;
+    vk::CommandPool command_pool;
 
-    VkDeviceMemory image_memory[MAX_ATTACHMENTS_IN_POOL];
+    vk::DeviceMemory image_memory[MAX_ATTACHMENTS_IN_POOL];
     uint32_t image_memory_count;
 
     struct
     {
-        VkRenderPass main;
-        VkRenderPass screenmap;
-        VkRenderPass gamma;
-        VkRenderPass capture;
-        VkRenderPass bloom_extract;
-        VkRenderPass blur[VK_NUM_BLOOM_PASSES * 2]; // horizontal-vertical pairs
-        VkRenderPass post_bloom;
+        vk::RenderPass main;
+        vk::RenderPass screenmap;
+        vk::RenderPass gamma;
+        vk::RenderPass capture;
+        vk::RenderPass bloom_extract;
+        vk::RenderPass blur[VK_NUM_BLOOM_PASSES * 2]; // horizontal-vertical pairs
+        vk::RenderPass post_bloom;
     } render_pass;
 
-    VkDescriptorPool descriptor_pool;
-    VkDescriptorSetLayout set_layout_sampler; // combined image sampler
-    VkDescriptorSetLayout set_layout_uniform; // dynamic uniform buffer
-    VkDescriptorSetLayout set_layout_storage; // feedback buffer
+    vk::DescriptorPool descriptor_pool;
+    vk::DescriptorSetLayout set_layout_sampler; // combined image sampler
+    vk::DescriptorSetLayout set_layout_uniform; // dynamic uniform buffer
+    vk::DescriptorSetLayout set_layout_storage; // feedback bufvk::r
 
-    VkPipelineLayout pipeline_layout; // default shaders
+    vk::PipelineLayout pipeline_layout; // default shaders
     // VkPipelineLayout pipeline_layout_storage;	// flare test shader layout
-    VkPipelineLayout pipeline_layout_post_process; // post-processing
-    VkPipelineLayout pipeline_layout_blend;        // post-processing
+    vk::PipelineLayout pipeline_layout_post_process; // post-processing
+    vk::PipelineLayout pipeline_layout_blend;        // post-processing
 
-    VkDescriptorSet color_descriptor;
+    vk::DescriptorSet color_descriptor;
 
-    VkImage color_image;
-    VkImageView color_image_view;
+    vk::Image color_image;
+    vk::ImageView color_image_view;
 
-    VkImage bloom_image[1 + VK_NUM_BLOOM_PASSES * 2];
-    VkImageView bloom_image_view[1 + VK_NUM_BLOOM_PASSES * 2];
+    vk::Image bloom_image[1 + VK_NUM_BLOOM_PASSES * 2];
+    vk::ImageView bloom_image_view[1 + VK_NUM_BLOOM_PASSES * 2];
 
-    VkDescriptorSet bloom_image_descriptor[1 + VK_NUM_BLOOM_PASSES * 2];
+    vk::DescriptorSet bloom_image_descriptor[1 + VK_NUM_BLOOM_PASSES * 2];
 
-    VkImage depth_image;
-    VkImageView depth_image_view;
+    vk::Image depth_image;
+    vk::ImageView depth_image_view;
 
-    VkImage msaa_image;
-    VkImageView msaa_image_view;
+    vk::Image msaa_image;
+    vk::ImageView msaa_image_view;
 
     // screenMap
     struct
     {
-        VkDescriptorSet color_descriptor;
-        VkImage color_image;
-        VkImageView color_image_view;
+        vk::DescriptorSet color_descriptor;
+        vk::Image color_image;
+        vk::ImageView color_image_view;
 
-        VkImage color_image_msaa;
-        VkImageView color_image_view_msaa;
+        vk::Image color_image_msaa;
+        vk::ImageView color_image_view_msaa;
 
-        VkImage depth_image;
-        VkImageView depth_image_view;
+        vk::Image depth_image;
+        vk::ImageView depth_image_view;
 
     } screenMap;
 
     struct
     {
-        VkImage image;
-        VkImageView image_view;
+        vk::Image image;
+        vk::ImageView image_view;
     } capture;
 
     struct
     {
-        VkFramebuffer blur[VK_NUM_BLOOM_PASSES * 2];
-        VkFramebuffer bloom_extract;
-        VkFramebuffer main[MAX_SWAPCHAIN_IMAGES];
-        VkFramebuffer gamma[MAX_SWAPCHAIN_IMAGES];
-        VkFramebuffer screenmap;
-        VkFramebuffer capture;
+        vk::Framebuffer blur[VK_NUM_BLOOM_PASSES * 2];
+        vk::Framebuffer bloom_extract;
+        vk::Framebuffer main[MAX_SWAPCHAIN_IMAGES];
+        vk::Framebuffer gamma[MAX_SWAPCHAIN_IMAGES];
+        vk::Framebuffer screenmap;
+        vk::Framebuffer capture;
     } framebuffers;
 
     vk_tess_t tess[NUM_COMMAND_BUFFERS], *cmd;
@@ -344,10 +350,10 @@ typedef struct
 
     struct
     {
-        VkBuffer buffer;
+        vk::Buffer buffer;
         byte *buffer_ptr;
-        VkDeviceMemory memory;
-        VkDescriptorSet descriptor;
+        vk::DeviceMemory memory;
+        vk::DescriptorSet descriptor;
     } storage;
 
     uint32_t uniform_item_size;
@@ -356,19 +362,19 @@ typedef struct
 
     struct
     {
-        VkBuffer vertex_buffer;
-        VkDeviceMemory buffer_memory;
+        vk::Buffer vertex_buffer;
+        vk::DeviceMemory buffer_memory;
     } vbo;
 
     // host visible memory that holds vertex, index and uniform data
-    VkDeviceMemory geometry_buffer_memory;
-    VkDeviceSize geometry_buffer_size;
-    VkDeviceSize geometry_buffer_size_new;
+    vk::DeviceMemory geometry_buffer_memory;
+    vk::DeviceSize geometry_buffer_size;
+    vk::DeviceSize geometry_buffer_size_new;
 
     // statistics
     struct
     {
-        VkDeviceSize vertex_buffer_max;
+        vk::DeviceSize vertex_buffer_max;
         uint32_t push_size;
         uint32_t push_size_max;
     } stats;
@@ -380,39 +386,39 @@ typedef struct
     {
         struct
         {
-            VkShaderModule gen[3][2][2][2]; // tx[0,1,2], cl[0,1] env0[0,1] fog[0,1]
-            VkShaderModule ident1[2][2][2]; // tx[0,1], env0[0,1] fog[0,1]
-            VkShaderModule fixed[2][2][2];  // tx[0,1], env0[0,1] fog[0,1]
-            VkShaderModule light[2];        // fog[0,1]
+            vk::ShaderModule gen[3][2][2][2]; // tx[0,1,2], cl[0,1] env0[0,1] fog[0,1]
+            vk::ShaderModule ident1[2][2][2]; // tx[0,1], env0[0,1] fog[0,1]
+            vk::ShaderModule fixed[2][2][2];  // tx[0,1], env0[0,1] fog[0,1]
+            vk::ShaderModule light[2];        // fog[0,1]
         } vert;
         struct
         {
-            VkShaderModule gen0_df;
-            VkShaderModule gen[3][2][2]; // tx[0,1,2] cl[0,1] fog[0,1]
-            VkShaderModule ident1[2][2]; // tx[0,1], fog[0,1]
-            VkShaderModule fixed[2][2];  // tx[0,1], fog[0,1]
-            VkShaderModule ent[1][2];    // tx[0], fog[0,1]
-            VkShaderModule light[2][2];  // linear[0,1] fog[0,1]
+            vk::ShaderModule gen0_df;
+            vk::ShaderModule gen[3][2][2]; // tx[0,1,2] cl[0,1] fog[0,1]
+            vk::ShaderModule ident1[2][2]; // tx[0,1], fog[0,1]
+            vk::ShaderModule fixed[2][2];  // tx[0,1], fog[0,1]
+            vk::ShaderModule ent[1][2];    // tx[0], fog[0,1]
+            vk::ShaderModule light[2][2];  // linear[0,1] fog[0,1]
         } frag;
 
-        VkShaderModule color_fs;
-        VkShaderModule color_vs;
+        vk::ShaderModule color_fs;
+        vk::ShaderModule color_vs;
 
-        VkShaderModule bloom_fs;
-        VkShaderModule blur_fs;
-        VkShaderModule blend_fs;
+        vk::ShaderModule bloom_fs;
+        vk::ShaderModule blur_fs;
+        vk::ShaderModule blend_fs;
 
-        VkShaderModule gamma_fs;
-        VkShaderModule gamma_vs;
+        vk::ShaderModule gamma_fs;
+        vk::ShaderModule gamma_vs;
 
-        VkShaderModule fog_fs;
-        VkShaderModule fog_vs;
+        vk::ShaderModule fog_fs;
+        vk::ShaderModule fog_vs;
 
-        VkShaderModule dot_fs;
-        VkShaderModule dot_vs;
+        vk::ShaderModule dot_fs;
+        vk::ShaderModule dot_vs;
     } modules;
 
-    VkPipelineCache pipelineCache;
+    vk::PipelineCache pipelineCache;
 
     VK_Pipeline_t pipelines[MAX_VK_PIPELINES];
     uint32_t pipelines_count;
@@ -465,11 +471,11 @@ typedef struct
     uint32_t surface_axis_pipeline;
     uint32_t dot_pipeline;
 
-    VkPipeline gamma_pipeline;
-    VkPipeline capture_pipeline;
-    VkPipeline bloom_extract_pipeline;
-    VkPipeline blur_pipeline[VK_NUM_BLOOM_PASSES * 2]; // horizontal & vertical pairs
-    VkPipeline bloom_blend_pipeline;
+    vk::Pipeline gamma_pipeline;
+    vk::Pipeline capture_pipeline;
+    vk::Pipeline bloom_extract_pipeline;
+    std::array<vk::Pipeline, VK_NUM_BLOOM_PASSES * 2> blur_pipeline; // horizontal & vertical pairs
+    vk::Pipeline bloom_blend_pipeline;
 
     uint32_t frame_count;
     bool active;
@@ -482,12 +488,12 @@ typedef struct
     float maxAnisotropy;
     float maxLod;
 
-    VkFormat color_format;
-    VkFormat capture_format;
-    VkFormat depth_format;
-    VkFormat bloom_format;
+    vk::Format color_format;
+    vk::Format capture_format;
+    vk::Format depth_format;
+    vk::Format bloom_format;
 
-    VkImageLayout initSwapchainLayout;
+    vk::ImageLayout initSwapchainLayout;
 
     bool fastSky; // requires VK_IMAGE_USAGE_TRANSFER_DST_BIT
     bool fboActive;
@@ -511,7 +517,7 @@ typedef struct
 
     uint32_t screenMapWidth;
     uint32_t screenMapHeight;
-    uint32_t screenMapSamples;
+    vk::SampleCountFlagBits screenMapSamples;
 
     uint32_t image_chunk_size;
 

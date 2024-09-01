@@ -318,17 +318,17 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 	//
 	VectorNormalize2(projection, projectionDir);
 	// find all the brushes that are to be considered
-	ClearBounds_plus(mins, maxs);
+	ClearBounds(mins, maxs);
 	for (i = 0; i < numPoints; i++)
 	{
 		vec3_t temp;
 
-		AddPointToBounds_plus(points[i], mins, maxs);
+		AddPointToBounds(points[i], mins, maxs);
 		VectorAdd(points[i], projection, temp);
-		AddPointToBounds_plus(temp, mins, maxs);
+		AddPointToBounds(temp, mins, maxs);
 		// make sure we get all the leafs (also the one(s) in front of the hit surface)
 		VectorMA(points[i], -20, projectionDir, temp);
-		AddPointToBounds_plus(temp, mins, maxs);
+		AddPointToBounds(temp, mins, maxs);
 	}
 
 	if (numPoints > MAX_VERTS_ON_POLY)

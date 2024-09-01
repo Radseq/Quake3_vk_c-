@@ -3,7 +3,6 @@
 #include "q_shared.hpp"
 #include <cctype>
 #include <charconv>
-#include <string>
 
 int Q_stricmp_cpp(const std::string_view s1, const std::string_view s2)
 {
@@ -279,34 +278,4 @@ int atoi_from_view(std::string_view sv)
     int result = 0;
     std::from_chars(sv.data(), sv.data() + sv.size(), result);
     return result;
-}
-
-std::string_view COM_GetExtension_plus(std::string_view name)
-{
-    auto dot = name.find_last_of('.');
-    auto slash = name.find_last_of('/');
-
-    if (dot != std::string_view::npos && (slash == std::string_view::npos || slash < dot))
-    {
-        return name.substr(dot + 1);
-    }
-    else
-    {
-        return {};
-    }
-}
-
-float Q_atof_plus(const std::string_view str)
-{
-    float f = 0.0f;
-
-    f = std::stof(std::string(str)); // Convert string_view to string
-
-    // Check if the result is finite
-    if (!std::isfinite(f))
-    {
-        return 0.0f;
-    }
-
-    return f;
 }

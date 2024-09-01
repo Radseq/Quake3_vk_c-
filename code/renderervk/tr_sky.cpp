@@ -463,7 +463,7 @@ static void DrawSkySide(image_t *image, const int mins[2], const int maxs[2])
 		Bind(image);
 		tess.svars.texcoordPtr[0] = tess.texCoords[0];
 
-		vk_bind_pipeline(vk.skybox_pipeline);
+		vk_bind_pipeline(vk_inst.skybox_pipeline);
 		vk_bind_index();
 		vk_bind_geometry(TESS_XYZ | TESS_ST0);
 		vk_draw_geometry(r_showsky->integer ? DEPTH_RANGE_ZERO : DEPTH_RANGE_ONE, true);
@@ -744,7 +744,7 @@ void R_InitSkyTexCoords(float heightCloud)
 				v[2] += radiusWorld;
 
 				// compute vector from world origin to intersection point 'v'
-				VectorNormalize_plus(v);
+				VectorNormalize(v);
 
 				sRad = Q_acos(v[0]);
 				tRad = Q_acos(v[1]);
@@ -810,7 +810,7 @@ Other things could be stuck in here, like birds in the sky, etc
 */
 void RB_StageIteratorSky(void)
 {
-	if (r_fastsky->integer && vk.fastSky)
+	if (r_fastsky->integer && vk_inst.fastSky)
 	{
 		return;
 	}

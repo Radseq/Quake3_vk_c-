@@ -4,7 +4,6 @@
 #include "vulkan/vulkan.h"
 #include "tr_common.hpp"
 #include "tr_local.hpp"
-#include "definitions.hpp"
 
 #define USE_VBO
 #define USE_PMLIGHT
@@ -50,19 +49,19 @@ typedef struct vkUniform_s
       vec4_t fogColor;          // fragment
 } vkUniform_t;
 
-#define TESS_XYZ (1)
-#define TESS_RGBA0 (2)
-#define TESS_RGBA1 (4)
-#define TESS_RGBA2 (8)
-#define TESS_ST0 (16)
-#define TESS_ST1 (32)
-#define TESS_ST2 (64)
-#define TESS_NNN (128)
-#define TESS_VPOS (256)  // uniform with eyePos
-#define TESS_ENV (512)   // mark shader stage with environment mapping
-#define TESS_ENT0 (1024) // uniform with ent.color[0]
-#define TESS_ENT1 (2048) // uniform with ent.color[1]
-#define TESS_ENT2 (4096) // uniform with ent.color[2]
+constexpr int TESS_XYZ = 1;
+constexpr int TESS_RGBA0 = 2;
+constexpr int TESS_RGBA1 = 4;
+constexpr int TESS_RGBA2 = 8;
+constexpr int TESS_ST0 = 16;
+constexpr int TESS_ST1 = 32;
+constexpr int TESS_ST2 = 64;
+constexpr int TESS_NNN = 128;
+constexpr int TESS_VPOS = 256;  // uniform with eyePos
+constexpr int TESS_ENV = 512;   // mark shader stage with environment mapping
+constexpr int TESS_ENT0 = 1024; // uniform with ent.color[0]
+constexpr int TESS_ENT1 = 2048; // uniform with ent.color[1]
+constexpr int TESS_ENT2 = 4096; // uniform with ent.color[2]
 
 //
 // Initialization.
@@ -90,7 +89,7 @@ void vk_wait_idle(void);
 void vk_create_image(image_t &image, int width, int height, int mip_levels);
 void vk_upload_image_data(image_t &image, int x, int y, int width, int height, int miplevels, byte *pixels, int size, bool update);
 void vk_update_descriptor_set(image_t &image, bool mipmap);
-void vk_destroy_image_resources(VkImage &image, VkImageView &imageView);
+void vk_destroy_image_resources(vk::Image &image, vk::ImageView &imageView);
 
 uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def &def, bool use);
 void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def &def);
@@ -124,23 +123,23 @@ bool vk_bloom(void);
 void vk_update_mvp(const float *m);
 
 uint32_t vk_tess_index(uint32_t numIndexes, const void *src);
-void vk_bind_index_buffer(VkBuffer buffer, uint32_t offset);
+void vk_bind_index_buffer(vk::Buffer buffer, uint32_t offset);
 void vk_draw_indexed(uint32_t indexCount, uint32_t firstIndex);
 
 void vk_reset_descriptor(int index);
-void vk_update_descriptor(int index, VkDescriptorSet descriptor);
+void vk_update_descriptor(int index, vk::DescriptorSet descriptor);
 void vk_update_descriptor_offset(int index, uint32_t offset);
-void vk_update_uniform_descriptor(VkDescriptorSet descriptor, VkBuffer buffer);
+void vk_update_uniform_descriptor(const vk::DescriptorSet &descriptor, const vk::Buffer &buffer);
 
 void vk_update_post_process_pipelines(void);
 
-const char *vk_format_string(VkFormat format);
+std::string_view vk_format_string(vk::Format format);
 
 void VBO_PrepareQueues(void);
 void VBO_RenderIBOItems(void);
 void VBO_ClearQueue(void);
 
-VkPipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIndex);
+vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIndex);
 
 #ifdef USE_VBO
 void vk_release_vbo(void);
@@ -150,7 +149,7 @@ bool vk_alloc_vbo(const byte *vbo_data, uint32_t vbo_size);
 void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass);
 uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def);
 
-VkPipeline vk_gen_pipeline(uint32_t index);
+vk::Pipeline vk_gen_pipeline(uint32_t index);
 void vk_bind_descriptor_sets(void);
 void vk_begin_post_bloom_render_pass(void);
 void vk_begin_bloom_extract_render_pass(void);
@@ -163,7 +162,7 @@ void vk_begin_blur_render_pass(uint32_t index);
 // Vk_World contains vulkan resources/state requested by the game code.
 // It is reinitialized on a map change.
 
-extern Vk_Instance vk;    // shouldn't be cleared during ref re-init
-extern Vk_World vk_world; // this data is cleared during ref re-init
+extern Vk_Instance vk_inst; // shouldn't be cleared during ref re-init
+extern Vk_World vk_world;   // this data is cleared during ref re-init
 
 #endif // VK_HPP

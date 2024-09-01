@@ -47,6 +47,8 @@ static int lightmapHeight;
 static int lightmapCountX;
 static int lightmapCountY;
 
+
+
 /*
 
 Loads and prepares a map file for scene rendering.
@@ -354,20 +356,20 @@ int R_GetLightmapCoords(const int lightmapIndex, float *x, float *y)
 R_LoadMergedLightmaps
 ===============
 */
-static void R_LoadMergedLightmaps(const lump_t &l, byte *image)
+static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 {
 	const byte *buf;
 	int offs;
 	int i, x, y;
 	float maxIntensity = 0;
 
-	if (l.filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
+	if (l->filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
 		return;
 
-	buf = fileBase + l.fileofs;
+	buf = fileBase + l->fileofs;
 
 	// create all the lightmaps
-	tr.numLightmaps = l.filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
+	tr.numLightmaps = l->filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
 
 	tr.numLightmaps = SetLightmapParams(tr.numLightmaps, glConfig.maxTextureSize);
 
@@ -381,12 +383,12 @@ static void R_LoadMergedLightmaps(const lump_t &l, byte *image)
 
 		for (y = 0; y < lightmapCountY; y++)
 		{
-			if (offs >= l.filelen)
+			if (offs >= l->filelen)
 				break;
 
 			for (x = 0; x < lightmapCountX; x++)
 			{
-				if (offs >= l.filelen)
+				if (offs >= l->filelen)
 					break;
 
 				R_ProcessLightmap(image, buf + offs, maxIntensity);
@@ -408,7 +410,7 @@ static void R_LoadMergedLightmaps(const lump_t &l, byte *image)
 R_LoadLightmaps
 ===============
 */
-static void R_LoadLightmaps(const lump_t &l)
+static void R_LoadLightmaps(const lump_t *l)
 {
 	const byte *buf;
 	byte image[LIGHTMAP_LEN * LIGHTMAP_LEN * 4];
@@ -427,7 +429,7 @@ static void R_LoadLightmaps(const lump_t &l)
 	lightmapCountX = 1;
 	lightmapCountY = 1;
 
-	if (l.filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
+	if (l->filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
 	{
 		return;
 	}
@@ -438,7 +440,7 @@ static void R_LoadLightmaps(const lump_t &l)
 		return;
 	}
 
-	numLightmaps = l.filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
+	numLightmaps = l->filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
 
 	if (r_mergeLightmaps->integer && numLightmaps > 1)
 	{
@@ -451,7 +453,7 @@ static void R_LoadLightmaps(const lump_t &l)
 		}
 	}
 
-	buf = fileBase + l.fileofs;
+	buf = fileBase + l->fileofs;
 
 	// create all the lightmaps
 	tr.numLightmaps = numLightmaps;
@@ -553,7 +555,7 @@ static shader_t *ShaderForShaderNum(const int shaderNum, int lightmapNum)
 		lightmapNum = LIGHTMAP_WHITEIMAGE;
 	}
 
-	shader = R_FindShader(std::string_view(dsh->shader), lightmapNum, true);
+	shader = R_FindShader(dsh->shader, lightmapNum, true);
 
 	// if the shader had errors, just use default shader
 	if (shader->defaultShader)
@@ -908,7 +910,7 @@ static void ParseTriSurf(const dsurface_t &ds, const drawVert_t *verts, msurface
 	surf.data = (surfaceType_t *)tri;
 
 	// copy vertexes
-	ClearBounds_plus(tri->bounds[0], tri->bounds[1]);
+	ClearBounds(tri->bounds[0], tri->bounds[1]);
 	verts += LittleLong(ds.firstVert);
 	for (i = 0; i < numVerts; i++)
 	{
@@ -917,7 +919,7 @@ static void ParseTriSurf(const dsurface_t &ds, const drawVert_t *verts, msurface
 			tri->verts[i].xyz[j] = LittleFloat(verts[i].xyz[j]);
 			tri->verts[i].normal[j] = LittleFloat(verts[i].normal[j]);
 		}
-		AddPointToBounds_plus(tri->verts[i].xyz, tri->bounds[0], tri->bounds[1]);
+		AddPointToBounds(tri->verts[i].xyz, tri->bounds[0], tri->bounds[1]);
 		for (j = 0; j < 2; j++)
 		{
 			tri->verts[i].st[j] = LittleFloat(verts[i].st[j]);
@@ -1939,7 +1941,7 @@ R_SetParent
 static void R_SetParent(mnode_t *node, mnode_t *parent)
 {
 	node->parent = parent;
-	if (node->contents != (int)CONTENTS_NODE)
+	if (node->contents != CONTENTS_NODE)
 		return;
 	R_SetParent(node->children[0], node);
 	R_SetParent(node->children[1], node);
@@ -2255,7 +2257,7 @@ static void R_LoadFogs(const lump_t *l, const lump_t *brushesLump, const lump_t 
 		out->bounds[1][2] = s_worldData.planes[planeNum].dist;
 
 		// get information from the shader for fog parameters
-		shader = R_FindShader(std::string_view(fogs->shader), LIGHTMAP_NONE, true);
+		shader = R_FindShader(fogs->shader, LIGHTMAP_NONE, true);
 
 		VectorCopy(shader->fogParms.color, fogColor);
 
@@ -2505,7 +2507,7 @@ void RE_LoadWorldMap(const char *name)
 	tr.sunDirection[1] = 0.3f;
 	tr.sunDirection[2] = 0.9f;
 
-	VectorNormalize_plus(tr.sunDirection);
+	VectorNormalize(tr.sunDirection);
 
 	tr.worldMapLoaded = true;
 
@@ -2515,7 +2517,7 @@ void RE_LoadWorldMap(const char *name)
 	{
 		ri.Error(ERR_DROP, "%s: couldn't load %s", __func__, name);
 	}
-	if (size < (int)sizeof(dheader_t))
+	if (size < sizeof(dheader_t))
 	{
 		ri.Error(ERR_DROP, "%s: %s has truncated header", __func__, name);
 	}
@@ -2539,7 +2541,7 @@ void RE_LoadWorldMap(const char *name)
 	fileBase = (byte *)header;
 
 	// swap all the lumps
-	for (i = 0; i < (int)sizeof(dheader_t) / 4; i++)
+	for (i = 0; i < sizeof(dheader_t) / 4; i++)
 	{
 		((int32_t *)header)[i] = LittleLong(((int32_t *)header)[i]);
 	}
@@ -2560,7 +2562,7 @@ void RE_LoadWorldMap(const char *name)
 	}
 
 	// load into heap
-	R_LoadLightmaps(header->lumps[LUMP_LIGHTMAPS]);
+	R_LoadLightmaps(&header->lumps[LUMP_LIGHTMAPS]);
 	R_PreLoadFogs(&header->lumps[LUMP_FOGS]);
 	R_LoadShaders(&header->lumps[LUMP_SHADERS]);
 	R_LoadPlanes(&header->lumps[LUMP_PLANES]);

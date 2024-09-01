@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #ifdef USE_VBO
 
-#define MAX_VBO_STAGES MAX_SHADER_STAGES
+constexpr int MAX_VBO_STAGES = MAX_SHADER_STAGES;
 
 constexpr int MIN_IBO_RUN = 320;
 
@@ -52,7 +52,7 @@ typedef struct vbo_s
 {
 	byte *vbo_buffer;
 	int vbo_offset;
-	uint32_t vbo_size;
+	int vbo_size;
 
 	byte *ibo_buffer;
 	int ibo_offset;
@@ -733,7 +733,7 @@ void R_BuildWorldVBO(msurface_t &surf, int surfCount)
 
 	// release host memory
 	ri.Hunk_FreeTempMemory(vbo.vbo_buffer);
-	vbo.vbo_buffer = NULL;
+	vbo.vbo_buffer = nullptr;
 
 	// release GPU resources
 	// VBO_Cleanup();
@@ -893,7 +893,7 @@ void VBO_RenderIBOItems(void)
 	// from device-local memory
 	if (vbo.ibo_items_count)
 	{
-		vk_bind_index_buffer(vk.vbo.vertex_buffer, tess.shader->iboOffset);
+		vk_bind_index_buffer(vk_inst.vbo.vertex_buffer, tess.shader->iboOffset);
 
 		for (i = 0; i < vbo.ibo_items_count; i++)
 		{
@@ -904,7 +904,7 @@ void VBO_RenderIBOItems(void)
 	// from host-visible memory
 	if (vbo.soft_buffer_indexes)
 	{
-		vk_bind_index_buffer(vk.cmd->vertex_buffer, vbo.soft_buffer_offset);
+		vk_bind_index_buffer(vk_inst.cmd->vertex_buffer, vbo.soft_buffer_offset);
 
 		vk_draw_indexed(vbo.soft_buffer_indexes, 0);
 	}

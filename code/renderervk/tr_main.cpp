@@ -703,23 +703,23 @@ static void R_SetupProjectionZ(viewParms_t &dest)
 R_MirrorPoint
 =================
 */
-static void R_MirrorPoint(const vec3_t in, const orientation_t &surface, const orientation_t &camera, vec3_t out)
+static void R_MirrorPoint(const vec3_t in, const orientation_t *surface, const orientation_t *camera, vec3_t out)
 {
 	int i;
 	vec3_t local;
 	vec3_t transformed;
 	float d;
 
-	VectorSubtract(in, surface.origin, local);
+	VectorSubtract(in, surface->origin, local);
 
 	VectorClear(transformed);
 	for (i = 0; i < 3; i++)
 	{
-		d = DotProduct(local, surface.axis[i]);
-		VectorMA(transformed, d, camera.axis[i], transformed);
+		d = DotProduct(local, surface->axis[i]);
+		VectorMA(transformed, d, camera->axis[i], transformed);
 	}
 
-	VectorAdd(transformed, camera.origin, out);
+	VectorAdd(transformed, camera->origin, out);
 }
 
 static void R_MirrorVector(const vec3_t in, const orientation_t *surface, const orientation_t *camera, vec3_t out)
@@ -1234,7 +1234,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, int entityNum)
 	// create dedicated set for each view
 	if (r_numdlights + oldParms.num_dlights <= arrayLen(backEndData->dlights))
 	{
-		unsigned int i;
+		int i;
 		newParms.dlights = oldParms.dlights + oldParms.num_dlights;
 		newParms.num_dlights = oldParms.num_dlights;
 		r_numdlights += oldParms.num_dlights;
@@ -1243,7 +1243,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, int entityNum)
 	}
 #endif
 
-	if (tess.numVertexes > 2 && r_fastsky->integer && vk.fastSky)
+	if (tess.numVertexes > 2 && r_fastsky->integer && vk_inst.fastSky)
 	{
 		int mins[2], maxs[2];
 		R_GetModelViewBounds(mins, maxs);
@@ -1253,7 +1253,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, int entityNum)
 		newParms.scissorHeight = maxs[1] - mins[1];
 	}
 
-	R_MirrorPoint(oldParms.ort.origin, surface, camera, newParms.ort.origin);
+	R_MirrorPoint(oldParms.ort.origin, &surface, &camera, newParms.ort.origin);
 
 	VectorSubtract(vec3_origin, camera.axis[0], newParms.portalPlane.normal);
 	newParms.portalPlane.dist = DotProduct(camera.origin, newParms.portalPlane.normal);
@@ -1605,7 +1605,7 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, int numDrawSurfs)
 			{
 				return;
 			}
-			if (r_fastsky->integer == 0 || !vk.fastSky)
+			if (r_fastsky->integer == 0 || !vk_inst.fastSky)
 			{
 				break; // only one mirror view at a time
 			}
@@ -1620,7 +1620,7 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, int numDrawSurfs)
 		dlight_t *dl;
 		// all the lit surfaces are in a single queue
 		// but each light's surfaces are sorted within its subsection
-		for (i = 0; i < (int)tr.refdef.num_dlights; ++i)
+		for (i = 0; i < tr.refdef.num_dlights; ++i)
 		{
 			dl = &tr.refdef.dlights[i];
 			if (dl->head)

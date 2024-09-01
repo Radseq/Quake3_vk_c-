@@ -32,17 +32,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define USE_LEGACY_DLIGHTS // vq3 dynamic lights
 #define USE_PMLIGHT		   // promode dynamic lights via \r_dlightMode 1|2
 #define MAX_REAL_DLIGHTS (MAX_DLIGHTS * 2)
-#define MAX_LITSURFS (MAX_DRAWSURFS)
-#define MAX_FLARES 256
+constexpr int MAX_DRAWSURFS = 0x20000;
+constexpr int MAX_LITSURFS = (MAX_DRAWSURFS);
+constexpr int MAX_FLARES = 256;
 
-#define MAX_TEXTURE_SIZE 2048 // must be less or equal to 32768
+constexpr int MAX_TEXTURE_SIZE = 2048; // must be less or equal to 32768
 
 // #define USE_TESS_NEEDS_NORMAL
 // #define USE_TESS_NEEDS_ST2
 
 #include "q_shared.hpp"
 
+extern "C"
+{
 #include "../qcommon/qfiles.h"
+}
 
 #include "qcommon.hpp"
 #include "tr_common.hpp"
@@ -83,18 +87,18 @@ typedef enum
 
 typedef uint32_t glIndex_t;
 
-#define REFENTITYNUM_BITS 12 // as we actually using only 1 bit for dlight mask in opengl1 renderer
-#define REFENTITYNUM_MASK ((1 << REFENTITYNUM_BITS) - 1)
+constexpr int REFENTITYNUM_BITS = 12; // as we actually using only 1 bit for dlight mask in opengl1 renderer
+constexpr int REFENTITYNUM_MASK = ((1 << REFENTITYNUM_BITS) - 1);
 // the last N-bit number (2^REFENTITYNUM_BITS - 1) is reserved for the special world refentity,
 //  and this is reflected by the value of MAX_REFENTITIES (which therefore is not a power-of-2)
-#define MAX_REFENTITIES ((1 << REFENTITYNUM_BITS) - 1)
-#define REFENTITYNUM_WORLD ((1 << REFENTITYNUM_BITS) - 1)
+constexpr int MAX_REFENTITIES = ((1 << REFENTITYNUM_BITS) - 1);
+constexpr int REFENTITYNUM_WORLD = ((1 << REFENTITYNUM_BITS) - 1);
 // 14 bits
 // can't be increased without changing bit packing for drawsurfs
 // see QSORT_SHADERNUM_SHIFT
-#define SHADERNUM_BITS 14
-#define MAX_SHADERS (1 << SHADERNUM_BITS)
-#define SHADERNUM_MASK (MAX_SHADERS - 1)
+constexpr int SHADERNUM_BITS = 14;
+constexpr int MAX_SHADERS = (1 << SHADERNUM_BITS);
+constexpr int SHADERNUM_MASK = (MAX_SHADERS - 1);
 
 typedef struct dlight_s
 {
@@ -174,7 +178,7 @@ typedef enum
 	SS_NEAREST // blood blobs
 } shaderSort_t;
 
-#define MAX_SHADER_STAGES 8
+constexpr int MAX_SHADER_STAGES = 8;
 
 typedef enum
 {
@@ -270,7 +274,7 @@ typedef struct
 	genFunc_t func;
 } waveForm_t;
 
-#define TR_MAX_TEXMODS 4
+constexpr int TR_MAX_TEXMODS = 4;
 
 typedef enum
 {
@@ -287,7 +291,7 @@ typedef enum
 	TMOD_OFFSET_SCALE,
 } texMod_t;
 
-#define MAX_SHADER_DEFORMS 3
+constexpr int MAX_SHADER_DEFORMS = 3;
 typedef struct
 {
 	deform_t deformation; // vertex coordinate modification type
@@ -336,12 +340,12 @@ typedef struct
 
 } texModInfo_t;
 
-#define MAX_IMAGE_ANIMATIONS 24
-#define MAX_IMAGE_ANIMATIONS_VQ3 8
+constexpr int MAX_IMAGE_ANIMATIONS = 24;
+constexpr int MAX_IMAGE_ANIMATIONS_VQ3 = 8;
 
-#define LIGHTMAP_INDEX_NONE 0
-#define LIGHTMAP_INDEX_SHADER 1
-#define LIGHTMAP_INDEX_OFFSET 2
+constexpr int LIGHTMAP_INDEX_NONE = 0;
+constexpr int LIGHTMAP_INDEX_SHADER = 1;
+constexpr int LIGHTMAP_INDEX_OFFSET = 2;
 
 typedef struct
 {
@@ -372,9 +376,9 @@ typedef struct
 } textureBundle_t;
 
 #ifdef USE_VULKAN
-#define NUM_TEXTURE_BUNDLES 3
+constexpr int NUM_TEXTURE_BUNDLES = 3;
 #else
-#define NUM_TEXTURE_BUNDLES 2
+constexpr int NUM_TEXTURE_BUNDLES = 2;
 #endif
 
 typedef struct
@@ -573,12 +577,12 @@ typedef struct image_s
 #ifdef USE_VULKAN
 	int internalFormat;
 
-	VkSamplerAddressMode wrapClampMode;
-	VkImage handle;
-	VkImageView view;
+	vk::SamplerAddressMode wrapClampMode;
+	vk::Image handle;
+	vk::ImageView view;
 	// Descriptor set that contains single descriptor used to access the given image.
 	// It is updated only once during image initialization.
-	VkDescriptorSet descriptor;
+	vk::DescriptorSet descriptor;
 #else
 	GLuint texnum; // gl texture binding
 	GLint internalFormat;
@@ -593,7 +597,7 @@ typedef struct image_s
 // This is an arbitrary limit. Vanilla Q3 only supported 32 surfaces in skins but failed to
 // enforce the maximum limit when reading skin files. It was possile to use more than 32
 // surfaces which accessed out of bounds memory past end of skin->surfaces hunk block.
-#define MAX_SKIN_SURFACES 256
+constexpr int MAX_SKIN_SURFACES = 256;
 
 // skins allow models to be retextured without modifying the model file
 typedef struct
@@ -707,10 +711,10 @@ typedef struct litSurf_s
 } litSurf_t;
 #endif
 
-#define MAX_FACE_POINTS 64
+constexpr int MAX_FACE_POINTS = 64;
 
-#define MAX_PATCH_SIZE 32 // max dimensions of a patch mesh in map file
-#define MAX_GRID_SIZE 65  // max dimensions of a grid mesh in memory
+constexpr int MAX_PATCH_SIZE = 32; // max dimensions of a patch mesh in map file
+constexpr int MAX_GRID_SIZE = 65;  // max dimensions of a grid mesh in memory
 
 // when cgame directly specifies a polygon, it becomes a srfPoly_t
 // as soon as it is called
@@ -762,7 +766,7 @@ typedef struct srfGridMesh_s
 	drawVert_t verts[1]; // variable sized
 } srfGridMesh_t;
 
-#define VERTEXSIZE 8
+constexpr int VERTEXSIZE = 8;
 typedef struct
 {
 	surfaceType_t surfaceType;
@@ -886,9 +890,9 @@ BRUSH MODELS
 // in memory representation
 //
 
-#define SIDE_FRONT 0
-#define SIDE_BACK 1
-#define SIDE_ON 2
+constexpr int SIDE_FRONT = 0;
+constexpr int SIDE_BACK = 1;
+constexpr int SIDE_ON = 2;
 
 typedef struct msurface_s
 {
@@ -998,15 +1002,14 @@ typedef struct model_s
 	int numLods;
 } model_t;
 
-#define MAX_MOD_KNOWN 1024
+constexpr int MAX_MOD_KNOWN = 1024;
 
 //====================================================
 
-#define MAX_DRAWIMAGES 2048
-#define MAX_SKINS 1024
+constexpr int MAX_DRAWIMAGES = 2048;
+constexpr int MAX_SKINS = 1024;
 
-#define MAX_DRAWSURFS 0x20000
-#define DRAWSURF_MASK (MAX_DRAWSURFS - 1)
+constexpr int DRAWSURF_MASK(MAX_DRAWSURFS - 1);
 
 /*
 
@@ -1027,18 +1030,17 @@ the bits are allocated as follows:
 7-16  : entity index
 17-30 : sorted shader index
 */
-#define DLIGHT_BITS 1 // bool in opengl1 renderer
-#define DLIGHT_MASK ((1 << DLIGHT_BITS) - 1)
-#define FOGNUM_BITS 5
-#define FOGNUM_MASK ((1 << FOGNUM_BITS) - 1)
-
-#define QSORT_FOGNUM_SHIFT DLIGHT_BITS
-#define QSORT_REFENTITYNUM_SHIFT (QSORT_FOGNUM_SHIFT + FOGNUM_BITS)
-#define QSORT_SHADERNUM_SHIFT (QSORT_REFENTITYNUM_SHIFT + REFENTITYNUM_BITS)
+constexpr int DLIGHT_BITS = 1; // bool in opengl1 renderer
+constexpr int DLIGHT_MASK = ((1 << DLIGHT_BITS) - 1);
+constexpr int FOGNUM_BITS = 5;
+constexpr int FOGNUM_MASK = ((1 << FOGNUM_BITS) - 1);
+constexpr int QSORT_FOGNUM_SHIFT = DLIGHT_BITS;
+constexpr int QSORT_REFENTITYNUM_SHIFT = (QSORT_FOGNUM_SHIFT + FOGNUM_BITS);
+constexpr int QSORT_SHADERNUM_SHIFT = (QSORT_REFENTITYNUM_SHIFT + REFENTITYNUM_BITS);
 #if (QSORT_SHADERNUM_SHIFT + SHADERNUM_BITS) > 32
 #error "Need to update sorting, too many bits."
 #endif
-#define QSORT_REFENTITYNUM_MASK (REFENTITYNUM_MASK << QSORT_REFENTITYNUM_SHIFT)
+constexpr int QSORT_REFENTITYNUM_MASK = (REFENTITYNUM_MASK << QSORT_REFENTITYNUM_SHIFT);
 
 extern int gl_filter_min, gl_filter_max;
 
@@ -1065,10 +1067,10 @@ typedef struct
 #endif
 } frontEndCounters_t;
 
-#define FOG_TABLE_SIZE 256
-#define FUNCTABLE_SIZE 1024
-#define FUNCTABLE_SIZE2 10
-#define FUNCTABLE_MASK (FUNCTABLE_SIZE - 1)
+constexpr int FOG_TABLE_SIZE = 256;
+constexpr int FUNCTABLE_SIZE = 1024;
+constexpr int FUNCTABLE_SIZE2 = 10;
+constexpr int FUNCTABLE_MASK = (FUNCTABLE_SIZE - 1);
 
 // the renderer front end should never modify glstate_t
 typedef struct
@@ -1305,8 +1307,8 @@ extern glstatic_t gls;
 
 // extern void myGlMultMatrix(const float *a, const float *b, float *out);
 
-extern Vk_Instance vk;	  // shouldn't be cleared during ref re-init
-extern Vk_World vk_world; // this data is cleared during ref re-init
+extern Vk_Instance vk_inst; // shouldn't be cleared during ref re-init
+extern Vk_World vk_world;	// this data is cleared during ref re-init
 
 //
 // cvars
@@ -1437,58 +1439,58 @@ void R_AddBeamSurfaces(trRefEntity_t *e);
 void R_AddRailSurfaces(trRefEntity_t *e, bool isUnderwater);
 void R_AddLightningBoltSurfaces(trRefEntity_t *e);
 
-#define CULL_IN 0	// completely unclipped
-#define CULL_CLIP 1 // clipped by one or more planes
-#define CULL_OUT 2	// completely outside the clipping planes
+constexpr int CULL_IN = 0;	 // completely unclipped
+constexpr int CULL_CLIP = 1; // clipped by one or more planes
+constexpr int CULL_OUT = 2;	 // completely outside the clipping planes
 /*
 ** GL wrapper/helper functions
 */
 
 void CheckErrors(void);
 
-#define GLS_SRCBLEND_ZERO 0x00000001
-#define GLS_SRCBLEND_ONE 0x00000002
-#define GLS_SRCBLEND_DST_COLOR 0x00000003
-#define GLS_SRCBLEND_ONE_MINUS_DST_COLOR 0x00000004
-#define GLS_SRCBLEND_SRC_ALPHA 0x00000005
-#define GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA 0x00000006
-#define GLS_SRCBLEND_DST_ALPHA 0x00000007
-#define GLS_SRCBLEND_ONE_MINUS_DST_ALPHA 0x00000008
-#define GLS_SRCBLEND_ALPHA_SATURATE 0x00000009
-#define GLS_SRCBLEND_BITS 0x0000000f
+constexpr int GLS_SRCBLEND_ZERO = 0x00000001;
+constexpr int GLS_SRCBLEND_ONE = 0x00000002;
+constexpr int GLS_SRCBLEND_DST_COLOR = 0x00000003;
+constexpr int GLS_SRCBLEND_ONE_MINUS_DST_COLOR = 0x00000004;
+constexpr int GLS_SRCBLEND_SRC_ALPHA = 0x00000005;
+constexpr int GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA = 0x00000006;
+constexpr int GLS_SRCBLEND_DST_ALPHA = 0x00000007;
+constexpr int GLS_SRCBLEND_ONE_MINUS_DST_ALPHA = 0x00000008;
+constexpr int GLS_SRCBLEND_ALPHA_SATURATE = 0x00000009;
+constexpr int GLS_SRCBLEND_BITS = 0x0000000f;
 
-#define GLS_DSTBLEND_ZERO 0x00000010
-#define GLS_DSTBLEND_ONE 0x00000020
-#define GLS_DSTBLEND_SRC_COLOR 0x00000030
-#define GLS_DSTBLEND_ONE_MINUS_SRC_COLOR 0x00000040
-#define GLS_DSTBLEND_SRC_ALPHA 0x00000050
-#define GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA 0x00000060
-#define GLS_DSTBLEND_DST_ALPHA 0x00000070
-#define GLS_DSTBLEND_ONE_MINUS_DST_ALPHA 0x00000080
-#define GLS_DSTBLEND_BITS 0x000000f0
+constexpr int GLS_DSTBLEND_ZERO = 0x00000010;
+constexpr int GLS_DSTBLEND_ONE = 0x00000020;
+constexpr int GLS_DSTBLEND_SRC_COLOR = 0x00000030;
+constexpr int GLS_DSTBLEND_ONE_MINUS_SRC_COLOR = 0x00000040;
+constexpr int GLS_DSTBLEND_SRC_ALPHA = 0x00000050;
+constexpr int GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA = 0x00000060;
+constexpr int GLS_DSTBLEND_DST_ALPHA = 0x00000070;
+constexpr int GLS_DSTBLEND_ONE_MINUS_DST_ALPHA = 0x00000080;
+constexpr int GLS_DSTBLEND_BITS = 0x000000f0;
 
-#define GLS_BLEND_BITS (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)
+constexpr int GLS_BLEND_BITS = (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS);
 
-#define GLS_DEPTHMASK_TRUE 0x00000100
+constexpr int GLS_DEPTHMASK_TRUE = 0x00000100;
 
-#define GLS_POLYMODE_LINE 0x00000200
+constexpr int GLS_POLYMODE_LINE = 0x00000200;
 
-#define GLS_DEPTHTEST_DISABLE 0x00000400
-#define GLS_DEPTHFUNC_EQUAL 0x00000800
+constexpr int GLS_DEPTHTEST_DISABLE = 0x00000400;
+constexpr int GLS_DEPTHFUNC_EQUAL = 0x00000800;
 
-#define GLS_ATEST_GT_0 0x00001000
-#define GLS_ATEST_LT_80 0x00002000
-#define GLS_ATEST_GE_80 0x00003000
-#define GLS_ATEST_BITS 0x00003000
+constexpr int GLS_ATEST_GT_0 = 0x00001000;
+constexpr int GLS_ATEST_LT_80 = 0x00002000;
+constexpr int GLS_ATEST_GE_80 = 0x00003000;
+constexpr int GLS_ATEST_BITS = 0x00003000;
 
-#define GLS_DEFAULT GLS_DEPTHMASK_TRUE
+constexpr int GLS_DEFAULT = GLS_DEPTHMASK_TRUE;
 
 // vertex array states
 
-#define CLS_NONE 0x00000000
-#define CLS_COLOR_ARRAY 0x00000001
-#define CLS_TEXCOORD_ARRAY 0x00000002
-#define CLS_NORMAL_ARRAY 0x00000004
+constexpr int CLS_NONE = 0x00000000;
+constexpr int CLS_COLOR_ARRAY = 0x00000001;
+constexpr int CLS_TEXCOORD_ARRAY = 0x00000002;
+constexpr int CLS_NORMAL_ARRAY = 0x00000004;
 
 void R_Init(void);
 
@@ -1625,14 +1627,14 @@ UNCOMPRESSING BONES
 =============================================================
 */
 
-#define MC_BITS_X (16)
-#define MC_BITS_Y (16)
-#define MC_BITS_Z (16)
-#define MC_BITS_VECT (16)
+constexpr int MC_BITS_X = 16;
+constexpr int MC_BITS_Y = 16;
+constexpr int MC_BITS_Z = 16;
+constexpr int MC_BITS_VECT = 16;
 
-#define MC_SCALE_X (1.0f / 64)
-#define MC_SCALE_Y (1.0f / 64)
-#define MC_SCALE_Z (1.0f / 64)
+constexpr int MC_SCALE_X = (1.0f / 64);
+constexpr int MC_SCALE_Y = (1.0f / 64);
+constexpr int MC_SCALE_Z = (1.0f / 64);
 
 /*
 =============================================================
@@ -1655,7 +1657,7 @@ RENDERER BACK END COMMAND QUEUE
 =============================================================
 */
 
-#define MAX_RENDER_COMMANDS 0x80000
+constexpr int MAX_RENDER_COMMANDS = 0x80000;
 
 typedef struct
 {
@@ -1747,8 +1749,8 @@ typedef enum
 // these are sort of arbitrary limits.
 // the limits apply to the sum of all scenes in a frame --
 // the main view, all the 3D icons, etc
-#define MAX_POLYS 8192
-#define MAX_POLYVERTS 32768
+constexpr int MAX_POLYS = 8192;
+constexpr int MAX_POLYVERTS = 32768;
 
 // all of the information needed by the back end must be
 // contained in a backEndData_t

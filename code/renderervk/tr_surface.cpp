@@ -442,7 +442,7 @@ static void RB_SurfaceBeam(void)
 	normalized_direction[1] = direction[1] = oldorigin[1] - origin[1];
 	normalized_direction[2] = direction[2] = oldorigin[2] - origin[2];
 
-	if (VectorNormalize_plus(normalized_direction) == 0)
+	if (VectorNormalize(normalized_direction) == 0)
 		return;
 
 	PerpendicularVector(perpvec, normalized_direction);
@@ -472,7 +472,7 @@ static void RB_SurfaceBeam(void)
 	}
 	tess.numVertexes = (NUM_BEAM_SEGS + 1) * 2;
 
-	vk_bind_pipeline(vk.surface_beam_pipeline);
+	vk_bind_pipeline(vk_inst.surface_beam_pipeline);
 	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
 	vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
 
@@ -616,7 +616,7 @@ static void RB_SurfaceRailRings(void)
 
 	// compute variables
 	VectorSubtract(end, start, vec);
-	len = VectorNormalize_plus(vec);
+	len = VectorNormalize(vec);
 	MakeNormalVectors(vec, right, up);
 	numSegs = (len) / r_railSegmentLength->value;
 	if (numSegs <= 0)
@@ -647,15 +647,15 @@ static void RB_SurfaceRailCore(void)
 	VectorCopy(e->origin, end);
 
 	VectorSubtract(end, start, vec);
-	len = VectorNormalize_plus(vec);
+	len = VectorNormalize(vec);
 
 	// compute side vector
 	VectorSubtract(start, backEnd.viewParms.ort.origin, v1);
-	VectorNormalize_plus(v1);
+	VectorNormalize(v1);
 	VectorSubtract(end, backEnd.viewParms.ort.origin, v2);
-	VectorNormalize_plus(v2);
+	VectorNormalize(v2);
 	CrossProduct(v1, v2, right);
-	VectorNormalize_plus(right);
+	VectorNormalize(right);
 
 	DoRailCore(start, end, right, len, r_railCoreWidth->integer);
 }
@@ -680,15 +680,15 @@ static void RB_SurfaceLightningBolt(void)
 
 	// compute variables
 	VectorSubtract(end, start, vec);
-	len = VectorNormalize_plus(vec);
+	len = VectorNormalize(vec);
 
 	// compute side vector
 	VectorSubtract(start, backEnd.viewParms.ort.origin, v1);
-	VectorNormalize_plus(v1);
+	VectorNormalize(v1);
 	VectorSubtract(end, backEnd.viewParms.ort.origin, v2);
-	VectorNormalize_plus(v2);
+	VectorNormalize(v2);
 	CrossProduct(v1, v2, right);
-	VectorNormalize_plus(right);
+	VectorNormalize(right);
 
 	for (i = 0; i < 4; i++)
 	{
@@ -1383,7 +1383,7 @@ static void RB_SurfaceAxis(void)
 
 	tess.numVertexes = 6;
 
-	vk_bind_pipeline(vk.surface_axis_pipeline);
+	vk_bind_pipeline(vk_inst.surface_axis_pipeline);
 	// TODO: use common layout and avoid ST0 binding?
 	vk_bind_geometry(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
 	vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
