@@ -1,7 +1,6 @@
 #ifndef VK_HPP
 #define VK_HPP
 
-#include "vulkan/vulkan.h"
 #include "tr_common.hpp"
 #include "tr_local.hpp"
 
@@ -132,8 +131,6 @@ void vk_update_descriptor_offset(int index, uint32_t offset);
 void vk_update_uniform_descriptor(const vk::DescriptorSet &descriptor, const vk::Buffer &buffer);
 
 void vk_update_post_process_pipelines(void);
-
-std::string_view vk_format_string(vk::Format format);
 
 void VBO_PrepareQueues(void);
 void VBO_RenderIBOItems(void);

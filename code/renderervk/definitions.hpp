@@ -1,6 +1,9 @@
 #ifndef DEFINITIONS_HPP
 #define DEFINITIONS_HPP
 
+// #define VULKAN_HPP_NO_EXCEPTIONS
+// #define USE_VK_VALIDATION
+
 extern "C"
 {
 #include "vulkan/vulkan.h"

@@ -35,7 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_light.hpp"
 #include "tr_model.hpp"
 
-#include <cstddef>  // For size_t
+#include <cstddef> // For size_t
 
 glconfig_t glConfig;
 
@@ -931,16 +931,16 @@ static void GfxInfo(void)
 	ri.Printf(PRINT_ALL, "VK_MAX_TEXTURE_UNITS: %d\n", glConfig.numTextureUnits);
 
 	ri.Printf(PRINT_ALL, "\nPIXELFORMAT: color(%d-bits) Z(%d-bit) stencil(%d-bits)\n", glConfig.colorBits, glConfig.depthBits, glConfig.stencilBits);
-	ri.Printf(PRINT_ALL, " presentation: %s\n", vk_format_string(vk_inst.present_format.format).data());
+	ri.Printf(PRINT_ALL, " presentation: %s\n", vk::to_string(vk_inst.present_format.format));
 	if (vk_inst.color_format != vk_inst.present_format.format)
 	{
-		ri.Printf(PRINT_ALL, " color: %s\n", vk_format_string(vk_inst.color_format).data());
+		ri.Printf(PRINT_ALL, " color: %s\n", vk::to_string(vk_inst.color_format));
 	}
 	if (vk_inst.capture_format != vk_inst.present_format.format || vk_inst.capture_format != vk_inst.color_format)
 	{
-		ri.Printf(PRINT_ALL, " capture: %s\n", vk_format_string(vk_inst.capture_format).data());
+		ri.Printf(PRINT_ALL, " capture: %s\n", vk::to_string(vk_inst.capture_format));
 	}
-	ri.Printf(PRINT_ALL, " depth: %s\n", vk_format_string(vk_inst.depth_format).data());
+	ri.Printf(PRINT_ALL, " depth: %s\n", vk::to_string(vk_inst.depth_format));
 
 	if (glConfig.isFullscreen)
 	{
