@@ -1,7 +1,10 @@
 #ifndef TR_IMAGE_TGA_HPP
 #define TR_IMAGE_TGA_HPP
 
+extern "C"
+{
 #include "../qcommon/tr_public.h"
+}
 
 /*
 ========================================================================

@@ -1,9 +1,11 @@
 #ifndef TR_FONT_HPP
 #define TR_FONT_HPP
 
+extern "C"
+{
 #include "../qcommon/tr_public.h"
+}
 
-extern void R_IssuePendingRenderCommands(void);
 
 void RE_RegisterFont(const char *fontName, int pointSize, fontInfo_t *font);
 void R_InitFreeType();

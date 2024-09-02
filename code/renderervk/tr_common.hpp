@@ -25,9 +25,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define USE_VULKAN
 
 #include "q_shared.hpp"
+//#include "surfaceflags.hpp"
+//extern "C"
+//{
 #include "../qcommon/tr_public.h"
+//}
 
-#define MAX_TEXTURE_UNITS 8
+constexpr int MAX_TEXTURE_UNITS = 8;
+// any change in the LIGHTMAP_* defines here MUST be reflected in
+// R_FindShader() in tr_bsp.c
+constexpr int LIGHTMAP_2D = -4;		   // shader is for 2D rendering
+constexpr int LIGHTMAP_BY_VERTEX = -3; // pre-lit triangle models
+constexpr int LIGHTMAP_WHITEIMAGE = -2;
+constexpr int LIGHTMAP_NONE = -1;
 
 typedef enum
 {
@@ -52,13 +62,6 @@ typedef enum
 } cullType_t;
 
 typedef struct image_s image_t;
-
-// any change in the LIGHTMAP_* defines here MUST be reflected in
-// R_FindShader() in tr_bsp.c
-#define LIGHTMAP_2D -4		  // shader is for 2D rendering
-#define LIGHTMAP_BY_VERTEX -3 // pre-lit triangle models
-#define LIGHTMAP_WHITEIMAGE -2
-#define LIGHTMAP_NONE -1
 
 extern glconfig_t glConfig; // outside of TR since it shouldn't be cleared during ref re-init
 

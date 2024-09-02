@@ -35,7 +35,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_light.hpp"
 #include "tr_model.hpp"
 
+#include "string_operations.hpp"
+
 #include <cstddef> // For size_t
+
+// TTimo
+// centralized and cleaned, that's the max string you can send to a Com_Printf / Com_DPrintf (above gets truncated)
+// bump to 8192 as 4096 may be not enough to print some data like gl extensions - CE
+constexpr int MAXPRINTMSG = 8192;
+
+// AVI files have the start of pixel lines 4 byte-aligned
+constexpr int AVI_LINE_PADDING = 4;
 
 glconfig_t glConfig;
 
@@ -1109,9 +1119,11 @@ static void R_Register(void)
 	r_subdivisions = ri.Cvar_Get("r_subdivisions", "4", CVAR_ARCHIVE_ND | CVAR_LATCH);
 	ri.Cvar_SetDescription(r_subdivisions, "Distance to subdivide bezier curved surfaces. Higher values mean less subdivision and less geometric complexity.");
 
-	r_maxpolys = ri.Cvar_Get("r_maxpolys", XSTRING(MAX_POLYS), CVAR_LATCH);
+	std::string_view maxPolysStr = intToStringView<MAX_POLYS>();
+	r_maxpolys = ri.Cvar_Get("r_maxpolys", maxPolysStr.data(), CVAR_LATCH);
 	ri.Cvar_SetDescription(r_maxpolys, "Maximum number of polygons to draw in a scene.");
-	r_maxpolyverts = ri.Cvar_Get("r_maxpolyverts", XSTRING(MAX_POLYVERTS), CVAR_LATCH);
+	std::string_view maxPolyvertsStr = intToStringView<MAX_POLYVERTS>();
+	r_maxpolyverts = ri.Cvar_Get("r_maxpolyverts", maxPolyvertsStr.data(), CVAR_LATCH);
 	ri.Cvar_SetDescription(r_maxpolyverts, "Maximum number of polygon vertices to draw in a scene.");
 
 	//

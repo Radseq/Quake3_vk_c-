@@ -2,7 +2,6 @@
 #define Q_MATH_HPP
 
 #include "q_shared.hpp"
-#include "../qcommon/q_shared_test.h"
 
 vec_t VectorNormalize(vec3_t v);
 void PerpendicularVector(vec3_t dst, const vec3_t src);

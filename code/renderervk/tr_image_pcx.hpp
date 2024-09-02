@@ -1,7 +1,11 @@
 #ifndef TR_IMAGE_PCX_HPP
 #define TR_IMAGE_PCX_HPP
 
+extern "C"
+{
 #include "../qcommon/tr_public.h"
+}
+
 /*
 ========================================================================
 
