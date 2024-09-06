@@ -126,7 +126,7 @@ short ShortSwap( short l );
 
 float FloatSwap( const float *f );
 
-#include "q_platform.h"
+//#include "q_platform.h"
 
 #include "q_shared_test.h"
 

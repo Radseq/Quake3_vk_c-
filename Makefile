@@ -183,7 +183,7 @@ BR=$(BUILD_DIR)/release-$(PLATFORM)-$(ARCH)
 ADIR=$(MOUNT_DIR)/asm
 CDIR=$(MOUNT_DIR)/client
 SDIR=$(MOUNT_DIR)/server
-# RCDIR=$(MOUNT_DIR)/renderercommon
+RCDIR=$(MOUNT_DIR)/renderercommon
 RVDIR=$(MOUNT_DIR)/renderervk
 SDLDIR=$(MOUNT_DIR)/sdl
 SDLHDIR=$(MOUNT_DIR)/libsdl/include/SDL2
@@ -746,6 +746,13 @@ endif
 #############################################################################
 # CLIENT/SERVER
 #############################################################################
+Q3RENDVOBJ_C = \
+  $(B)/rendv/tr_image_png.o \
+  $(B)/rendv/tr_image_jpg.o \
+  $(B)/rendv/tr_image_bmp.o \
+  $(B)/rendv/tr_image_tga.o \
+  $(B)/rendv/tr_image_pcx.o \
+  $(B)/rendv/tr_font.o \
 
 Q3RENDVOBJ = \
   $(B)/rendv/tr_noise.o \
@@ -766,20 +773,13 @@ Q3RENDVOBJ = \
   $(B)/rendv/tr_animation.o \
   $(B)/rendv/tr_backend.o \
   $(B)/rendv/tr_curve.o \
-  $(B)/rendv/tr_font.o \
   $(B)/rendv/tr_shadows.o \
   $(B)/rendv/tr_cmds.o \
-  $(B)/rendv/tr_image_bmp.o \
-  $(B)/rendv/tr_image_pcx.o \
-  $(B)/rendv/tr_image_png.o \
-  $(B)/rendv/tr_image_tga.o \
   $(B)/rendv/vk_vbo.o \
   $(B)/rendv/tr_sky.o \
   $(B)/rendv/tr_bsp.o \
   $(B)/rendv/vk.o \
-  $(B)/rendv/tr_image_jpg.o \
   $(B)/rendv/tr_init.o \
-  $(B)/rendv/puff.o \
   $(B)/rendv/q_shared.o \
   $(B)/rendv/q_math.o \
   $(B)/rendv/string_operations.o \
@@ -975,6 +975,7 @@ endif
 
 ifneq ($(USE_RENDERER_DLOPEN),1)
   ifeq ($(USE_VULKAN),1)
+    Q3OBJ += $(Q3RENDVOBJ_C)
     Q3OBJ += $(Q3RENDVOBJ)
   endif
 endif
@@ -1077,9 +1078,9 @@ $(B)/$(TARGET_CLIENT): $(Q3OBJ)
 
 	
 # modular renderers
-$(B)/$(TARGET_RENDV): $(Q3RENDVOBJ)
+$(B)/$(TARGET_RENDV): $(Q3RENDVOBJ_C) $(Q3RENDVOBJ)
 	$(echo_cmd) "LD $@"
-	$(Q)$(CXX) -std=c++23 -o $@ $(Q3RENDVOBJ) $(SHLIBCFLAGS) $(SHLIBLDFLAGS)
+	$(Q)$(CXX) -std=c++23 -o $@ $(Q3RENDVOBJ_C) $(Q3RENDVOBJ) $(SHLIBCFLAGS) $(SHLIBLDFLAGS)
 
 #############################################################################
 # DEDICATED SERVER
@@ -1218,8 +1219,8 @@ $(B)/client/%.o: $(SDLDIR)/%.c
 $(B)/rendv/%.o: $(RVDIR)/%.cpp
 	$(DO_REND_PLUS_CC)
 
-$(B)/rendv/%.o: $(RCDIR)/%.cpp
-	$(DO_REND_PLUS_CC)
+$(B)/rendv/%.o: $(RCDIR)/%.c
+	$(DO_REND_CC)
 
 $(B)/rendv/%.o: $(CMDIR)/%.c
 	$(DO_REND_CC)

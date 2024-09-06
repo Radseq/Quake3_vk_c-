@@ -25,10 +25,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define USE_VULKAN
 
 #include "q_shared.hpp"
-//#include "surfaceflags.hpp"
+// #include "surfaceflags.hpp"
 //extern "C"
 //{
-#include "../qcommon/tr_public.h"
+#include "../renderercommon/tr_public.h"
 //}
 
 constexpr int MAX_TEXTURE_UNITS = 8;
@@ -93,15 +93,33 @@ extern cvar_t *r_ext_texture_env_add;
 extern cvar_t *r_ext_texture_filter_anisotropic;
 extern cvar_t *r_ext_max_anisotropy;
 
-// font stuff
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
-/*
-=============================================================
+	// font stuff
+	void R_InitFreeType(void);
+	void R_DoneFreeType(void);
+	void RE_RegisterFont(const char *fontName, int pointSize, fontInfo_t *font);
 
-IMAGE LOADERS
+	/*
+	=============================================================
 
-=============================================================
-*/
+	IMAGE LOADERS
+
+	=============================================================
+	*/
+
+	void R_LoadBMP(const char *name, byte **pic, int *width, int *height);
+	void R_LoadJPG(const char *name, byte **pic, int *width, int *height);
+	void R_LoadPCX(const char *name, byte **pic, int *width, int *height);
+	void R_LoadPNG(const char *name, byte **pic, int *width, int *height);
+	void R_LoadTGA(const char *name, byte **pic, int *width, int *height);
+
+#ifdef __cplusplus
+}
+#endif
 
 /*
 ====================================================================

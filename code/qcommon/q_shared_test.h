@@ -23,6 +23,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef __Q_SHARED_H_TEST
 #define __Q_SHARED_H_TEST
 
+#include "q_platform.h"
+
 // Ignore __attribute__ on non-gcc/clang platforms
 #if !defined(__GNUC__) && !defined(__clang__)
 #ifndef __attribute__
@@ -582,7 +584,6 @@ extern "C"
 	Q_EXPORT void Q_strncpyz(char *dest, const char *src, int destsize);
 
 	Q_EXPORT void AddPointToBounds(const vec3_t v, vec3_t mins, vec3_t maxs);
-
 #ifdef __cplusplus
 }
 #endif

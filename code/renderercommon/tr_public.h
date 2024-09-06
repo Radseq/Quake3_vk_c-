@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef TR_PUBLIC_HPP
 #define TR_PUBLIC_HPP
 
-#include "q_shared.h"
+#include "../qcommon/q_shared.h"
 #include "tr_types.h"
 #include <vulkan/vulkan.h>
 

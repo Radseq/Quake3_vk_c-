@@ -24,11 +24,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_bsp.hpp"
 #include "vk.hpp"
 #include "tr_shader.hpp"
-#include "tr_image_bmp.hpp"
-#include "tr_image_jpg.hpp"
-#include "tr_image_png.hpp"
-#include "tr_image_tga.hpp"
-#include "tr_image_pcx.hpp"
 #include "utils.hpp"
 
 #define generateHashValue(fname) Com_GenerateHashValue((fname), FILE_HASH_SIZE)

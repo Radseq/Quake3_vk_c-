@@ -29,7 +29,16 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage);
 qhandle_t RE_RegisterShaderFromImage(const char *name, int lightmapIndex, image_t &image, bool mipRawImage);
 qhandle_t RE_RegisterShaderLightMap(const char *name, int lightmapIndex);
 qhandle_t RE_RegisterShader(const char *name);
-qhandle_t RE_RegisterShaderNoMip(const char *name);
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+    qhandle_t RE_RegisterShaderNoMip(const char *name);
+#ifdef __cplusplus
+}
+#endif
+
 void R_ShaderList_f(void);
 void R_InitShaders(void);
 
