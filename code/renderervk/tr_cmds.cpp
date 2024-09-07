@@ -197,7 +197,7 @@ void R_AddDrawSurfCmd(drawSurf_t &drawSurfs, int numDrawSurfs)
 	}
 }
 
-constexpr vec4_t		colorWhite	= {1, 1, 1, 1};
+constexpr vec4_t		colorWhite_cpp	= {1, 1, 1, 1};
 
 /*
 =============
@@ -222,7 +222,7 @@ void RE_SetColor(const float *rgba)
 	cmd->commandId = RC_SET_COLOR;
 	if (!rgba)
 	{
-		rgba = colorWhite;
+		rgba = colorWhite_cpp;
 	}
 
 	cmd->color[0] = rgba[0];

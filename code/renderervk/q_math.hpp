@@ -1,7 +1,7 @@
 #ifndef Q_MATH_HPP
 #define Q_MATH_HPP
 
-#include "q_shared.hpp"
+#include "tr_local.hpp"
 
 vec_t VectorNormalize(vec3_t v);
 void PerpendicularVector(vec3_t dst, const vec3_t src);
@@ -23,16 +23,7 @@ void ClearBounds(vec3_t mins, vec3_t maxs);
 
 // fast vector normalize routine that does not check to make sure
 // that length != 0, nor does it return length, uses rsqrt approximation
-static inline void VectorNormalizeFast(vec3_t v)
-{
-    float ilength;
 
-    ilength = Q_rsqrt(DotProduct(v, v));
-
-    v[0] *= ilength;
-    v[1] *= ilength;
-    v[2] *= ilength;
-}
 
 vec_t VectorNormalize2(const vec3_t v, vec3_t out);
 void MakeNormalVectors(const vec3_t forward, vec3_t right, vec3_t up);

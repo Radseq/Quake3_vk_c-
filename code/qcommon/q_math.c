@@ -34,8 +34,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 const vec3_t	vec3_origin = {0,0,0};
 vec3_t	axisDefault[3] = { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } };
 
-vec4_t		colorBlack	= {0, 0, 0, 1};
 
+vec4_t		colorBlack	= {0, 0, 0, 1};
 vec4_t		colorRed	= {1, 0, 0, 1};
 vec4_t		colorGreen	= {0, 1, 0, 1};
 vec4_t		colorBlue	= {0, 0, 1, 1};
@@ -558,6 +558,33 @@ void VectorRotate( const vec3_t in, const vec3_t matrix[3], vec3_t out )
 #include <intrin.h>
 #endif
 
+/*
+** float Q_rsqrt( float number )
+*/
+float Q_rsqrt( float number )
+{
+#if defined(_MSC_SSE2)
+	float ret;
+	_mm_store_ss( &ret, _mm_rsqrt_ss( _mm_load_ss( &number ) ) );
+	return ret;
+#elif defined(_GCC_SSE2)
+	/* writing it this way allows gcc to recognize that rsqrt can be used with -ffast-math */
+	return 1.0f / sqrtf( number );
+#else
+	floatint_t t;
+	float x2, y;
+	const float threehalfs = 1.5F;
+
+	x2 = number * 0.5F;
+	t.f  = number;
+	t.i  = 0x5f3759df - ( t.i >> 1 );               // what the fuck?
+	y  = t.f;
+	y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
+//	y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
+
+	return y;
+#endif
+}
 
 
 float Q_fabs( float f ) {
@@ -756,6 +783,28 @@ void ClearBounds( vec3_t mins, vec3_t maxs ) {
 	maxs[0] = maxs[1] = maxs[2] = -99999;
 }
 
+void AddPointToBounds( const vec3_t v, vec3_t mins, vec3_t maxs ) {
+	if ( v[0] < mins[0] ) {
+		mins[0] = v[0];
+	}
+	if ( v[0] > maxs[0]) {
+		maxs[0] = v[0];
+	}
+
+	if ( v[1] < mins[1] ) {
+		mins[1] = v[1];
+	}
+	if ( v[1] > maxs[1]) {
+		maxs[1] = v[1];
+	}
+
+	if ( v[2] < mins[2] ) {
+		mins[2] = v[2];
+	}
+	if ( v[2] > maxs[2]) {
+		maxs[2] = v[2];
+	}
+}
 
 bool BoundsIntersect(const vec3_t mins, const vec3_t maxs,
 		const vec3_t mins2, const vec3_t maxs2)
@@ -889,7 +938,15 @@ void Vector4Scale( const vec4_t in, vec_t scale, vec4_t out ) {
 }
 
 
+int Q_log2( int val ) {
+	int answer;
 
+	answer = 0;
+	while ( ( val>>=1 ) != 0 ) {
+		answer++;
+	}
+	return answer;
+}
 
 
 
@@ -1122,33 +1179,3 @@ float Q_acos(float c) {
 	return angle;
 }
 #endif
-
-void AddPointToBounds(const vec3_t v, vec3_t mins, vec3_t maxs)
-{
-	if (v[0] < mins[0])
-	{
-		mins[0] = v[0];
-	}
-	if (v[0] > maxs[0])
-	{
-		maxs[0] = v[0];
-	}
-
-	if (v[1] < mins[1])
-	{
-		mins[1] = v[1];
-	}
-	if (v[1] > maxs[1])
-	{
-		maxs[1] = v[1];
-	}
-
-	if (v[2] < mins[2])
-	{
-		mins[2] = v[2];
-	}
-	if (v[2] > maxs[2])
-	{
-		maxs[2] = v[2];
-	}
-}

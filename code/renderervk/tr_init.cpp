@@ -38,14 +38,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <cstddef> // For size_t
 
-// TTimo
-// centralized and cleaned, that's the max string you can send to a Com_Printf / Com_DPrintf (above gets truncated)
-// bump to 8192 as 4096 may be not enough to print some data like gl extensions - CE
-constexpr int MAXPRINTMSG = 8192;
-
-// AVI files have the start of pixel lines 4 byte-aligned
-constexpr int AVI_LINE_PADDING = 4;
-
 glconfig_t glConfig;
 
 bool textureFilterAnisotropic;

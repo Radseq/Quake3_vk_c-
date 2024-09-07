@@ -81,7 +81,46 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //#pragma intrinsic( memset, memcpy )
 #endif
 
+//Ignore __attribute__ on non-gcc/clang platforms
+#if !defined(__GNUC__) && !defined(__clang__)
+#ifndef __attribute__
+#define __attribute__(x)
+#endif
+#endif
 
+#ifdef __GNUC__
+#define UNUSED_VAR __attribute__((unused))
+#else
+#define UNUSED_VAR
+#endif
+
+#if (defined _MSC_VER)
+#define Q_EXPORT __declspec(dllexport)
+#elif (defined __SUNPRO_C)
+#define Q_EXPORT __global
+#elif ((__GNUC__ >= 3) && (!__EMX__) && (!sun))
+#define Q_EXPORT __attribute__((visibility("default")))
+#else
+#define Q_EXPORT
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define NORETURN __attribute__((noreturn))
+#define NORETURN_PTR __attribute__((noreturn))
+#elif defined(_MSC_VER)
+#define NORETURN __declspec(noreturn)
+// __declspec doesn't work on function pointers
+#define NORETURN_PTR /* nothing */
+#else
+#define NORETURN /* nothing */
+#define NORETURN_PTR /* nothing */
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define FORMAT_PRINTF(x, y) __attribute__((format (printf, x, y)))
+#else
+#define FORMAT_PRINTF(x, y) /* nothing */
+#endif
 
 /**********************************************************************
   VM Considerations
@@ -120,25 +159,107 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 //endianness
 short ShortSwap( short l );
-
-
-
-
+int LongSwap( int l );
 float FloatSwap( const float *f );
 
-//#include "q_platform.h"
-
-#include "q_shared_test.h"
+#include "q_platform.h"
 
 //=============================================================
 
+#ifdef Q3_VM
+	typedef int intptr_t;
+#else
+	#if defined (_MSC_VER) && !defined(__clang__)
+		typedef __int64 int64_t;
+		typedef __int32 int32_t;
+		typedef __int16 int16_t;
+		typedef __int8 int8_t;
+		typedef unsigned __int64 uint64_t;
+		typedef unsigned __int32 uint32_t;
+		typedef unsigned __int16 uint16_t;
+		typedef unsigned __int8 uint8_t;
+	#else
+		#include <stdint.h>
+	#endif
 
+	#ifdef _WIN32
+		// vsnprintf is ISO/IEC 9899:1999
+		// abstracting this to make it portable
+		int Q_vsnprintf( char *str, size_t size, const char *format, va_list ap );
+	#else
+		#define Q_vsnprintf vsnprintf
+	#endif
+#endif
+
+#if defined (_WIN32)
+#if !defined(_MSC_VER)
+// use GCC/Clang functions
+#define Q_setjmp __builtin_setjmp
+#define Q_longjmp __builtin_longjmp
+#elif idx64 && (_MSC_VER >= 1910)
+// use custom setjmp()/longjmp() implementations
+#define Q_setjmp Q_setjmp_c
+#define Q_longjmp Q_longjmp_c
+int Q_setjmp_c(void *);
+int Q_longjmp_c(void *, int);
+#else // !idx64 || MSVC<2017
+#define Q_setjmp setjmp
+#define Q_longjmp longjmp
+#endif
+#else // !_WIN32
+#define Q_setjmp setjmp
+#define Q_longjmp longjmp
+#endif
+
+typedef unsigned char byte;
 
 typedef enum { qfalse = 0, qtrue } qboolean;
 
+#ifndef __cplusplus
+   typedef unsigned char bool;
+   #define true  1
+   #define false 0
+#endif
+
+typedef union floatint_u
+{
+	int32_t i;
+	uint32_t u;
+	float f;
+	byte b[4];
+}
+floatint_t;
+
+typedef union {
+	byte rgba[4];
+	uint32_t u32;
+} color4ub_t;
 
 
+typedef int		qhandle_t;
+typedef int		sfxHandle_t;
+typedef int		fileHandle_t;
+typedef int		clipHandle_t;
 
+#define PAD(base, alignment)	(((base)+(alignment)-1) & ~((alignment)-1))
+#define PADLEN(base, alignment)	(PAD((base), (alignment)) - (base))
+
+#define PADP(base, alignment)	((void *) PAD((intptr_t) (base), (alignment)))
+
+#ifdef __GNUC__
+#define QALIGN(x) __attribute__((aligned(x)))
+#else
+#define QALIGN(x)
+#endif
+
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+
+#define	MAX_QINT			0x7fffffff
+#define	MIN_QINT			(-MAX_QINT-1)
+
+#define	MAX_UINT			((unsigned)(~0))
 
 #define ARRAY_LEN(x)		(sizeof(x) / sizeof(*(x)))
 #define STRARRAY_LEN(x)		(ARRAY_LEN(x) - 1)
@@ -150,6 +271,7 @@ typedef enum { qfalse = 0, qtrue } qboolean;
 
 // the game guarantees that no string from the network will ever
 // exceed MAX_STRING_CHARS
+#define	MAX_STRING_CHARS	1024	// max length of a string passed to Cmd_TokenizeString
 #define	MAX_STRING_TOKENS	1024	// max tokens resulting from Cmd_TokenizeString
 #define	MAX_TOKEN_CHARS		1024	// max length of an individual token
 
@@ -159,29 +281,58 @@ typedef enum { qfalse = 0, qtrue } qboolean;
 
 #define MAX_USERINFO_LENGTH (MAX_INFO_STRING-13) // incl. length of 'connect ""' or 'userinfo ""' and reserving one byte to avoid q3msgboom
 													
-
+#define	BIG_INFO_STRING		8192  // used for system info key only
 #define	BIG_INFO_KEY		  8192
 #define	BIG_INFO_VALUE		8192
 
 
+#define	MAX_QPATH			64		// max length of a quake game pathname
+#ifdef PATH_MAX
+#define MAX_OSPATH			PATH_MAX
+#else
+#define	MAX_OSPATH			256		// max length of a filesystem pathname
+#endif
 
 #define	MAX_NAME_LENGTH		32		// max length of a client name
 
 #define	MAX_SAY_TEXT	150
 
+// parameters for command buffer stuffing
+typedef enum {
+	EXEC_NOW,			// don't return until completed, a VM should NEVER use this,
+						// because some commands might cause the VM to be unloaded...
+	EXEC_INSERT,		// insert at current position, but don't run yet
+	EXEC_APPEND			// add to end of the command buffer (normal case)
+} cbufExec_t;
 
 
 //
 // these aren't needed by any of the VMs.  put in another header?
 //
+#define	MAX_MAP_AREA_BYTES		32		// bit vector of area visibility
 
 
+// print levels from renderer (FIXME: set up for game / cgame?)
+typedef enum {
+	PRINT_ALL,
+	PRINT_DEVELOPER,		// only print when "developer 1"
+	PRINT_WARNING,
+	PRINT_ERROR
+} printParm_t;
 
 
 #ifdef ERR_FATAL
 #undef ERR_FATAL			// this is be defined in malloc.h
 #endif
 
+// parameters to the main Error routine
+typedef enum {
+	ERR_FATAL,					// exit the entire game with a popup window
+	ERR_DROP,					// print to console and disconnect from game
+	ERR_SERVERDISCONNECT,		// don't kill server
+	ERR_DISCONNECT,				// client disconnected from the server
+	ERR_NEED_CD					// pop up the need-cd dialog
+} errorParm_t;
 
 
 // font rendering values used by ui and cgame
@@ -210,6 +361,11 @@ typedef enum { qfalse = 0, qtrue } qboolean;
 	#define HUNK_DEBUG
 #endif
 
+typedef enum {
+	h_high,
+	h_low,
+	h_dontcare
+} ha_pref;
 
 #ifdef HUNK_DEBUG
 #define Hunk_Alloc( size, preference )				Hunk_AllocDebug(size, preference, #size, __FILE__, __LINE__)
@@ -229,7 +385,11 @@ void Snd_Memset (void* dest, const int val, const size_t count);
 #define Com_Memset memset
 #define Com_Memcpy memcpy
 
-
+#define CIN_system	1
+#define CIN_loop	2
+#define	CIN_hold	4
+#define CIN_silent	8
+#define CIN_shader	16
 
 /*
 ==============================================================
@@ -240,9 +400,13 @@ MATHLIB
 */
 
 
+typedef float vec_t;
+typedef vec_t vec2_t[2];
+typedef vec_t vec3_t[3];
+typedef vec_t vec4_t[4];
+typedef vec_t vec5_t[5];
 
-
-
+typedef vec_t quat_t[4];
 
 typedef	int	fixed4_t;
 typedef	int	fixed8_t;
@@ -288,14 +452,14 @@ extern	vec3_t	bytedirs[NUMVERTEXNORMALS];
 #define	GIANTCHAR_WIDTH		32
 #define	GIANTCHAR_HEIGHT	48
 
-
+extern	vec4_t		colorBlack;
 extern	vec4_t		colorRed;
 extern	vec4_t		colorGreen;
 extern	vec4_t		colorBlue;
 extern	vec4_t		colorYellow;
 extern	vec4_t		colorMagenta;
 extern	vec4_t		colorCyan;
-
+extern	vec4_t		colorWhite;
 extern	vec4_t		colorLtGrey;
 extern	vec4_t		colorMdGrey;
 extern	vec4_t		colorDkGrey;
@@ -311,14 +475,14 @@ extern	vec4_t		colorDkGrey;
 #define COLOR_CYAN		'5'
 #define COLOR_MAGENTA	'6'
 #define COLOR_WHITE		'7'
-
+#define ColorIndex(c)	( ( (c) - '0' ) & 7 )
 
 #define S_COLOR_BLACK	"^0"
 #define S_COLOR_RED		"^1"
 #define S_COLOR_GREEN	"^2"
-
+#define S_COLOR_YELLOW	"^3"
 #define S_COLOR_BLUE	"^4"
-
+#define S_COLOR_CYAN	"^5"
 #define S_COLOR_MAGENTA	"^6"
 #define S_COLOR_WHITE	"^7"
 
@@ -328,9 +492,12 @@ extern int ColorIndexFromChar( char ccode );
 #define	MAKERGB( v, r, g, b ) v[0]=r;v[1]=g;v[2]=b
 #define	MAKERGBA( v, r, g, b, a ) v[0]=r;v[1]=g;v[2]=b;v[3]=a
 
+#define DEG2RAD( a ) ( ( (a) * M_PI ) / 180.0F )
+#define RAD2DEG( a ) ( ( (a) * 180.0f ) / M_PI )
+
 struct cplane_s;
 
-
+extern	const vec3_t	vec3_origin;
 extern	vec3_t	axisDefault[3];
 
 #define	nanmask (255<<23)
@@ -338,12 +505,12 @@ extern	vec3_t	axisDefault[3];
 #define	IS_NAN(x) (((*(int *)&x)&nanmask)==nanmask)
 
 float Q_fabs( float f );
-
+float Q_rsqrt( float f );		// reciprocal square root
 
 float Q_log2f( float f );
 float Q_exp2f( float f );
 
-
+#define SQRTFAST( x ) ( (x) * Q_rsqrt( x ) )
 
 signed char ClampChar( int i );
 signed char ClampCharMove( int i );
@@ -353,11 +520,21 @@ signed short ClampShort( int i );
 int DirToByte( vec3_t dir );
 void ByteToDir( int b, vec3_t dir );
 
-
+#ifndef SGN
+#define SGN(x) (((x) >= 0) ? !!(x) : -1)
+#endif
 
 #if	1
 
+#define DotProduct(x,y)			((x)[0]*(y)[0]+(x)[1]*(y)[1]+(x)[2]*(y)[2])
+#define VectorSubtract(a,b,c)	((c)[0]=(a)[0]-(b)[0],(c)[1]=(a)[1]-(b)[1],(c)[2]=(a)[2]-(b)[2])
+#define VectorAdd(a,b,c)		((c)[0]=(a)[0]+(b)[0],(c)[1]=(a)[1]+(b)[1],(c)[2]=(a)[2]+(b)[2])
+#define VectorCopy(a,b)			((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2])
+#define	VectorScale(v, s, o)	((o)[0]=(v)[0]*(s),(o)[1]=(v)[1]*(s),(o)[2]=(v)[2]*(s))
+#define	VectorMA(v, s, b, o)	((o)[0]=(v)[0]+(b)[0]*(s),(o)[1]=(v)[1]+(b)[1]*(s),(o)[2]=(v)[2]+(b)[2]*(s))
 
+#define DotProduct4(a,b)		((a)[0]*(b)[0] + (a)[1]*(b)[1] + (a)[2]*(b)[2] + (a)[3]*(b)[3])
+#define VectorScale4(a,b,c)		((c)[0]=(a)[0]*(b),(c)[1]=(a)[1]*(b),(c)[2]=(a)[2]*(b),(c)[3]=(a)[3]*(b))
 
 #else
 
@@ -381,9 +558,15 @@ typedef struct {
 #endif
 #endif
 
+#define VectorClear(a)			((a)[0]=(a)[1]=(a)[2]=0)
+#define VectorNegate(a,b)		((b)[0]=-(a)[0],(b)[1]=-(a)[1],(b)[2]=-(a)[2])
+#define VectorSet(v, x, y, z)	((v)[0]=(x), (v)[1]=(y), (v)[2]=(z))
+#define Vector4Set(v,x,y,z,w)	((v)[0]=(x), (v)[1]=(y), (v)[2]=(z), v[3]=(w))
+#define Vector4Copy(a,b)		((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2],(b)[3]=(a)[3])
 
 #define Byte4Copy(a,b)			((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2],(b)[3]=(a)[3])
 
+#define QuatCopy(a,b)			((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2],(b)[3]=(a)[3])
 
 #define	SnapVector(v) {v[0]=((int)(v[0]));v[1]=((int)(v[1]));v[2]=((int)(v[2]));}
 // just in case you don't want to use the macros
@@ -401,13 +584,87 @@ float NormalizeColor( const vec3_t in, vec3_t out );
 
 float RadiusFromBounds( const vec3_t mins, const vec3_t maxs );
 void ClearBounds( vec3_t mins, vec3_t maxs );
+Q_EXPORT void AddPointToBounds( const vec3_t v, vec3_t mins, vec3_t maxs );
 
+#if !defined( Q3_VM ) || ( defined( Q3_VM ) && defined( __Q3_VM_MATH ) )
+static ID_INLINE int VectorCompare( const vec3_t v1, const vec3_t v2 ) {
+	if (v1[0] != v2[0] || v1[1] != v2[1] || v1[2] != v2[2]) {
+		return 0;
+	}			
+	return 1;
+}
 
+static ID_INLINE vec_t VectorLength( const vec3_t v ) {
+	return (vec_t)sqrtf (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+}
+
+static ID_INLINE vec_t VectorLengthSquared( const vec3_t v ) {
+	return (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+}
+
+static ID_INLINE vec_t Distance( const vec3_t p1, const vec3_t p2 ) {
+	vec3_t	v;
+
+	VectorSubtract (p2, p1, v);
+	return VectorLength( v );
+}
+
+static ID_INLINE vec_t DistanceSquared( const vec3_t p1, const vec3_t p2 ) {
+	vec3_t	v;
+
+	VectorSubtract (p2, p1, v);
+	return v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
+}
+
+// fast vector normalize routine that does not check to make sure
+// that length != 0, nor does it return length, uses rsqrt approximation
+static ID_INLINE void VectorNormalizeFast( vec3_t v )
+{
+	float ilength;
+
+	ilength = Q_rsqrt( DotProduct( v, v ) );
+
+	v[0] *= ilength;
+	v[1] *= ilength;
+	v[2] *= ilength;
+}
+
+static ID_INLINE void VectorInverse( vec3_t v ){
+	v[0] = -v[0];
+	v[1] = -v[1];
+	v[2] = -v[2];
+}
+
+static ID_INLINE void CrossProduct( const vec3_t v1, const vec3_t v2, vec3_t cross ) {
+	cross[0] = v1[1]*v2[2] - v1[2]*v2[1];
+	cross[1] = v1[2]*v2[0] - v1[0]*v2[2];
+	cross[2] = v1[0]*v2[1] - v1[1]*v2[0];
+}
+
+#else
+int VectorCompare( const vec3_t v1, const vec3_t v2 );
+
+vec_t VectorLength( const vec3_t v );
+
+vec_t VectorLengthSquared( const vec3_t v );
+
+vec_t Distance( const vec3_t p1, const vec3_t p2 );
+
+vec_t DistanceSquared( const vec3_t p1, const vec3_t p2 );
+
+void VectorNormalizeFast( vec3_t v );
+
+void VectorInverse( vec3_t v );
+
+void CrossProduct( const vec3_t v1, const vec3_t v2, vec3_t cross );
+
+#endif
 
 vec_t VectorNormalize (vec3_t v);		// returns vector length
 vec_t VectorNormalize2( const vec3_t v, vec3_t out );
 void Vector4Scale( const vec4_t in, vec_t scale, vec4_t out );
 void VectorRotate( const vec3_t in, const vec3_t matrix[3], vec3_t out );
+int Q_log2(int val);
 
 float Q_acos(float c);
 
@@ -447,18 +704,24 @@ bool PlaneFromPoints( vec4_t plane, const vec3_t a, const vec3_t b, const vec3_t
 void ProjectPointOnPlane( vec3_t dst, const vec3_t p, const vec3_t normal );
 void RotatePointAroundVector( vec3_t dst, const vec3_t dir, const vec3_t point, float degrees );
 void RotateAroundDirection( vec3_t axis[3], float yaw );
-
+void MakeNormalVectors( const vec3_t forward, vec3_t right, vec3_t up );
 // perpendicular vector could be replaced by this
 
 //int	PlaneTypeForNormal (vec3_t normal);
 
 void MatrixMultiply(float in1[3][3], float in2[3][3], float out[3][3]);
 void AngleVectors( const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
-
+void PerpendicularVector( vec3_t dst, const vec3_t src );
 int Q_isnan( float x );
 float Q_atof( const char *str );
 
+#ifndef MAX
+#define MAX(x,y) ((x)>(y)?(x):(y))
+#endif
 
+#ifndef MIN
+#define MIN(x,y) ((x)<(y)?(x):(y))
+#endif
 
 //=============================================
 
@@ -483,7 +746,26 @@ void	COM_ParseWarning( const char *format, ... ) __attribute__ ((format (printf,
 
 char	*COM_ParseComplex( const char **data_p, bool allowLineBreak );
 
+typedef enum {
+	TK_GENEGIC = 0, // for single-char tokens
+	TK_STRING,
+	TK_QUOTED,
+	TK_EQ,
+	TK_NEQ,
+	TK_GT,
+	TK_GTE,
+	TK_LT,
+	TK_LTE,
+	TK_MATCH,
+	TK_OR,
+	TK_AND,
+	TK_SCOPE_OPEN,
+	TK_SCOPE_CLOSE,
+	TK_NEWLINE,
+	TK_EOF,
+} tokenType_t;
 
+extern tokenType_t com_tokentype;
 
 #define MAX_TOKENLENGTH		1024
 
@@ -514,14 +796,7 @@ void Parse1DMatrix( const char **buf_p, int x, float *m);
 void Parse2DMatrix( const char **buf_p, int y, int x, float *m);
 void Parse3DMatrix( const char **buf_p, int z, int y, int x, float *m);
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-int QDECL Com_sprintf( char *dest, int size, const char *fmt, ... ) __attribute__ ((format (printf, 3, 4)));
-#ifdef __cplusplus
-}
-#endif
-
+Q_EXPORT int QDECL Com_sprintf( char *dest, int size, const char *fmt, ... ) __attribute__ ((format (printf, 3, 4)));
 
 const char *Com_SkipTokens( const char *s, int numTokens, const char *sep );
 const char *Com_SkipCharset( const char *s, const char *sep );
@@ -546,6 +821,8 @@ typedef enum {
 
 //=============================================
 
+extern const byte locase[ 256 ];
+
 int Q_isprint( int c );
 int Q_islower( int c );
 int Q_isupper( int c );
@@ -554,7 +831,7 @@ int Q_isalpha( int c );
 bool Q_streq( const char *s1, const char *s2 );
 
 // portable case insensitive compare
-
+Q_EXPORT int		Q_stricmp (const char *s1, const char *s2);
 int		Q_strncmp (const char *s1, const char *s2, int n);
 int		Q_stricmpn (const char *s1, const char *s2, int n);
 char	*Q_strlwr( char *s1 );
@@ -565,7 +842,7 @@ bool Q_isanumber( const char *s );
 bool Q_isintegral( float f );
 
 // buffer size safe library replacements
-
+Q_EXPORT void	Q_strncpyz( char *dest, const char *src, int destsize );
 void	Q_strcat( char *dest, int size, const char *src );
 
 int     Q_replace( const char *str1, const char *str2, char *src, int max_len );
@@ -609,7 +886,7 @@ float	LittleFloat (const float *l);
 
 void	Swap_Init (void);
 */
-
+Q_EXPORT const char *QDECL va( const char *format, ... ) __attribute__ ((format( printf, 1, 2 )));
 
 #define TRUNCATE_LENGTH	64
 void Com_TruncateLongString( char *buffer, const char *s );
@@ -629,26 +906,100 @@ bool Info_ValidateKeyValue( const char *s );
 const char *Info_NextPair( const char *s, char *key, char *value );
 int Info_RemoveKey( char *s, const char *key );
 
-extern tokenType_t com_tokentype;
-extern const byte locase[256];
-
 // this is only here so the functions in q_shared.c and bg_*.c can link
 void NORETURN FORMAT_PRINTF(2, 3) QDECL Com_Error( errorParm_t level, const char *fmt, ... );
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void FORMAT_PRINTF(1, 2) QDECL Com_Printf( const char *msg, ... );
 
-#ifdef __cplusplus
-}
-#endif
 
+/*
+==========================================================
 
+CVARS (console variables)
 
+Many variables can be used for cheating purposes, so when
+cheats is zero, force all unspecified variables to their
+default values.
+==========================================================
+*/
 
+#define	CVAR_ARCHIVE		0x0001	// set to cause it to be saved to vars.rc
+					// used for system variables, not for player
+					// specific configurations
+#define	CVAR_USERINFO		0x0002	// sent to server on connect or change
+#define	CVAR_SERVERINFO		0x0004	// sent in response to front end requests
+#define	CVAR_SYSTEMINFO		0x0008	// these cvars will be duplicated on all clients
+#define	CVAR_INIT			0x0010	// don't allow change from console at all,
+					// but can be set from the command line
+#define	CVAR_LATCH			0x0020	// will only change when C code next does
+					// a Cvar_Get(), so it can't be changed
+					// without proper initialization.  modified
+					// will be set, even though the value hasn't
+					// changed yet
+#define	CVAR_ROM			0x0040	// display only, cannot be set by user at all
+#define	CVAR_USER_CREATED	0x0080	// created by a set command
+#define	CVAR_TEMP			0x0100	// can be set even when cheats are disabled, but is not archived
+#define CVAR_CHEAT			0x0200	// can not be changed if cheats are disabled
+#define CVAR_NORESTART		0x0400	// do not clear when a cvar_restart is issued
 
+#define CVAR_SERVER_CREATED	0x0800	// cvar was created by a server the client connected to.
+#define CVAR_VM_CREATED		0x1000	// cvar was created exclusively in one of the VMs.
+#define CVAR_PROTECTED		0x2000	// prevent modifying this var from VMs or the server
 
+#define CVAR_NODEFAULT		0x4000	// do not write to config if matching with default value
+
+#define CVAR_PRIVATE		0x8000	// can't be read from VM
+
+#define CVAR_DEVELOPER		0x10000 // can be set only in developer mode
+#define CVAR_NOTABCOMPLETE	0x20000 // no tab completion in console
+
+#define CVAR_ARCHIVE_ND		(CVAR_ARCHIVE | CVAR_NODEFAULT)
+
+// These flags are only returned by the Cvar_Flags() function
+#define CVAR_MODIFIED		0x40000000	// Cvar was modified
+#define CVAR_NONEXISTENT	0x80000000	// Cvar doesn't exist.
+
+typedef enum {
+	CV_NONE = 0,
+	CV_FLOAT,
+	CV_INTEGER,
+	CV_FSPATH,
+	CV_MAX,
+} cvarValidator_t;
+
+typedef enum {
+	CVG_NONE = 0,
+	CVG_RENDERER,
+	CVG_SERVER,
+	CVG_MAX,
+} cvarGroup_t;
+
+// nothing outside the Cvar_*() functions should modify these fields!
+typedef struct cvar_s cvar_t;
+
+struct cvar_s {
+	char		*name;
+	char		*string;
+	char		*resetString;		// cvar_restart will reset to this value
+	char		*latchedString;		// for CVAR_LATCH vars
+	int			flags;
+	bool		modified;			// set each time the cvar is changed
+	int			modificationCount;	// incremented each time the cvar is changed
+	float		value;				// Q_atof( string )
+	int			integer;			// atoi( string )
+	cvarValidator_t validator;
+	char		*mins;
+	char		*maxs;
+	char		*description;
+
+	cvar_t		*next;
+	cvar_t		*prev;
+	cvar_t		*hashNext;
+	cvar_t		*hashPrev;
+	int			hashIndex;
+	cvarGroup_t	group;				// to track changes
+};
+
+#define	MAX_CVAR_VALUE_STRING	256
 
 typedef int	cvarHandle_t;
 
@@ -672,9 +1023,31 @@ COLLISION DETECTION
 
 #include "surfaceflags.h"			// shared with the q3map utility
 
+// plane types are used to speed some tests
+// 0-2 are axial planes
+#define	PLANE_X			0
+#define	PLANE_Y			1
+#define	PLANE_Z			2
+#define	PLANE_NON_AXIAL	3
 
 
+/*
+=================
+PlaneTypeForNormal
+=================
+*/
 
+#define PlaneTypeForNormal(x) (x[0] == 1.0 ? PLANE_X : (x[1] == 1.0 ? PLANE_Y : (x[2] == 1.0 ? PLANE_Z : PLANE_NON_AXIAL) ) )
+
+// plane_t structure
+// !!! if this is changed, it must be changed in asm code too !!!
+typedef struct cplane_s {
+	vec3_t	normal;
+	float	dist;
+	byte	type;			// for fast side tests: 0,1,2 = axial, 3 = nonaxial
+	byte	signbits;		// signx + (signy<<1) + (signz<<2), used as lookup during collision
+	byte	pad[2];
+} cplane_t;
 
 
 // a trace is returned when a box is swept through the world
@@ -693,8 +1066,18 @@ typedef struct {
 // or ENTITYNUM_NONE, ENTITYNUM_WORLD
 
 
+// markfragments are returned by R_MarkFragments()
+typedef struct {
+	int		firstPoint;
+	int		numPoints;
+} markFragment_t;
 
 
+
+typedef struct {
+	vec3_t		origin;
+	vec3_t		axis[3];
+} orientation_t;
 
 //=====================================================================
 
@@ -997,11 +1380,45 @@ typedef enum {
 #define GLYPH_CHARSTART 32
 #define GLYPH_CHAREND 127
 #define GLYPHS_PER_FONT GLYPH_END - GLYPH_START + 1
+typedef struct {
+  int height;       // number of scan lines
+  int top;          // top of glyph in buffer
+  int bottom;       // bottom of glyph in buffer
+  int pitch;        // width for copying
+  int xSkip;        // x adjustment
+  int imageWidth;   // width of actual image
+  int imageHeight;  // height of actual image
+  float s;          // x offset in image where glyph starts
+  float t;          // y offset in image where glyph starts
+  float s2;
+  float t2;
+  qhandle_t glyph;  // handle to the shader with the glyph
+  char shaderName[32];
+} glyphInfo_t;
+
+typedef struct {
+  glyphInfo_t glyphs [GLYPHS_PER_FONT];
+  float glyphScale;
+  char name[MAX_QPATH];
+} fontInfo_t;
+
+#define Square(x) ((x)*(x))
+
+// real time
+//=============================================
 
 
-
-
-
+typedef struct qtime_s {
+	int tm_sec;     /* seconds after the minute - [0,59] */
+	int tm_min;     /* minutes after the hour - [0,59] */
+	int tm_hour;    /* hours since midnight - [0,23] */
+	int tm_mday;    /* day of the month - [1,31] */
+	int tm_mon;     /* months since January - [0,11] */
+	int tm_year;    /* years since 1900 */
+	int tm_wday;    /* days since Sunday - [0,6] */
+	int tm_yday;    /* days since January 1 - [0,365] */
+	int tm_isdst;   /* daylight savings time flag */
+} qtime_t;
 
 
 // server browser sources
@@ -1012,7 +1429,16 @@ typedef enum {
 #define AS_FAVORITES	3
 
 
-
+// cinematic states
+typedef enum {
+	FMV_IDLE,
+	FMV_PLAY,		// play
+	FMV_EOF,		// all other conditions, i.e. stop/EOF/abort
+	FMV_ID_BLT,
+	FMV_ID_IDLE,
+	FMV_LOOPED,
+	FMV_ID_WAIT
+} e_status;
 
 typedef enum _flag_status {
 	FLAG_ATBASE = 0,
@@ -1037,6 +1463,7 @@ typedef enum _flag_status {
 #define CDCHKSUM_LEN 2
 
 
-
+#define LERP( a, b, w ) ( ( a ) * ( 1.0f - ( w ) ) + ( b ) * ( w ) )
+#define LUMA( red, green, blue ) ( 0.2126f * ( red ) + 0.7152f * ( green ) + 0.0722f * ( blue ) )
 
 #endif	// __Q_SHARED_H

@@ -41,14 +41,17 @@ constexpr int MAX_TEXTURE_SIZE = 2048; // must be less or equal to 32768
 // #define USE_TESS_NEEDS_NORMAL
 // #define USE_TESS_NEEDS_ST2
 
-#include "q_shared.hpp"
+// #include "q_shared.hpp"
 
 extern "C"
 {
+#include "../qcommon/q_shared.h"
 #include "../qcommon/qfiles.h"
+#include "../qcommon/qcommon.h"
+#include "../renderercommon/tr_public.h"
 }
 
-//#include "qcommon.hpp"
+// #include "qcommon.hpp"
 #include "tr_common.hpp"
 #include "iqm.hpp"
 #include "definitions.hpp"
