@@ -17,7 +17,8 @@ void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point,
 void AxisCopy(vec3_t in[3], vec3_t out[3]);
 float RadiusFromBounds(const vec3_t mins, const vec3_t maxs);
 
-bool PlaneFromPoints(vec4_t plane, const vec3_t a, const vec3_t b, const vec3_t c);
+bool PlaneFromPoints_plus(vec4_t plane, const vec3_t a, const vec3_t b, const vec3_t c);
+bool PlaneFromPoints_SSE(float *plane, const float *a, const float *b, const float *c);
 
 void ClearBounds(vec3_t mins, vec3_t maxs);
 
@@ -39,8 +40,15 @@ void MakeNormalVectors(const vec3_t forward, vec3_t right, vec3_t up);
 
 int Q_log2(int val);
 
-void PerpendicularVector( vec3_t dst, const vec3_t src );
+void PerpendicularVector(vec3_t dst, const vec3_t src);
 
 float Q_acos(float c);
+
+#if !defined(Q3_VM) || (defined(Q3_VM) && defined(__Q3_VM_MATH))
+inline void VectorSubtract_plus(const float* a, const float* b, float* c);
+inline void CrossProduct_plus(const vec3_t v1, const vec3_t v2, vec3_t cross);
+vec_t VectorNormalize_plus(vec3_t v);
+inline vec_t VectorLength_plus(const vec3_t v);
+#endif
 
 #endif // Q_MATH_HPP

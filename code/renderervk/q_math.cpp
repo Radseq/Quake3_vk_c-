@@ -34,6 +34,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cmath>
 #include <assert.h>
 
+#include <xmmintrin.h>				   // SSE header for floating-point operations
+#if defined(_WIN32) || defined(_WIN64) // For Windows
+#include <intrin.h>					   // For __cpuid on Windows
+#elif defined(__linux__)			   // For Linux
+#include <cpuid.h>					   // For __get_cpuid on Linux
+#endif
+
 int ColorIndexFromChar(char ccode)
 {
 	if (ccode >= '0' && ccode <= '9')
@@ -283,6 +290,73 @@ float NormalizeColor(const vec3_t in, vec3_t out)
 	return max;
 }
 
+// Function to check if SSE2 is available (works on both Windows and Linux)
+bool isSSE2Available()
+{
+	static int sse2_available = -1; // Cache the result (initially -1 meaning unchecked)
+
+	if (sse2_available == -1)
+	{
+		int cpuInfo[4] = {0};
+
+#if defined(_WIN32) || defined(_WIN64)
+		__cpuid(cpuInfo, 1); // Get CPU info on Windows
+#elif defined(__linux__)
+		unsigned int eax, ebx, ecx, edx;
+		__get_cpuid(1, &eax, &ebx, &ecx, &edx); // Get CPU info on Linux
+		cpuInfo[3] = edx;						// SSE2 is in the EDX register (bit 26)
+#endif
+
+		sse2_available = (cpuInfo[3] & (1 << 26)) != 0; // SSE2 is bit 26 of EDX
+	}
+
+	return sse2_available;
+}
+
+// Function to check if AVX is available (works on both Windows and Linux)
+bool isAVXAvailable()
+{
+	static int avx_available = -1; // Cache the result (initially -1 meaning unchecked)
+
+	if (avx_available == -1)
+	{
+		int cpuInfo[4] = {0};
+
+#if defined(_WIN32) || defined(_WIN64)
+		__cpuid(cpuInfo, 1); // Get CPU info on Windows
+#elif defined(__linux__)
+		unsigned int eax, ebx, ecx, edx;
+		__get_cpuid(1, &eax, &ebx, &ecx, &edx); // Get CPU info on Linux
+		cpuInfo[2] = ecx;						// AVX is in the ECX register (bit 28)
+#endif
+
+		// Check if AVX is supported (bit 28 of ECX) and OS supports AVX (bit 27 of ECX)
+		bool hasAVX = (cpuInfo[2] & (1 << 28)) != 0;
+		bool osSupportsAVX = (cpuInfo[2] & (1 << 27)) != 0;
+
+		if (hasAVX && osSupportsAVX)
+		{
+			// Check if the OS has enabled AVX support via the XCR0 register
+			unsigned long long xcrFeatureMask = 0;
+
+#if defined(_WIN32) || defined(_WIN64)
+			xcrFeatureMask = _xgetbv(0); // Windows: Get XCR0 register value
+#elif defined(__linux__)
+			// Inline assembly for Linux to get the XCR0 register
+			__asm__ volatile("xgetbv" : "=a"(xcrFeatureMask) : "c"(0) : "%edx");
+#endif
+
+			avx_available = (xcrFeatureMask & 0x6) == 0x6; // Check if XMM and YMM state are enabled
+		}
+		else
+		{
+			avx_available = false; // AVX is not available
+		}
+	}
+
+	return avx_available;
+}
+
 /*
 =====================
 PlaneFromPoints
@@ -291,20 +365,34 @@ Returns false if the triangle is degenerate.
 The normal will point out of the clock for clockwise ordered points
 =====================
 */
-bool PlaneFromPoints(vec4_t plane, const vec3_t a, const vec3_t b, const vec3_t c)
+bool PlaneFromPoints_plus(vec4_t plane, const vec3_t a, const vec3_t &b, const vec3_t &c)
 {
-	vec3_t d1, d2;
-
-	VectorSubtract(b, a, d1);
-	VectorSubtract(c, a, d2);
-	CrossProduct(d2, d1, plane);
-	if (VectorNormalize(plane) == 0)
+	// Check if both SSE2 and AVX are available
+	if (isSSE2Available() && isAVXAvailable())
 	{
-		return false;
+		// Use SSE-optimized function if available
+		if (!PlaneFromPoints_SSE(plane, a, b, c))
+		{
+			return false; // If SSE version fails
+		}
+	}
+	else
+	{
+		// Fallback to non-SSE version if AVX or SSE2 are not available
+		vec3_t d1, d2;
+
+		VectorSubtract_plus(b, a, d1);
+		VectorSubtract_plus(c, a, d2);
+		CrossProduct(d2, d1, plane);
+		if (VectorNormalize(plane) == 0)
+		{
+			return false;
+		}
+
+		plane[3] = DotProduct(a, plane);
 	}
 
-	plane[3] = DotProduct(a, plane);
-	return true;
+	return true; // Success
 }
 
 /*
@@ -456,7 +544,7 @@ void AnglesToAxis(const vec3_t angles, vec3_t axis[3])
 
 	// angle vectors returns "right" instead of "y axis"
 	AngleVectors(angles, axis[0], right, axis[2]);
-	VectorSubtract(vec3_origin, right, axis[1]);
+	VectorSubtract_plus(vec3_origin, right, axis[1]);
 }
 
 void AxisClear(vec3_t axis[3])
@@ -1101,7 +1189,7 @@ float Q_acos(float c)
 }
 #endif
 
-void SetPlaneSignbits(cplane_t *out)
+void SetPlaneSignbits(struct cplane_s *out)
 {
 	int bits, j;
 
@@ -1115,4 +1203,163 @@ void SetPlaneSignbits(cplane_t *out)
 		}
 	}
 	out->signbits = bits;
+}
+
+inline void VectorSubtract_SSE(const float *a, const float *b, float *c)
+{
+	__m128 vec_a = _mm_loadu_ps(a);			 // Load vector a into SSE register
+	__m128 vec_b = _mm_loadu_ps(b);			 // Load vector b into SSE register
+	__m128 vec_c = _mm_sub_ps(vec_a, vec_b); // Perform subtraction (a - b)
+	_mm_storeu_ps(c, vec_c);				 // Store result back into c
+}
+
+inline void CrossProduct_SSE(const float *v1, const float *v2, float *cross)
+{
+	__m128 vec_v1 = _mm_loadu_ps(v1); // Load vector v1
+	__m128 vec_v2 = _mm_loadu_ps(v2); // Load vector v2
+
+	// Shuffle the vectors to align the components for cross product
+	__m128 temp1 = _mm_shuffle_ps(vec_v1, vec_v1, _MM_SHUFFLE(3, 0, 2, 1));
+	__m128 temp2 = _mm_shuffle_ps(vec_v2, vec_v2, _MM_SHUFFLE(3, 1, 0, 2));
+
+	// Multiply and subtract for cross product
+	__m128 result = _mm_sub_ps(_mm_mul_ps(temp1, vec_v2), _mm_mul_ps(temp2, vec_v1));
+
+	_mm_storeu_ps(cross, result); // Store result back into cross
+}
+
+inline float VectorLength_SSE(const float *v)
+{
+	__m128 vec = _mm_loadu_ps(v);		  // Load vector into SSE register
+	__m128 square = _mm_mul_ps(vec, vec); // Square the components
+
+	// Manually add the components of the squared vector
+	__m128 shuffle = _mm_shuffle_ps(square, square, _MM_SHUFFLE(3, 0, 2, 1)); // [x², z², y², w²]
+	__m128 sum = _mm_add_ps(square, shuffle);								  // [x² + z², y² + w², y² + w², x² + z²]
+
+	shuffle = _mm_shuffle_ps(sum, sum, _MM_SHUFFLE(3, 1, 0, 2)); // Final shuffle to align components
+	sum = _mm_add_ps(sum, shuffle);								 // Final sum [x² + y² + z², ...]
+
+	return _mm_cvtss_f32(sum); // Extract the first element which is the sum of x² + y² + z²
+}
+
+// Function to normalize a 3D vector using SSE and return the length
+inline float VectorNormalize_SSE(float *v)
+{
+	// Calculate squared length using SSE2
+	float length_squared = VectorLength_SSE(v);
+
+	if (length_squared > 0.0f)
+	{
+		// Reciprocal square root (using square root for accuracy)
+		__m128 vec = _mm_loadu_ps(v);
+		__m128 length_sqrt = _mm_rsqrt_ps(_mm_set1_ps(length_squared));
+
+		// Normalize the vector (v / length)
+		__m128 length = _mm_div_ps(_mm_set1_ps(1.0f), length_sqrt); // 1 / sqrt(length_squared)
+		__m128 normalized = _mm_mul_ps(vec, length);
+		_mm_storeu_ps(v, normalized); // Store normalized result
+
+		return _mm_cvtss_f32(length_sqrt); // Return the length
+	}
+	else
+	{
+		// Handle zero-length vector case
+		_mm_storeu_ps(v, _mm_setzero_ps()); // Set vector to zero
+		return 0.0f;						// Return zero length
+	}
+}
+
+bool PlaneFromPoints_SSE(float *plane, const float *a, const float *b, const float *c)
+{
+	float d1[4], d2[4]; // Vectors
+
+	// Vector subtraction using SSE2
+	VectorSubtract_SSE(b, a, d1);
+	VectorSubtract_SSE(c, a, d2);
+
+	// Cross product using SSE2
+	CrossProduct_SSE(d2, d1, plane);
+
+	// Normalize the plane using SSE2
+	VectorNormalize_SSE(plane);
+
+	// Check if normalization succeeded
+	if (_mm_movemask_ps(_mm_cmpeq_ps(_mm_setzero_ps(), _mm_loadu_ps(plane))) == 0xF)
+	{
+		return false;
+	}
+
+	// Calculate plane[3]
+	plane[3] = DotProduct(a, plane);
+	return true;
+}
+
+inline void VectorSubtract_plus(const float* a, const float* b, float* c)
+{
+	if (isSSE2Available() && isAVXAvailable())
+	{
+		VectorSubtract_SSE(a, b, c);
+	}
+	else
+	{
+		c[0] = a[0] - b[0];
+		c[1] = a[1] - b[1];
+		c[2] = a[2] - b[2];
+	}
+}
+
+inline void CrossProduct_plus(const vec3_t v1, const vec3_t v2, vec3_t cross)
+{
+	if (isSSE2Available() && isAVXAvailable())
+	{
+		CrossProduct_SSE(v1, v2, cross);
+	}
+	else
+	{
+		cross[0] = v1[1] * v2[2] - v1[2] * v2[1];
+		cross[1] = v1[2] * v2[0] - v1[0] * v2[2];
+		cross[2] = v1[0] * v2[1] - v1[1] * v2[0];
+	}
+}
+
+vec_t VectorNormalize_plus(vec3_t v)
+{
+	if (isSSE2Available() && isAVXAvailable())
+	{
+		return VectorNormalize_SSE(v);
+	}
+	else
+	{
+
+		// NOTE: TTimo - Apple G4 altivec source uses double?
+		float length, ilength;
+
+		length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+
+		if (length)
+		{
+			/* writing it this way allows gcc to recognize that rsqrt can be used */
+			ilength = 1 / (float)sqrt(length);
+			/* sqrt(length) = length * (1 / sqrt(length)) */
+			length *= ilength;
+			v[0] *= ilength;
+			v[1] *= ilength;
+			v[2] *= ilength;
+		}
+
+		return length;
+	}
+}
+
+inline vec_t VectorLength_plus(const vec3_t v)
+{
+	if (isSSE2Available() && isAVXAvailable())
+	{
+		return VectorLength_SSE(v);
+	}
+	else
+	{
+		return (vec_t)sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+	}
 }

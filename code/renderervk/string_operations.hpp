@@ -3,6 +3,7 @@
 
 #include <string_view>
 #include <array>
+#include "tr_local.hpp"
 
 int Q_stricmp_cpp(const std::string_view s1, const std::string_view s2);
 std::string_view COM_GetExtension_cpp(std::string_view name);
