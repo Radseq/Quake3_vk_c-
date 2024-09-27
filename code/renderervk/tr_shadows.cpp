@@ -104,7 +104,7 @@ static void R_CalcShadowEdges(void)
 			// triangle, it is a sil edge
 			if (sil_edge)
 			{
-				if (tess.numIndexes > arrayLen(tess.indexes) - 6)
+				if (tess.numIndexes > static_cast<int>(arrayLen(tess.indexes)) - 6)
 				{
 					i = tess.numVertexes;
 					break;

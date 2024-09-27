@@ -25,8 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shadows.hpp"
 #include "tr_surface.hpp"
 #include "tr_image.hpp"
-#include "tr_noise.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 #include <string_view>
 
 // -EC-: avoid using ri.ftol
@@ -181,17 +180,17 @@ static void RB_CalcDeformNormals(deformStage_t &ds)
 	for (i = 0; i < tess.numVertexes; i++, xyz += 4, normal += 4)
 	{
 		scale = 0.98f;
-		scale = NoiseGet4f(xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
+		scale = R_NoiseGet4f(xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
 						   tess.shaderTime * ds.deformationWave.frequency);
 		normal[0] += ds.deformationWave.amplitude * scale;
 
 		scale = 0.98f;
-		scale = NoiseGet4f(100 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
+		scale = R_NoiseGet4f(100 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
 						   tess.shaderTime * ds.deformationWave.frequency);
 		normal[1] += ds.deformationWave.amplitude * scale;
 
 		scale = 0.98f;
-		scale = NoiseGet4f(200 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
+		scale = R_NoiseGet4f(200 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
 						   tess.shaderTime * ds.deformationWave.frequency);
 		normal[2] += ds.deformationWave.amplitude * scale;
 
@@ -346,7 +345,7 @@ static void DeformText(std::string_view text)
 GlobalVectorToLocal
 ==================
 */
-static void GlobalVectorToLocal(const vec3_t in, vec3_t out)
+static void GlobalVectorToLocal(const vec3_t& in, vec3_t& out)
 {
 	out[0] = DotProduct(in, backEnd.ort.axis[0]);
 	out[1] = DotProduct(in, backEnd.ort.axis[1]);
@@ -716,7 +715,7 @@ void RB_CalcWaveColor(const waveForm_t &wf, unsigned char *dstColors)
 
 	if (wf.func == GF_NOISE)
 	{
-		glow = wf.base + NoiseGet4f(0, 0, 0, (tess.shaderTime + wf.phase) * wf.frequency) * wf.amplitude;
+		glow = wf.base + R_NoiseGet4f(0, 0, 0, (tess.shaderTime + wf.phase) * wf.frequency) * wf.amplitude;
 	}
 	else
 	{

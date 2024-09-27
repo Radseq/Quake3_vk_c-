@@ -23,7 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_main.hpp"
 #include "tr_light.hpp"
 #include "tr_model.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 
 /*
 =================
@@ -178,7 +178,7 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t *shader)
 }
 
 #ifdef USE_PMLIGHT
-bool R_LightCullBounds(const dlight_t &dl, const vec3_t mins, const vec3_t maxs)
+bool R_LightCullBounds(const dlight_t &dl, const vec3_t &mins, const vec3_t &maxs)
 {
 	if (dl.linear)
 	{
@@ -292,7 +292,7 @@ static int R_DlightFace(srfSurfaceFace_t &face, int dlightBits)
 
 static int R_DlightGrid(srfGridMesh_t &grid, int dlightBits)
 {
-	int i;
+	uint32_t i;
 
 	for (i = 0; i < tr.refdef.num_dlights; i++)
 	{
@@ -486,7 +486,7 @@ static void R_RecursiveLightNode(const mnode_t *node)
 		if (node->visframe != tr.visCount)
 			return;
 
-		if (node->contents != CONTENTS_NODE)
+		if (static_cast<uint32_t>(node->contents) != CONTENTS_NODE)
 			break;
 
 		children[0] = children[1] = false;
@@ -615,7 +615,7 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 	R_SetupEntityLighting(tr.refdef, ent);
 	R_DlightBmodel(bmodel);
 
-	for (i = 0; i < bmodel.numSurfaces; i++)
+	for (i = 0; i < static_cast<uint32_t>(bmodel.numSurfaces); i++)
 	{
 		R_AddWorldSurface(*(bmodel.firstSurface + i), tr.currentEntity->needDlights);
 	}
@@ -708,7 +708,7 @@ static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned
 			}
 		}
 
-		if (node->contents != CONTENTS_NODE)
+		if (static_cast<uint32_t>(node->contents) != CONTENTS_NODE)
 		{
 			break;
 		}
@@ -727,7 +727,7 @@ static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned
 			{
 				int i;
 
-				for (i = 0; i < tr.refdef.num_dlights; i++)
+				for (i = 0; i < static_cast<int>(tr.refdef.num_dlights); i++)
 				{
 					const dlight_t *dl;
 					float dist;
@@ -823,7 +823,7 @@ static mnode_t *R_PointInLeaf(const vec3_t p)
 	node = tr.world->nodes;
 	while (1)
 	{
-		if (node->contents != CONTENTS_NODE)
+		if (static_cast<uint32_t>(node->contents) != CONTENTS_NODE)
 		{
 			break;
 		}
@@ -978,7 +978,7 @@ R_AddWorldSurfaces
 void R_AddWorldSurfaces(void)
 {
 #ifdef USE_PMLIGHT
-	int i;
+	uint32_t i;
 #endif
 
 	if (!r_drawworld->integer)

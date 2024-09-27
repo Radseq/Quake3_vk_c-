@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_flares.hpp"
 #include "tr_model_iqm.hpp"
 #include "tr_shader.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 
 #include <functional>
 #include <string_view>
@@ -83,7 +83,7 @@ static qhandle_t R_RegisterMD3(std::string_view name, model_t &mod)
 		if (!buf.v)
 			continue;
 
-		if (fileSize < sizeof(md3Header_t))
+		if (static_cast<std::size_t>(fileSize) < sizeof(md3Header_t))
 		{
 			ri.Printf(PRINT_WARNING, "%s: truncated header for %s\n", __func__, name.data());
 			ri.FS_FreeFile(buf.v);
@@ -149,7 +149,7 @@ static qhandle_t R_RegisterMDR(std::string_view name, model_t &mod)
 		return 0;
 	}
 
-	if (filesize < sizeof(ident))
+	if (static_cast<std::size_t>(filesize) < sizeof(ident))
 	{
 		ri.FS_FreeFile(buf.v);
 		mod.type = MOD_BAD;
@@ -222,7 +222,7 @@ static modelExtToLoaderMap_t modelLoaders[] =
 		{"mdr", R_RegisterMDR},
 		{"md3", R_RegisterMD3}};
 
-static constexpr size_t numModelLoaders = arrayLen(modelLoaders);
+static constexpr int numModelLoaders = static_cast<int>(arrayLen(modelLoaders));
 
 //===============================================================================
 

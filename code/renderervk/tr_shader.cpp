@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_sky.hpp"
 #include "vk.hpp"
 #include "tr_image.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 #include "utils.hpp"
 
 #define generateHashValue Com_GenerateHashValue
@@ -316,7 +316,7 @@ static constexpr genFunc_t NameToGenFunc(std::string_view funcname)
 		return GF_NOISE;
 	}
 
-	ri.Printf(PRINT_WARNING, "WARNING: invalid genfunc name '%s' in shader '%s'\n", funcname, shader.name);
+	ri.Printf(PRINT_WARNING, "WARNING: invalid genfunc name '%s' in shader '%s'\n", funcname.data(), shader.name);
 	return GF_SIN;
 }
 
@@ -596,7 +596,7 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 	}
 	else
 	{
-		ri.Printf(PRINT_WARNING, "WARNING: unknown tcMod '%s' in shader '%s'\n", token, shader.name);
+		ri.Printf(PRINT_WARNING, "WARNING: unknown tcMod '%s' in shader '%s'\n", token.data(), shader.name);
 	}
 }
 
@@ -689,7 +689,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 
 				if (!stage.bundle[0].image[0])
 				{
-					ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token, shader.name);
+					ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token.data(), shader.name);
 					return false;
 				}
 			}
@@ -1855,7 +1855,8 @@ FinishStage
 */
 static void FinishStage(shaderStage_t &stage)
 {
-	int i, n;
+	int n;
+	std::size_t i;
 
 	if (!tr.mergeLightmaps)
 	{
@@ -2480,7 +2481,7 @@ static const textureBundle_t *lightingBundle(int stageIndex, const textureBundle
 	const shaderStage_t *stage = &stages[stageIndex];
 	int i;
 
-	for (i = 0; i < stage->numTexBundles; i++)
+	for (i = 0; i < static_cast<int>(stage->numTexBundles); i++)
 	{
 		const textureBundle_t *bundle = &stage->bundle[i];
 		if (bundle->lightmap != LIGHTMAP_INDEX_NONE)
@@ -3175,7 +3176,8 @@ from the current global working shader
 */
 static shader_t *FinishShader(void)
 {
-	int stage, i, n, m;
+	int stage, i, m;
+	uint32_t n;
 	bool hasLightmapStage;
 	bool vertexLightmap;
 	bool colorBlend;

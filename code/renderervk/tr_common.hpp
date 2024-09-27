@@ -98,6 +98,9 @@ extern "C"
 {
 #endif
 
+	float R_NoiseGet4f(float x, float y, float z, double t);
+	void R_NoiseInit(void);
+
 	// font stuff
 	void R_InitFreeType(void);
 	void R_DoneFreeType(void);

@@ -374,14 +374,14 @@ static void VBO_AddGeometry(vbo_t &vbo, vbo_item_t &vi, shaderCommands_t &input)
 
 	offs = input.shader->iboOffset + input.shader->curIndexes * sizeof(input.indexes[0]);
 	size = input.numIndexes * sizeof(input.indexes[0]);
-	if (offs + size > vbo.vbo_size)
+	if (offs + size > static_cast<uint32_t>(vbo.vbo_size))
 	{
 		ri.Error(ERR_DROP, "Index0 overflow");
 	}
 	memcpy(vbo.vbo_buffer + offs, input.indexes, size);
 
 	// fill soft buffer too
-	if (vbo.ibo_offset + size > vbo.ibo_size)
+	if (vbo.ibo_offset + size > static_cast<uint32_t>(vbo.ibo_size))
 	{
 		ri.Error(ERR_DROP, "Index1 overflow");
 	}
@@ -392,7 +392,7 @@ static void VBO_AddGeometry(vbo_t &vbo, vbo_item_t &vi, shaderCommands_t &input)
 	// vertexes
 	offs = input.shader->vboOffset + input.shader->curVertexes * sizeof(input.xyz[0]);
 	size = input.numVertexes * sizeof(input.xyz[0]);
-	if (offs + size > vbo.vbo_size)
+	if (offs + size > static_cast<uint32_t>(vbo.vbo_size))
 	{
 		ri.Error(ERR_DROP, "Vertex overflow");
 	}
@@ -402,7 +402,7 @@ static void VBO_AddGeometry(vbo_t &vbo, vbo_item_t &vi, shaderCommands_t &input)
 	// normals
 	offs = input.shader->normalOffset + input.shader->curVertexes * sizeof(input.normal[0]);
 	size = input.numVertexes * sizeof(input.normal[0]);
-	if (offs + size > vbo.vbo_size)
+	if (offs + size > static_cast<uint32_t>(vbo.vbo_size))
 	{
 		ri.Error(ERR_DROP, "Normals overflow");
 	}
@@ -537,7 +537,7 @@ void R_BuildWorldVBO(msurface_t &surf, int surfCount)
 	// initial scan to count surfaces/indexes/vertexes for memory allocation
 	for (i = 0; i < surfCount; i++)
 	{
-		msurface_t & sf = surf;
+		msurface_t &sf = surf;
 		face = (srfSurfaceFace_t *)sf.data;
 		if (face->surfaceType == SF_FACE && isStaticShader(*sf.shader))
 		{
@@ -621,7 +621,7 @@ void R_BuildWorldVBO(msurface_t &surf, int surfCount)
 
 	for (i = 0, n = 0; i < surfCount; i++)
 	{
-		msurface_t & sf = surf;
+		msurface_t &sf = surf;
 		face = (srfSurfaceFace_t *)sf.data;
 		if (face->surfaceType == SF_FACE && face->vboItemIndex)
 		{
@@ -760,59 +760,69 @@ qsort_int
 */
 constexpr int MIN_MERGE = 32;
 
-void timSort(int arr[], int n) {
+void timSort(int arr[], int n)
+{
 	int r = 0;
-    int a = n;
-    while (a >= MIN_MERGE) {
-        r |= (a & 1);
-        a >>= 1;
-    }
+	int a = n;
+	while (a >= MIN_MERGE)
+	{
+		r |= (a & 1);
+		a >>= 1;
+	}
 
-    int minRun = a + r;
+	int minRun = a + r;
 
-    int leftArr[n], rightArr[n];
+	int leftArr[n], rightArr[n];
 
 	// insertionSort
-    for (int z = 0; z < n; z += minRun) {
-        int right = (z + minRun - 1 < n - 1) ? z + minRun - 1 : n - 1;
-        for (int i = z + 1; i <= right; i++) {
-            int key = arr[i];
-            int j = i - 1;
-            while (j >= z && arr[j] > key) {
-                arr[j + 1] = arr[j];
-                j--;
-            }
-            arr[j + 1] = key;
-        }
-    }
+	for (int z = 0; z < n; z += minRun)
+	{
+		int right = (z + minRun - 1 < n - 1) ? z + minRun - 1 : n - 1;
+		for (int i = z + 1; i <= right; i++)
+		{
+			int key = arr[i];
+			int j = i - 1;
+			while (j >= z && arr[j] > key)
+			{
+				arr[j + 1] = arr[j];
+				j--;
+			}
+			arr[j + 1] = key;
+		}
+	}
 
-    for (int size = minRun; size < n; size = 2 * size) {
-        for (int left = 0; left < n; left += 2 * size) {
-            int mid = left + size - 1;
-            int right = (left + 2 * size - 1 < n - 1) ? left + 2 * size - 1 : n - 1;
+	for (int size = minRun; size < n; size = 2 * size)
+	{
+		for (int left = 0; left < n; left += 2 * size)
+		{
+			int mid = left + size - 1;
+			int right = (left + 2 * size - 1 < n - 1) ? left + 2 * size - 1 : n - 1;
 
-            int len1 = mid - left + 1, len2 = right - mid;
-            for (int i = 0; i < len1; i++) {
-                leftArr[i] = arr[left + i];
-            }
-            for (int i = 0; i < len2; i++) {
-                rightArr[i] = arr[mid + 1 + i];
-            }
+			int len1 = mid - left + 1, len2 = right - mid;
+			for (int i = 0; i < len1; i++)
+			{
+				leftArr[i] = arr[left + i];
+			}
+			for (int i = 0; i < len2; i++)
+			{
+				rightArr[i] = arr[mid + 1 + i];
+			}
 
-            int i = 0, j = 0, k = left;
-            while (i < len1 && j < len2) {
-                if (leftArr[i] <= rightArr[j])
-                    arr[k++] = leftArr[i++];
-                else
-                    arr[k++] = rightArr[j++];
-            }
+			int i = 0, j = 0, k = left;
+			while (i < len1 && j < len2)
+			{
+				if (leftArr[i] <= rightArr[j])
+					arr[k++] = leftArr[i++];
+				else
+					arr[k++] = rightArr[j++];
+			}
 
-            while (i < len1)
-                arr[k++] = leftArr[i++];
-            while (j < len2)
-                arr[k++] = rightArr[j++];
-        }
-    }
+			while (i < len1)
+				arr[k++] = leftArr[i++];
+			while (j < len2)
+				arr[k++] = rightArr[j++];
+		}
+	}
 }
 
 static int run_length(const int *a, int from, int to, int *count)

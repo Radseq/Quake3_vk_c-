@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_flares.hpp"
 #include "vk_vbo.hpp"
 #include "vk.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 
 /*
 
@@ -78,7 +78,7 @@ void RB_CheckOverflow(int verts, int indexes)
 RB_AddQuadStampExt
 ==============
 */
-void RB_AddQuadStampExt(const vec3_t origin, const vec3_t left, const vec3_t up, color4ub_t color, float s1, float t1, float s2, float t2)
+void RB_AddQuadStampExt(const vec3_t &origin, const vec3_t &left, const vec3_t &up, const color4ub_t &color, float s1, float t1, float s2, float t2)
 {
 	vec3_t normal;
 	int ndx;
@@ -215,7 +215,7 @@ void RB_AddQuadStamp2(float x, float y, float w, float h, float s1, float t1, fl
 RB_AddQuadStamp
 ==============
 */
-void RB_AddQuadStamp(const vec3_t origin, const vec3_t left, const vec3_t up, color4ub_t color)
+void RB_AddQuadStamp(const vec3_t &origin, const vec3_t &left, const vec3_t &up, const color4ub_t &color)
 {
 	RB_AddQuadStampExt(origin, left, up, color, 0, 0, 1, 1);
 }
@@ -482,7 +482,7 @@ static void RB_SurfaceBeam(void)
 
 //================================================================================
 
-static void DoRailCore(const vec3_t start, const vec3_t end, const vec3_t up, float len, float spanWidth)
+static void DoRailCore(const vec3_t& start, const vec3_t& end, const vec3_t& up, float len, float spanWidth)
 {
 	float spanWidth2;
 	int vbase;

@@ -143,7 +143,7 @@ static void *R_GetCommandBufferReserved(int bytes, int reservedBytes)
 	// always leave room for the end of list command
 	if (cmdList.used + bytes + sizeof(int) + reservedBytes > MAX_RENDER_COMMANDS)
 	{
-		if (bytes > MAX_RENDER_COMMANDS - sizeof(int))
+		if (static_cast<std::size_t>(bytes) > MAX_RENDER_COMMANDS - sizeof(int))
 		{
 			ri.Error(ERR_FATAL, "R_GetCommandBuffer: bad size %i", bytes);
 		}
@@ -197,7 +197,7 @@ void R_AddDrawSurfCmd(drawSurf_t &drawSurfs, int numDrawSurfs)
 	}
 }
 
-constexpr vec4_t		colorWhite_cpp	= {1, 1, 1, 1};
+constexpr vec4_t colorWhite_cpp = {1, 1, 1, 1};
 
 /*
 =============
@@ -237,7 +237,7 @@ RE_StretchPic
 =============
 */
 void RE_StretchPic(float x, float y, float w, float h,
-						float s1, float t1, float s2, float t2, qhandle_t hShader)
+				   float s1, float t1, float s2, float t2, qhandle_t hShader)
 {
 	stretchPicCommand_t *cmd;
 
@@ -337,7 +337,7 @@ RE_TakeVideoFrame
 =============
 */
 void RE_TakeVideoFrame(int width, int height,
-							byte *captureBuffer, byte *encodeBuffer, bool motionJpeg)
+					   byte *captureBuffer, byte *encodeBuffer, bool motionJpeg)
 {
 	if (!tr.registered)
 	{

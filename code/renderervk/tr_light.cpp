@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "tr_light.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 #include <assert.h>
 
 constexpr int DLIGHT_AT_RADIUS = 16;
@@ -74,7 +74,7 @@ Determine which dynamic lights may effect this bmodel
 */
 void R_DlightBmodel(bmodel_t &bmodel)
 {
-    int i, j;
+    int j;
     int mask;
     msurface_t *surf;
 
@@ -82,7 +82,7 @@ void R_DlightBmodel(bmodel_t &bmodel)
     R_TransformDlights(tr.refdef.num_dlights, tr.refdef.dlights, tr.ort);
 
     mask = 0;
-    for (i = 0; i < tr.refdef.num_dlights; i++)
+    for (uint32_t i = 0; i < tr.refdef.num_dlights; i++)
     {
         const dlight_t &dl = tr.refdef.dlights[i];
 
@@ -110,7 +110,7 @@ void R_DlightBmodel(bmodel_t &bmodel)
     tr.currentEntity->needDlights = (mask != 0) ? 1 : 0;
 
     // set the dlight bits in all the surfaces
-    for (i = 0; i < bmodel.numSurfaces; i++)
+    for (auto i = 0; i < bmodel.numSurfaces; i++)
     {
         surf = bmodel.firstSurface + i;
 
@@ -314,7 +314,7 @@ by the Calc_* functions
 */
 void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
 {
-    int i;
+    uint32_t i;
     float power;
     vec3_t dir;
     float d;
@@ -398,7 +398,7 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
                 VectorMA(shadowLightDir, d, dir, shadowLightDir);
             }
         } // if ( r_shadows->integer == 2 )
-    }     // if ( r_dlightMode->integer == 2 )
+    } // if ( r_dlightMode->integer == 2 )
     else
 #endif
         for (i = 0; i < refdef.num_dlights; i++)

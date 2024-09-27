@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // tr_marks.c -- polygon projection on the world polygons
 
 #include "tr_marks.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 
 #define SIDE_FRONT 0
 #define SIDE_BACK 1
@@ -41,7 +41,7 @@ Out must have space for two more vertexes than in
 */
 static void R_ChopPolyBehindPlane(int numInPoints, vec3_t inPoints[MAX_VERTS_ON_POLY],
 								  int *numOutPoints, vec3_t outPoints[MAX_VERTS_ON_POLY],
-								  vec3_t normal, vec_t dist, vec_t epsilon)
+								  const vec3_t &normal, const vec_t &dist, const vec_t &epsilon)
 {
 	float dists[MAX_VERTS_ON_POLY + 4];
 	int sides[MAX_VERTS_ON_POLY + 4];
@@ -146,14 +146,14 @@ static void R_ChopPolyBehindPlane(int numInPoints, vec3_t inPoints[MAX_VERTS_ON_
 	}
 }
 
-static void R_BoxSurfaces_r(mnode_t *node, vec3_t mins, vec3_t maxs, surfaceType_t **list, int listsize, int *listlength, vec3_t dir)
+static void R_BoxSurfaces_r(mnode_t *node, const vec3_t &mins, const vec3_t &maxs, surfaceType_t **list, int listsize, int *listlength, const vec3_t &dir)
 {
 
 	int s, c;
 	msurface_t *surf, **mark;
 
 	// do the tail recursion in a loop
-	while (node->contents == CONTENTS_NODE)
+	while (static_cast<uint32_t>(node->contents) == CONTENTS_NODE)
 	{
 		s = BoxOnPlaneSide_cpp(mins, maxs, *node->plane);
 		if (s == 1)
@@ -227,7 +227,7 @@ static void R_AddMarkFragments(int numClipPoints, vec3_t clipPoints[2][MAX_VERTS
 							   int maxPoints, vec3_t pointBuffer,
 							   int maxFragments, markFragment_t *fragmentBuffer,
 							   int *returnedPoints, int *returnedFragments,
-							   vec3_t mins, vec3_t maxs)
+							   const vec3_t& mins, const vec3_t& maxs)
 {
 	int pingPong, i;
 	markFragment_t *mf;

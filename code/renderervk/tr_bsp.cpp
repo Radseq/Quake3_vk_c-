@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_vbo.hpp"
 #include "tr_shader.hpp"
 #include "tr_model.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 #include "utils.hpp"
 
 static world_t s_worldData;
@@ -46,8 +46,6 @@ static int lightmapWidth;
 static int lightmapHeight;
 static int lightmapCountX;
 static int lightmapCountY;
-
-
 
 /*
 
@@ -1941,7 +1939,7 @@ R_SetParent
 static void R_SetParent(mnode_t *node, mnode_t *parent)
 {
 	node->parent = parent;
-	if (node->contents != CONTENTS_NODE)
+	if (static_cast<uint32_t>(node->contents) != CONTENTS_NODE)
 		return;
 	R_SetParent(node->children[0], node);
 	R_SetParent(node->children[1], node);
@@ -2218,7 +2216,7 @@ static void R_LoadFogs(const lump_t *l, const lump_t *brushesLump, const lump_t 
 	{
 		out->originalBrushNumber = LittleLong(fogs->brushNum);
 
-		if ((unsigned)out->originalBrushNumber >= brushesCount)
+		if ((unsigned)out->originalBrushNumber >= static_cast<uint32_t>(brushesCount))
 		{
 			ri.Error(ERR_DROP, "fog brushNumber out of range");
 		}
@@ -2226,7 +2224,7 @@ static void R_LoadFogs(const lump_t *l, const lump_t *brushesLump, const lump_t 
 
 		firstSide = LittleLong(brush->firstSide);
 
-		if ((unsigned)firstSide > sidesCount - 6)
+		if ((unsigned)firstSide > static_cast<uint32_t>(sidesCount) - 6)
 		{
 			ri.Error(ERR_DROP, "fog brush sideNumber out of range");
 		}
@@ -2293,7 +2291,7 @@ static void R_LoadFogs(const lump_t *l, const lump_t *brushesLump, const lump_t 
 		else
 		{
 			int sideOffset = firstSide + sideNum;
-			if ((unsigned)sideOffset >= sidesCount)
+			if ((unsigned)sideOffset >= static_cast<uint32_t>(sidesCount))
 			{
 				ri.Printf(PRINT_WARNING, "bad fog side offset %i\n", sideOffset);
 				out->hasSurface = false;
@@ -2486,7 +2484,7 @@ Called directly from cgame
 */
 void RE_LoadWorldMap(const char *name)
 {
-	int i;
+	std::size_t i;
 	int32_t size;
 	dheader_t *header;
 	union
@@ -2517,7 +2515,7 @@ void RE_LoadWorldMap(const char *name)
 	{
 		ri.Error(ERR_DROP, "%s: couldn't load %s", __func__, name);
 	}
-	if (size < sizeof(dheader_t))
+	if (static_cast<std::size_t>(size) < sizeof(dheader_t))
 	{
 		ri.Error(ERR_DROP, "%s: %s has truncated header", __func__, name);
 	}
@@ -2557,7 +2555,7 @@ void RE_LoadWorldMap(const char *name)
 		int32_t len = header->lumps[i].filelen;
 		if ((uint32_t)ofs > MAX_QINT || (uint32_t)len > MAX_QINT || ofs + len > size || ofs + len < 0)
 		{
-			ri.Error(ERR_DROP, "%s: %s has wrong lump[%i] size/offset", __func__, name, i);
+			ri.Error(ERR_DROP, "%s: %s has wrong lump[%li] size/offset", __func__, name, i);
 		}
 	}
 

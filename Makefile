@@ -672,7 +672,7 @@ debug:
 	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS) -lstdc++" V=$(V)
 
 release:
-	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" LDFLAGS="-rdynamic -lm" V=$(V)
+	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" LDFLAGS="-rdynamic -lm -lstdc++ -lvulkan" V=$(V)
 
 define ADD_COPY_TARGET
 TARGETS += $2
@@ -780,16 +780,16 @@ Q3RENDVOBJ = \
   $(B)/rendv/tr_bsp.o \
   $(B)/rendv/vk.o \
   $(B)/rendv/tr_init.o \
-  $(B)/rendv/q_shared.o \
-  $(B)/rendv/q_math.o \
+  $(B)/rendv/math.o \
   $(B)/rendv/string_operations.o \
+#  $(B)/rendv/q_shared.o \
 
-# ifneq ($(USE_RENDERER_DLOPEN), 0)
-#   Q3RENDVOBJ += \
-#     $(B)/rendv/q_shared.o \
-#     $(B)/rendv/puff.o \
-#     $(B)/rendv/q_math.o
-# endif
+ifneq ($(USE_RENDERER_DLOPEN), 0)
+  Q3RENDVOBJ += \
+    $(B)/rendv/q_shared.o \
+    $(B)/rendv/puff.o \
+    $(B)/rendv/q_math.o
+endif
 
 JPGOBJ = \
   $(B)/client/jpeg/jaricom.o \

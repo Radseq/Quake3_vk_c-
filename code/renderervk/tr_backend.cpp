@@ -666,7 +666,7 @@ static const void *RB_StretchPic(const void *data)
 static void RB_LightingPass(void)
 {
 	dlight_t *dl;
-	int i;
+	uint32_t i;
 
 #ifdef USE_VBO
 	// VBO_Flush();
@@ -691,7 +691,7 @@ static void RB_LightingPass(void)
 }
 #endif
 
-static void transform_to_eye_space(const vec3_t v, vec3_t v_eye)
+static void transform_to_eye_space(const vec3_t v, vec3_t& v_eye)
 {
 	const float *m = backEnd.viewParms.world.modelMatrix;
 	v_eye[0] = m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12];
