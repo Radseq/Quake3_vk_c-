@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_surface.hpp"
 #include "vk.hpp"
 #include "tr_main.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 
 /*
 =============================================================================
@@ -136,7 +136,7 @@ RB_AddFlare
 This is called at surface tesselation time
 ==================
 */
-void RB_AddFlare(void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t normal)
+void RB_AddFlare(void *surface, int fogNum, const vec3_t &point, const vec3_t &color, const vec3_t &normal)
 {
 	int i;
 	flare_t *f;
@@ -146,7 +146,7 @@ void RB_AddFlare(void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t n
 
 	backEnd.pc.c_flareAdds++;
 
-	if (normal && (normal[0] || normal[1] || normal[2]))
+	if (normal[0] || normal[1] || normal[2])
 	{
 		VectorSubtract(backEnd.viewParms.ort.origin, point, local);
 		VectorNormalizeFast(local);
@@ -236,7 +236,7 @@ RB_AddDlightFlares
 void RB_AddDlightFlares(void)
 {
 	dlight_t *l;
-	int i, j, k;
+	int j, k;
 	fog_t *fog = NULL;
 
 	if (!r_flares->integer)
@@ -249,7 +249,7 @@ void RB_AddDlightFlares(void)
 	if (tr.world)
 		fog = tr.world->fogs;
 
-	for (i = 0; i < backEnd.refdef.num_dlights; i++, l++)
+	for (uint32_t i = 0; i < backEnd.refdef.num_dlights; i++, l++)
 	{
 
 		if (fog)
@@ -278,7 +278,7 @@ void RB_AddDlightFlares(void)
 		else
 			j = 0;
 
-		RB_AddFlare((void *)l, j, l->origin, l->color, NULL);
+		RB_AddFlare((void *)l, j, l->origin, l->color, {0, 0, 0});
 	}
 }
 

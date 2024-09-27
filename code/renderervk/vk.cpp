@@ -1,7 +1,7 @@
 #include "vk.hpp"
 #include <stdexcept>
 #include <algorithm>
-#include "q_math.hpp"
+#include "math.hpp"
 #include "utils.hpp"
 
 #if defined(_DEBUG)
@@ -15,6 +15,69 @@
 #include <unordered_map>
 #include <numeric>
 #include "string_operations.hpp"
+
+#ifdef USE_VK_VALIDATION
+#define VK_CHECK(function_call)                                                                        \
+	{                                                                                                  \
+		try                                                                                            \
+		{                                                                                              \
+			function_call;                                                                             \
+		}                                                                                              \
+		catch (vk::SystemError & err)                                                                  \
+		{                                                                                              \
+			ri.Error(ERR_FATAL, "Vulkan error in function: %s, what: %s", #function_call, err.what()); \
+		}                                                                                              \
+	}
+
+#define VK_CHECK_ASSIGN(var, function_call)                                                            \
+	{                                                                                                  \
+		try                                                                                            \
+		{                                                                                              \
+			var = function_call;                                                                       \
+		}                                                                                              \
+		catch (vk::SystemError & err)                                                                  \
+		{                                                                                              \
+			ri.Error(ERR_FATAL, "Vulkan error in function: %s, what: %s", #function_call, err.what()); \
+		}                                                                                              \
+	}
+
+#else
+
+template <typename T>
+inline void vkCheckFunctionCall(vk::ResultValue<T> res, const char *funcName)
+{
+	if (static_cast<int>(res.result) < 0)
+	{
+		ri.Error(ERR_FATAL, "Vulkan: %s returned %s", funcName, vk::to_string(res.result).data());
+	}
+}
+
+inline void vkCheckFunctionCall(vk::Result res, const char *funcName)
+{
+	if (static_cast<int>(res) < 0)
+	{
+		ri.Error(ERR_FATAL, "Vulkan: %s returned %s", funcName, vk::to_string(res).data());
+	}
+}
+
+inline void vkCheckFunctionCall(VkResult res, const char *funcName)
+{
+	vkCheckFunctionCall(vk::Result(res), funcName);
+}
+
+#define VK_CHECK_ASSIGN(var, function_call)                 \
+	{                                                       \
+		auto result = function_call;                        \
+		vkCheckFunctionCall(result.result, #function_call); \
+		var = result.value;                                 \
+	}
+
+#define VK_CHECK(function_call)                             \
+	{                                                       \
+		vkCheckFunctionCall(function_call, #function_call); \
+	}
+
+#endif
 
 constexpr int MIN_SWAPCHAIN_IMAGES_IMM = 3;
 constexpr int MIN_SWAPCHAIN_IMAGES_FIFO = 3;
@@ -56,7 +119,7 @@ static vk::Instance vk_instance = VK_NULL_HANDLE;
 static VkSurfaceKHR vk_surfaceC = VK_NULL_HANDLE;
 static vk::SurfaceKHR vk_surface = VK_NULL_HANDLE;
 
-#ifndef NDEBUG
+#ifdef USE_VK_VALIDATION
 VkDebugReportCallbackEXT vk_debug_callback = VK_NULL_HANDLE;
 #endif
 
@@ -75,7 +138,7 @@ static PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;
 
 ////////////////////////////////////////////////////////////////////////////
 
-static uint32_t find_memory_type(uint32_t memory_type_bits, vk::MemoryPropertyFlags properties)
+static inline uint32_t find_memory_type(uint32_t memory_type_bits, vk::MemoryPropertyFlags properties)
 {
 	uint32_t i;
 
@@ -113,77 +176,6 @@ static uint32_t find_memory_type2(uint32_t memory_type_bits, vk::MemoryPropertyF
 
 	return ~0U;
 }
-
-#ifdef USE_VK_VALIDATION // VULKAN_HPP_NO_EXCEPTIONS
-
-template <typename T>
-inline void vkCheckFunctionCall(vk::ResultValue<T> res, const char *funcName)
-{
-	if (static_cast<int>(res.result) < 0) // Check the result part of vk::ResultValue<T>
-	{
-		ri.Error(ERR_FATAL, "Vulkan: %s returned %s", funcName, vk::to_string(res.result));
-	}
-}
-
-inline void vkCheckFunctionCall(vk::Result res, const char *funcName)
-{
-	if (static_cast<int>(res) < 0)
-	{
-		ri.Error(ERR_FATAL, "Vulkan: %s returned %s", funcName, vk::to_string(res));
-	}
-}
-
-inline void vkCheckFunctionCall(VkResult res, const char *funcName)
-{
-	vkCheckFunctionCall(vk::Result(res), funcName);
-}
-
-#define VK_CHECK_ASSIGN(var, function_call)                 \
-	{                                                       \
-		auto result = function_call;                        \
-		vkCheckFunctionCall(result.result, #function_call); \
-		var = result.value;                                 \
-	}
-
-#define VK_CHECK(function_call)                             \
-	{                                                       \
-		vkCheckFunctionCall(function_call, #function_call); \
-	}
-
-#else
-
-#define VK_CHECK(function_call) \
-	{                           \
-		function_call;          \
-	}
-
-#define VK_CHECK_ASSIGN(var, function_call) \
-	{                                       \
-		var = function_call;                \
-	}
-
-#endif
-
-/*
-static VkFlags get_composite_alpha( VkCompositeAlphaFlagsKHR flags )
-{
-	const VkCompositeAlphaFlagBitsKHR compositeFlags[] = {
-		VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-		VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
-		VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
-		VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR
-	};
-	int i;
-
-	for ( i = 1; i < arrayLen( compositeFlags ); i++ ) {
-		if ( flags & compositeFlags[i] ) {
-			return compositeFlags[i];
-		}
-	}
-
-	return compositeFlags[0];
-}
-*/
 
 static vk::CommandBuffer begin_command_buffer(void)
 {
@@ -223,7 +215,13 @@ static void end_command_buffer(vk::CommandBuffer command_buffer)
 							   nullptr};
 
 	VK_CHECK(vk_inst.queue.submit(1, &submit_info, VK_NULL_HANDLE));
-	VK_CHECK(vk_inst.queue.waitIdle());
+	vk::Fence fence;
+	//= vk_inst.device.createFence(vk::FenceCreateInfo{});
+	VK_CHECK_ASSIGN(fence, vk_inst.device.createFence(vk::FenceCreateInfo{}));
+
+	VK_CHECK(vk_inst.queue.submit(1, &submit_info, fence));
+	VK_CHECK(vk_inst.device.waitForFences(1, &fence, VK_TRUE, UINT64_MAX));
+	vk_inst.device.destroyFence(fence);
 	vk_inst.device.freeCommandBuffers(vk_inst.command_pool,
 									  1,
 									  &command_buffer);
@@ -321,6 +319,7 @@ static void record_image_layout_transition(vk::CommandBuffer command_buffer, vk:
 }
 
 // debug markers
+#ifdef USE_VK_VALIDATION
 #define SET_OBJECT_NAME(obj, objName, objType) vk_set_object_name((uint64_t)(obj), (objName), (objType))
 
 static void vk_set_object_name(uint64_t obj, const char *objName, VkDebugReportObjectTypeEXT objType)
@@ -336,6 +335,7 @@ static void vk_set_object_name(uint64_t obj, const char *objName, VkDebugReportO
 		qvkDebugMarkerSetObjectNameEXT(vk_inst.device, &info);
 	}
 }
+#endif
 
 static void vk_create_swapchain(vk::PhysicalDevice physical_device, vk::Device device, vk::SurfaceKHR surface, vk::SurfaceFormatKHR surface_format, vk::SwapchainKHR *swapchain)
 {
@@ -499,9 +499,10 @@ static void vk_create_swapchain(vk::PhysicalDevice physical_device, vk::Device d
 									 nullptr};
 
 		VK_CHECK_ASSIGN(vk_inst.swapchain_image_views[i], vk_inst.device.createImageView(view));
-
+#ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkImage(vk_inst.swapchain_images[i]), va("swapchain image %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
 		SET_OBJECT_NAME(VkImageView(vk_inst.swapchain_image_views[i]), va("swapchain image %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
+#endif
 	}
 
 	if (vk_inst.initSwapchainLayout != vk::ImageLayout::eUndefined)
@@ -625,8 +626,9 @@ static void vk_create_render_passes(void)
 	}
 
 	VK_CHECK_ASSIGN(vk_inst.render_pass.main, device.createRenderPass(desc));
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkRenderPass(vk_inst.render_pass.main), "render pass - main", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
-
+#endif
 	if (r_bloom->integer)
 	{
 		attachments[0].loadOp = vk::AttachmentLoadOp::eLoad;
@@ -641,7 +643,9 @@ static void vk_create_render_passes(void)
 		}
 
 		VK_CHECK_ASSIGN(vk_inst.render_pass.post_bloom, device.createRenderPass(desc));
+#ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkRenderPass(vk_inst.render_pass.post_bloom), "render pass - post_bloom", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
+#endif
 
 		desc.attachmentCount = 1;
 		setup_attachment(attachments[0], vk_inst.bloom_format, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eDontCare,
@@ -649,12 +653,16 @@ static void vk_create_render_passes(void)
 						 vk::ImageLayout::eShaderReadOnlyOptimal);
 
 		VK_CHECK_ASSIGN(vk_inst.render_pass.bloom_extract, device.createRenderPass(desc));
+#ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkRenderPass(vk_inst.render_pass.bloom_extract), "render pass - bloom_extract", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
+#endif
 
 		for (auto &blur : vk_inst.render_pass.blur)
 		{
 			VK_CHECK_ASSIGN(blur, device.createRenderPass(desc));
+#ifdef USE_VK_VALIDATION
 			SET_OBJECT_NAME(VkRenderPass(blur), "render pass - blur", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
+#endif
 		}
 	}
 
@@ -664,7 +672,9 @@ static void vk_create_render_passes(void)
 						 vk::AttachmentStoreOp::eStore, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferSrcOptimal);
 
 		VK_CHECK_ASSIGN(vk_inst.render_pass.capture, device.createRenderPass(desc));
+#ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkRenderPass(vk_inst.render_pass.capture), "render pass - capture", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
+#endif
 	}
 
 	setup_attachment(attachments[0], vk_inst.present_format.format, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eDontCare,
@@ -674,8 +684,9 @@ static void vk_create_render_passes(void)
 	desc.pDependencies = &deps[2];
 
 	VK_CHECK_ASSIGN(vk_inst.render_pass.gamma, device.createRenderPass(desc));
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkRenderPass(vk_inst.render_pass.gamma), "render pass - gamma", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
-
+#endif
 	desc.dependencyCount = 2;
 	desc.pDependencies = deps;
 
@@ -704,7 +715,9 @@ static void vk_create_render_passes(void)
 	}
 
 	VK_CHECK_ASSIGN(vk_inst.render_pass.screenmap, device.createRenderPass(desc));
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkRenderPass(vk_inst.render_pass.screenmap), "render pass - screenmap", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
+#endif
 }
 
 static void allocate_and_bind_image_memory(vk::Image image)
@@ -758,9 +771,9 @@ static void allocate_and_bind_image_memory(vk::Image image)
 		chunk = &vk_world.image_chunks[vk_world.num_image_chunks];
 		chunk->memory = memory;
 		chunk->used = memory_requirements.size;
-
+#ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkDeviceMemory(memory), va("image memory chunk %i", vk_world.num_image_chunks), VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
-
+#endif
 		vk_world.num_image_chunks++;
 	}
 
@@ -807,9 +820,10 @@ static void ensure_staging_buffer_allocation(vk::DeviceSize size)
 	VK_CHECK(vk_inst.device.mapMemory(vk_world.staging_buffer_memory, 0, vk::WholeSize, {}, &data));
 
 	vk_world.staging_buffer_ptr = (byte *)data;
-
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkBuffer(vk_world.staging_buffer), "staging buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
 	SET_OBJECT_NAME(VkDeviceMemory(vk_world.staging_buffer_memory), "staging buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
+#endif
 }
 
 #ifdef USE_VK_VALIDATION
@@ -861,8 +875,8 @@ static bool used_instance_extension(std::string_view ext)
 static void create_instance(void)
 {
 #ifdef USE_VK_VALIDATION
-	const char *validation_layer_name = "VK_LAYER_LUNARG_standard_validation";
-	const char *validation_layer_name2 = "VK_LAYER_KHRONOS_validation";
+	// const char *validation_layer_name = "VK_LAYER_LUNARG_standard_validation"; // deprecated
+	const char *validation_layer_name = "VK_LAYER_KHRONOS_validation";
 #endif
 
 	vk::InstanceCreateFlags flags = {};
@@ -927,31 +941,8 @@ static void create_instance(void)
 	desc.enabledLayerCount = 1;
 	desc.ppEnabledLayerNames = &validation_layer_name;
 
-	auto resultInstance = createInstance(desc);
-	if (resultInstance.result == vk::Result::eErrorLayerNotPresent)
-	{
-
-		desc.enabledLayerCount = 1;
-		desc.ppEnabledLayerNames = &validation_layer_name2;
-
-		resultInstance = createInstance(desc);
-
-		if (resultInstance.result == vk::Result::eErrorLayerNotPresent)
-		{
-
-			ri.Printf(PRINT_WARNING, "...validation layer is not available\n");
-
-			// try without validation layer
-			desc.enabledLayerCount = 0;
-			desc.ppEnabledLayerNames = nullptr;
-
-			resultInstance = createInstance(desc);
-			VK_CHECK(resultInstance.result);
-			vk_instance = VkInstance(resultInstance.value);
-		}
-	}
+	VK_CHECK_ASSIGN(vk_instance, createInstance(desc));
 #else
-
 	VK_CHECK_ASSIGN(vk_instance, createInstance(desc));
 #endif
 }
@@ -1443,8 +1434,8 @@ static void init_vulkan_library(void)
 		INIT_INSTANCE_FUNCTION(vkGetDeviceProcAddr)
 
 #ifdef USE_VK_VALIDATION
-		//INIT_INSTANCE_FUNCTION_EXT(vkCreateDebugReportCallbackEXT)
-		//INIT_INSTANCE_FUNCTION_EXT(vkDestroyDebugReportCallbackEXT)
+		// INIT_INSTANCE_FUNCTION_EXT(vkCreateDebugReportCallbackEXT)
+		// INIT_INSTANCE_FUNCTION_EXT(vkDestroyDebugReportCallbackEXT)
 
 		// Create debug callback.
 		if (qvkCreateDebugReportCallbackEXT && qvkDestroyDebugReportCallbackEXT)
@@ -1733,9 +1724,9 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def &def)
 	}
 
 	VK_CHECK_ASSIGN(sampler, vk_inst.device.createSampler(desc));
-
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkSampler(sampler), va("image sampler %i", vk_world.num_samplers), VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT);
-
+#endif
 	vk_world.sampler_defs[vk_world.num_samplers] = def;
 	vk_world.samplers[vk_world.num_samplers] = sampler;
 	vk_world.num_samplers++;
@@ -1837,8 +1828,9 @@ void vk_init_descriptors(void)
 		vk_inst.tess[i].uniform_descriptor = descriptorSetsInner[0];
 
 		vk_update_uniform_descriptor(vk_inst.tess[i].uniform_descriptor, vk_inst.tess[i].vertex_buffer);
-
+#ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkDescriptorSet(vk_inst.tess[i].uniform_descriptor), va("uniform descriptor %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
+#endif
 	}
 
 	if (vk_inst.color_image_view)
@@ -1933,12 +1925,13 @@ static void vk_create_geometry_buffers(vk::DeviceSize size)
 		vk_inst.tess[i].vertex_buffer_ptr = (byte *)data + vertex_buffer_offset;
 		vk_inst.tess[i].vertex_buffer_offset = 0;
 		vertex_buffer_offset += vb_memory_requirements.size;
-
+#ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkBuffer(vk_inst.tess[i].vertex_buffer), va("geometry buffer %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
+#endif
 	}
-
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkDeviceMemory(vk_inst.geometry_buffer_memory), "geometry buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
-
+#endif
 	vk_inst.geometry_buffer_size = vb_memory_requirements.size;
 
 	vk_inst.stats = {};
@@ -1980,11 +1973,12 @@ static void vk_create_storage_buffer(uint32_t size)
 
 	// Unmap the memory
 	vk_inst.device.unmapMemory(vk_inst.storage.memory);
-
+#ifdef USE_VK_VALIDATION
 	// Set object names for debugging
 	SET_OBJECT_NAME(VkBuffer(vk_inst.storage.buffer), "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
 	SET_OBJECT_NAME(VkDescriptorSet(vk_inst.storage.descriptor), "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
 	SET_OBJECT_NAME(VkDeviceMemory(vk_inst.storage.memory), "storage buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
+#endif
 }
 
 #ifdef USE_VBO
@@ -2072,10 +2066,10 @@ bool vk_alloc_vbo(const byte *vbo_data, uint32_t vbo_size)
 
 	vk_inst.device.destroyBuffer(staging_vertex_buffer);
 	vk_inst.device.freeMemory(staging_buffer_memory);
-
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkBuffer(vk_inst.vbo.vertex_buffer), "static VBO", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
 	SET_OBJECT_NAME(VkDeviceMemory(vk_inst.vbo.buffer_memory), "static VBO memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
-
+#endif
 	return true;
 }
 #endif
@@ -2086,8 +2080,9 @@ bool vk_alloc_vbo(const byte *vbo_data, uint32_t vbo_size)
 
 static void vk_create_shader_modules(void)
 {
+#ifdef USE_VK_VALIDATION
 	int i, j, k, l;
-
+#endif
 	vk_inst.modules.vert.gen[0][0][0][0] = SHADER_MODULE(vert_tx0);
 	vk_inst.modules.vert.gen[0][0][0][1] = SHADER_MODULE(vert_tx0_fog);
 	vk_inst.modules.vert.gen[0][0][1][0] = SHADER_MODULE(vert_tx0_env);
@@ -2112,7 +2107,7 @@ static void vk_create_shader_modules(void)
 	vk_inst.modules.vert.gen[2][1][0][1] = SHADER_MODULE(vert_tx2_cl_fog);
 	vk_inst.modules.vert.gen[2][1][1][0] = SHADER_MODULE(vert_tx2_cl_env);
 	vk_inst.modules.vert.gen[2][1][1][1] = SHADER_MODULE(vert_tx2_cl_env_fog);
-
+#ifdef USE_VK_VALIDATION
 	for (i = 0; i < 3; i++)
 	{
 		const char *tx[] = {"single", "double", "triple"};
@@ -2131,11 +2126,12 @@ static void vk_create_shader_modules(void)
 			}
 		}
 	}
-
+#endif
 	// specialized depth-fragment shader
 	vk_inst.modules.frag.gen0_df = SHADER_MODULE(frag_tx0_df);
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.gen0_df), "single-texture df fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-
+#endif
 	// fixed-color (1.0) shader modules
 	vk_inst.modules.vert.ident1[0][0][0] = SHADER_MODULE(vert_tx0_ident1);
 	vk_inst.modules.vert.ident1[0][0][1] = SHADER_MODULE(vert_tx0_ident1_fog);
@@ -2145,6 +2141,7 @@ static void vk_create_shader_modules(void)
 	vk_inst.modules.vert.ident1[1][0][1] = SHADER_MODULE(vert_tx1_ident1_fog);
 	vk_inst.modules.vert.ident1[1][1][0] = SHADER_MODULE(vert_tx1_ident1_env);
 	vk_inst.modules.vert.ident1[1][1][1] = SHADER_MODULE(vert_tx1_ident1_env_fog);
+#ifdef USE_VK_VALIDATION
 	for (i = 0; i < 2; i++)
 	{
 		const char *tx[] = {"single", "double"};
@@ -2159,11 +2156,13 @@ static void vk_create_shader_modules(void)
 			}
 		}
 	}
+#endif
 
 	vk_inst.modules.frag.ident1[0][0] = SHADER_MODULE(frag_tx0_ident1);
 	vk_inst.modules.frag.ident1[0][1] = SHADER_MODULE(frag_tx0_ident1_fog);
 	vk_inst.modules.frag.ident1[1][0] = SHADER_MODULE(frag_tx1_ident1);
 	vk_inst.modules.frag.ident1[1][1] = SHADER_MODULE(frag_tx1_ident1_fog);
+#ifdef USE_VK_VALIDATION
 	for (i = 0; i < 2; i++)
 	{
 		const char *tx[] = {"single", "double"};
@@ -2174,7 +2173,7 @@ static void vk_create_shader_modules(void)
 			SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.ident1[i][j]), s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 		}
 	}
-
+#endif
 	vk_inst.modules.vert.fixed[0][0][0] = SHADER_MODULE(vert_tx0_fixed);
 	vk_inst.modules.vert.fixed[0][0][1] = SHADER_MODULE(vert_tx0_fixed_fog);
 	vk_inst.modules.vert.fixed[0][1][0] = SHADER_MODULE(vert_tx0_fixed_env);
@@ -2183,6 +2182,7 @@ static void vk_create_shader_modules(void)
 	vk_inst.modules.vert.fixed[1][0][1] = SHADER_MODULE(vert_tx1_fixed_fog);
 	vk_inst.modules.vert.fixed[1][1][0] = SHADER_MODULE(vert_tx1_fixed_env);
 	vk_inst.modules.vert.fixed[1][1][1] = SHADER_MODULE(vert_tx1_fixed_env_fog);
+#ifdef USE_VK_VALIDATION
 	for (i = 0; i < 2; i++)
 	{
 		const char *tx[] = {"single", "double"};
@@ -2197,11 +2197,12 @@ static void vk_create_shader_modules(void)
 			}
 		}
 	}
-
+#endif
 	vk_inst.modules.frag.fixed[0][0] = SHADER_MODULE(frag_tx0_fixed);
 	vk_inst.modules.frag.fixed[0][1] = SHADER_MODULE(frag_tx0_fixed_fog);
 	vk_inst.modules.frag.fixed[1][0] = SHADER_MODULE(frag_tx1_fixed);
 	vk_inst.modules.frag.fixed[1][1] = SHADER_MODULE(frag_tx1_fixed_fog);
+#ifdef USE_VK_VALIDATION
 	for (i = 0; i < 2; i++)
 	{
 		const char *tx[] = {"single", "double"};
@@ -2212,11 +2213,13 @@ static void vk_create_shader_modules(void)
 			SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.fixed[i][j]), s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 		}
 	}
-
+#endif
 	vk_inst.modules.frag.ent[0][0] = SHADER_MODULE(frag_tx0_ent);
 	vk_inst.modules.frag.ent[0][1] = SHADER_MODULE(frag_tx0_ent_fog);
 	// vk_inst.modules.frag.ent[1][0] = SHADER_MODULE( frag_tx1_ent );
 	// vk_inst.modules.frag.ent[1][1] = SHADER_MODULE( frag_tx1_ent_fog );
+
+#ifdef USE_VK_VALIDATION
 	for (i = 0; i < 1; i++)
 	{
 		const char *tx[] = {"single" /*, "double" */};
@@ -2227,7 +2230,7 @@ static void vk_create_shader_modules(void)
 			SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.ent[i][j]), s, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 		}
 	}
-
+#endif
 	vk_inst.modules.frag.gen[0][0][0] = SHADER_MODULE(frag_tx0);
 	vk_inst.modules.frag.gen[0][0][1] = SHADER_MODULE(frag_tx0_fog);
 
@@ -2242,7 +2245,7 @@ static void vk_create_shader_modules(void)
 
 	vk_inst.modules.frag.gen[2][1][0] = SHADER_MODULE(frag_tx2_cl);
 	vk_inst.modules.frag.gen[2][1][1] = SHADER_MODULE(frag_tx2_cl_fog);
-
+#ifdef USE_VK_VALIDATION
 	for (i = 0; i < 3; i++)
 	{
 		const char *tx[] = {"single", "double", "triple"};
@@ -2257,52 +2260,55 @@ static void vk_create_shader_modules(void)
 			}
 		}
 	}
-
+#endif
 	vk_inst.modules.vert.light[0] = SHADER_MODULE(vert_light);
 	vk_inst.modules.vert.light[1] = SHADER_MODULE(vert_light_fog);
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.vert.light[0]), "light vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.vert.light[1]), "light fog vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-
+#endif
 	vk_inst.modules.frag.light[0][0] = SHADER_MODULE(frag_light);
 	vk_inst.modules.frag.light[0][1] = SHADER_MODULE(frag_light_fog);
 	vk_inst.modules.frag.light[1][0] = SHADER_MODULE(frag_light_line);
 	vk_inst.modules.frag.light[1][1] = SHADER_MODULE(frag_light_line_fog);
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.light[0][0]), "light fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.light[0][1]), "light fog fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.light[1][0]), "linear light fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.light[1][1]), "linear light fog fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-
+#endif
 	vk_inst.modules.color_fs = SHADER_MODULE(color_frag_spv);
 	vk_inst.modules.color_vs = SHADER_MODULE(color_vert_spv);
-
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.color_vs), "single-color vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.color_fs), "single-color fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-
+#endif
 	vk_inst.modules.fog_vs = SHADER_MODULE(fog_vert_spv);
 	vk_inst.modules.fog_fs = SHADER_MODULE(fog_frag_spv);
-
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.fog_vs), "fog-only vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.fog_fs), "fog-only fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-
+#endif
 	vk_inst.modules.dot_vs = SHADER_MODULE(dot_vert_spv);
 	vk_inst.modules.dot_fs = SHADER_MODULE(dot_frag_spv);
-
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.dot_vs), "dot vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.dot_fs), "dot fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-
+#endif
 	vk_inst.modules.bloom_fs = SHADER_MODULE(bloom_frag_spv);
 	vk_inst.modules.blur_fs = SHADER_MODULE(blur_frag_spv);
 	vk_inst.modules.blend_fs = SHADER_MODULE(blend_frag_spv);
-
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.bloom_fs), "bloom extraction fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.blur_fs), "gaussian blur fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.blend_fs), "final bloom blend fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
-
+#endif
 	vk_inst.modules.gamma_fs = SHADER_MODULE(gamma_frag_spv);
 	vk_inst.modules.gamma_vs = SHADER_MODULE(gamma_vert_spv);
-
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.gamma_fs), "gamma post-processing fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.gamma_vs), "gamma post-processing vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+#endif
 }
 
 static void vk_alloc_persistent_pipelines(void)
@@ -2624,7 +2630,7 @@ static void vk_alloc_attachments(void)
 		offset = PAD(offset, alignment);
 		attachments[i].memory_offset = offset;
 		offset += attachments[i].reqs.size;
-#ifdef _DEBUG
+#ifdef DEBUG
 		ri.Printf(PRINT_ALL, S_COLOR_CYAN "[%i] type %i, size %i, align %i\n", i,
 				  attachments[i].reqs.memoryTypeBits,
 				  (int)attachments[i].reqs.size,
@@ -2646,7 +2652,7 @@ static void vk_alloc_attachments(void)
 		memoryTypeIndex = find_memory_type(memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
 	}
 
-#ifdef _DEBUG
+#ifdef DEBUG
 	ri.Printf(PRINT_ALL, "memory type bits: %04x\n", memoryTypeBits);
 	ri.Printf(PRINT_ALL, "memory type index: %04x\n", memoryTypeIndex);
 	ri.Printf(PRINT_ALL, "total size: %i\n", (int)offset);
@@ -2912,7 +2918,7 @@ static void vk_create_attachments(void)
 							(vk_inst.fboActive && r_bloom->integer) ? false : true);
 
 	vk_alloc_attachments();
-
+#ifdef USE_VK_VALIDATION
 	for (i = 0; i < vk_inst.image_memory_count; i++)
 	{
 		SET_OBJECT_NAME(VkDeviceMemory(vk_inst.image_memory[i]), va("framebuffer memory chunk %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
@@ -2932,6 +2938,7 @@ static void vk_create_attachments(void)
 		SET_OBJECT_NAME(VkImage(vk_inst.bloom_image[i]), va("bloom attachment %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
 		SET_OBJECT_NAME(VkImageView(vk_inst.bloom_image_view[i]), va("bloom attachment %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 	}
+#endif
 }
 
 static void vk_create_framebuffers(void)
@@ -2951,7 +2958,9 @@ static void vk_create_framebuffers(void)
 												  1};
 
 		VK_CHECK_ASSIGN(framebuffer, vk_inst.device.createFramebuffer(framebufferInfo));
+#ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkFramebuffer(framebuffer), name.c_str(), VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT);
+#endif
 	};
 
 	for (uint32_t n = 0; n < vk_inst.swapchain_image_count; n++)
@@ -3057,10 +3066,11 @@ static void vk_create_sync_primitives(void)
 
 		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished_fence, vk_inst.device.createFence(fence_desc));
 		vk_inst.tess[i].waitForFence = true;
-
+#ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkSemaphore(vk_inst.tess[i].image_acquired), va("image_acquired semaphore %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT);
 		SET_OBJECT_NAME(VkSemaphore(vk_inst.tess[i].rendering_finished), va("rendering_finished semaphore %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT);
 		SET_OBJECT_NAME(VkFence(vk_inst.tess[i].rendering_finished_fence), va("rendering_finished fence %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT);
+#endif
 	}
 }
 
@@ -3182,7 +3192,7 @@ static void vk_restart_swapchain(const char *funcname)
 
 static void vk_set_render_scale(void)
 {
-	if (gls.windowWidth != glConfig.vidWidth || gls.windowHeight != glConfig.vidHeight)
+	if (gls.windowWidth != static_cast<uint32_t>(glConfig.vidWidth) || gls.windowHeight != static_cast<uint32_t>(glConfig.vidHeight))
 	{
 		if (r_renderScale->integer > 0)
 		{
@@ -3312,7 +3322,7 @@ void vk_initialize(void)
 	if (vk_inst.screenMapWidth < 4)
 		vk_inst.screenMapWidth = 4;
 
-	vk_inst.screenMapHeight = (float)glConfig.vidHeight / 16.0;
+	vk_inst.screenMapHeight = static_cast<uint32_t>(glConfig.vidHeight) / 16.0;
 	if (vk_inst.screenMapHeight < 4)
 		vk_inst.screenMapHeight = 4;
 
@@ -3415,9 +3425,9 @@ void vk_initialize(void)
 
 	Q_strncpyz(glConfig.vendor_string, vendor_name, sizeof(glConfig.vendor_string));
 	Q_strncpyz(glConfig.renderer_string, renderer_name(props), sizeof(glConfig.renderer_string));
-
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME((intptr_t) static_cast<VkDevice>(vk_inst.device), glConfig.renderer_string, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT);
-
+#endif
 	//
 	// Sync primitives.
 	//
@@ -3429,8 +3439,9 @@ void vk_initialize(void)
 	{
 		vk::CommandPoolCreateInfo desc{vk::CommandPoolCreateFlagBits::eTransient | vk::CommandPoolCreateFlagBits::eResetCommandBuffer, vk_inst.queue_family_index};
 		VK_CHECK_ASSIGN(vk_inst.command_pool, vk_inst.device.createCommandPool(desc));
-
+#ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkCommandPool(vk_inst.command_pool), "command pool", VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT);
+#endif
 	}
 
 	//
@@ -3525,11 +3536,11 @@ void vk_initialize(void)
 
 		// Pipeline layout creation info for standard pipelines
 		vk::PipelineLayoutCreateInfo desc{
-			vk::PipelineLayoutCreateFlags{},									   // flags
-			(vk_inst.maxBoundDescriptorSets >= VK_DESC_COUNT) ? VK_DESC_COUNT : 4, // setLayoutCount
-			set_layouts.data(),													   // pSetLayouts
-			1,																	   // pushConstantRangeCount
-			&push_range															   // pPushConstantRanges
+			vk::PipelineLayoutCreateFlags{},															  // flags
+			(vk_inst.maxBoundDescriptorSets >= VK_DESC_COUNT) ? static_cast<uint32_t>(VK_DESC_COUNT) : 4, // setLayoutCount
+			set_layouts.data(),																			  // pSetLayouts
+			1,																							  // pushConstantRangeCount
+			&push_range																					  // pPushConstantRanges
 		};
 
 		// Create the pipeline layout
@@ -3562,10 +3573,11 @@ void vk_initialize(void)
 		desc.setLayoutCount = VK_NUM_BLOOM_PASSES;
 
 		VK_CHECK_ASSIGN(vk_inst.pipeline_layout_blend, vk_inst.device.createPipelineLayout(desc));
-
+#ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkPipelineLayout(vk_inst.pipeline_layout), "pipeline layout - main", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT);
 		SET_OBJECT_NAME(VkPipelineLayout(vk_inst.pipeline_layout_post_process), "pipeline layout - post-processing", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT);
 		SET_OBJECT_NAME(VkPipelineLayout(vk_inst.pipeline_layout_blend), "pipeline layout - blend", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT);
+#endif
 	}
 
 	vk_inst.geometry_buffer_size_new = VERTEX_BUFFER_SIZE;
@@ -4156,10 +4168,11 @@ void vk_create_image(image_t &image, int width, int height, int mip_levels)
 	}
 
 	vk_update_descriptor_set(image, mip_levels > 1 ? true : false);
-
+#ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkImage(image.handle), image.imgName, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
 	SET_OBJECT_NAME(VkImageView(image.view), image.imgName, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 	SET_OBJECT_NAME(VkDescriptorSet(image.descriptor), image.imgName, VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
+#endif
 }
 
 static byte *resample_image_data(const int target_format, byte *data, const int data_size, int *bytes_per_pixel)
@@ -4254,7 +4267,7 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 			break; // Avoid overflow
 		}
 
-		vk::BufferImageCopy region = {buffer_size,
+		vk::BufferImageCopy region = {static_cast<vk::DeviceSize>(buffer_size),
 									  0,
 									  0,
 									  {vk::ImageAspectFlagBits::eColor,
@@ -4436,7 +4449,9 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 	vk::RenderPass renderpass;
 	vk::PipelineLayout layout;
 	vk::SampleCountFlagBits samples;
+#ifdef USE_VK_VALIDATION
 	const char *pipeline_name;
+#endif
 	bool blend = false;
 
 	struct FragSpecData
@@ -4462,7 +4477,9 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		renderpass = vk_inst.render_pass.bloom_extract;
 		layout = vk_inst.pipeline_layout_post_process;
 		samples = vk::SampleCountFlagBits::e1;
+#ifdef USE_VK_VALIDATION
 		pipeline_name = "bloom extraction pipeline";
+#endif
 		blend = false;
 		break;
 	case 2: // final bloom blend
@@ -4471,7 +4488,9 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		renderpass = vk_inst.render_pass.post_bloom;
 		layout = vk_inst.pipeline_layout_blend;
 		samples = vkSamples;
+#ifdef USE_VK_VALIDATION
 		pipeline_name = "bloom blend pipeline";
+#endif
 		blend = true;
 		break;
 	case 3: // capture buffer extraction
@@ -4480,7 +4499,9 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		renderpass = vk_inst.render_pass.capture;
 		layout = vk_inst.pipeline_layout_post_process;
 		samples = vk::SampleCountFlagBits::e1;
+#ifdef USE_VK_VALIDATION
 		pipeline_name = "capture buffer pipeline";
+#endif
 		blend = false;
 		break;
 	default: // gamma correction
@@ -4489,7 +4510,9 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		renderpass = vk_inst.render_pass.gamma;
 		layout = vk_inst.pipeline_layout_post_process;
 		samples = vk::SampleCountFlagBits::e1;
+#ifdef USE_VK_VALIDATION
 		pipeline_name = "gamma-correction pipeline";
+#endif
 		blend = false;
 		break;
 	}
@@ -4640,13 +4663,28 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		VK_NULL_HANDLE,
 		-1};
 
-#ifdef USE_VK_VALIDATION // VULKAN_HPP_NO_EXCEPTIONS
-	VK_CHECK_ASSIGN(*pipeline, vk_inst.device.createGraphicsPipeline(nullptr, pipeline_create_info));
-#else
-	*pipeline = vk_inst.device.createGraphicsPipeline(nullptr, pipeline_create_info).value;
-#endif
+#ifdef USE_VK_VALIDATION
+	try
+	{
+		auto createGraphicsPipelineResult = vk_inst.device.createGraphicsPipeline(nullptr, pipeline_create_info);
+		if (static_cast<int>(createGraphicsPipelineResult.result) < 0)
+		{
+			ri.Error(ERR_FATAL, "Vulkan: %s returned %s", "vk_create_post_process_pipeline -> createGraphicsPipeline", vk::to_string(createGraphicsPipelineResult.result).data());
+		}
+		else
+		{
+			*pipeline = createGraphicsPipelineResult.value;
+			SET_OBJECT_NAME(VkPipeline(&pipeline), pipeline_name, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+		}
+	}
+	catch (vk::SystemError &err)
+	{
+		ri.Error(ERR_FATAL, "Vulkan error in function: %s, what: %s", "vk_create_post_process_pipeline -> createGraphicsPipeline", err.what());
+	}
 
-	SET_OBJECT_NAME(VkPipeline(&pipeline), pipeline_name, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+#else
+	VK_CHECK_ASSIGN(*pipeline, vk_inst.device.createGraphicsPipeline(nullptr, pipeline_create_info));
+#endif
 }
 
 void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass)
@@ -4768,13 +4806,28 @@ void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bo
 		-1,
 		nullptr};
 
-#ifdef USE_VK_VALIDATION // VULKAN_HPP_NO_EXCEPTIONS
-	VK_CHECK_ASSIGN(*pipeline, vk_inst.device.createGraphicsPipeline(nullptr, create_info));
-#else
-	*pipeline = vk_inst.device.createGraphicsPipeline(vk_inst.pipelineCache, create_info).value;
-#endif
+#ifdef USE_VK_VALIDATION
+	try
+	{
+		auto createGraphicsPipelineResult = vk_inst.device.createGraphicsPipeline(nullptr, create_info);
+		if (static_cast<int>(createGraphicsPipelineResult.result) < 0)
+		{
+			ri.Error(ERR_FATAL, "Vulkan: %s returned %s", "vk_create_blur_pipeline -> createGraphicsPipeline", vk::to_string(createGraphicsPipelineResult.result).data());
+		}
+		else
+		{
+			*pipeline = createGraphicsPipelineResult.value;
+			SET_OBJECT_NAME(VkPipeline(&pipeline), va("%s blur pipeline %i", horizontal_pass ? "horizontal" : "vertical", index / 2 + 1), VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+		}
+	}
+	catch (vk::SystemError &err)
+	{
+		ri.Error(ERR_FATAL, "Vulkan error in function: %s, what: %s", "vk_create_blur_pipeline -> createGraphicsPipeline", err.what());
+	}
 
-	SET_OBJECT_NAME(VkPipeline(&pipeline), va("%s blur pipeline %i", horizontal_pass ? "horizontal" : "vertical", index / 2 + 1), VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+#else
+	VK_CHECK_ASSIGN(*pipeline, vk_inst.device.createGraphicsPipeline(vk_inst.pipelineCache, create_info));
+#endif
 }
 
 static vk::VertexInputBindingDescription bindingsCpp[8];
@@ -5751,15 +5804,34 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 											   -1,
 											   nullptr};
 
-	vk::Pipeline res;
+	vk::Pipeline resultPipeline;
 
-#ifdef USE_VK_VALIDATION // VULKAN_HPP_NO_EXCEPTIONS
-	VK_CHECK_ASSIGN(res, vk_inst.device.createGraphicsPipeline(vk_inst.pipelineCache, create_info));
+#ifdef USE_VK_VALIDATION
+	// VK_CHECK_ASSIGN(res, vk_inst.device.createGraphicsPipeline(vk_inst.pipelineCache, create_info));
+	try
+	{
+		auto createGraphicsPipelineResult = vk_inst.device.createGraphicsPipeline(vk_inst.pipelineCache, create_info);
+		if (static_cast<int>(createGraphicsPipelineResult.result) < 0)
+		{
+			ri.Error(ERR_FATAL, "Vulkan: %s returned %s", "create_pipeline -> createGraphicsPipeline", vk::to_string(createGraphicsPipelineResult.result).data());
+		}
+		else
+		{
+			resultPipeline = createGraphicsPipelineResult.value;
+			SET_OBJECT_NAME(VkPipeline(&resultPipeline), "create_pipeline -> createGraphicsPipeline", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+		}
+	}
+	catch (vk::SystemError &err)
+	{
+		ri.Error(ERR_FATAL, "Vulkan error in function: %s, what: %s", "create_pipeline -> createGraphicsPipeline", err.what());
+	}
+
 #else
-	res = vk_inst.device.createGraphicsPipeline(vk_inst.pipelineCache, create_info).value;
+	VK_CHECK_ASSIGN(resultPipeline, vk_inst.device.createGraphicsPipeline(vk_inst.pipelineCache, create_info));
+
 #endif
 	vk_inst.pipeline_create_count++;
-	return res;
+	return resultPipeline;
 }
 
 vk::Pipeline vk_gen_pipeline(uint32_t index)
@@ -5924,9 +5996,9 @@ static void get_scissor_rect(vk::Rect2D &r)
 		if (r.offset.y < 0)
 			r.offset.y = 0;
 
-		if (r.offset.x + r.extent.width > glConfig.vidWidth)
+		if (r.offset.x + r.extent.width > static_cast<uint32_t>(glConfig.vidWidth))
 			r.extent.width = glConfig.vidWidth - r.offset.x;
-		if (r.offset.y + r.extent.height > glConfig.vidHeight)
+		if (r.offset.y + r.extent.height > static_cast<uint32_t>(glConfig.vidHeight))
 			r.extent.height = glConfig.vidHeight - r.offset.y;
 	}
 }
@@ -5998,7 +6070,7 @@ void vk_clear_color(const vec4_t color)
 	clear_rect[0].layerCount = 1;
 	rect_count = 1;
 
-#ifdef _DEBUG
+#ifdef DEBUG
 	// Split viewport rectangle into two non-overlapping rectangles.
 	// It's a HACK to prevent Vulkan validation layer's performance warning:
 	//		"vkCmdClearAttachments() issued on command buffer object XXX prior to any Draw Cmds.

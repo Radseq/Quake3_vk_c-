@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shadows.hpp"
 #include "vk_vbo.hpp"
 #include "vk.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 
 shaderCommands_t tess;
 
@@ -249,7 +249,7 @@ void VK_SetFogParams(vkUniform_t &uniform, int *fogStage)
 {
 	if (tess.fogNum && tess.shader->fogPass)
 	{
-		fogProgramParms_t fp = {};  
+		fogProgramParms_t fp = {};
 		RB_CalcFogProgramParms(fp);
 		// vertex data
 		Vector4Copy(fp.fogDistanceVector, uniform.fogDistanceVector);
@@ -578,7 +578,7 @@ void VK_LightingPass(void)
 		tess.dlightUpdateParams = false;
 	}
 
-	if (uniform_offset == ~0)
+	if (uniform_offset == UINT32_MAX)
 		return; // no space left...
 
 	cull = tess.shader->cullType;
@@ -768,7 +768,8 @@ Perform dynamic lighting with another rendering pass
 */
 static bool ProjectDlightTexture(void)
 {
-	int i, l;
+	int i;
+	uint32_t l;
 	vec3_t origin;
 	float *texCoords;
 	byte *colors;

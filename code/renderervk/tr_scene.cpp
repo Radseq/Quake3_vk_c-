@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_main.hpp"
 #include "tr_shader.hpp"
 #include <cstring>
-#include "q_math.hpp"
+#include "math.hpp"
 #include "utils.hpp"
 
 int r_numdlights;
@@ -43,7 +43,6 @@ static int r_numpolys;
 static int r_firstScenePoly;
 
 static int r_numpolyverts;
-
 
 /*
 ====================
@@ -270,7 +269,7 @@ static void RE_AddDynamicLightToScene(const vec3_t org, float intensity, float r
 	{
 		return;
 	}
-	if (r_numdlights >= arrayLen(backEndData->dlights))
+	if (r_numdlights >= static_cast<int>(arrayLen(backEndData->dlights)))
 	{
 		return;
 	}
@@ -326,7 +325,7 @@ void RE_AddLinearLightToScene(const vec3_t start, const vec3_t end, float intens
 	{
 		return;
 	}
-	if (r_numdlights >= arrayLen(backEndData->dlights))
+	if (r_numdlights >= static_cast<int>(arrayLen(backEndData->dlights)))
 	{
 		return;
 	}
@@ -436,11 +435,10 @@ void RE_RenderScene(const refdef_t *fd)
 	if (!(tr.refdef.rdflags & RDF_NOWORLDMODEL))
 	{
 		int areaDiff;
-		int i;
 
 		// compare the area bits
 		areaDiff = 0;
-		for (i = 0; i < MAX_MAP_AREA_BYTES / sizeof(int); i++)
+		for (uint32_t i = 0; i < MAX_MAP_AREA_BYTES / sizeof(int); i++)
 		{
 			areaDiff |= ((int *)tr.refdef.areamask)[i] ^ ((int *)fd->areamask)[i];
 			((int *)tr.refdef.areamask)[i] = ((int *)fd->areamask)[i];

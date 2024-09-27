@@ -31,7 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_world.hpp"
 #include "tr_cmds.hpp"
 #include "tr_model.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 #include "utils.hpp"
 
 #include <string.h> // memcpy
@@ -129,7 +129,7 @@ int R_CullLocalBox(const vec3_t bounds[2])
 /*
 ** R_CullLocalPointAndRadius
 */
-int R_CullLocalPointAndRadius(const vec3_t pt, float radius)
+int R_CullLocalPointAndRadius(const vec3_t &pt, float radius)
 {
 	vec3_t transformed;
 
@@ -141,7 +141,7 @@ int R_CullLocalPointAndRadius(const vec3_t pt, float radius)
 /*
 ** R_CullPointAndRadius
 */
-int R_CullPointAndRadius(const vec3_t pt, float radius)
+int R_CullPointAndRadius(const vec3_t &pt, float radius)
 {
 	if (r_nocull->integer)
 	{
@@ -223,7 +223,7 @@ int R_CullDlight(const dlight_t &dl)
 R_LocalNormalToWorld
 =================
 */
-static void R_LocalNormalToWorld(const vec3_t local, vec3_t world)
+static void R_LocalNormalToWorld(const vec3_t &local, vec3_t &world)
 {
 	world[0] = local[0] * tr.ort.axis[0][0] + local[1] * tr.ort.axis[1][0] + local[2] * tr.ort.axis[2][0];
 	world[1] = local[0] * tr.ort.axis[0][1] + local[1] * tr.ort.axis[1][1] + local[2] * tr.ort.axis[2][1];
@@ -235,7 +235,7 @@ static void R_LocalNormalToWorld(const vec3_t local, vec3_t world)
 R_LocalPointToWorld
 =================
 */
-void R_LocalPointToWorld(const vec3_t local, vec3_t world)
+void R_LocalPointToWorld(const vec3_t &local, vec3_t &world)
 {
 	world[0] = local[0] * tr.ort.axis[0][0] + local[1] * tr.ort.axis[1][0] + local[2] * tr.ort.axis[2][0] + tr.ort.origin[0];
 	world[1] = local[0] * tr.ort.axis[0][1] + local[1] * tr.ort.axis[1][1] + local[2] * tr.ort.axis[2][1] + tr.ort.origin[1];
@@ -247,7 +247,7 @@ void R_LocalPointToWorld(const vec3_t local, vec3_t world)
 R_WorldToLocal
 =================
 */
-void R_WorldToLocal(const vec3_t world, vec3_t local)
+void R_WorldToLocal(const vec3_t &world, vec3_t &local)
 {
 	local[0] = DotProduct(world, tr.ort.axis[0]);
 	local[1] = DotProduct(world, tr.ort.axis[1]);
@@ -260,7 +260,7 @@ R_TransformModelToClip
 ==========================
 */
 void R_TransformModelToClip(const vec3_t src, const float *modelMatrix, const float *projectionMatrix,
-							vec4_t eye, vec4_t dst)
+							vec4_t &eye, vec4_t &dst)
 {
 	int i;
 
@@ -703,26 +703,26 @@ static void R_SetupProjectionZ(viewParms_t &dest)
 R_MirrorPoint
 =================
 */
-static void R_MirrorPoint(const vec3_t in, const orientation_t *surface, const orientation_t *camera, vec3_t out)
+static void R_MirrorPoint(const vec3_t &in, const orientation_t &surface, const orientation_t &camera, vec3_t &out)
 {
 	int i;
 	vec3_t local;
 	vec3_t transformed;
 	float d;
 
-	VectorSubtract(in, surface->origin, local);
+	VectorSubtract(in, surface.origin, local);
 
 	VectorClear(transformed);
 	for (i = 0; i < 3; i++)
 	{
-		d = DotProduct(local, surface->axis[i]);
-		VectorMA(transformed, d, camera->axis[i], transformed);
+		d = DotProduct(local, surface.axis[i]);
+		VectorMA(transformed, d, camera.axis[i], transformed);
 	}
 
-	VectorAdd(transformed, camera->origin, out);
+	VectorAdd(transformed, camera.origin, out);
 }
 
-static void R_MirrorVector(const vec3_t in, const orientation_t *surface, const orientation_t *camera, vec3_t out)
+static void R_MirrorVector(const vec3_t &in, const orientation_t &surface, const orientation_t &camera, vec3_t &out)
 {
 	int i;
 	float d;
@@ -730,8 +730,8 @@ static void R_MirrorVector(const vec3_t in, const orientation_t *surface, const 
 	VectorClear(out);
 	for (i = 0; i < 3; i++)
 	{
-		d = DotProduct(in, surface->axis[i]);
-		VectorMA(out, d, camera->axis[i], out);
+		d = DotProduct(in, surface.axis[i]);
+		VectorMA(out, d, camera.axis[i], out);
 	}
 }
 
@@ -792,7 +792,7 @@ Returns true if it should be mirrored
 */
 static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 									orientation_t &surface, orientation_t &camera,
-									vec3_t pvsOrigin, portalView_t *portalView)
+									vec3_t &pvsOrigin, portalView_t *portalView)
 {
 	int i;
 	cplane_t originalPlane, plane;
@@ -1234,7 +1234,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, int entityNum)
 	// create dedicated set for each view
 	if (r_numdlights + oldParms.num_dlights <= arrayLen(backEndData->dlights))
 	{
-		int i;
+		uint32_t i;
 		newParms.dlights = oldParms.dlights + oldParms.num_dlights;
 		newParms.num_dlights = oldParms.num_dlights;
 		r_numdlights += oldParms.num_dlights;
@@ -1253,14 +1253,14 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, int entityNum)
 		newParms.scissorHeight = maxs[1] - mins[1];
 	}
 
-	R_MirrorPoint(oldParms.ort.origin, &surface, &camera, newParms.ort.origin);
+	R_MirrorPoint(oldParms.ort.origin, surface, camera, newParms.ort.origin);
 
 	VectorSubtract(vec3_origin, camera.axis[0], newParms.portalPlane.normal);
 	newParms.portalPlane.dist = DotProduct(camera.origin, newParms.portalPlane.normal);
 
-	R_MirrorVector(oldParms.ort.axis[0], &surface, &camera, newParms.ort.axis[0]);
-	R_MirrorVector(oldParms.ort.axis[1], &surface, &camera, newParms.ort.axis[1]);
-	R_MirrorVector(oldParms.ort.axis[2], &surface, &camera, newParms.ort.axis[2]);
+	R_MirrorVector(oldParms.ort.axis[0], surface, camera, newParms.ort.axis[0]);
+	R_MirrorVector(oldParms.ort.axis[1], surface, camera, newParms.ort.axis[1]);
+	R_MirrorVector(oldParms.ort.axis[2], surface, camera, newParms.ort.axis[2]);
 
 	// OPTIMIZE: restrict the viewport on the mirrored view
 
@@ -1487,7 +1487,7 @@ void R_AddLitSurf(surfaceType_t *surface, shader_t &shader, int fogIndex)
 {
 	struct litSurf_s *litsurf;
 
-	if (tr.refdef.numLitSurfs >= arrayLen(backEndData->litSurfs))
+	if (tr.refdef.numLitSurfs >= static_cast<int>(arrayLen(backEndData->litSurfs)))
 		return;
 
 	tr.pc.c_lit_surfs++;
@@ -1567,7 +1567,6 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, int numDrawSurfs)
 	int fogNum;
 	int entityNum;
 	int dlighted;
-	int i;
 
 	// it is possible for some views to not have any surfaces
 	if (numDrawSurfs < 1)
@@ -1582,7 +1581,7 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, int numDrawSurfs)
 
 	// check for any pass through drawing, which
 	// may cause another view to be rendered first
-	for (i = 0; i < numDrawSurfs; i++)
+	for (int i = 0; i < numDrawSurfs; i++)
 	{
 		R_DecomposeSort(((&drawSurfs) + i)->sort, &entityNum, &shader, &fogNum, &dlighted);
 
@@ -1620,7 +1619,7 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, int numDrawSurfs)
 		dlight_t *dl;
 		// all the lit surfaces are in a single queue
 		// but each light's surfaces are sorted within its subsection
-		for (i = 0; i < tr.refdef.num_dlights; ++i)
+		for (uint32_t i = 0; i < tr.refdef.num_dlights; ++i)
 		{
 			dl = &tr.refdef.dlights[i];
 			if (dl->head)

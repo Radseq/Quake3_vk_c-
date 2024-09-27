@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_surface.hpp"
 #include "vk_vbo.hpp"
 #include "vk.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 
 constexpr int SKY_SUBDIVISIONS = 8;
 constexpr int HALF_SKY_SUBDIVISIONS = (SKY_SUBDIVISIONS / 2);
@@ -299,7 +299,7 @@ CLOUD VERTEX GENERATION
 **
 ** Parms: s, t range from -1 to 1
 */
-static void MakeSkyVec(float s, float t, int axis, vec3_t outXYZ)
+static void MakeSkyVec(float s, float t, int axis, vec3_t& outXYZ)
 {
 	// 1 = s, 2 = t, 3 = 2048
 	static constexpr int st_to_vec[6][3] =

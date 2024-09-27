@@ -28,9 +28,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shader.hpp"
 #include "tr_light.hpp"
 #include "tr_image.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 #include "utils.hpp"
-
 
 #define LL(x) x = LittleLong(x)
 
@@ -305,7 +304,7 @@ static void QuatSlerp(const quat_t from, const quat_t _to, float fraction, quat_
 	out[3] = from[3] * backlerp + to[3] * lerp;
 }
 
-static void JointToMatrix(const quat_t rot, const vec3_t scale, const vec3_t trans,
+static void JointToMatrix(const quat_t rot, const vec3_t &scale, const vec3_t &trans,
 						  float *mat)
 {
 	float xx = 2.0f * rot[0] * rot[0];
@@ -580,7 +579,7 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 				vtxMat[10] = blendWeights[0] * poseMats[12 * data->influenceBlendIndexes[4 * influence + 0] + 10];
 				vtxMat[11] = blendWeights[0] * poseMats[12 * data->influenceBlendIndexes[4 * influence + 0] + 11];
 
-				for (j = 1; j < arrayLen(blendWeights); j++)
+				for (j = 1; j < static_cast<int>(arrayLen(blendWeights)); j++)
 				{
 					if (blendWeights[j] <= 0.0f)
 					{
@@ -708,9 +707,9 @@ static bool IQM_CheckRange(iqmHeader_t &header, int offset,
 	// doesn't fit into the file
 	return (count <= 0 ||
 			offset <= 0 ||
-			offset > header.filesize ||
+			static_cast<uint32_t>(offset) > header.filesize ||
 			offset + count * size < 0 ||
-			offset + count * size > header.filesize);
+			static_cast<uint32_t>(offset) + count * size > header.filesize);
 }
 
 static vec_t QuatNormalize2(const quat_t v, quat_t out)
@@ -800,7 +799,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		float *f;
 	} blendWeights;
 
-	if (filesize < sizeof(iqmHeader_t))
+	if (static_cast<std::size_t>(filesize) < sizeof(iqmHeader_t))
 	{
 		return false;
 	}
@@ -820,7 +819,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 	}
 
 	LL(header.filesize);
-	if (header.filesize > filesize || header.filesize > 16 << 20)
+	if (header.filesize > static_cast<uint32_t>(filesize) || header.filesize > 16 << 20)
 	{
 		return false;
 	}
@@ -1087,7 +1086,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 			// find number of unique blend influences per mesh
 			if (header.num_joints)
 			{
-				for (j = 0; j < mesh->num_vertexes; j++)
+				for (j = 0; j < static_cast<int>(mesh->num_vertexes); j++)
 				{
 					int vtx = mesh->first_vertex + j;
 
@@ -1163,7 +1162,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 
 			if (joint->parent < -1 ||
 				joint->parent >= (int)header.num_joints ||
-				joint->name >= (int)header.num_text)
+				joint->name >= header.num_text)
 			{
 				return false;
 			}
@@ -1236,7 +1235,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 	if (header.num_meshes)
 	{
 		size += header.num_meshes * sizeof(srfIQModel_t); // surfaces
-		size += header.num_triangles * 3 * sizeof(int);   // triangles
+		size += header.num_triangles * 3 * sizeof(int);	  // triangles
 		size += header.num_vertexes * 3 * sizeof(float);  // positions
 		size += header.num_vertexes * 2 * sizeof(float);  // texcoords
 		size += header.num_vertexes * 3 * sizeof(float);  // normals
@@ -1268,8 +1267,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 	}
 	if (header.num_joints)
 	{
-		size += joint_names;							 // joint names
-		size += header.num_joints * sizeof(int);		 // joint parents
+		size += joint_names;							// joint names
+		size += header.num_joints * sizeof(int);		// joint parents
 		size += header.num_joints * 12 * sizeof(float); // bind joint matricies
 		size += header.num_joints * 12 * sizeof(float); // inverse bind joint matricies
 	}
@@ -1592,7 +1591,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		for (i = 0; i < header.num_frames; i++)
 		{
 			pose = (iqmPose_t *)((byte &)header + header.ofs_poses);
-			for (j = 0; j < header.num_poses; j++, pose++, transform++)
+			for (j = 0; j < static_cast<int>(header.num_poses); j++, pose++, transform++)
 			{
 				vec3_t translate;
 				quat_t rotate;

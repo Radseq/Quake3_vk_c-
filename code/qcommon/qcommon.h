@@ -948,18 +948,7 @@ void		Info_Print( const char *s );
 
 void		Com_BeginRedirect (char *buffer, int buffersize, void (*flush)(const char *));
 void		Com_EndRedirect( void );
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void 		QDECL Com_Printf( const char *fmt, ... ) __attribute__ ((format (printf, 1, 2)));
-
-#ifdef __cplusplus
-}
-#endif
-
-
 void 		QDECL Com_DPrintf( const char *fmt, ... ) __attribute__ ((format (printf, 1, 2)));
 void 		Com_Quit_f( void );
 void		Com_GameRestart( int checksumFeed, bool clientRestart );

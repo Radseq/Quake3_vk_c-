@@ -27,7 +27,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_backend.hpp"
 #include "tr_bsp.hpp"
 #include "tr_scene.hpp"
-#include "tr_noise.hpp"
 #include "tr_local.hpp"
 #include "tr_shader.hpp"
 #include "tr_image.hpp"
@@ -37,14 +36,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "string_operations.hpp"
 
 #include <cstddef> // For size_t
-
-// TTimo
-// centralized and cleaned, that's the max string you can send to a Com_Printf / Com_DPrintf (above gets truncated)
-// bump to 8192 as 4096 may be not enough to print some data like gl extensions - CE
-constexpr int MAXPRINTMSG = 8192;
-
-// AVI files have the start of pixel lines 4 byte-aligned
-constexpr int AVI_LINE_PADDING = 4;
 
 glconfig_t glConfig;
 
@@ -940,16 +931,16 @@ static void GfxInfo(void)
 	ri.Printf(PRINT_ALL, "VK_MAX_TEXTURE_UNITS: %d\n", glConfig.numTextureUnits);
 
 	ri.Printf(PRINT_ALL, "\nPIXELFORMAT: color(%d-bits) Z(%d-bit) stencil(%d-bits)\n", glConfig.colorBits, glConfig.depthBits, glConfig.stencilBits);
-	ri.Printf(PRINT_ALL, " presentation: %s\n", vk::to_string(vk_inst.present_format.format));
+	ri.Printf(PRINT_ALL, " presentation: %s\n", vk::to_string(vk_inst.present_format.format).data());
 	if (vk_inst.color_format != vk_inst.present_format.format)
 	{
-		ri.Printf(PRINT_ALL, " color: %s\n", vk::to_string(vk_inst.color_format));
+		ri.Printf(PRINT_ALL, " color: %s\n", vk::to_string(vk_inst.color_format).data());
 	}
 	if (vk_inst.capture_format != vk_inst.present_format.format || vk_inst.capture_format != vk_inst.color_format)
 	{
-		ri.Printf(PRINT_ALL, " capture: %s\n", vk::to_string(vk_inst.capture_format));
+		ri.Printf(PRINT_ALL, " capture: %s\n", vk::to_string(vk_inst.capture_format).data());
 	}
-	ri.Printf(PRINT_ALL, " depth: %s\n", vk::to_string(vk_inst.depth_format));
+	ri.Printf(PRINT_ALL, " depth: %s\n", vk::to_string(vk_inst.depth_format).data());
 
 	if (glConfig.isFullscreen)
 	{
@@ -966,7 +957,7 @@ static void GfxInfo(void)
 		fs = fsstrings[0];
 	}
 
-	if (glConfig.vidWidth != gls.windowWidth || glConfig.vidHeight != gls.windowHeight)
+	if (static_cast<uint32_t>(glConfig.vidWidth) != gls.windowWidth || static_cast<uint32_t>(glConfig.vidHeight) != gls.windowHeight)
 	{
 		ri.Printf(PRINT_ALL, "RENDER: %d x %d, MODE: %d, %d x %d %s hz:", glConfig.vidWidth, glConfig.vidHeight, mode, gls.windowWidth, gls.windowHeight, fs);
 	}
@@ -1470,7 +1461,7 @@ void R_Init(void)
 
 	R_InitFogTable();
 
-	NoiseInit();
+	R_NoiseInit();
 
 	R_Register();
 

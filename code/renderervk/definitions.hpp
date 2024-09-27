@@ -1,8 +1,14 @@
 #ifndef DEFINITIONS_HPP
 #define DEFINITIONS_HPP
 
-// #define VULKAN_HPP_NO_EXCEPTIONS
-// #define USE_VK_VALIDATION
+#ifdef DEBUG
+#define USE_VK_VALIDATION
+#endif
+
+#ifndef USE_VK_VALIDATION
+#define VULKAN_HPP_NO_EXCEPTIONS
+//#define VULKAN_HPP_HAS_NOEXCEPT
+#endif
 
 extern "C"
 {
@@ -245,7 +251,7 @@ typedef struct vk_tess_s
     {
         uint32_t start, end;
         vk::DescriptorSet current[6]; // 0:storage, 1:uniform, 2:color0, 3:color1, 4:color2, 5:fog
-        uint32_t offset[2];         // 0 (uniform) and 5 (storage)
+        uint32_t offset[2];           // 0 (uniform) and 5 (storage)
     } descriptor_set;
 
     Vk_Depth_Range depth_range;

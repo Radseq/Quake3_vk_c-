@@ -24,12 +24,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define USE_VULKAN
 
-#include "q_shared.hpp"
 // #include "surfaceflags.hpp"
-//extern "C"
-//{
+extern "C"
+{
+#include "../qcommon/q_shared.h"
 #include "../renderercommon/tr_public.h"
-//}
+}
 
 constexpr int MAX_TEXTURE_UNITS = 8;
 // any change in the LIGHTMAP_* defines here MUST be reflected in
@@ -97,6 +97,9 @@ extern cvar_t *r_ext_max_anisotropy;
 extern "C"
 {
 #endif
+
+	float R_NoiseGet4f(float x, float y, float z, double t);
+	void R_NoiseInit(void);
 
 	// font stuff
 	void R_InitFreeType(void);

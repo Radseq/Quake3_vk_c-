@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "tr_curve.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 
 /*
 
@@ -582,7 +582,7 @@ srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
 R_GridInsertColumn
 ===============
 */
-srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, int column, int row, vec3_t point, float loderror)
+srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, int column, int row, const vec3_t &point, float loderror)
 {
 	int i, j;
 	int width, height, oldwidth;
@@ -642,7 +642,7 @@ srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, int column, int row, vec3
 R_GridInsertRow
 ===============
 */
-srfGridMesh_t *R_GridInsertRow(srfGridMesh_t &grid, int row, int column, vec3_t point, float loderror)
+srfGridMesh_t *R_GridInsertRow(srfGridMesh_t &grid, int row, int column, const vec3_t &point, float loderror)
 {
 	int i, j;
 	int width, height, oldheight;

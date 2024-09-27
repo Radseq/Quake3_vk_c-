@@ -27,10 +27,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shader.hpp"
 #include "tr_image.hpp"
 #include "tr_light.hpp"
-#include "q_math.hpp"
+#include "math.hpp"
 #include "utils.hpp"
 
-static float ProjectRadius(float r, vec3_t location)
+static float ProjectRadius(float r, const vec3_t &location)
 {
 	float pr;
 	float dist;
@@ -300,7 +300,6 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	bool personalModel;
 #ifdef USE_PMLIGHT
 	dlight_t *dl;
-	int n;
 	dlight_t *dlights[arrayLen(backEndData->dlights)];
 	int numDlights;
 #endif
@@ -359,7 +358,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	if (r_dlightMode->integer >= 2 && (!personalModel || tr.viewParms.portalView != PV_NONE))
 	{
 		R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, tr.ort);
-		for (n = 0; n < tr.viewParms.num_dlights; n++)
+		for (uint32_t n = 0; n < tr.viewParms.num_dlights; n++)
 		{
 			dl = &tr.viewParms.dlights[n];
 			if (!R_LightCullBounds(*dl, bounds[0], bounds[1]))
@@ -446,7 +445,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 #ifdef USE_PMLIGHT
 		if (numDlights && shader->lightingStage >= 0)
 		{
-			for (n = 0; n < numDlights; n++)
+			for (auto n = 0; n < numDlights; n++)
 			{
 				dl = dlights[n];
 				tr.light = dl;
