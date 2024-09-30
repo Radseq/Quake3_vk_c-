@@ -299,7 +299,7 @@ CLOUD VERTEX GENERATION
 **
 ** Parms: s, t range from -1 to 1
 */
-static void MakeSkyVec(float s, float t, int axis, vec3_t& outXYZ)
+static void MakeSkyVec(float s, float t, int axis, vec3_t &outXYZ)
 {
 	// 1 = s, 2 = t, 3 = 2048
 	static constexpr int st_to_vec[6][3] =
@@ -342,18 +342,18 @@ static void MakeSkyVec(float s, float t, int axis, vec3_t& outXYZ)
 CullPoints
 =================
 */
-static bool CullPoints(vec4_t v[], const int count)
+static bool CullPoints(const std::array<vec4_t, 4> &v)
 {
-	const cplane_t *frust;
 	int i, j;
 	float dist;
+	std::size_t count = v.size();
 
 	for (i = 0; i < 5; i++)
 	{
-		frust = &backEnd.viewParms.frustum[i];
+		const cplane_t &frust = backEnd.viewParms.frustum[i];
 		for (j = 0; j < count; j++)
 		{
-			dist = DotProduct(v[j], frust->normal) - frust->dist;
+			dist = DotProduct(v[j], frust.normal) - frust.dist;
 			if (dist >= 0)
 			{
 				break;
@@ -372,7 +372,7 @@ static bool CullPoints(vec4_t v[], const int count)
 static bool CullSkySide(const int mins[2], const int maxs[2])
 {
 	int s, t;
-	vec4_t v[4];
+	std::array<vec4_t, 4> v;
 
 	if (r_nocull->integer)
 		return false;
@@ -393,7 +393,7 @@ static bool CullSkySide(const int mins[2], const int maxs[2])
 	t = maxs[1] + HALF_SKY_SUBDIVISIONS;
 	VectorAdd(s_skyPoints[t][s], backEnd.viewParms.ort.origin, v[3]);
 
-	if (CullPoints(v, 4))
+	if (CullPoints(v))
 		return true;
 
 	return false;

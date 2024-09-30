@@ -665,7 +665,7 @@ static const void *RB_StretchPic(const void *data)
 #ifdef USE_PMLIGHT
 static void RB_LightingPass(void)
 {
-	dlight_t *dl;
+	// dlight_t *dl;
 	uint32_t i;
 
 #ifdef USE_VBO
@@ -677,11 +677,11 @@ static void RB_LightingPass(void)
 
 	for (i = 0; i < backEnd.viewParms.num_dlights; i++)
 	{
-		dl = &backEnd.viewParms.dlights[i];
-		if (dl->head)
+		dlight_t &dl = backEnd.viewParms.dlights[i];
+		if (dl.head)
 		{
-			tess.light = dl;
-			RB_RenderLitSurfList(*dl);
+			tess.light = &dl;
+			RB_RenderLitSurfList(dl);
 		}
 	}
 
@@ -691,7 +691,7 @@ static void RB_LightingPass(void)
 }
 #endif
 
-static void transform_to_eye_space(const vec3_t v, vec3_t& v_eye)
+static void transform_to_eye_space(const vec3_t v, vec3_t &v_eye)
 {
 	const float *m = backEnd.viewParms.world.modelMatrix;
 	v_eye[0] = m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12];
@@ -895,8 +895,6 @@ static const void *RB_DrawBuffer(const void *data)
 	return (const void *)(cmd + 1);
 }
 
-
-
 /*
 ===============
 RB_ShowImages
@@ -911,7 +909,7 @@ void RB_ShowImages(void)
 {
 	int i;
 
-vec4_t		colorBlack	= {0, 0, 0, 1};
+	vec4_t colorBlack = {0, 0, 0, 1};
 
 	if (!backEnd.projection2D)
 	{

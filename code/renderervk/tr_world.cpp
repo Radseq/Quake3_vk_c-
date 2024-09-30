@@ -635,7 +635,7 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 R_RecursiveWorldNode
 ================
 */
-static void R_RecursiveWorldNode(mnode_t *node, unsigned int planeBits, unsigned int dlightBits)
+static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, unsigned int dlightBits)
 {
 
 	do

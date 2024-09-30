@@ -7,7 +7,7 @@
 
 #ifndef USE_VK_VALIDATION
 #define VULKAN_HPP_NO_EXCEPTIONS
-//#define VULKAN_HPP_HAS_NOEXCEPT
+// #define VULKAN_HPP_HAS_NOEXCEPT
 #endif
 
 extern "C"
@@ -315,7 +315,7 @@ typedef struct
     vk::Image bloom_image[1 + VK_NUM_BLOOM_PASSES * 2];
     vk::ImageView bloom_image_view[1 + VK_NUM_BLOOM_PASSES * 2];
 
-    vk::DescriptorSet bloom_image_descriptor[1 + VK_NUM_BLOOM_PASSES * 2];
+    std::array<vk::DescriptorSet, 1 + VK_NUM_BLOOM_PASSES * 2> bloom_image_descriptor;
 
     vk::Image depth_image;
     vk::ImageView depth_image_view;

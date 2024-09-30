@@ -1203,22 +1203,22 @@ If this is not the case this function will still do its job but won't fix the hi
 static void R_FixSharedVertexLodError(void)
 {
 	int i;
-	srfGridMesh_t *grid1;
+	// srfGridMesh_t *grid1;
 
 	for (i = 0; i < s_worldData.numsurfaces; i++)
 	{
 		//
-		grid1 = (srfGridMesh_t *)s_worldData.surfaces[i].data;
+		srfGridMesh_t &grid1 = (srfGridMesh_t &)s_worldData.surfaces[i].data;
 		// if this surface is not a grid
-		if (grid1->surfaceType != SF_GRID)
+		if (grid1.surfaceType != SF_GRID)
 			continue;
 		//
-		if (grid1->lodFixed)
+		if (grid1.lodFixed)
 			continue;
 		//
-		grid1->lodFixed = 2;
+		grid1.lodFixed = 2;
 		// recursively fix other patches in the same LOD group
-		R_FixSharedVertexLodError_r(i + 1, *grid1);
+		R_FixSharedVertexLodError_r(i + 1, grid1);
 	}
 }
 
@@ -1748,7 +1748,6 @@ R_StitchAllPatches
 static void R_StitchAllPatches(void)
 {
 	int i, stitched, numstitches;
-	srfGridMesh_t *grid1;
 
 	numstitches = 0;
 	do
@@ -1757,15 +1756,15 @@ static void R_StitchAllPatches(void)
 		for (i = 0; i < s_worldData.numsurfaces; i++)
 		{
 			//
-			grid1 = (srfGridMesh_t *)s_worldData.surfaces[i].data;
+			srfGridMesh_t &grid1 = (srfGridMesh_t &)s_worldData.surfaces[i].data;
 			// if this surface is not a grid
-			if (grid1->surfaceType != SF_GRID)
+			if (grid1.surfaceType != SF_GRID)
 				continue;
 			//
-			if (grid1->lodStitched)
+			if (grid1.lodStitched)
 				continue;
 			//
-			grid1->lodStitched = true;
+			grid1.lodStitched = true;
 			stitched = true;
 			//
 			numstitches += R_TryStitchingPatch(i);

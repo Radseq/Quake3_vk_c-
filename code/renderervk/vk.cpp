@@ -60,11 +60,6 @@ inline void vkCheckFunctionCall(vk::Result res, const char *funcName)
 	}
 }
 
-inline void vkCheckFunctionCall(VkResult res, const char *funcName)
-{
-	vkCheckFunctionCall(vk::Result(res), funcName);
-}
-
 #define VK_CHECK_ASSIGN(var, function_call)                 \
 	{                                                       \
 		auto result = function_call;                        \
@@ -187,9 +182,7 @@ static vk::CommandBuffer begin_command_buffer(void)
 		1,
 		nullptr};
 
-	std::vector<vk::CommandBuffer> commandBuffers;
-	VK_CHECK_ASSIGN(commandBuffers, vk_inst.device.allocateCommandBuffers(alloc_info));
-	command_buffer = commandBuffers[0];
+	VK_CHECK(vk_inst.device.allocateCommandBuffers(&alloc_info, &command_buffer));
 
 	vk::CommandBufferBeginInfo begin_info{
 		vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
@@ -1202,16 +1195,13 @@ static bool vk_create_device(vk::PhysicalDevice physical_device, int device_inde
 	// select queue family
 	{
 		std::vector<vk::QueueFamilyProperties> queue_families;
-		uint32_t queue_family_count;
 		uint32_t i;
 
 		queue_families = physical_device.getQueueFamilyProperties();
 
-		queue_family_count = queue_families.size();
-
 		// select queue family with presentation and graphics support
 		vk_inst.queue_family_index = ~0U;
-		for (i = 0; i < queue_family_count; i++)
+		for (i = 0; i < queue_families.size(); i++)
 		{
 			vk::Bool32 presentation_supported;
 			VK_CHECK_ASSIGN(presentation_supported, physical_device.getSurfaceSupportKHR(i, vk_surface));
@@ -1244,18 +1234,17 @@ static bool vk_create_device(vk::PhysicalDevice physical_device, int device_inde
 		bool dedicatedAllocation = false;
 		bool memoryRequirements2 = false;
 		bool debugMarker = false;
-		uint32_t i, len, count = 0;
+		uint32_t i, len;
 
 		std::vector<vk::ExtensionProperties> extension_properties;
 		VK_CHECK_ASSIGN(extension_properties, physical_device.enumerateDeviceExtensionProperties());
-		count = extension_properties.size();
 
 		// fill glConfig.extensions_string
 		str = glConfig.extensions_string;
 		*str = '\0';
 		end = &glConfig.extensions_string[sizeof(glConfig.extensions_string) - 1];
 
-		for (i = 0; i < count; i++)
+		for (i = 0; i < extension_properties.size(); i++)
 		{
 			auto ext = std::string_view(extension_properties[i].extensionName);
 			if (ext == vk::KHRSwapchainExtensionName)
@@ -1774,7 +1763,7 @@ static void vk_update_attachment_descriptors(void)
 		if (r_bloom->integer)
 		{
 			uint32_t i;
-			for (i = 0; i < arrayLen(vk_inst.bloom_image_descriptor); i++)
+			for (i = 0; i < vk_inst.bloom_image_descriptor.size(); i++)
 			{
 				info.imageView = vk_inst.bloom_image_view[i];
 				desc.dstSet = vk_inst.bloom_image_descriptor[i];
@@ -1796,9 +1785,7 @@ void vk_init_descriptors(void)
 										&layout_storage,
 										nullptr};
 
-	std::vector<vk::DescriptorSet> descriptorSets;
-	VK_CHECK_ASSIGN(descriptorSets, vk_inst.device.allocateDescriptorSets(alloc));
-	vk_inst.storage.descriptor = descriptorSets[0];
+	VK_CHECK(vk_inst.device.allocateDescriptorSets(&alloc, &vk_inst.storage.descriptor));
 
 	vk::DescriptorBufferInfo info{vk_inst.storage.buffer,
 								  0,
@@ -1823,9 +1810,7 @@ void vk_init_descriptors(void)
 		alloc.descriptorSetCount = 1;
 		alloc.pSetLayouts = &vk_inst.set_layout_uniform;
 
-		std::vector<vk::DescriptorSet> descriptorSetsInner;
-		VK_CHECK_ASSIGN(descriptorSetsInner, vk_inst.device.allocateDescriptorSets(alloc));
-		vk_inst.tess[i].uniform_descriptor = descriptorSetsInner[0];
+		VK_CHECK(vk_inst.device.allocateDescriptorSets(&alloc, &vk_inst.tess[i].uniform_descriptor));
 
 		vk_update_uniform_descriptor(vk_inst.tess[i].uniform_descriptor, vk_inst.tess[i].vertex_buffer);
 #ifdef USE_VK_VALIDATION
@@ -1841,27 +1826,18 @@ void vk_init_descriptors(void)
 		alloc.descriptorSetCount = 1;
 		alloc.pSetLayouts = &layout_sampler;
 
-		std::vector<vk::DescriptorSet> descriptorSetsInner;
-		VK_CHECK_ASSIGN(descriptorSetsInner, vk_inst.device.allocateDescriptorSets(alloc));
-		vk_inst.color_descriptor = descriptorSetsInner[0];
+		VK_CHECK(vk_inst.device.allocateDescriptorSets(&alloc, &vk_inst.color_descriptor));
 
 		if (r_bloom->integer)
 		{
 			// Allocate all bloom descriptors in a single call
-			alloc.descriptorSetCount = arrayLen(vk_inst.bloom_image_descriptor);
-			std::vector<vk::DescriptorSet> bloomDescriptorSets(alloc.descriptorSetCount);
-			VK_CHECK_ASSIGN(bloomDescriptorSets, vk_inst.device.allocateDescriptorSets(alloc));
-
-			for (i = 0; i < alloc.descriptorSetCount; i++)
-			{
-				vk_inst.bloom_image_descriptor[i] = bloomDescriptorSets[i];
-			}
+			alloc.descriptorSetCount = vk_inst.bloom_image_descriptor.size();
+			VK_CHECK(vk_inst.device.allocateDescriptorSets(&alloc, vk_inst.bloom_image_descriptor.data()));
 		}
 
 		alloc.descriptorSetCount = 1;
 
-		VK_CHECK_ASSIGN(descriptorSetsInner, vk_inst.device.allocateDescriptorSets(alloc));
-		vk_inst.screenMap.color_descriptor = descriptorSetsInner[0];
+		VK_CHECK(vk_inst.device.allocateDescriptorSets(&alloc, &vk_inst.screenMap.color_descriptor));
 
 		vk_update_attachment_descriptors();
 	}
@@ -3454,8 +3430,8 @@ void vk_initialize(void)
 	};
 
 	// Allocate all command buffers at once
-	std::vector<vk::CommandBuffer> command_buffers;
-	VK_CHECK_ASSIGN(command_buffers, vk_inst.device.allocateCommandBuffers(alloc_info));
+	std::array<vk::CommandBuffer, NUM_COMMAND_BUFFERS> command_buffers;
+	VK_CHECK(vk_inst.device.allocateCommandBuffers(&alloc_info, command_buffers.data()));
 
 	// Assign the command buffers to the array
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++)
@@ -4162,9 +4138,7 @@ void vk_create_image(image_t &image, int width, int height, int mip_levels)
 												   &vk_inst.set_layout_sampler,
 												   nullptr};
 
-		std::vector<vk::DescriptorSet> descSets;
-		VK_CHECK_ASSIGN(descSets, vk_inst.device.allocateDescriptorSets(descSetAlloc));
-		image.descriptor = descSets[0];
+		VK_CHECK(vk_inst.device.allocateDescriptorSets(&descSetAlloc, &image.descriptor));
 	}
 
 	vk_update_descriptor_set(image, mip_levels > 1 ? true : false);
@@ -4317,7 +4291,7 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 		vk_world.staging_buffer,
 		image.handle,
 		vk::ImageLayout::eTransferDstOptimal,
-		std::vector<vk::BufferImageCopy>(regions.begin(), regions.begin() + num_regions));
+		regions);
 
 	record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 	end_command_buffer(command_buffer);

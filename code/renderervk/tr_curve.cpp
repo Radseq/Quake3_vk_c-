@@ -43,7 +43,7 @@ srfGridMesh_t *R_SubdividePatchToGrid( int width, int height,
 LerpDrawVert
 ============
 */
-static void LerpDrawVert(drawVert_t &a, drawVert_t &b, drawVert_t &out)
+static void LerpDrawVert(const drawVert_t &a, const drawVert_t &b, drawVert_t &out)
 {
 	out.xyz[0] = 0.5f * (a.xyz[0] + b.xyz[0]);
 	out.xyz[1] = 0.5f * (a.xyz[1] + b.xyz[1]);
