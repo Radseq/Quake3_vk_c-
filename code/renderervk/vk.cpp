@@ -16,6 +16,40 @@
 #include <numeric>
 #include "string_operations.hpp"
 
+static vk::SampleCountFlagBits vkSamples = vk::SampleCountFlagBits::e1;
+static vk::SampleCountFlagBits vkMaxSamples = vk::SampleCountFlagBits::e1;
+
+static vk::Instance vk_instance = VK_NULL_HANDLE;
+static VkSurfaceKHR vk_surfaceC = VK_NULL_HANDLE;
+static vk::SurfaceKHR vk_surface = VK_NULL_HANDLE;
+
+constexpr int defaultVulkanApiVersion = VK_API_VERSION_1_0;
+static int vulkanApiVersion = defaultVulkanApiVersion;
+
+constexpr int MIN_SWAPCHAIN_IMAGES_IMM = 3;
+constexpr int MIN_SWAPCHAIN_IMAGES_FIFO = 3;
+constexpr int MIN_SWAPCHAIN_IMAGES_FIFO_0 = 4;
+constexpr int MIN_SWAPCHAIN_IMAGES_MAILBOX = 3;
+constexpr int VERTEX_BUFFER_SIZE = (4 * 1024 * 1024);
+constexpr int IMAGE_CHUNK_SIZE = (32 * 1024 * 1024);
+
+#ifdef USE_VK_VALIDATION
+VkDebugReportCallbackEXT vk_debug_callback = VK_NULL_HANDLE;
+#endif
+
+//
+// Vulkan API functions used by the renderer.
+//
+
+static PFN_vkGetDeviceProcAddr qvkGetDeviceProcAddr;
+
+#ifdef USE_VK_VALIDATION
+static PFN_vkCreateDebugReportCallbackEXT qvkCreateDebugReportCallbackEXT;
+static PFN_vkDestroyDebugReportCallbackEXT qvkDestroyDebugReportCallbackEXT;
+#endif
+
+static PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;
+
 #ifdef USE_VK_VALIDATION
 #define VK_CHECK(function_call)                                                                        \
 	{                                                                                                  \
@@ -74,13 +108,6 @@ inline void vkCheckFunctionCall(vk::Result res, const char *funcName)
 
 #endif
 
-constexpr int MIN_SWAPCHAIN_IMAGES_IMM = 3;
-constexpr int MIN_SWAPCHAIN_IMAGES_FIFO = 3;
-constexpr int MIN_SWAPCHAIN_IMAGES_FIFO_0 = 4;
-constexpr int MIN_SWAPCHAIN_IMAGES_MAILBOX = 3;
-constexpr int VERTEX_BUFFER_SIZE = (4 * 1024 * 1024);
-constexpr int IMAGE_CHUNK_SIZE = (32 * 1024 * 1024);
-
 constexpr vk::SampleCountFlagBits convertToVkSampleCountFlagBits(int sampleCountInt)
 {
 	switch (sampleCountInt)
@@ -106,30 +133,6 @@ constexpr vk::SampleCountFlagBits convertToVkSampleCountFlagBits(int sampleCount
 		return vk::SampleCountFlagBits::e1;
 	}
 }
-
-static vk::SampleCountFlagBits vkSamples = vk::SampleCountFlagBits::e1;
-static vk::SampleCountFlagBits vkMaxSamples = vk::SampleCountFlagBits::e1;
-
-static vk::Instance vk_instance = VK_NULL_HANDLE;
-static VkSurfaceKHR vk_surfaceC = VK_NULL_HANDLE;
-static vk::SurfaceKHR vk_surface = VK_NULL_HANDLE;
-
-#ifdef USE_VK_VALIDATION
-VkDebugReportCallbackEXT vk_debug_callback = VK_NULL_HANDLE;
-#endif
-
-//
-// Vulkan API functions used by the renderer.
-//
-
-static PFN_vkGetDeviceProcAddr qvkGetDeviceProcAddr;
-
-#ifdef USE_VK_VALIDATION
-static PFN_vkCreateDebugReportCallbackEXT qvkCreateDebugReportCallbackEXT;
-static PFN_vkDestroyDebugReportCallbackEXT qvkDestroyDebugReportCallbackEXT;
-#endif
-
-static PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -849,15 +852,15 @@ static bool used_instance_extension(std::string_view ext)
 		return true;
 
 #ifdef USE_VK_VALIDATION
-	if (Q_stricmp_cpp(ext, vk::EXTDebugReportExtensionName) == 0)
+	if (Q_stricmp_cpp(ext, vk::EXTDebugUtilsExtensionName) == 0)
 		return true;
 #endif
 
-	if (Q_stricmp_cpp(ext, vk::EXTDebugUtilsExtensionName) == 0)
-		return true;
-
-	if (Q_stricmp_cpp(ext, vk::KHRGetPhysicalDeviceProperties2ExtensionName) == 0)
-		return true;
+	if (vk::apiVersionMajor(vulkanApiVersion) == 1 && vk::apiVersionMinor(vulkanApiVersion) == 0)
+	{
+		if (Q_stricmp_cpp(ext, vk::KHRGetPhysicalDeviceProperties2ExtensionName) == 0)
+			return true;
+	}
 
 	if (Q_stricmp_cpp(ext, vk::KHRPortabilityEnumerationExtensionName) == 0)
 		return true;
@@ -913,12 +916,13 @@ static void create_instance(void)
 
 		ri.Printf(PRINT_DEVELOPER, "instance extension: %s\n", ext);
 	}
+
 	vk::ApplicationInfo appInfo{
 		nullptr,
-		0x0,
+		vk::makeApiVersion(0, 1, 0, 0),
 		nullptr,
-		0x0,
-		VK_API_VERSION_1_1,
+		vk::makeApiVersion(0, 1, 0, 0),
+		vk::makeApiVersion(0, 1, 0, 0),
 		nullptr};
 
 	// create instance
@@ -938,6 +942,8 @@ static void create_instance(void)
 #else
 	VK_CHECK_ASSIGN(vk_instance, createInstance(desc));
 #endif
+
+	VK_CHECK_ASSIGN(vulkanApiVersion, vk::enumerateInstanceVersion());
 }
 
 static vk::Format get_depth_format(vk::PhysicalDevice physical_device)
@@ -1233,7 +1239,9 @@ static bool vk_create_device(vk::PhysicalDevice physical_device, int device_inde
 		bool swapchainSupported = false;
 		bool dedicatedAllocation = false;
 		bool memoryRequirements2 = false;
+#ifdef USE_VK_VALIDATION
 		bool debugMarker = false;
+#endif
 		uint32_t i, len;
 
 		std::vector<vk::ExtensionProperties> extension_properties;
@@ -1247,24 +1255,7 @@ static bool vk_create_device(vk::PhysicalDevice physical_device, int device_inde
 		for (i = 0; i < extension_properties.size(); i++)
 		{
 			auto ext = std::string_view(extension_properties[i].extensionName);
-			if (ext == vk::KHRSwapchainExtensionName)
-			{
-				swapchainSupported = true;
-			}
-			else if (ext == vk::KHRDedicatedAllocationExtensionName)
-			{
-				dedicatedAllocation = true;
-			}
-			else if (ext == vk::KHRGetMemoryRequirements2ExtensionName)
-			{
-				memoryRequirements2 = true;
-				device_extension_list.push_back(vk::KHRDedicatedAllocationExtensionName);
-				device_extension_list.push_back(vk::KHRGetMemoryRequirements2ExtensionName);
-			}
-			else if (ext == vk::EXTDebugMarkerExtensionName)
-			{
-				debugMarker = true;
-			}
+
 			// add this device extension to glConfig
 			if (i != 0)
 			{
@@ -1276,9 +1267,35 @@ static bool vk_create_device(vk::PhysicalDevice physical_device, int device_inde
 			if (str + len >= end)
 				continue;
 			str = Q_stradd(str, ext.data());
-		}
 
-		// ri.Free(extension_properties);
+			if (vk::apiVersionMajor(vulkanApiVersion) == 1 && vk::apiVersionMinor(vulkanApiVersion) == 0)
+			{
+				if (ext == vk::KHRDedicatedAllocationExtensionName)
+				{
+					dedicatedAllocation = true;
+					continue;
+				}
+				else if (ext == vk::KHRGetMemoryRequirements2ExtensionName)
+				{
+					memoryRequirements2 = true;
+
+					device_extension_list.push_back(vk::KHRDedicatedAllocationExtensionName);
+					device_extension_list.push_back(vk::KHRGetMemoryRequirements2ExtensionName);
+					continue;
+				}
+			}
+
+			if (ext == vk::KHRSwapchainExtensionName)
+			{
+				swapchainSupported = true;
+			}
+#ifdef USE_VK_VALIDATION
+			else if (ext == vk::EXTDebugUtilsExtensionName)
+			{
+				debugMarker = true;
+			}
+#endif
+		}
 
 		if (!swapchainSupported)
 		{
@@ -1297,11 +1314,13 @@ static bool vk_create_device(vk::PhysicalDevice physical_device, int device_inde
 
 		device_extension_list.push_back(vk::KHRSwapchainExtensionName);
 
+#ifdef USE_VK_VALIDATION
 		if (debugMarker)
 		{
-			device_extension_list.push_back(vk::EXTDebugMarkerExtensionName);
+			device_extension_list.push_back(vk::EXTDebugUtilsExtensionName);
 			vk_inst.debugMarkers = true;
 		}
+#endif
 
 		vk::PhysicalDeviceFeatures device_features;
 		device_features = physical_device.getFeatures();
@@ -4353,7 +4372,7 @@ void vk_destroy_image_resources(vk::Image &image, vk::ImageView &imageView)
 	}
 }
 
-static void set_shader_stage_desc(vk::PipelineShaderStageCreateInfo &desc, vk::ShaderStageFlagBits stage, vk::ShaderModule shader_module, const char *entry)
+static void set_shader_stage_desc(vk::PipelineShaderStageCreateInfo &desc, vk::ShaderStageFlagBits stage, const vk::ShaderModule &shader_module, const char *entry)
 {
 	desc.pNext = nullptr;
 	desc.flags = {};
@@ -4395,7 +4414,7 @@ static const std::unordered_map<vk::Format, ColorDepth> formatColorDepthMap = {
 	{vk::Format::eB5G5R5A1UnormPack16, {31, 31, 31}},
 };
 
-static bool vk_surface_format_color_depth(vk::Format format, int *r, int *g, int *b)
+static bool vk_surface_format_color_depth(const vk::Format &format, int *r, int *g, int *b)
 {
 	// Use the map to find the corresponding color depth
 	auto it = formatColorDepthMap.find(format);
@@ -4679,22 +4698,26 @@ void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bo
 	set_shader_stage_desc(shader_stages[0], vk::ShaderStageFlagBits::eVertex, vk_inst.modules.gamma_vs, "main");
 	set_shader_stage_desc(shader_stages[1], vk::ShaderStageFlagBits::eFragment, vk_inst.modules.blur_fs, "main");
 
-	struct frag_spec_data_t
+	std::array<float, 3> frag_spec_data{{1.2f / (float)width, 1.2f / (float)height, 1.0}}; // x-offset, y-offset, correction
+
+	if (horizontal_pass)
 	{
-		float is_vertical;
-		float width;
-		float height;
-	} frag_spec_data{horizontal_pass ? 0.0f : 1.0f, static_cast<float>(width), static_cast<float>(height)};
+		frag_spec_data[1] = 0.0;
+	}
+	else
+	{
+		frag_spec_data[0] = 0.0;
+	}
 
 	std::array<vk::SpecializationMapEntry, 3> spec_entries = {{
-		{0, offsetof(frag_spec_data_t, is_vertical), sizeof(frag_spec_data.is_vertical)},
-		{1, offsetof(frag_spec_data_t, width), sizeof(frag_spec_data.width)},
-		{2, offsetof(frag_spec_data_t, height), sizeof(frag_spec_data.height)},
+		{0, 0 * sizeof(frag_spec_data[0]), sizeof(frag_spec_data[0])},
+		{1, 1 * sizeof(frag_spec_data[1]), sizeof(frag_spec_data[1])},
+		{2, 2 * sizeof(frag_spec_data[2]), sizeof(frag_spec_data[2])},
 	}};
 
 	vk::SpecializationInfo frag_spec_info{
 		static_cast<uint32_t>(spec_entries.size()), spec_entries.data(), sizeof(frag_spec_data),
-		&frag_spec_data.is_vertical};
+		&frag_spec_data[0]};
 
 	shader_stages[1].pSpecializationInfo = &frag_spec_info;
 
@@ -6026,7 +6049,7 @@ static void get_mvp_transform(float *mvp)
 	}
 }
 
-void vk_clear_color(const vec4_t color)
+void vk_clear_color(const vec4_t &color)
 {
 
 	vk::ClearRect clear_rect[2]{};
@@ -6161,7 +6184,7 @@ uint32_t vk_tess_index(uint32_t numIndexes, const void *src)
 	}
 }
 
-void vk_bind_index_buffer(vk::Buffer buffer, uint32_t offset)
+void vk_bind_index_buffer(const vk::Buffer &buffer, uint32_t offset)
 {
 	if (vk_inst.cmd->curr_index_buffer != buffer || vk_inst.cmd->curr_index_offset != offset)
 		vk_inst.cmd->command_buffer.bindIndexBuffer(buffer, offset, vk::IndexType::eUint32);
@@ -6353,7 +6376,7 @@ void vk_reset_descriptor(int index)
 	vk_inst.cmd->descriptor_set.current[index] = VK_NULL_HANDLE;
 }
 
-void vk_update_descriptor(int index, vk::DescriptorSet descriptor)
+void vk_update_descriptor(int index, const vk::DescriptorSet &descriptor)
 {
 	if (vk_inst.cmd->descriptor_set.current[index] != descriptor)
 	{

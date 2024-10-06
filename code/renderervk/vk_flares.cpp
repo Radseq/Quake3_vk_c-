@@ -115,18 +115,18 @@ void R_ClearFlares(void)
 
 static flare_t *R_SearchFlare(void *surface)
 {
-	flare_t *f;
+	flare_t *flare;
 
 	// see if a flare with a matching surface, scene, and view exists
-	for (f = r_activeFlares; f; f = f->next)
+	for (flare = r_activeFlares; flare; flare = flare->next)
 	{
-		if (f->surface == surface && f->frameSceneNum == backEnd.viewParms.frameSceneNum && f->portalView == backEnd.viewParms.portalView)
+		if (flare->surface == surface && flare->frameSceneNum == backEnd.viewParms.frameSceneNum && flare->portalView == backEnd.viewParms.portalView)
 		{
-			return f;
+			return flare;
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 /*
@@ -139,7 +139,7 @@ This is called at surface tesselation time
 void RB_AddFlare(void *surface, int fogNum, const vec3_t &point, const vec3_t &color, const vec3_t &normal)
 {
 	int i;
-	flare_t *f;
+	flare_t *flare;
 	vec3_t local;
 	float d = 1;
 	vec4_t eye, clip, normalized, window;
@@ -178,53 +178,53 @@ void RB_AddFlare(void *surface, int fogNum, const vec3_t &point, const vec3_t &c
 		return; // shouldn't happen, since we check the clip[] above, except for FP rounding
 	}
 
-	f = R_SearchFlare(surface);
+	flare = R_SearchFlare(surface);
 
 	// allocate a new one
-	if (!f)
+	if (!flare)
 	{
 		if (!r_inactiveFlares)
 		{
 			// the list is completely full
 			return;
 		}
-		f = r_inactiveFlares;
+		flare = r_inactiveFlares;
 		r_inactiveFlares = r_inactiveFlares->next;
-		f->next = r_activeFlares;
-		r_activeFlares = f;
+		flare->next = r_activeFlares;
+		r_activeFlares = flare;
 
-		f->surface = surface;
-		f->frameSceneNum = backEnd.viewParms.frameSceneNum;
-		f->portalView = backEnd.viewParms.portalView;
-		f->visible = false;
-		f->fadeTime = backEnd.refdef.time - 2000;
-		f->testCount = 0;
+		flare->surface = surface;
+		flare->frameSceneNum = backEnd.viewParms.frameSceneNum;
+		flare->portalView = backEnd.viewParms.portalView;
+		flare->visible = false;
+		flare->fadeTime = backEnd.refdef.time - 2000;
+		flare->testCount = 0;
 	}
 	else
 	{
-		++f->testCount;
+		++flare->testCount;
 	}
 
-	f->addedFrame = backEnd.viewParms.frameCount;
-	f->fogNum = fogNum;
+	flare->addedFrame = backEnd.viewParms.frameCount;
+	flare->fogNum = fogNum;
 
-	VectorCopy(point, f->origin);
-	VectorCopy(color, f->color);
+	VectorCopy(point, flare->origin);
+	VectorCopy(color, flare->color);
 
 	// fade the intensity of the flare down as the
 	// light surface turns away from the viewer
-	VectorScale(f->color, d, f->color);
+	VectorScale(flare->color, d, flare->color);
 
 	// save info needed to test
-	f->windowX = backEnd.viewParms.viewportX + window[0];
-	f->windowY = backEnd.viewParms.viewportY + window[1];
+	flare->windowX = backEnd.viewParms.viewportX + window[0];
+	flare->windowY = backEnd.viewParms.viewportY + window[1];
 
-	f->eyeZ = eye[2];
+	flare->eyeZ = eye[2];
 
 #ifdef USE_REVERSED_DEPTH
-	f->drawZ = (clip[2] + 0.20) / clip[3];
+	flare->drawZ = (clip[2] + 0.20) / clip[3];
 #else
-	f->drawZ = (clip[2] - 0.20) / clip[3];
+	flare->drawZ = (clip[2] - 0.20) / clip[3];
 #endif
 }
 

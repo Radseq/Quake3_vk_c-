@@ -43,10 +43,10 @@ static shaderStage_t stages[MAX_SHADER_STAGES];
 static shader_t shader;
 static texModInfo_t texMods[MAX_SHADER_STAGES][TR_MAX_TEXMODS + 1]; // reserve one additional texmod for lightmap atlas correction
 
-#define FILE_HASH_SIZE 1024
+constexpr int FILE_HASH_SIZE = 1024;
 static shader_t *shaderHashTable[FILE_HASH_SIZE];
 
-#define MAX_SHADERTEXT_HASH 2048
+constexpr int MAX_SHADERTEXT_HASH = 2048;
 static const char **shaderTextHashTable[MAX_SHADERTEXT_HASH];
 
 #define generateHashValue Com_GenerateHashValue
@@ -4395,7 +4395,7 @@ void R_ShaderList_f(void)
 	ri.Printf(PRINT_ALL, "------------------\n");
 }
 
-#define MAX_SHADER_FILES 16384
+constexpr int MAX_SHADER_FILES = 16384;
 
 static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char **buffers)
 {

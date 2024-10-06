@@ -566,7 +566,7 @@ void R_BuildWorldVBO(msurface_t &surf, int surfCount)
 		if (grid->surfaceType == SF_GRID && isStaticShader(*sf.shader))
 		{
 			grid->vboItemIndex = ++numStaticSurfaces;
-			RB_SurfaceGridEstimate(grid, &grid->vboExpectVertices, &grid->vboExpectIndices);
+			RB_SurfaceGridEstimate(*grid, &grid->vboExpectVertices, &grid->vboExpectIndices);
 			numStaticVertexes += grid->vboExpectVertices;
 			numStaticIndexes += grid->vboExpectIndices;
 

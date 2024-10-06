@@ -886,7 +886,7 @@ static const void *RB_DrawBuffer(const void *data)
 
 	if (r_clear->integer)
 	{
-		const vec4_t color = {1, 0, 0.5, 1};
+		constexpr vec4_t color = {1, 0, 0.5, 1};
 		backEnd.projection2D = true; // to ensure we have viewport that occupies entire window
 		vk_clear_color(color);
 		backEnd.projection2D = false;
@@ -909,7 +909,7 @@ void RB_ShowImages(void)
 {
 	int i;
 
-	vec4_t colorBlack = {0, 0, 0, 1};
+	constexpr vec4_t colorBlack = {0, 0, 0, 1};
 
 	if (!backEnd.projection2D)
 	{

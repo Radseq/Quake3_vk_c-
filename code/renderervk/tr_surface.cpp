@@ -1027,7 +1027,7 @@ static float LodErrorForVolume(vec3_t local, float radius)
 	return r_lodCurveError->value / d;
 }
 
-void RB_SurfaceGridEstimate(srfGridMesh_t *cv, int *numVertexes, int *numIndexes)
+void RB_SurfaceGridEstimate(srfGridMesh_t &cv, int *numVertexes, int *numIndexes)
 {
 	int lodWidth, lodHeight;
 	float lodError;
@@ -1039,9 +1039,9 @@ void RB_SurfaceGridEstimate(srfGridMesh_t *cv, int *numVertexes, int *numIndexes
 	lodError = r_lodCurveError->value; // fixed quality for VBO
 
 	lodWidth = 1;
-	for (i = 1; i < cv->width - 1; i++)
+	for (i = 1; i < cv.width - 1; i++)
 	{
-		if (cv->widthLodError[i] <= lodError)
+		if (cv.widthLodError[i] <= lodError)
 		{
 			lodWidth++;
 		}
@@ -1049,9 +1049,9 @@ void RB_SurfaceGridEstimate(srfGridMesh_t *cv, int *numVertexes, int *numIndexes
 	lodWidth++;
 
 	lodHeight = 1;
-	for (i = 1; i < cv->height - 1; i++)
+	for (i = 1; i < cv.height - 1; i++)
 	{
-		if (cv->heightLodError[i] <= lodError)
+		if (cv.heightLodError[i] <= lodError)
 		{
 			lodHeight++;
 		}

@@ -36,7 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define LL(x) x = LittleLong(x)
 
-static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, std::string_view name);
+static bool R_LoadMD3(model_t &mod, int lod, void *buffer, std::size_t fileSize, std::string_view name);
 static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, std::string_view name);
 
 /*
@@ -55,7 +55,7 @@ static qhandle_t R_RegisterMD3(std::string_view name, model_t &mod)
 	uint32_t ident;
 	bool loaded = false;
 	int numLoaded;
-	int fileSize;
+	std::size_t fileSize;
 	char filename[MAX_QPATH], namebuf[MAX_QPATH + 20];
 	char *fext, defex[] = "md3";
 
@@ -79,11 +79,11 @@ static qhandle_t R_RegisterMD3(std::string_view name, model_t &mod)
 		else
 			Com_sprintf(namebuf, sizeof(namebuf), "%s.%s", filename, fext);
 
-		fileSize = ri.FS_ReadFile(namebuf, &buf.v);
+		fileSize = static_cast<std::size_t>(ri.FS_ReadFile(namebuf, &buf.v));
 		if (!buf.v)
 			continue;
 
-		if (static_cast<std::size_t>(fileSize) < sizeof(md3Header_t))
+		if (fileSize < sizeof(md3Header_t))
 		{
 			ri.Printf(PRINT_WARNING, "%s: truncated header for %s\n", __func__, name.data());
 			ri.FS_FreeFile(buf.v);
@@ -401,7 +401,7 @@ qhandle_t RE_RegisterModel(const char *name)
 R_LoadMD3
 =================
 */
-static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, std::string_view mod_name)
+static bool R_LoadMD3(model_t &mod, int lod, void *buffer, std::size_t fileSize, std::string_view mod_name)
 {
 	int i, j;
 	md3Header_t *pinmodel, *hdr;
@@ -413,7 +413,7 @@ static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, std::st
 	md3XyzNormal_t *xyz;
 	md3Tag_t *tag;
 	int version;
-	int size;
+	uint32_t size;
 
 	pinmodel = (md3Header_t *)buffer;
 
@@ -426,7 +426,7 @@ static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, std::st
 
 	size = LittleLong(pinmodel->ofsEnd);
 
-	if (size > fileSize)
+	if (static_cast<std::size_t>(size) > fileSize)
 	{
 		ri.Printf(PRINT_WARNING, "%s: %s has corrupted header\n", __func__, mod_name.data());
 		return false;
@@ -529,7 +529,7 @@ static bool R_LoadMD3(model_t &mod, int lod, void *buffer, int fileSize, std::st
 		LL(surf->ofsXyzNormals);
 		LL(surf->ofsEnd);
 
-		if (surf->ofsEnd > fileSize || (((byte *)surf - (byte *)hdr) + surf->ofsEnd) > fileSize)
+		if (static_cast<std::size_t>(surf->ofsEnd > fileSize || (((byte *)surf - (byte *)hdr) + surf->ofsEnd)) > fileSize)
 		{
 			ri.Printf(PRINT_WARNING, "%s: %s has corrupted surface header\n", __func__, mod_name.data());
 			return false;
@@ -701,7 +701,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, std::string_view
 
 	// simple bounds check
 	if (pinmodel->numBones < 0 ||
-		sizeof(*mdr) + pinmodel->numFrames * (sizeof(*frame) + (pinmodel->numBones - 1) * sizeof(*frame->bones)) > size)
+		static_cast<int>(sizeof(*mdr) + pinmodel->numFrames * (sizeof(*frame) + (pinmodel->numBones - 1) * sizeof(*frame->bones))) > size)
 	{
 		ri.Printf(PRINT_WARNING, "R_LoadMDR: %s has broken structure.\n", mod_name.data());
 		return false;
@@ -754,7 +754,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, std::string_view
 
 			for (j = 0; j < mdr->numBones; j++)
 			{
-				for (k = 0; k < (sizeof(cframe->bones[j].Comp) / 2); k++)
+				for (k = 0; k < static_cast<int>((sizeof(cframe->bones[j].Comp) / 2)); k++)
 				{
 					// Do swapping for the uncompressing functions. They seem to use shorts
 					// values only, so I assume this will work. Never tested it on other

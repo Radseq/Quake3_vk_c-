@@ -21,10 +21,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef IQM_HPP
 #define IQM_HPP
 
-#define IQM_MAGIC "INTERQUAKEMODEL"
-#define IQM_VERSION 2
+constexpr const char *IQM_MAGIC = "INTERQUAKEMODEL";
+constexpr int IQM_VERSION = 2;
 
-#define IQM_MAX_JOINTS 128
+constexpr int IQM_MAX_JOINTS = 128;
 
 typedef struct iqmheader
 {

@@ -344,7 +344,8 @@ CullPoints
 */
 static bool CullPoints(const std::array<vec4_t, 4> &v)
 {
-	int i, j;
+	int i;
+	std::size_t j;
 	float dist;
 	std::size_t count = v.size();
 

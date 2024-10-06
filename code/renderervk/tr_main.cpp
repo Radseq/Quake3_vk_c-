@@ -288,7 +288,7 @@ void R_TransformModelToClip(const vec3_t src, const float *modelMatrix, const fl
 R_TransformModelToClipMVP
 ==========================
 */
-static void R_TransformModelToClipMVP(const vec3_t src, const float *mvp, vec4_t clip)
+static void R_TransformModelToClipMVP(const vec3_t src, const float *mvp, vec4_t &clip)
 {
 	int i;
 
@@ -307,7 +307,7 @@ static void R_TransformModelToClipMVP(const vec3_t src, const float *mvp, vec4_t
 R_TransformClipToWindow
 ==========================
 */
-void R_TransformClipToWindow(const vec4_t clip, const viewParms_t &view, vec4_t normalized, vec4_t window)
+void R_TransformClipToWindow(const vec4_t &clip, const viewParms_t &view, vec4_t &normalized, vec4_t &window)
 {
 	normalized[0] = clip[0] / clip[3];
 	normalized[1] = clip[1] / clip[3];

@@ -10,11 +10,6 @@
 // #define VULKAN_HPP_HAS_NOEXCEPT
 #endif
 
-extern "C"
-{
-#include "vulkan/vulkan.h"
-}
-
 #include "vulkan/vulkan.hpp"
 
 constexpr int VK_NUM_BLOOM_PASSES = 4;

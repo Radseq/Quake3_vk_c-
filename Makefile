@@ -37,7 +37,7 @@ USE_SYSTEM_VORBIS = 0
 
 USE_VULKAN       = 1
 USE_VULKAN_API   = 1
-USE_RENDERER_DLOPEN = 1
+USE_RENDERER_DLOPEN = 0
 
 # valid options: vulkan
 RENDERER_DEFAULT = vulkan
@@ -536,10 +536,6 @@ else
   LDFLAGS += -lm
   LDFLAGS += -Wl,--gc-sections -fvisibility=hidden
 
-  ifeq ($(USE_VULKAN),1)
-    LDFLAGS += -lvulkan
-  endif
-
   ifeq ($(USE_SDL),1)
     BASE_CFLAGS += $(SDL_INCLUDE)
     CLIENT_LDFLAGS = $(SDL_LIBS)
@@ -669,7 +665,7 @@ default: release
 all: debug release
 
 debug:
-	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS) -lstdc++" V=$(V)
+	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS) -lstdc++ -lvulkan" V=$(V)
 
 release:
 	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" LDFLAGS="-rdynamic -lm -lstdc++ -lvulkan" V=$(V)
