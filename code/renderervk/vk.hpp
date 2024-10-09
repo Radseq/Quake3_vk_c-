@@ -87,7 +87,7 @@ void vk_wait_idle(void);
 //
 void vk_create_image(image_t &image, int width, int height, int mip_levels);
 void vk_upload_image_data(image_t &image, int x, int y, int width, int height, int miplevels, byte *pixels, int size, bool update);
-void vk_update_descriptor_set(image_t &image, bool mipmap);
+void vk_update_descriptor_set(const image_t &image, bool mipmap);
 void vk_destroy_image_resources(vk::Image &image, vk::ImageView &imageView);
 
 uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def &def, bool use);

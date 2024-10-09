@@ -103,8 +103,8 @@ void R_ClearFlares(void)
 		return;
 
 	Com_Memset(r_flareStructs, 0, sizeof(r_flareStructs));
-	r_activeFlares = NULL;
-	r_inactiveFlares = NULL;
+	r_activeFlares = nullptr;
+	r_inactiveFlares = nullptr;
 
 	for (i = 0; i < MAX_FLARES; i++)
 	{
@@ -237,7 +237,7 @@ void RB_AddDlightFlares(void)
 {
 	dlight_t *l;
 	int j, k;
-	fog_t *fog = NULL;
+	fog_t *fog = nullptr;
 
 	if (!r_flares->integer)
 	{

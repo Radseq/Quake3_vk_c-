@@ -26,10 +26,10 @@ static vk::SurfaceKHR vk_surface = VK_NULL_HANDLE;
 constexpr int defaultVulkanApiVersion = VK_API_VERSION_1_0;
 static int vulkanApiVersion = defaultVulkanApiVersion;
 
-constexpr int MIN_SWAPCHAIN_IMAGES_IMM = 3;
-constexpr int MIN_SWAPCHAIN_IMAGES_FIFO = 3;
-constexpr int MIN_SWAPCHAIN_IMAGES_FIFO_0 = 4;
-constexpr int MIN_SWAPCHAIN_IMAGES_MAILBOX = 3;
+constexpr int MIN_SWAPCHAIN_IMAGES_IMM = 2;
+constexpr int MIN_SWAPCHAIN_IMAGES_FIFO = 2;
+constexpr int MIN_SWAPCHAIN_IMAGES_FIFO_0 = 3;
+constexpr int MIN_SWAPCHAIN_IMAGES_MAILBOX = 2;
 constexpr int VERTEX_BUFFER_SIZE = (4 * 1024 * 1024);
 constexpr int IMAGE_CHUNK_SIZE = (32 * 1024 * 1024);
 
@@ -154,13 +154,11 @@ static inline uint32_t find_memory_type(uint32_t memory_type_bits, vk::MemoryPro
 	return ~0U;
 }
 
-static uint32_t find_memory_type2(uint32_t memory_type_bits, vk::MemoryPropertyFlags properties, vk::MemoryPropertyFlags *outprops)
+static inline uint32_t find_memory_type2(uint32_t memory_type_bits, vk::MemoryPropertyFlags properties, vk::MemoryPropertyFlags *outprops)
 {
-	uint32_t i;
-
 	const vk::PhysicalDeviceMemoryProperties memory_properties = vk_inst.physical_device.getMemoryProperties();
 
-	for (i = 0; i < memory_properties.memoryTypeCount; i++)
+	for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
 	{
 		if ((memory_type_bits & (1 << i)) != 0 && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties)
 		{
@@ -197,7 +195,7 @@ static vk::CommandBuffer begin_command_buffer(void)
 	return command_buffer;
 }
 
-static void end_command_buffer(vk::CommandBuffer command_buffer)
+static void end_command_buffer(const vk::CommandBuffer &command_buffer)
 {
 	VK_CHECK(command_buffer.end());
 
@@ -223,10 +221,92 @@ static void end_command_buffer(vk::CommandBuffer command_buffer)
 									  &command_buffer);
 }
 
-static void record_image_layout_transition(vk::CommandBuffer command_buffer, vk::Image image, vk::ImageAspectFlags image_aspect_flags, vk::ImageLayout old_layout, vk::ImageLayout new_layout)
+constexpr vk::PipelineStageFlagBits get_src_stage(vk::ImageLayout old_layout)
 {
-	vk::ImageMemoryBarrier barrier{{},
-								   {},
+	switch (old_layout)
+	{
+	case vk::ImageLayout::eUndefined:
+		return vk::PipelineStageFlagBits::eTopOfPipe;
+	case vk::ImageLayout::eTransferDstOptimal:
+		return vk::PipelineStageFlagBits::eTransfer;
+	case vk::ImageLayout::eTransferSrcOptimal:
+		return vk::PipelineStageFlagBits::eTransfer;
+	case vk::ImageLayout::eShaderReadOnlyOptimal:
+		return vk::PipelineStageFlagBits::eFragmentShader;
+	case vk::ImageLayout::ePresentSrcKHR:
+		return vk::PipelineStageFlagBits::eTransfer;
+	default:
+		ri.Error(ERR_DROP, "unsupported old layout %i", (int)old_layout);
+		return vk::PipelineStageFlagBits::eAllCommands;
+	}
+}
+
+constexpr vk::AccessFlags get_src_access_mask(vk::ImageLayout old_layout)
+{
+	switch (old_layout)
+	{
+	case vk::ImageLayout::eUndefined:
+		return vk::AccessFlagBits::eNone;
+	case vk::ImageLayout::eTransferDstOptimal:
+		return vk::AccessFlagBits::eTransferWrite;
+	case vk::ImageLayout::eTransferSrcOptimal:
+		return vk::AccessFlagBits::eTransferRead;
+	case vk::ImageLayout::eShaderReadOnlyOptimal:
+		return vk::AccessFlagBits::eShaderRead;
+	case vk::ImageLayout::ePresentSrcKHR:
+		return vk::AccessFlagBits::eNone;
+	default:
+		return vk::AccessFlagBits::eNone;
+	}
+}
+
+constexpr vk::PipelineStageFlagBits get_dst_stage(vk::ImageLayout new_layout)
+{
+	switch (new_layout)
+	{
+	case vk::ImageLayout::eColorAttachmentOptimal:
+		return vk::PipelineStageFlagBits::eColorAttachmentOutput;
+	case vk::ImageLayout::eDepthStencilAttachmentOptimal:
+		return vk::PipelineStageFlagBits::eEarlyFragmentTests;
+	case vk::ImageLayout::ePresentSrcKHR:
+		return vk::PipelineStageFlagBits::eTransfer;
+	case vk::ImageLayout::eTransferSrcOptimal:
+		return vk::PipelineStageFlagBits::eTransfer;
+	case vk::ImageLayout::eTransferDstOptimal:
+		return vk::PipelineStageFlagBits::eTransfer;
+	case vk::ImageLayout::eShaderReadOnlyOptimal:
+		return vk::PipelineStageFlagBits::eFragmentShader;
+	default:
+		ri.Error(ERR_DROP, "unsupported new layout %i", (int)new_layout);
+		return vk::PipelineStageFlagBits::eAllCommands;
+	}
+}
+
+constexpr vk::AccessFlags get_dst_access_mask(vk::ImageLayout new_layout)
+{
+	switch (new_layout)
+	{
+	case vk::ImageLayout::eColorAttachmentOptimal:
+		return vk::AccessFlagBits::eColorAttachmentWrite;
+	case vk::ImageLayout::eDepthStencilAttachmentOptimal:
+		return vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+	case vk::ImageLayout::ePresentSrcKHR:
+		return vk::AccessFlagBits::eNone;
+	case vk::ImageLayout::eTransferSrcOptimal:
+		return vk::AccessFlagBits::eTransferRead;
+	case vk::ImageLayout::eTransferDstOptimal:
+		return vk::AccessFlagBits::eTransferWrite;
+	case vk::ImageLayout::eShaderReadOnlyOptimal:
+		return vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eInputAttachmentRead;
+	default:
+		return vk::AccessFlagBits::eNone;
+	}
+}
+
+static void record_image_layout_transition(const vk::CommandBuffer &command_buffer, const vk::Image &image, vk::ImageAspectFlags image_aspect_flags, vk::ImageLayout old_layout, vk::ImageLayout new_layout)
+{
+	vk::ImageMemoryBarrier barrier{get_src_access_mask(old_layout),
+								   get_dst_access_mask(new_layout),
 								   old_layout,
 								   new_layout,
 								   vk::QueueFamilyIgnored,
@@ -239,72 +319,8 @@ static void record_image_layout_transition(vk::CommandBuffer command_buffer, vk:
 									vk::RemainingArrayLayers},
 								   nullptr};
 
-	vk::PipelineStageFlagBits src_stage, dst_stage;
-
-	switch (old_layout)
-	{
-	case vk::ImageLayout::eUndefined:
-		src_stage = vk::PipelineStageFlagBits::eTopOfPipe;
-		barrier.srcAccessMask = vk::AccessFlagBits::eNone;
-		break;
-	case vk::ImageLayout::eTransferDstOptimal:
-		src_stage = vk::PipelineStageFlagBits::eTransfer;
-		barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-		break;
-	case vk::ImageLayout::eTransferSrcOptimal:
-		src_stage = vk::PipelineStageFlagBits::eTransfer;
-		barrier.srcAccessMask = vk::AccessFlagBits::eTransferRead;
-		break;
-	case vk::ImageLayout::eShaderReadOnlyOptimal:
-		src_stage = vk::PipelineStageFlagBits::eFragmentShader;
-		barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
-		break;
-	case vk::ImageLayout::ePresentSrcKHR:
-		src_stage = vk::PipelineStageFlagBits::eTransfer;
-		barrier.srcAccessMask = vk::AccessFlagBits::eNone;
-		break;
-	default:
-		ri.Error(ERR_DROP, "unsupported old layout %i", (int)old_layout);
-		src_stage = vk::PipelineStageFlagBits::eAllCommands;
-		barrier.srcAccessMask = vk::AccessFlagBits::eNone;
-		break;
-	}
-
-	switch (new_layout)
-	{
-	case vk::ImageLayout::eColorAttachmentOptimal:
-		dst_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-		barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-		break;
-	case vk::ImageLayout::eDepthStencilAttachmentOptimal:
-		dst_stage = vk::PipelineStageFlagBits::eEarlyFragmentTests;
-		barrier.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-		break;
-	case vk::ImageLayout::ePresentSrcKHR:
-		dst_stage = vk::PipelineStageFlagBits::eTransfer;
-		barrier.dstAccessMask = vk::AccessFlagBits::eNone;
-		break;
-	case vk::ImageLayout::eTransferSrcOptimal:
-		dst_stage = vk::PipelineStageFlagBits::eTransfer;
-		barrier.dstAccessMask = vk::AccessFlagBits::eTransferRead;
-		break;
-	case vk::ImageLayout::eTransferDstOptimal:
-		dst_stage = vk::PipelineStageFlagBits::eTransfer;
-		barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
-		break;
-	case vk::ImageLayout::eShaderReadOnlyOptimal:
-		dst_stage = vk::PipelineStageFlagBits::eFragmentShader;
-		barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eInputAttachmentRead;
-		break;
-	default:
-		ri.Error(ERR_DROP, "unsupported new layout %i", (int)new_layout);
-		dst_stage = vk::PipelineStageFlagBits::eAllCommands;
-		barrier.dstAccessMask = vk::AccessFlagBits::eNone;
-		break;
-	}
-
-	command_buffer.pipelineBarrier(src_stage,
-								   dst_stage,
+	command_buffer.pipelineBarrier(get_src_stage(old_layout),
+								   get_dst_stage(new_layout),
 								   {},
 								   0,
 								   nullptr,
@@ -333,7 +349,7 @@ static void vk_set_object_name(uint64_t obj, const char *objName, VkDebugReportO
 }
 #endif
 
-static void vk_create_swapchain(vk::PhysicalDevice physical_device, vk::Device device, vk::SurfaceKHR surface, vk::SurfaceFormatKHR surface_format, vk::SwapchainKHR *swapchain)
+static void vk_create_swapchain(const vk::PhysicalDevice &physical_device, const vk::Device &device, const vk::SurfaceKHR &surface, const vk::SurfaceFormatKHR &surface_format, vk::SwapchainKHR *swapchain)
 {
 
 	vk::SurfaceCapabilitiesKHR surface_caps;
@@ -716,11 +732,10 @@ static void vk_create_render_passes(void)
 #endif
 }
 
-static void allocate_and_bind_image_memory(vk::Image image)
+static void allocate_and_bind_image_memory(const vk::Image &image)
 {
-
 	vk::DeviceSize alignment;
-	ImageChunk *chunk;
+	ImageChunk *chunk = nullptr;
 	int i;
 
 	vk::MemoryRequirements memory_requirements;
@@ -730,8 +745,6 @@ static void allocate_and_bind_image_memory(vk::Image image)
 		ri.Error(ERR_FATAL, "Vulkan: could not allocate memory, image is too large (%ikbytes).",
 				 (int)(memory_requirements.size / 1024));
 	}
-
-	chunk = nullptr;
 
 	// Try to find an existing chunk of sufficient capacity.
 	alignment = memory_requirements.alignment;
@@ -776,7 +789,7 @@ static void allocate_and_bind_image_memory(vk::Image image)
 	VK_CHECK(vk_inst.device.bindImageMemory(image, chunk->memory, chunk->used - memory_requirements.size));
 }
 
-static void ensure_staging_buffer_allocation(vk::DeviceSize size)
+static void ensure_staging_buffer_allocation(const vk::DeviceSize size)
 {
 	void *data;
 
@@ -946,7 +959,7 @@ static void create_instance(void)
 	VK_CHECK_ASSIGN(vulkanApiVersion, vk::enumerateInstanceVersion());
 }
 
-static vk::Format get_depth_format(vk::PhysicalDevice physical_device)
+static vk::Format get_depth_format(const vk::PhysicalDevice &physical_device)
 {
 	vk::FormatProperties props;
 	std::array<vk::Format, 2> formats;
@@ -979,7 +992,7 @@ static vk::Format get_depth_format(vk::PhysicalDevice physical_device)
 }
 
 // Check if we can use vkCmdBlitImage for the given source and destination image formats.
-static bool vk_blit_enabled(vk::PhysicalDevice physical_device, const vk::Format srcFormat, const vk::Format dstFormat)
+static bool vk_blit_enabled(const vk::PhysicalDevice &physical_device, const vk::Format srcFormat, const vk::Format dstFormat)
 {
 	vk::FormatProperties formatProps;
 
@@ -1058,7 +1071,7 @@ static void get_present_format(int present_bits, vk::Format &bgr, vk::Format &rg
 	}
 }
 
-static bool vk_select_surface_format(vk::PhysicalDevice physical_device, vk::SurfaceKHR surface)
+static bool vk_select_surface_format(const vk::PhysicalDevice &physical_device, const vk::SurfaceKHR &surface)
 {
 	vk::Format base_bgr, base_rgb;
 	vk::Format ext_bgr, ext_rgb;
@@ -1134,7 +1147,7 @@ static bool vk_select_surface_format(vk::PhysicalDevice physical_device, vk::Sur
 	return true;
 }
 
-static void setup_surface_formats(vk::PhysicalDevice physical_device)
+static void setup_surface_formats(const vk::PhysicalDevice &physical_device)
 {
 	vk_inst.depth_format = get_depth_format(physical_device);
 
@@ -1185,7 +1198,7 @@ static const char *renderer_name(const vk::PhysicalDeviceProperties &props)
 	return buf;
 }
 
-static bool vk_create_device(vk::PhysicalDevice physical_device, int device_index)
+static bool vk_create_device(const vk::PhysicalDevice &physical_device, int device_index)
 {
 
 	ri.Printf(PRINT_ALL, "...selected physical device: %i\n", device_index);
@@ -1876,7 +1889,7 @@ static void vk_release_geometry_buffers(void)
 	vk_inst.geometry_buffer_memory = VK_NULL_HANDLE;
 }
 
-static void vk_create_geometry_buffers(vk::DeviceSize size)
+static void vk_create_geometry_buffers(const vk::DeviceSize size)
 {
 	vk::MemoryRequirements vb_memory_requirements{};
 	uint32_t memory_type_bits;
@@ -1932,7 +1945,7 @@ static void vk_create_geometry_buffers(vk::DeviceSize size)
 	vk_inst.stats = {};
 }
 
-static void vk_create_storage_buffer(uint32_t size)
+static void vk_create_storage_buffer(const uint32_t size)
 {
 	vk::BufferCreateInfo bufferCreateInfo{
 		{},
@@ -1988,7 +2001,7 @@ void vk_release_vbo(void)
 	vk_inst.vbo.buffer_memory = VK_NULL_HANDLE;
 }
 
-bool vk_alloc_vbo(const byte *vbo_data, uint32_t vbo_size)
+bool vk_alloc_vbo(const byte *vbo_data, const uint32_t vbo_size)
 {
 	vk::MemoryRequirements vb_mem_reqs;
 	vk::DeviceSize vertex_buffer_offset;
@@ -3298,7 +3311,7 @@ void vk_initialize(void)
 	if (/*vk_inst.fboActive &&*/ vk_inst.msaaActive)
 	{
 		vk::SampleCountFlags mask = vkMaxSamples;
-		vkSamples = convertToVkSampleCountFlagBits(MAX(log2pad_plus(r_ext_multisample->integer, 1), sampleCountFlagsToInt(vk::SampleCountFlagBits::e2)));
+		vkSamples = convertToVkSampleCountFlagBits(MAX(static_cast<int>(log2pad_plus(r_ext_multisample->integer, 1)), sampleCountFlagsToInt(vk::SampleCountFlagBits::e2)));
 		while (vkSamples > mask)
 		{
 			int shiftAmount = 1;
@@ -4072,7 +4085,7 @@ void vk_release_resources(void)
 	vk_inst.stats = {};
 }
 
-static void record_buffer_memory_barrier(vk::CommandBuffer cb, vk::Buffer buffer,
+static void record_buffer_memory_barrier(const vk::CommandBuffer &cb, const vk::Buffer &buffer,
 										 vk::DeviceSize size, vk::PipelineStageFlags src_stages,
 										 vk::PipelineStageFlags dst_stages, vk::AccessFlags src_access,
 										 vk::AccessFlags dst_access)
@@ -4321,7 +4334,7 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 	}
 }
 
-void vk_update_descriptor_set(image_t &image, bool mipmap)
+void vk_update_descriptor_set(const image_t &image, bool mipmap)
 {
 	Vk_Sampler_Def sampler_def = {};
 
@@ -4414,7 +4427,7 @@ static const std::unordered_map<vk::Format, ColorDepth> formatColorDepthMap = {
 	{vk::Format::eB5G5R5A1UnormPack16, {31, 31, 31}},
 };
 
-static bool vk_surface_format_color_depth(const vk::Format &format, int *r, int *g, int *b)
+static bool vk_surface_format_color_depth(const vk::Format format, int *r, int *g, int *b)
 {
 	// Use the map to find the corresponding color depth
 	auto it = formatColorDepthMap.find(format);

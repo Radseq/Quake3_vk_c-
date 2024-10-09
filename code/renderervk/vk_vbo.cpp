@@ -97,7 +97,7 @@ host-visible index buffer which is finally rendered via single draw call.
 
 void VBO_Cleanup(void);
 
-static bool isStaticRGBgen(colorGen_t cgen)
+constexpr static bool isStaticRGBgen(colorGen_t cgen)
 {
 	switch (cgen)
 	{
@@ -119,7 +119,7 @@ static bool isStaticRGBgen(colorGen_t cgen)
 	}
 }
 
-static bool isStaticTCgen(const shaderStage_t &stage, int bundle)
+constexpr static bool isStaticTCgen(const shaderStage_t &stage, int bundle)
 {
 	switch (stage.bundle[bundle].tcGen)
 	{
@@ -142,11 +142,9 @@ static bool isStaticTCgen(const shaderStage_t &stage, int bundle)
 	}
 }
 
-static bool isStaticTCmod(const textureBundle_t &bundle)
+constexpr static bool isStaticTCmod(const textureBundle_t &bundle)
 {
-	int i;
-
-	for (i = 0; i < bundle.numTexMods; i++)
+	for (auto i = 0; i < bundle.numTexMods; i++)
 	{
 		switch (bundle.texMods[i].type)
 		{
@@ -165,7 +163,7 @@ static bool isStaticTCmod(const textureBundle_t &bundle)
 	return true;
 }
 
-static bool isStaticAgen(alphaGen_t agen)
+constexpr static bool isStaticAgen(alphaGen_t agen)
 {
 	switch (agen)
 	{
