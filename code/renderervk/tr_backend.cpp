@@ -204,7 +204,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 	// draw everything
 	oldEntityNum = -1;
 	backEnd.currentEntity = &tr.worldEntity;
-	oldShader = NULL;
+	oldShader = nullptr;
 	oldSort = MAX_UINT;
 #ifdef USE_PMLIGHT
 	oldShaderSort = -1;

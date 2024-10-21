@@ -26,10 +26,8 @@ static vk::SurfaceKHR vk_surface = VK_NULL_HANDLE;
 constexpr int defaultVulkanApiVersion = VK_API_VERSION_1_0;
 static int vulkanApiVersion = defaultVulkanApiVersion;
 
-constexpr int MIN_SWAPCHAIN_IMAGES_IMM = 2;
-constexpr int MIN_SWAPCHAIN_IMAGES_FIFO = 2;
-constexpr int MIN_SWAPCHAIN_IMAGES_FIFO_0 = 3;
-constexpr int MIN_SWAPCHAIN_IMAGES_MAILBOX = 2;
+constexpr int MIN_SWAPCHAIN_IMAGES = 2;
+constexpr int MIN_SWAPCHAIN_IMAGES_FIFO = 3;
 constexpr int VERTEX_BUFFER_SIZE = (4 * 1024 * 1024);
 constexpr int IMAGE_CHUNK_SIZE = (32 * 1024 * 1024);
 
@@ -357,7 +355,6 @@ static void vk_create_swapchain(const vk::PhysicalDevice &physical_device, const
 	uint32_t present_mode_count, i;
 	vk::PresentModeKHR present_mode;
 	// vk::PresentModeKHR *present_modes;
-	uint32_t image_count;
 	bool mailbox_supported = false;
 	bool immediate_supported = false;
 	bool fifo_relaxed_supported = false;
@@ -412,7 +409,28 @@ static void vk_create_swapchain(const vk::PhysicalDevice &physical_device, const
 	}
 	ri.Printf(PRINT_ALL, "\n");
 
-	// ri.Free(present_modes);
+	uint32_t image_count = MAX(MIN_SWAPCHAIN_IMAGES, surface_caps.minImageCount);
+	if (surface_caps.maxImageCount > 0)
+	{
+		image_count = MIN(image_count, surface_caps.maxImageCount);
+	}
+
+	if (immediate_supported)
+	{
+		present_mode = vk::PresentModeKHR::eImmediate;
+	}
+	else if (mailbox_supported)
+	{
+		present_mode = vk::PresentModeKHR::eMailbox;
+	}
+	else if (fifo_relaxed_supported)
+	{
+		present_mode = vk::PresentModeKHR::eFifoRelaxed;
+	}
+	else
+	{
+		present_mode = vk::PresentModeKHR::eFifo;
+	}
 
 	if ((v = ri.Cvar_VariableIntegerValue("r_swapInterval")) != 0)
 	{
@@ -422,44 +440,11 @@ static void vk_create_swapchain(const vk::PhysicalDevice &physical_device, const
 			present_mode = vk::PresentModeKHR::eFifoRelaxed;
 		else
 			present_mode = vk::PresentModeKHR::eFifo;
-		image_count = MAX(MIN_SWAPCHAIN_IMAGES_FIFO, surface_caps.minImageCount);
-	}
-	else
-	{
-		if (immediate_supported)
-		{
-			present_mode = vk::PresentModeKHR::eImmediate;
-			image_count = MAX(MIN_SWAPCHAIN_IMAGES_IMM, surface_caps.minImageCount);
-		}
-		else if (mailbox_supported)
-		{
-			present_mode = vk::PresentModeKHR::eMailbox;
-			image_count = MAX(MIN_SWAPCHAIN_IMAGES_MAILBOX, surface_caps.minImageCount);
-		}
-		else if (fifo_relaxed_supported)
-		{
-			present_mode = vk::PresentModeKHR::eFifoRelaxed;
-			image_count = MAX(MIN_SWAPCHAIN_IMAGES_FIFO, surface_caps.minImageCount);
-		}
-		else
-		{
-			present_mode = vk::PresentModeKHR::eFifo;
-			image_count = MAX(MIN_SWAPCHAIN_IMAGES_FIFO, surface_caps.minImageCount);
-		}
-	}
-
-	if (image_count < 2)
-	{
-		image_count = 2;
 	}
 
 	if (surface_caps.maxImageCount == 0 && present_mode == vk::PresentModeKHR::eFifo)
 	{
-		image_count = MAX(MIN_SWAPCHAIN_IMAGES_FIFO_0, surface_caps.minImageCount);
-	}
-	else if (surface_caps.maxImageCount > 0)
-	{
-		image_count = MIN(MIN(image_count, surface_caps.maxImageCount), MAX_SWAPCHAIN_IMAGES);
+		image_count = MAX(MIN_SWAPCHAIN_IMAGES_FIFO, surface_caps.minImageCount);
 	}
 
 	ri.Printf(PRINT_ALL, "...selected presentation mode: %s, image count: %i\n", vk::to_string(present_mode).data(), image_count);
