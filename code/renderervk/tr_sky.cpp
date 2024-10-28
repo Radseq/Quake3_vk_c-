@@ -697,7 +697,7 @@ static void BuildSkyTexCoords(void)
 void R_InitSkyTexCoords(float heightCloud)
 {
 	int i, s, t;
-	float radiusWorld = 4096;
+	constexpr float radiusWorld = 4096;
 	float p;
 	float sRad, tRad;
 	vec3_t skyVec;

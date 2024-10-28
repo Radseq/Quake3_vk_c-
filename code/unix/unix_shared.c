@@ -493,13 +493,8 @@ void *Sys_LoadLibrary( const char *name )
 	}
 
 	handle = dlopen( name, RTLD_NOW );
-	if (!handle) {
-		fprintf(stderr, "%s\n", dlerror());
-		exit(EXIT_FAILURE);
-	}
 	return handle;
 }
-
 
 /*
 =================
