@@ -12,6 +12,21 @@ To compile with Vulkan backend - clean solution, right click on `quake3e` projec
 
 ---
 
+### windows/msys2
+
+Install the build dependencies:
+
+`MSYS2 MSYS`
+
+* pacman -Syu
+* pacman -S make mingw-w64-x86_64-gcc mingw-w64-i686-gcc
+
+Use `MSYS2 MINGW32` or `MSYS2 MINGW64` depending on your target system, then copy resulting binaries from created `build` directory or use command:
+
+`make install DESTDIR=<path_to_game_files>`
+
+---
+
 ### windows/mingw
 
 All build dependencies (libraries, headers) are bundled-in
@@ -94,6 +109,9 @@ Several Makefile options are available for linux/mingw/macos builds:
 `USE_SDL=0`- use SDL2 backend for video, audio, input subsystems, enabled by default, enforced for macos
 
 `USE_VULKAN=1` - build vulkan modular renderer, enabled by default
+
+
+`USE_RENDERER_DLOPEN=1` - do not link single renderer into client binary, compile all enabled renderers as dynamic libraries and allow to switch them on the fly via `\cl_renderer` cvar, enabled by default
 
 `USE_SYSTEM_JPEG=0` - use current system JPEG library, disabled by default
 

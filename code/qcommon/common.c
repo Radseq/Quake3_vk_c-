@@ -68,7 +68,7 @@ cvar_t	*com_timescale;
 static cvar_t *com_fixedtime;
 cvar_t	*com_journal;
 cvar_t	*com_protocol;
-bool 	com_protocolCompat;
+bool com_protocolCompat;
 #ifndef DEDICATED
 cvar_t	*com_maxfps;
 cvar_t	*com_maxfpsUnfocused;
@@ -110,13 +110,13 @@ static int	lastTime;
 int			com_frameTime;
 static int	com_frameNumber;
 
-bool		com_errorEntered = false;
-bool		com_fullyInitialized = false;
+bool	com_errorEntered = false;
+bool	com_fullyInitialized = false;
 
 // renderer window states
-bool		gw_minimized = false; // this will be always true for dedicated servers
+bool	gw_minimized = false; // this will be always true for dedicated servers
 #ifndef DEDICATED
-bool		gw_active = true;
+bool	gw_active = true;
 #endif
 
 static char com_errorMessage[ MAXPRINTMSG ];
@@ -304,7 +304,7 @@ void NORETURN FORMAT_PRINTF(2, 3) QDECL Com_Error( errorParm_t code, const char 
 
 	com_errorEntered = true;
 
-	Cvar_Set( "com_errorCode", va( "%i", code ) );
+	Cvar_SetIntegerValue( "com_errorCode", code );
 
 	// when we are running automated scripts, make sure we
 	// know if anything failed
@@ -703,12 +703,11 @@ static const char *Com_StringContains( const char *str1, const char *str2, int l
 Com_Filter
 ============
 */
-bool Com_Filter( const char *filter, const char *name )
+int Com_Filter( const char *filter, const char *name )
 {
 	char buf[ MAX_TOKEN_CHARS ];
 	const char *ptr;
-	int i; 
-	bool found = false;
+	int i, found;
 
 	while(*filter) {
 		if (*filter == '*') {
@@ -845,7 +844,7 @@ bool Com_HasPatterns( const char *str )
 Com_FilterPath
 ============
 */
-bool Com_FilterPath( const char *filter, const char *name )
+int Com_FilterPath( const char *filter, const char *name )
 {
 	int i;
 	char new_filter[MAX_QPATH];
@@ -1844,9 +1843,9 @@ typedef struct zone_stats_s {
 
 static void Zone_Stats( const char *name, const memzone_t *z, bool printDetails, zone_stats_t *stats )
 {
-	const memblock_t 	*block;
-	const memzone_t 	*zone;
-	zone_stats_t 		st;
+	const memblock_t *block;
+	const memzone_t *zone;
+	zone_stats_t st;
 
 	memset( &st, 0, sizeof( st ) );
 	zone = z;
@@ -2321,7 +2320,7 @@ Allocate permanent (until the hunk is cleared) memory
 =================
 */
 #ifdef HUNK_DEBUG
-void *Hunk_AllocDebug( int size, ha_pref preference, const char *label, const char *file, int line ) {
+void *Hunk_AllocDebug( int size, ha_pref preference, char *label, char *file, int line ) {
 #else
 void *Hunk_Alloc( int size, ha_pref preference ) {
 #endif
@@ -2831,11 +2830,13 @@ Returns last event time
 */
 int Com_EventLoop( void ) {
 	sysEvent_t	ev;
-	netadr_t	evFrom;
+
+#ifndef DEDICATED
 	byte		bufData[ MAX_MSGLEN_BUF ];
 	msg_t		buf;
 
 	MSG_Init( &buf, bufData, MAX_MSGLEN );
+#endif // !DEDICATED
 
 	while ( 1 ) {
 		ev = Com_GetEvent();
@@ -2844,20 +2845,19 @@ int Com_EventLoop( void ) {
 		if ( ev.evType == SE_NONE ) {
 			// manually send packet events for the loopback channel
 #ifndef DEDICATED
+			netadr_t evFrom;
 			while ( NET_GetLoopPacket( NS_CLIENT, &evFrom, &buf ) ) {
 				CL_PacketEvent( &evFrom, &buf );
 			}
-#endif
 			while ( NET_GetLoopPacket( NS_SERVER, &evFrom, &buf ) ) {
 				// if the server just shut down, flush the events
 				if ( com_sv_running->integer ) {
 					Com_RunAndTimeServerPacket( &evFrom, &buf );
 				}
 			}
-
+#endif // !DEDICATED
 			return ev.evTime;
 		}
-
 
 		switch ( ev.evType ) {
 #ifndef DEDICATED
@@ -2873,7 +2873,7 @@ int Com_EventLoop( void ) {
 		case SE_JOYSTICK_AXIS:
 			CL_JoystickEvent( ev.evValue, ev.evValue2, ev.evTime );
 			break;
-#endif
+#endif // !DEDICATED
 		case SE_CONSOLE:
 			Cbuf_AddText( (char *)ev.evPtr );
 			Cbuf_AddText( "\n" );
@@ -3093,7 +3093,7 @@ bool Com_CDKeyValidate( const char *key, const char *checksum ) {
 	char	ch;
 	byte	sum;
 	char	chs[10];
-	int 	i, len;
+	int i, len;
 
 	len = strlen(key);
 	if( len != CDKEY_LEN ) {
@@ -3746,6 +3746,9 @@ void Com_Init( char *commandLine ) {
 	const char *s;
 	int	qport;
 
+	// get the initial time base
+	Sys_Milliseconds();
+
 	Com_Printf( "%s %s %s\n", SVN_VERSION, PLATFORM_STRING, __DATE__ );
 
 	if ( Q_setjmp( abortframe ) ) {
@@ -4011,7 +4014,8 @@ void Com_Init( char *commandLine ) {
 	// set com_frameTime so that if a map is started on the
 	// command line it will still be able to count on com_frameTime
 	// being random enough for a serverid
-	lastTime = com_frameTime = Com_Milliseconds();
+	// lastTime = com_frameTime = Com_Milliseconds();
+	Com_FrameInit();
 
 	if ( !com_errorEntered )
 		Sys_ShowConsole( com_viewlog->integer, false );
@@ -4024,6 +4028,10 @@ void Com_Init( char *commandLine ) {
 	com_fullyInitialized = true;
 
 	Com_Printf( "--- Common Initialization Complete ---\n" );
+
+	NET_Init();
+
+	Com_Printf( "Working directory: %s\n", Sys_Pwd() );
 }
 
 
@@ -4186,6 +4194,15 @@ static int Com_TimeVal( int minMsec )
 	return timeVal;
 }
 
+/*
+=================
+Com_FrameInit
+=================
+*/
+void Com_FrameInit( void )
+{
+	lastTime = com_frameTime = Com_Milliseconds();
+}
 
 /*
 =================
@@ -4371,9 +4388,7 @@ void Com_Frame( bool noDelay ) {
 		}
 		Com_EventLoop();
 
-		if ( !Cbuf_Wait() ) {
-			Cbuf_Execute();
-		}
+		Cbuf_Execute();
 
 		//
 		// client side
@@ -4390,7 +4405,9 @@ void Com_Frame( bool noDelay ) {
 	}
 #endif
 
-	NET_FlushPacketQueue();
+	NET_FlushPacketQueue( 0 );
+
+	Cbuf_Wait();
 
 	//
 	// report timing information

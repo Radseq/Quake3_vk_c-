@@ -14,7 +14,7 @@
 
 constexpr int VK_NUM_BLOOM_PASSES = 4;
 constexpr int MAX_VK_SAMPLERS = 32;
-constexpr int MAX_IMAGE_CHUNKS = 48;
+constexpr int MAX_IMAGE_CHUNKS = 56;
 constexpr int MAX_SWAPCHAIN_IMAGES = 8;
 constexpr int MAX_ATTACHMENTS_IN_POOL(8 + VK_NUM_BLOOM_PASSES * 2); // depth + msaa + msaa-resolve + depth-resolve + screenmap.msaa + screenmap.resolve + screenmap.depth + bloom_extract + blur pairs
 constexpr int NUM_COMMAND_BUFFERS = 2;                              // number of command buffers / render semaphores / framebuffer sets

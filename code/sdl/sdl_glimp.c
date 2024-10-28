@@ -121,7 +121,7 @@ static int FindNearestDisplay(int *x, int *y, int w, int h)
 	{
 		SDL_DisplayMode mode;
 		int numModes = SDL_GetNumDisplayModes(i);
-		
+
 		SDL_GetDisplayBounds(i, list + i);
 		//Com_Printf("[%i]: x=%i, y=%i, w=%i, h=%i\n", i, list[i].x, list[i].y, list[i].w, list[i].h);
 
@@ -255,7 +255,11 @@ static int GLW_SetMode( int mode, const char *modeFS, bool fullscreen, bool vulk
 
 	if ( fullscreen )
 	{
+#ifdef MACOS_X
+		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+#else
 		flags |= SDL_WINDOW_FULLSCREEN;
+#endif
 	}
 	else if ( r_noborder->integer )
 	{
@@ -331,17 +335,11 @@ static int GLW_SetMode( int mode, const char *modeFS, bool fullscreen, bool vulk
 		{ // reduce depthBits
 			if (testDepthBits == 24)
 				testDepthBits = 16;
-			else if (testDepthBits == 16)
-				testDepthBits = 8;
 		}
 
 		if ((i % 4) == 1)
 		{ // reduce stencilBits
-			if (testStencilBits == 24)
-				testStencilBits = 16;
-			else if (testStencilBits == 16)
-				testStencilBits = 8;
-			else
+			if (testStencilBits == 8)
 				testStencilBits = 0;
 		}
 

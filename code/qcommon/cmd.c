@@ -253,14 +253,13 @@ Cbuf_Execute
 */
 void Cbuf_Execute( void )
 {
-	char line[MAX_CMD_LINE], *text;
-	int i, n, quotes;
-
 	if ( cmd_wait > 0 ) {
 		// delay command buffer execution
-		cmd_wait--;
 		return;
 	}
+
+	char line[MAX_CMD_LINE], *text;
+	int i, n, quotes;
 
 	// This will keep // style comments all on one line by not breaking on
 	// a semicolon.  It will keep /* ... */ style comments all on one line by not
@@ -354,9 +353,11 @@ void Cbuf_Execute( void )
 Cbuf_Wait
 ============
 */
-bool Cbuf_Wait( void )
+void Cbuf_Wait( void )
 {
-	return (cmd_wait > 0) ? true : false;
+	if ( cmd_wait > 0 ) {
+		--cmd_wait;
+	}
 }
 
 

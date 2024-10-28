@@ -1895,7 +1895,10 @@ bool NET_Sleep( int timeout )
 		Sleep( timeout / 1000 );
 		return true;
 #else
-		usleep( timeout );
+		struct timespec req;
+		req.tv_sec = timeout / 1000000;
+		req.tv_nsec = ( timeout % 1000000 ) * 1000;
+		nanosleep( &req, NULL );
 		return true;
 #endif
 	}

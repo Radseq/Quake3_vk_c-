@@ -631,7 +631,7 @@ static void vk_create_render_passes(void)
 		attachments[0].loadOp = vk::AttachmentLoadOp::eLoad;
 		attachments[1].loadOp = vk::AttachmentLoadOp::eLoad;
 		attachments[1].storeOp = vk::AttachmentStoreOp::eDontCare;
-		attachments[1].stencilLoadOp = r_stencilbits->integer ? vk::AttachmentLoadOp::eLoad : vk::AttachmentLoadOp::eDontCare;
+		attachments[1].stencilLoadOp = glConfig.stencilBits ? vk::AttachmentLoadOp::eLoad : vk::AttachmentLoadOp::eDontCare;
 
 		if (vk_inst.msaaActive)
 		{
@@ -949,7 +949,7 @@ static vk::Format get_depth_format(const vk::PhysicalDevice &physical_device)
 	vk::FormatProperties props;
 	std::array<vk::Format, 2> formats;
 
-	if (r_stencilbits->integer > 0)
+	if (glConfig.stencilBits > 0)
 	{
 		formats[0] = glConfig.depthBits == 16 ? vk::Format::eD16UnormS8Uint : vk::Format::eD24UnormS8Uint;
 		formats[1] = vk::Format::eD32SfloatS8Uint;
@@ -1343,10 +1343,10 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, int devi
 			vk_inst.wideLines = true;
 		}
 
-		if (device_features.fragmentStoresAndAtomics)
-		{
+		if ( device_features.fragmentStoresAndAtomics && device_features.vertexPipelineStoresAndAtomics ) {
+			features.vertexPipelineStoresAndAtomics = VK_TRUE;
 			features.fragmentStoresAndAtomics = VK_TRUE;
-			vk_inst.fragmentStores = true;
+			vk_inst.fragmentStores = qtrue;
 		}
 
 		if (r_ext_texture_filter_anisotropic->integer && device_features.samplerAnisotropy)
@@ -2452,6 +2452,7 @@ static void vk_alloc_persistent_pipelines(void)
 	}
 
 	// flare visibility test dot
+	if ( vk_inst.fragmentStores )
 	{
 		def = {};
 		// def.state_bits = GLS_DEFAULT;
@@ -2821,7 +2822,7 @@ static void create_depth_attachment(uint32_t width, uint32_t height, vk::SampleC
 									nullptr};
 
 	image_aspect_flags = vk::ImageAspectFlagBits::eDepth;
-	if (r_stencilbits->integer)
+	if (glConfig.stencilBits)
 		image_aspect_flags |= vk::ImageAspectFlagBits::eStencil;
 
 	// VK_CHECK(qvkCreateImage(vk_inst.device, &create_desc, nullptr, image));
@@ -6095,7 +6096,7 @@ void vk_clear_depth(bool clear_stencil)
 	clear_rect.layerCount = 1;
 
 	vk::ClearAttachment attachment{
-		clear_stencil && r_stencilbits->integer ? vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil
+		clear_stencil && glConfig.stencilBits ? vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil
 												: vk::ImageAspectFlagBits::eDepth,
 		0,
 		{vk::ClearDepthStencilValue{0, 1}}};
