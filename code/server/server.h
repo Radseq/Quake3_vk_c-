@@ -66,7 +66,7 @@ typedef struct snapshotFrame_s {
 typedef struct {
 	serverState_t	state;
 	bool		restarting;			// if true, send configstring changes during SS_LOADING
-	int				pure;
+	int				pure;				// fixed at level spawn
 	int				maxclients;			// fixed at level spawn
 	int				serverId;			// changes each server start
 	int				restartedServerId;	// changes each map restart

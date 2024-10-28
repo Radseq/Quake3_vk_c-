@@ -759,15 +759,16 @@ void SV_SendClientMessages( void )
 	for ( i = 0; i < sv.maxclients; i++ )
 	{
 		c = &svs.clients[ i ];
-		
+
 		if ( c->state == CS_FREE )
 			continue;		// not connected
 
 		//if ( *c->downloadName )
 		//	continue;		// Client is downloading, don't send snapshots
+
 		if ( c->state == CS_CONNECTED )
 			continue;		// Client is downloading, don't send snapshots
-			
+
 		//if ( !c->gamestateAcked )
 		//	continue;		// waiting usercmd/downloading
 
@@ -782,7 +783,7 @@ void SV_SendClientMessages( void )
 			c->rateDelayed = true;
 			continue;		// Drop this snapshot if the packet queue is still full or delta compression will break
 		}
-	
+
 		if ( SV_RateMsec( c ) > 0 )
 		{
 			// Not enough time since last packet passed through the line
