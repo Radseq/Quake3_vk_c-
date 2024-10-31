@@ -213,8 +213,6 @@ int Q_longjmp_c(void *, int);
 
 typedef unsigned char byte;
 
-typedef enum { qfalse = 0, qtrue } qboolean;
-
 #ifndef __cplusplus
    typedef unsigned char bool;
    #define true  1
@@ -1053,7 +1051,7 @@ typedef struct cplane_s {
 // a trace is returned when a box is swept through the world
 typedef struct {
 	bool		allsolid;	// if true, plane is not valid
-	qboolean	startsolid;	// if true, the initial point was in a solid area // !!! cuses game flick when changed to bool
+	int			startsolid;	// if true, the initial point was in a solid area // !!! cuses game flick when changed to bool
 	float		fraction;	// time completed, 1.0 = didn't hit anything
 	vec3_t		endpos;		// final position
 	cplane_t	plane;		// surface normal at impact, transformed to world space

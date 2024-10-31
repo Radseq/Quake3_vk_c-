@@ -1346,7 +1346,7 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, int devi
 		if ( device_features.fragmentStoresAndAtomics && device_features.vertexPipelineStoresAndAtomics ) {
 			features.vertexPipelineStoresAndAtomics = VK_TRUE;
 			features.fragmentStoresAndAtomics = VK_TRUE;
-			vk_inst.fragmentStores = qtrue;
+			vk_inst.fragmentStores = true;
 		}
 
 		if (r_ext_texture_filter_anisotropic->integer && device_features.samplerAnisotropy)
