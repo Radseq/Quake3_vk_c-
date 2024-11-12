@@ -28,12 +28,12 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{157AD8A8-E8BD-41C1-9139-F4687A8E3668}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141_xp</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -43,22 +43,22 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -102,11 +102,14 @@
     <OutDir>.\output\</OutDir>
     <IntDir>.\build\$(ProjectName)_$(Configuration)_$(PlatformTarget)\</IntDir>
     <TargetName>renderer</TargetName>
+    <IncludePath>D:\Programming\vulkanSDK\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>.\output\</OutDir>
     <IntDir>.\build\$(ProjectName)_$(Configuration)_$(PlatformTarget)\</IntDir>
     <TargetName>renderer</TargetName>
+    <IncludePath>D:\Programming\vulkanSDK\Include;D:\Programming\vulkanSDK\Include\vulkan;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <OutDir>.\output\</OutDir>
@@ -122,6 +125,7 @@
       <FloatingPointExceptions>true</FloatingPointExceptions>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Lib>
       <OutputFile>$(OutDir)$(ConfigurationName)-$(PlatformName)-$(TargetName).lib</OutputFile>
@@ -136,6 +140,7 @@
       <FloatingPointExceptions>true</FloatingPointExceptions>
       <BrowseInformation>true</BrowseInformation>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Lib>
       <OutputFile>$(OutDir)$(ConfigurationName)-$(PlatformName)-$(TargetName).lib</OutputFile>
@@ -210,45 +215,75 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\renderercommon\tr_noise.c" />
-    <ClCompile Include="..\..\renderervk\tr_animation.c" />
-    <ClCompile Include="..\..\renderervk\tr_backend.c" />
-    <ClCompile Include="..\..\renderervk\tr_bsp.c" />
-    <ClCompile Include="..\..\renderervk\tr_cmds.c" />
-    <ClCompile Include="..\..\renderervk\tr_curve.c" />
-    <ClCompile Include="..\..\renderervk\tr_image.c" />
     <ClCompile Include="..\..\renderercommon\tr_font.c" />
     <ClCompile Include="..\..\renderercommon\tr_image_bmp.c" />
     <ClCompile Include="..\..\renderercommon\tr_image_jpg.c" />
     <ClCompile Include="..\..\renderercommon\tr_image_pcx.c" />
     <ClCompile Include="..\..\renderercommon\tr_image_png.c" />
     <ClCompile Include="..\..\renderercommon\tr_image_tga.c" />
-    <ClCompile Include="..\..\renderervk\tr_init.c" />
-    <ClCompile Include="..\..\renderervk\tr_light.c" />
-    <ClCompile Include="..\..\renderervk\tr_main.c" />
-    <ClCompile Include="..\..\renderervk\tr_marks.c" />
-    <ClCompile Include="..\..\renderervk\tr_mesh.c" />
-    <ClCompile Include="..\..\renderervk\tr_model.c" />
-    <ClCompile Include="..\..\renderervk\tr_model_iqm.c" />
-    <ClCompile Include="..\..\renderervk\tr_scene.c" />
-    <ClCompile Include="..\..\renderervk\tr_shade.c" />
-    <ClCompile Include="..\..\renderervk\tr_shader.c" />
-    <ClCompile Include="..\..\renderervk\tr_shade_calc.c" />
-    <ClCompile Include="..\..\renderervk\tr_shadows.c" />
-    <ClCompile Include="..\..\renderervk\tr_sky.c" />
-    <ClCompile Include="..\..\renderervk\tr_surface.c" />
-    <ClCompile Include="..\..\renderervk\tr_world.c" />
-    <ClCompile Include="..\..\renderervk\vk.c" />
-    <ClCompile Include="..\..\renderervk\vk_flares.c" />
-    <ClCompile Include="..\..\renderervk\vk_vbo.c" />
+    <ClCompile Include="..\..\renderercommon\tr_noise.c" />
+    <ClCompile Include="..\..\renderervk\math.cpp" />
+    <ClCompile Include="..\..\renderervk\string_operations.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_animation.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_backend.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_bsp.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_cmds.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_curve.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_image.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_init.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_light.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_main.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_marks.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_mesh.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_model.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_model_iqm.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_scene.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_shade.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_shader.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_shade_calc.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_shadows.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_sky.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_surface.cpp" />
+    <ClCompile Include="..\..\renderervk\tr_world.cpp" />
+    <ClCompile Include="..\..\renderervk\vk.cpp" />
+    <ClCompile Include="..\..\renderervk\vk_flares.cpp" />
+    <ClCompile Include="..\..\renderervk\vk_vbo.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\renderervk\iqm.h" />
-    <ClInclude Include="..\..\renderervk\tr_common.h" />
-    <ClInclude Include="..\..\renderervk\tr_local.h" />
+    <ClInclude Include="..\..\qcommon\tr_types.h" />
     <ClInclude Include="..\..\renderercommon\tr_public.h" />
     <ClInclude Include="..\..\renderercommon\tr_types.h" />
-    <ClInclude Include="..\..\renderervk\vk.h" />
+    <ClInclude Include="..\..\renderervk\definitions.hpp" />
+    <ClInclude Include="..\..\renderervk\iqm.hpp" />
+    <ClInclude Include="..\..\renderervk\math.hpp" />
+    <ClInclude Include="..\..\renderervk\string_operations.hpp" />
+    <ClInclude Include="..\..\renderervk\surfaceflags.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_animation.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_backend.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_bsp.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_cmds.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_common.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_curve.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_image.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_light.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_local.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_main.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_marks.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_mesh.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_model.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_model_iqm.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_scene.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_shade.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_shader.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_shade_calc.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_shadows.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_sky.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_surface.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_world.hpp" />
+    <ClInclude Include="..\..\renderervk\utils.hpp" />
+    <ClInclude Include="..\..\renderervk\vk.hpp" />
+    <ClInclude Include="..\..\renderervk\vk_flares.hpp" />
+    <ClInclude Include="..\..\renderervk\vk_vbo.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

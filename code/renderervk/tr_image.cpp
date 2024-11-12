@@ -159,7 +159,7 @@ void R_SkinList_f()
 void R_GammaCorrect(byte *buffer, int bufSize)
 {
 	int i;
-	if (vk_inst.capture.image != VK_NULL_HANDLE)
+	if (vk_inst.capture.image)
 		return;
 	if (!gls.deviceSupportsGamma)
 		return;
@@ -920,9 +920,9 @@ static void upload_vk_image(image_t *image, byte *pic)
 		image->internalFormat = has_alpha ? VK_FORMAT_B4G4R4A4_UNORM_PACK16 : VK_FORMAT_A1R5G5B5_UNORM_PACK16;
 	}
 
-	image->handle = VK_NULL_HANDLE;
-	image->view = VK_NULL_HANDLE;
-	image->descriptor = VK_NULL_HANDLE;
+	image->handle = nullptr;
+	image->view = nullptr;
+	image->descriptor = nullptr;
 
 	image->uploadWidth = w;
 	image->uploadHeight = h;

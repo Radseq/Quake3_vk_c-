@@ -32,29 +32,33 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define USE_LEGACY_DLIGHTS // vq3 dynamic lights
 #define USE_PMLIGHT		   // promode dynamic lights via \r_dlightMode 1|2
 #define MAX_REAL_DLIGHTS (MAX_DLIGHTS * 2)
-constexpr int MAX_DRAWSURFS = 0x20000;
-constexpr int MAX_LITSURFS = (MAX_DRAWSURFS);
-constexpr int MAX_FLARES = 256;
-
-constexpr int MAX_TEXTURE_SIZE = 2048; // must be less or equal to 32768
 
 // #define USE_TESS_NEEDS_NORMAL
 // #define USE_TESS_NEEDS_ST2
 
 // #include "q_shared.hpp"
 
-extern "C"
-{
+extern "C" {
 #include "../qcommon/q_shared.h"
 #include "../qcommon/qfiles.h"
 #include "../qcommon/qcommon.h"
 #include "../renderercommon/tr_public.h"
 }
 
-// #include "qcommon.hpp"
+
+#include <cstdint>
+using byte = std::uint8_t;
+
 #include "tr_common.hpp"
 #include "iqm.hpp"
 #include "definitions.hpp"
+
+constexpr int MAX_DRAWSURFS = 0x20000;
+constexpr int MAX_LITSURFS = (MAX_DRAWSURFS);
+constexpr int MAX_FLARES = 256;
+
+constexpr int MAX_TEXTURE_SIZE = 2048; // must be less or equal to 32768
+
 
 // GL constants substitutions
 typedef enum

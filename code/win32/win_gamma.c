@@ -22,10 +22,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 /*
 ** WIN_GAMMA.C
 */
-#include "../renderer/tr_local.h"
+//#include "../renderervk/tr_local.hpp"
 #include "../qcommon/qcommon.h"
 #include "glw_win.h"
 #include "win_local.h"
+#include "../qcommon/q_shared.h"
+
 
 static unsigned short s_oldHardwareGamma[3][256];
 

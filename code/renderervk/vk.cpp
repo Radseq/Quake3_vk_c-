@@ -19,9 +19,9 @@
 static vk::SampleCountFlagBits vkSamples = vk::SampleCountFlagBits::e1;
 static vk::SampleCountFlagBits vkMaxSamples = vk::SampleCountFlagBits::e1;
 
-static vk::Instance vk_instance = VK_NULL_HANDLE;
+static vk::Instance vk_instance = nullptr;
 static VkSurfaceKHR vk_surfaceC = VK_NULL_HANDLE;
-static vk::SurfaceKHR vk_surface = VK_NULL_HANDLE;
+static vk::SurfaceKHR vk_surface = nullptr;
 
 constexpr int defaultVulkanApiVersion = VK_API_VERSION_1_0;
 static int vulkanApiVersion = defaultVulkanApiVersion;
@@ -206,7 +206,7 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer)
 							   nullptr,
 							   nullptr};
 
-	VK_CHECK(vk_inst.queue.submit(1, &submit_info, VK_NULL_HANDLE));
+	VK_CHECK(vk_inst.queue.submit(1, &submit_info, nullptr));
 	vk::Fence fence;
 	//= vk_inst.device.createFence(vk::FenceCreateInfo{});
 	VK_CHECK_ASSIGN(fence, vk_inst.device.createFence(vk::FenceCreateInfo{}));
@@ -465,7 +465,7 @@ static void vk_create_swapchain(const vk::PhysicalDevice &physical_device, const
 									vk::CompositeAlphaFlagBitsKHR::eOpaque,
 									present_mode,
 									VK_TRUE,
-									VK_NULL_HANDLE,
+									nullptr,
 									nullptr};
 
 	if (!vk_inst.fboActive)
@@ -781,10 +781,10 @@ static void ensure_staging_buffer_allocation(const vk::DeviceSize size)
 	if (vk_world.staging_buffer_size >= size)
 		return;
 
-	if (vk_world.staging_buffer != VK_NULL_HANDLE)
+	if (vk_world.staging_buffer)
 		vk_inst.device.destroyBuffer(vk_world.staging_buffer);
 
-	if (vk_world.staging_buffer_memory != VK_NULL_HANDLE)
+	if (vk_world.staging_buffer_memory)
 		vk_inst.device.freeMemory(vk_world.staging_buffer_memory);
 
 	vk_world.staging_buffer_size = MAX(size, 1024 * 1024);
@@ -1394,7 +1394,7 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, int devi
 
 static void vk_destroy_instance(void)
 {
-	if (vk_surface != VK_NULL_HANDLE)
+	if (vk_surface)
 	{
 		vk_instance.destroySurfaceKHR(vk_surface);
 
@@ -1412,11 +1412,11 @@ static void vk_destroy_instance(void)
 	}
 #endif
 
-	if (vk_instance != VK_NULL_HANDLE)
+	if (vk_instance)
 	{
 		vk_instance.destroy();
 
-		vk_instance = VK_NULL_HANDLE;
+		vk_instance = nullptr;
 	}
 }
 
@@ -1428,7 +1428,7 @@ static void init_vulkan_library(void)
 
 	vk_inst = {};
 
-	if (vk_instance == VK_NULL_HANDLE)
+	if (!vk_instance)
 	{
 
 		// force cleanup
@@ -1466,7 +1466,7 @@ static void init_vulkan_library(void)
 			return;
 		}
 		vk_surface = vk::SurfaceKHR(vk_surfaceC);
-	} // vk_instance == VK_NULL_HANDLE
+	}
 
 	std::vector<vk::PhysicalDevice> physical_devices;
 	VK_CHECK_ASSIGN(physical_devices, vk_instance.enumeratePhysicalDevices());
@@ -1500,7 +1500,7 @@ static void init_vulkan_library(void)
 	}
 	ri.Printf(PRINT_ALL, ".......................\n");
 
-	vk_inst.physical_device = VK_NULL_HANDLE;
+	vk_inst.physical_device = nullptr;
 	for (i = 0; i < device_count; i++, device_index++)
 	{
 		if (device_index >= static_cast<int>(device_count) || device_index < 0)
@@ -1517,7 +1517,7 @@ static void init_vulkan_library(void)
 
 	// ri.Free(physical_devices);
 
-	if (vk_inst.physical_device == VK_NULL_HANDLE)
+	if (!vk_inst.physical_device)
 	{
 		ri.Error(ERR_FATAL, "Vulkan: unable to find any suitable physical device");
 		return;
@@ -1649,7 +1649,7 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def &def)
 	else
 	{
 		ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_mag_filter");
-		return VK_NULL_HANDLE;
+		return nullptr;
 	}
 
 	maxLod = vk_inst.maxLod;
@@ -1689,7 +1689,7 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def &def)
 	else
 	{
 		ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_min_filter");
-		return VK_NULL_HANDLE;
+		return nullptr;
 	}
 
 	if (def.max_lod_1_0)
@@ -1867,11 +1867,11 @@ static void vk_release_geometry_buffers(void)
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++)
 	{
 		vk_inst.device.destroyBuffer(vk_inst.tess[i].vertex_buffer);
-		vk_inst.tess[i].vertex_buffer = VK_NULL_HANDLE;
+		vk_inst.tess[i].vertex_buffer = nullptr;
 	}
 
 	vk_inst.device.freeMemory(vk_inst.geometry_buffer_memory);
-	vk_inst.geometry_buffer_memory = VK_NULL_HANDLE;
+	vk_inst.geometry_buffer_memory = nullptr;
 }
 
 static void vk_create_geometry_buffers(const vk::DeviceSize size)
@@ -1979,11 +1979,11 @@ void vk_release_vbo(void)
 {
 	if (vk_inst.vbo.vertex_buffer)
 		vk_inst.device.destroyBuffer(vk_inst.vbo.vertex_buffer);
-	vk_inst.vbo.vertex_buffer = VK_NULL_HANDLE;
+	vk_inst.vbo.vertex_buffer = nullptr;
 
 	if (vk_inst.vbo.buffer_memory)
 		vk_inst.device.freeMemory(vk_inst.vbo.buffer_memory);
-	vk_inst.vbo.buffer_memory = VK_NULL_HANDLE;
+	vk_inst.vbo.buffer_memory = nullptr;
 }
 
 bool vk_alloc_vbo(const byte *vbo_data, const uint32_t vbo_size)
@@ -2660,8 +2660,7 @@ static void vk_alloc_attachments(void)
 	vk::MemoryDedicatedAllocateInfoKHR alloc_info2{};
 	if (num_attachments == 1 && vk_inst.dedicatedAllocation)
 	{
-		alloc_info2 = {
-			.image = attachments[0].descriptor};
+		alloc_info2 = { attachments[0].descriptor, {} };
 		alloc_info.pNext = &alloc_info2;
 	}
 
@@ -3009,7 +3008,7 @@ static void vk_create_framebuffers(void)
 			create_framebuffer(vk_inst.render_pass.screenmap, 2, vk_inst.screenMapWidth, vk_inst.screenMapHeight, "framebuffer - screenmap", vk_inst.framebuffers.screenmap);
 		}
 
-		if (vk_inst.capture.image != VK_NULL_HANDLE)
+		if (vk_inst.capture.image)
 		{
 			// Capture framebuffer
 			attachments[0] = vk_inst.capture.image_view;
@@ -3087,45 +3086,45 @@ static void vk_destroy_framebuffers(void)
 
 	for (n = 0; n < vk_inst.swapchain_image_count; n++)
 	{
-		if (vk_inst.framebuffers.main[n] != VK_NULL_HANDLE)
+		if (vk_inst.framebuffers.main[n])
 		{
 			if (!vk_inst.fboActive || n == 0)
 			{
 				vk_inst.device.destroyFramebuffer(vk_inst.framebuffers.main[n]);
 			}
-			vk_inst.framebuffers.main[n] = VK_NULL_HANDLE;
+			vk_inst.framebuffers.main[n] = nullptr;
 		}
-		if (vk_inst.framebuffers.gamma[n] != VK_NULL_HANDLE)
+		if (vk_inst.framebuffers.gamma[n])
 		{
 			vk_inst.device.destroyFramebuffer(vk_inst.framebuffers.gamma[n]);
-			vk_inst.framebuffers.gamma[n] = VK_NULL_HANDLE;
+			vk_inst.framebuffers.gamma[n] = nullptr;
 		}
 	}
 
-	if (vk_inst.framebuffers.bloom_extract != VK_NULL_HANDLE)
+	if (vk_inst.framebuffers.bloom_extract)
 	{
 		vk_inst.device.destroyFramebuffer(vk_inst.framebuffers.bloom_extract);
-		vk_inst.framebuffers.bloom_extract = VK_NULL_HANDLE;
+		vk_inst.framebuffers.bloom_extract = nullptr;
 	}
 
-	if (vk_inst.framebuffers.screenmap != VK_NULL_HANDLE)
+	if (vk_inst.framebuffers.screenmap)
 	{
 		vk_inst.device.destroyFramebuffer(vk_inst.framebuffers.screenmap);
-		vk_inst.framebuffers.screenmap = VK_NULL_HANDLE;
+		vk_inst.framebuffers.screenmap = nullptr;
 	}
 
-	if (vk_inst.framebuffers.capture != VK_NULL_HANDLE)
+	if (vk_inst.framebuffers.capture)
 	{
 		vk_inst.device.destroyFramebuffer(vk_inst.framebuffers.capture);
-		vk_inst.framebuffers.capture = VK_NULL_HANDLE;
+		vk_inst.framebuffers.capture = nullptr;
 	}
 
 	for (n = 0; n < arrayLen(vk_inst.framebuffers.blur); n++)
 	{
-		if (vk_inst.framebuffers.blur[n] != VK_NULL_HANDLE)
+		if (vk_inst.framebuffers.blur[n])
 		{
 			vk_inst.device.destroyFramebuffer(vk_inst.framebuffers.blur[n]);
-			vk_inst.framebuffers.blur[n] = VK_NULL_HANDLE;
+			vk_inst.framebuffers.blur[n] = nullptr;
 		}
 	}
 }
@@ -3136,10 +3135,10 @@ static void vk_destroy_swapchain(void)
 
 	for (i = 0; i < vk_inst.swapchain_image_count; i++)
 	{
-		if (vk_inst.swapchain_image_views[i] != VK_NULL_HANDLE)
+		if (vk_inst.swapchain_image_views[i])
 		{
 			vk_inst.device.destroyImageView(vk_inst.swapchain_image_views[i]);
-			vk_inst.swapchain_image_views[i] = VK_NULL_HANDLE;
+			vk_inst.swapchain_image_views[i] = nullptr;
 		}
 	}
 
@@ -3626,8 +3625,8 @@ static void vk_destroy_attachments(void)
 		{
 			vk_inst.device.destroyImage(vk_inst.bloom_image[i]);
 			vk_inst.device.destroyImageView(vk_inst.bloom_image_view[i]);
-			vk_inst.bloom_image[i] = VK_NULL_HANDLE;
-			vk_inst.bloom_image_view[i] = VK_NULL_HANDLE;
+			vk_inst.bloom_image[i] = nullptr;
+			vk_inst.bloom_image_view[i] = nullptr;
 		}
 	}
 
@@ -3710,10 +3709,10 @@ static void vk_destroy_render_passes()
 
 	for (std::size_t i = 0; i < arrayLen(vk_inst.render_pass.blur); i++)
 	{
-		if (vk_inst.render_pass.blur[i] != VK_NULL_HANDLE)
+		if (vk_inst.render_pass.blur[i])
 		{
 			vk_inst.device.destroyRenderPass(vk_inst.render_pass.blur[i]);
-			vk_inst.render_pass.blur[i] = VK_NULL_HANDLE;
+			vk_inst.render_pass.blur[i] = nullptr;
 		}
 	}
 
@@ -4103,13 +4102,13 @@ void vk_create_image(image_t &image, int width, int height, int mip_levels)
 	if (image.handle)
 	{
 		vk_inst.device.destroyImage(image.handle);
-		image.handle = VK_NULL_HANDLE;
+		image.handle = nullptr;
 	}
 
 	if (image.view)
 	{
 		vk_inst.device.destroyImageView(image.view);
-		image.view = VK_NULL_HANDLE;
+		image.view = nullptr;
 	}
 
 	// create image
@@ -4149,7 +4148,7 @@ void vk_create_image(image_t &image, int width, int height, int mip_levels)
 	VK_CHECK_ASSIGN(image.view, vk_inst.device.createImageView(descImageView));
 
 	// create associated descriptor set
-	if (image.descriptor == VK_NULL_HANDLE)
+	if (!image.descriptor)
 	{
 		vk::DescriptorSetAllocateInfo descSetAlloc{vk_inst.descriptor_pool,
 												   1,
@@ -4358,16 +4357,16 @@ void vk_update_descriptor_set(const image_t &image, bool mipmap)
 void vk_destroy_image_resources(vk::Image &image, vk::ImageView &imageView)
 {
 
-	if (image != VK_NULL_HANDLE)
+	if (image)
 	{
 		vk_inst.device.destroyImage(image);
-		image = VK_NULL_HANDLE;
+		image = nullptr;
 	}
 
-	if (imageView != VK_NULL_HANDLE)
+	if (imageView)
 	{
 		vk_inst.device.destroyImageView(imageView);
-		imageView = VK_NULL_HANDLE;
+		imageView = nullptr;
 	}
 }
 
@@ -4509,12 +4508,12 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		break;
 	}
 
-	if (*pipeline != VK_NULL_HANDLE)
+	if (*pipeline)
 	{
 
 		vk_inst.device.waitIdle();
 		vk_inst.device.destroyPipeline(*pipeline);
-		*pipeline = VK_NULL_HANDLE;
+		*pipeline = nullptr;
 	}
 
 	vk::PipelineVertexInputStateCreateInfo vertex_input_state{};
@@ -4652,7 +4651,7 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		layout,
 		renderpass,
 		0,
-		VK_NULL_HANDLE,
+		nullptr,
 		-1};
 
 #ifdef USE_VK_VALIDATION
@@ -4683,11 +4682,11 @@ void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bo
 {
 	vk::Pipeline *pipeline = &vk_inst.blur_pipeline[index];
 
-	if (*pipeline != VK_NULL_HANDLE)
+	if (*pipeline)
 	{
 		vk_inst.device.waitIdle();
 		vk_inst.device.destroyPipeline(*pipeline);
-		*pipeline = VK_NULL_HANDLE;
+		*pipeline = nullptr;
 	}
 
 	vk::PipelineVertexInputStateCreateInfo vertex_input_state{};
@@ -4798,7 +4797,7 @@ void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bo
 		vk_inst.pipeline_layout_post_process,
 		vk_inst.render_pass.blur[index],
 		0,
-		VK_NULL_HANDLE,
+		nullptr,
 		-1,
 		nullptr};
 
@@ -5166,7 +5165,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 
 	default:
 		ri.Error(ERR_DROP, "create_pipeline_plus: unknown shader type %i\n", def.shader_type);
-		return VK_NULL_HANDLE;
+		return nullptr;
 	}
 
 	if (def.fog_stage)
@@ -5796,7 +5795,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 											   vk_inst.pipeline_layout,
 											   (renderPassIndex == RENDER_PASS_SCREENMAP) ? vk_inst.render_pass.screenmap : vk_inst.render_pass.main,
 											   0,
-											   VK_NULL_HANDLE,
+											   nullptr,
 											   -1,
 											   nullptr};
 
@@ -5835,13 +5834,13 @@ vk::Pipeline vk_gen_pipeline(uint32_t index)
 	if (index < vk_inst.pipelines_count)
 	{
 		VK_Pipeline_t *pipeline = vk_inst.pipelines + index;
-		if (pipeline->handle[vk_inst.renderPassIndex] == VK_NULL_HANDLE)
+		if (!pipeline->handle[vk_inst.renderPassIndex])
 			pipeline->handle[vk_inst.renderPassIndex] = create_pipeline(pipeline->def, vk_inst.renderPassIndex);
 		return pipeline->handle[vk_inst.renderPassIndex];
 	}
 	else
 	{
-		return VK_NULL_HANDLE;
+		return nullptr;
 	}
 }
 
@@ -5860,7 +5859,7 @@ uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def)
 		pipeline->def = def;
 		for (j = 0; j < RENDER_PASS_COUNT; j++)
 		{
-			pipeline->handle[j] = VK_NULL_HANDLE;
+			pipeline->handle[j] = nullptr;
 		}
 		return vk_inst.pipelines_count++;
 	}
@@ -6372,7 +6371,7 @@ void vk_bind_lighting(int stage, int bundle)
 
 void vk_reset_descriptor(int index)
 {
-	vk_inst.cmd->descriptor_set.current[index] = VK_NULL_HANDLE;
+	vk_inst.cmd->descriptor_set.current[index] = nullptr;
 }
 
 void vk_update_descriptor(int index, const vk::DescriptorSet &descriptor)
@@ -6663,7 +6662,7 @@ void vk_begin_frame(void)
 			res = vk_inst.device.acquireNextImageKHR(vk_inst.swapchain,
 													 5 * 1000000000ULL,
 													 vk_inst.cmd->image_acquired,
-													 VK_NULL_HANDLE,
+													 nullptr,
 													 &vk_inst.swapchain_image_index);
 			// when running via RDP: "Application has already acquired the maximum number of images (0x2)"
 			// probably caused by "device lost" errors
@@ -6729,7 +6728,7 @@ void vk_begin_frame(void)
 		vk_inst.stats.push_size_max = vk_inst.stats.push_size;
 	}
 
-	vk_inst.cmd->last_pipeline = VK_NULL_HANDLE;
+	vk_inst.cmd->last_pipeline = nullptr;
 
 	backEnd.screenMapDone = false;
 
@@ -6749,7 +6748,7 @@ void vk_begin_frame(void)
 	// std::fill_n(vk_inst.cmd->buf_offset, sizeof(vk_inst.cmd->buf_offset), vk::DeviceSize{0});
 	Com_Memset(vk_inst.cmd->vbo_offset, 0, sizeof(vk_inst.cmd->vbo_offset));
 	// std::fill_n(vk_inst.cmd->vbo_offset, sizeof(vk_inst.cmd->vbo_offset), vk::DeviceSize{0});
-	vk_inst.cmd->curr_index_buffer = VK_NULL_HANDLE;
+	vk_inst.cmd->curr_index_buffer = nullptr;
 	vk_inst.cmd->curr_index_offset = 0;
 
 	vk_inst.cmd->descriptor_set = {};
@@ -6810,7 +6809,7 @@ void vk_end_frame(void)
 
 	if (vk_inst.fboActive)
 	{
-		vk_inst.cmd->last_pipeline = VK_NULL_HANDLE; // do not restore clobbered descriptors in vk_bloom()
+		vk_inst.cmd->last_pipeline = nullptr; // do not restore clobbered descriptors in vk_bloom()
 
 		if (r_bloom->integer)
 		{
@@ -7242,9 +7241,9 @@ bool vk_bloom(void)
 	}
 
 	// invalidate pipeline state cache
-	// vk_inst.cmd->last_pipeline = VK_NULL_HANDLE;
+	// vk_inst.cmd->last_pipeline = nullptr;
 
-	if (vk_inst.cmd->last_pipeline != VK_NULL_HANDLE)
+	if (vk_inst.cmd->last_pipeline)
 	{
 		// restore last pipeline
 		vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_inst.cmd->last_pipeline);
@@ -7257,7 +7256,7 @@ bool vk_bloom(void)
 		// restore clobbered descriptor sets
 		for (i = 0; i < VK_NUM_BLOOM_PASSES; i++)
 		{
-			if (vk_inst.cmd->descriptor_set.current[i] != VK_NULL_HANDLE)
+			if (vk_inst.cmd->descriptor_set.current[i])
 			{
 				if (i == VK_DESC_UNIFORM || i == VK_DESC_STORAGE)
 					vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout, i, vk_inst.cmd->descriptor_set.current[i], vk_inst.cmd->descriptor_set.offset[i]);
@@ -7271,3 +7270,4 @@ bool vk_bloom(void)
 
 	return true;
 }
+

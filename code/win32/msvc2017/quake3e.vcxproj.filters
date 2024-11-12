@@ -202,9 +202,6 @@
     <ClCompile Include="..\win_glimp.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\win_qgl.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\win_qvk.c">
       <Filter>Source Files</Filter>
     </ClCompile>

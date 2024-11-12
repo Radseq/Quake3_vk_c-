@@ -758,7 +758,7 @@ qsort_int
 */
 constexpr int MIN_MERGE = 32;
 
-void timSort(int arr[], int n)
+static void timSort(int arr[], const int n)
 {
 	int r = 0;
 	int a = n;
@@ -770,7 +770,7 @@ void timSort(int arr[], int n)
 
 	int minRun = a + r;
 
-	int leftArr[n], rightArr[n];
+	std::vector<int> leftArr, rightArr;
 
 	// insertionSort
 	for (int z = 0; z < n; z += minRun)

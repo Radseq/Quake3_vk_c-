@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "win_local.h"
 
 #define VK_USE_PLATFORM_WIN32_KHR
-#include "../renderercommon/vulkan/vulkan.h"
+#include "vulkan/vulkan.h"
 
 static PFN_vkGetInstanceProcAddr qvkGetInstanceProcAddr;
 static PFN_vkCreateWin32SurfaceKHR qvkCreateWin32SurfaceKHR;

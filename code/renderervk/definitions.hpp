@@ -1,6 +1,10 @@
 #ifndef DEFINITIONS_HPP
 #define DEFINITIONS_HPP
 
+#if defined(_WIN32) && defined(_DEBUG)
+#define USE_VK_VALIDATION
+#endif
+
 #ifdef DEBUG
 #define USE_VK_VALIDATION
 #endif
