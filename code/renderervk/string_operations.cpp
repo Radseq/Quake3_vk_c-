@@ -3,47 +3,6 @@
 #include <cctype>
 #include <charconv>
 
-int Q_stricmp_cpp(const std::string_view s1, const std::string_view s2)
-{
-    if (s1.empty())
-    {
-        if (s2.empty())
-            return 0;
-        else
-            return -1;
-    }
-    else if (s2.empty())
-        return 1;
-
-    auto it1 = s1.begin();
-    auto it2 = s2.begin();
-
-    while (it1 != s1.end() && it2 != s2.end())
-    {
-        unsigned char c1 = *it1++;
-        unsigned char c2 = *it2++;
-
-        if (c1 != c2)
-        {
-            if (c1 <= 'Z' && c1 >= 'A')
-                c1 += ('a' - 'A');
-
-            if (c2 <= 'Z' && c2 >= 'A')
-                c2 += ('a' - 'A');
-
-            if (c1 != c2)
-                return c1 < c2 ? -1 : 1;
-        }
-    }
-
-    if (it1 != s1.end())
-        return 1;
-    if (it2 != s2.end())
-        return -1;
-
-    return 0;
-}
-
 std::string_view COM_GetExtension_cpp(std::string_view name)
 {
     auto dot = name.find_last_of('.');

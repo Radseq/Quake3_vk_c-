@@ -1795,11 +1795,9 @@ void vk_init_descriptors(void)
 {
 	uint32_t i;
 
-	auto layout_storage = vk::DescriptorSetLayout(vk_inst.set_layout_storage);
-
 	vk::DescriptorSetAllocateInfo alloc{vk_inst.descriptor_pool,
 										1,
-										&layout_storage,
+										&vk_inst.set_layout_storage,
 										nullptr};
 
 	VK_CHECK(vk_inst.device.allocateDescriptorSets(&alloc, &vk_inst.storage.descriptor));
@@ -1837,7 +1835,7 @@ void vk_init_descriptors(void)
 
 	if (vk_inst.color_image_view)
 	{
-		auto layout_sampler = vk::DescriptorSetLayout(vk_inst.set_layout_sampler);
+		auto layout_sampler = vk_inst.set_layout_sampler;
 
 		alloc.descriptorPool = vk_inst.descriptor_pool;
 		alloc.descriptorSetCount = 1;

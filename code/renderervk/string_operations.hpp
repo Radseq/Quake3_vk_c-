@@ -6,7 +6,25 @@
 
 #include "tr_local.hpp"
 
-int Q_stricmp_cpp(const std::string_view s1, const std::string_view s2);
+inline constexpr int Q_stricmp_cpp(std::string_view s1, std::string_view s2) {
+    // Compare lengths first for a quick check
+    if (s1.size() != s2.size()) return s1.size() < s2.size() ? -1 : 1;
+
+    // Compare characters one by one
+    for (size_t i = 0; i < s1.size(); ++i) {
+        char c1 = s1[i];
+        char c2 = s2[i];
+
+        // Convert to lowercase if uppercase
+        if (c1 >= 'A' && c1 <= 'Z') c1 += 'a' - 'A';
+        if (c2 >= 'A' && c2 <= 'Z') c2 += 'a' - 'A';
+
+        // Compare characters
+        if (c1 != c2) return c1 < c2 ? -1 : 1;
+    }
+    return 0;  // Strings are equal
+}
+
 std::string_view COM_GetExtension_cpp(std::string_view name);
 void COM_StripExtension_cpp(std::string_view in, std::string_view &out);
 std::string_view COM_ParseExt_cpp(const char **text, bool allowLineBreaks);

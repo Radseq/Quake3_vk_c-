@@ -173,7 +173,7 @@ static bool ParseVector(const char **text, int count, float *v)
 NameToAFunc
 ===============
 */
-static constexpr unsigned NameToAFunc(std::string_view funcname)
+static unsigned int NameToAFunc(std::string_view funcname)
 {
 	if (!Q_stricmp_cpp(funcname, "GT0"))
 	{
@@ -197,7 +197,7 @@ static constexpr unsigned NameToAFunc(std::string_view funcname)
 NameToSrcBlendMode
 ===============
 */
-static constexpr int NameToSrcBlendMode(std::string_view name)
+static int NameToSrcBlendMode(std::string_view name)
 {
 	if (!Q_stricmp_cpp(name, "GL_ONE"))
 	{
@@ -245,7 +245,7 @@ static constexpr int NameToSrcBlendMode(std::string_view name)
 NameToDstBlendMode
 ===============
 */
-static constexpr int NameToDstBlendMode(std::string_view name)
+static int NameToDstBlendMode(std::string_view name)
 {
 	if (!Q_stricmp_cpp(name, "GL_ONE"))
 	{
@@ -289,7 +289,7 @@ static constexpr int NameToDstBlendMode(std::string_view name)
 NameToGenFunc
 ===============
 */
-static constexpr genFunc_t NameToGenFunc(std::string_view funcname)
+static genFunc_t NameToGenFunc(std::string_view funcname)
 {
 	if (!Q_stricmp_cpp(funcname, "sin"))
 	{
@@ -1549,7 +1549,7 @@ typedef struct
 	int clearSolid, surfaceFlags, contents;
 } infoParm_t;
 
-static const infoParm_t infoParms[] = {
+static constexpr infoParm_t infoParms[] = {
 	// server relevant contents
 	{"water", 1, 0, CONTENTS_WATER},
 	{"slime", 1, 0, CONTENTS_SLIME}, // mildly damaging
@@ -1600,14 +1600,13 @@ surfaceparm <name>
 */
 static void ParseSurfaceParm(const char **text)
 {
-	const char *token;
 	int numInfoParms = arrayLen(infoParms);
 	int i;
 
-	token = COM_ParseExt(text, false);
+	auto token = COM_ParseExt_cpp(text, false);
 	for (i = 0; i < numInfoParms; i++)
 	{
-		if (!Q_stricmp(token, infoParms[i].name.data()))
+		if (!Q_stricmp_cpp(token, infoParms[i].name))
 		{
 			shader.surfaceFlags |= infoParms[i].surfaceFlags;
 			shader.contentFlags |= infoParms[i].contents;
