@@ -414,7 +414,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 		{
 			unsigned char alpha;
 			float len;
-			vec3_t v;
+			vec3_t v{};
 
 			VectorSubtract(tess.xyz[i], backEnd.viewParms.ort.origin, v);
 			len = VectorLength(v) * tess.shader->portalRangeR;
@@ -541,7 +541,7 @@ static void VK_SetLightParams(vkUniform_t &uniform, const dlight_t &dl)
 
 	if (dl.linear)
 	{
-		vec4_t ab;
+		vec4_t ab{};
 		VectorSubtract(dl.transformed2, dl.transformed, ab);
 		ab[3] = 1.0f / DotProduct(ab, ab);
 		Vector4Copy(ab, uniform.light.vector);
@@ -770,7 +770,7 @@ static bool ProjectDlightTexture(void)
 {
 	int i;
 	uint32_t l;
-	vec3_t origin;
+	vec3_t origin { };
 	float *texCoords;
 	byte *colors;
 	byte clipBits[SHADER_MAX_VERTEXES];
@@ -806,7 +806,7 @@ static bool ProjectDlightTexture(void)
 		for (i = 0; i < tess.numVertexes; i++, texCoords += 2, colors += 4)
 		{
 			int clip = 0;
-			vec3_t dist;
+			vec3_t dist { };
 
 			VectorSubtract(origin, tess.xyz[i], dist);
 

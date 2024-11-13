@@ -126,7 +126,6 @@ static void MakeMeshNormals(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE
 {
 	int i, j, k, dist;
 	vec3_t normal;
-	vec3_t sum;
 	vec3_t base;
 	vec3_t delta;
 	int x, y;
@@ -223,7 +222,7 @@ static void MakeMeshNormals(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE
 				}
 			}
 
-			VectorClear(sum);
+			vec3_t sum{};
 			for (k = 0; k < 8; k++)
 			{
 				if (!good[k] || !good[(k + 1) & 7])

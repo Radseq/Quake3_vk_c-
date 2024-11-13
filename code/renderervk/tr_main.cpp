@@ -707,12 +707,11 @@ static void R_MirrorPoint(const vec3_t &in, const orientation_t &surface, const 
 {
 	int i;
 	vec3_t local;
-	vec3_t transformed;
+	vec3_t transformed {};
 	float d;
 
 	VectorSubtract(in, surface.origin, local);
 
-	VectorClear(transformed);
 	for (i = 0; i < 3; i++)
 	{
 		d = DotProduct(local, surface.axis[i]);
@@ -1332,8 +1331,8 @@ R_Radix
 */
 static ID_INLINE void R_Radix(int byte, int size, const drawSurf_t *source, drawSurf_t *dest)
 {
-	int count[256] = {0};
-	int index[256] = {0};
+	int count[256] = {};
+	int index[256] = {};
 	int i;
 	const unsigned char *sortKey = (const unsigned char *)&source[0].sort + byte;
 	const unsigned char *end = sortKey + (size * sizeof(drawSurf_t));

@@ -49,7 +49,7 @@ R_MDRCullModel
 */
 static int R_MDRCullModel(mdrHeader_t &header, const trRefEntity_t &ent)
 {
-	vec3_t bounds[2];
+	vec3_t bounds[2]{};
 	mdrFrame_t *oldFrame, *newFrame;
 	int i, frameSize;
 
@@ -153,7 +153,7 @@ static int R_MDRComputeFogNum(mdrHeader_t &header, const trRefEntity_t &ent)
 	int i, j;
 	const fog_t *fog;
 	mdrFrame_t *mdrFrame;
-	vec3_t localOrigin;
+	vec3_t localOrigin{};
 
 	int frameSize = (size_t)(&((mdrFrame_t *)0)->bones[header.numBones]);
 
@@ -398,11 +398,9 @@ void RB_MDRSurfaceAnim(mdrSurface_t &surface)
 	v = (mdrVertex_t *)((byte &)surface + surface.ofsVerts);
 	for (j = 0; j < numVerts; j++)
 	{
-		vec3_t tempVert, tempNormal;
+		vec3_t tempVert{}, tempNormal{};
 		mdrWeight_t *w;
 
-		VectorClear(tempVert);
-		VectorClear(tempNormal);
 		w = v->weights;
 		for (k = 0; k < v->numWeights; k++, w++)
 		{

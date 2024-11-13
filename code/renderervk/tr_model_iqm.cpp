@@ -1593,9 +1593,9 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 			pose = (iqmPose_t *)((byte &)header + header.ofs_poses);
 			for (j = 0; j < static_cast<int>(header.num_poses); j++, pose++, transform++)
 			{
-				vec3_t translate;
-				quat_t rotate;
-				vec3_t scale;
+				vec3_t translate{};
+				quat_t rotate{};
+				vec3_t scale{};
 
 				translate[0] = pose->channeloffset[0];
 				if (pose->mask & 0x001)

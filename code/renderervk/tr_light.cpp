@@ -138,7 +138,7 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
     byte *gridData;
     float frac[3];
     int gridStep[3];
-    vec3_t direction;
+    vec3_t direction {};
     float totalFactor;
 
     if (ent.e.renderfx & RF_LIGHTING_ORIGIN)
@@ -171,7 +171,6 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
 
     VectorClear(ent.ambientLight);
     VectorClear(ent.directedLight);
-    VectorClear(direction);
 
     assert(tr.world->lightGridData); // NULL with -nolight maps
 

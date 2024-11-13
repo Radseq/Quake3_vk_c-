@@ -1377,7 +1377,7 @@ static void R_Register(void)
 										  " 4 - linear filtering, preserve aspect ratio (black bars on sides)\n");
 }
 
-#define EPSILON 1e-6f
+constexpr float EPSILON = 1e-6f;
 
 /*
 ===============

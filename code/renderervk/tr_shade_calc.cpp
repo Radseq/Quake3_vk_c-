@@ -241,7 +241,7 @@ static void RB_CalcMoveVertexes(deformStage_t &ds)
 	float *xyz;
 	float *table;
 	float scale;
-	vec3_t offset;
+	vec3_t offset {};
 
 	table = TableForFunc(ds.deformationWave.func);
 
@@ -269,12 +269,12 @@ Change a polygon into a bunch of text polygons
 static void DeformText(std::string_view text)
 {
 	int i;
-	vec3_t origin, width, height;
+	vec3_t origin{}, width, height{};
 	int len;
 	int ch;
 	color4ub_t color;
 	float bottom, top;
-	vec3_t mid;
+	vec3_t mid {};
 
 	height[0] = 0;
 	height[1] = 0;
@@ -282,7 +282,6 @@ static void DeformText(std::string_view text)
 	CrossProduct(tess.normal[0], height, width);
 
 	// find the midpoint of the box
-	VectorClear(mid);
 	bottom = 999999;
 	top = -999999;
 	for (i = 0; i < 4; i++)
@@ -365,9 +364,9 @@ static void AutospriteDeform(void)
 	int i;
 	int oldVerts;
 	float *xyz;
-	vec3_t mid, delta;
+	vec3_t delta{};
 	float radius;
-	vec3_t left, up;
+	vec3_t left = {}, up = {};
 	vec3_t leftDir, upDir;
 
 	if (tess.numVertexes & 3)
@@ -399,9 +398,11 @@ static void AutospriteDeform(void)
 		// find the midpoint
 		xyz = tess.xyz[i];
 
-		mid[0] = 0.25f * (xyz[0] + xyz[4] + xyz[8] + xyz[12]);
-		mid[1] = 0.25f * (xyz[1] + xyz[5] + xyz[9] + xyz[13]);
-		mid[2] = 0.25f * (xyz[2] + xyz[6] + xyz[10] + xyz[14]);
+		vec3_t mid = {
+			{0.25f * (xyz[0] + xyz[4] + xyz[8] + xyz[12])},
+			{0.25f * (xyz[1] + xyz[5] + xyz[9] + xyz[13])},
+			{0.25f * (xyz[2] + xyz[6] + xyz[10] + xyz[14])}
+		};
 
 		VectorSubtract(xyz, mid, delta);
 		radius = VectorLength(delta) * 0.707f; // / sqrt(2)
@@ -476,8 +477,8 @@ static void Autosprite2Deform(void)
 	for (i = 0, indexes = 0; i < tess.numVertexes; i += 4, indexes += 6)
 	{
 		float lengths[2];
-		int nums[2];
-		vec3_t mid[2];
+		int nums[2]{};
+		vec3_t mid[2]{};
 		vec3_t major, minor;
 		float *v1, *v2;
 
@@ -485,13 +486,12 @@ static void Autosprite2Deform(void)
 		xyz = tess.xyz[i];
 
 		// identify the two shortest edges
-		nums[0] = nums[1] = 0;
 		lengths[0] = lengths[1] = 999999;
 
 		for (j = 0; j < 6; j++)
 		{
 			float l;
-			vec3_t temp;
+			vec3_t temp{};
 
 			v1 = xyz + 4 * edgeVerts[j][0];
 			v2 = xyz + 4 * edgeVerts[j][1];
@@ -763,7 +763,7 @@ void RB_CalcWaveAlpha(const waveForm_t &wf, unsigned char *dstColors)
 void RB_CalcModulateColorsByFog(unsigned char *colors)
 {
 	int i;
-	float texCoords[SHADER_MAX_VERTEXES][2];
+	float texCoords[SHADER_MAX_VERTEXES][2]{};
 
 	// calculate texcoords so we can derive density
 	// this is not wasted, because it would only have
@@ -805,7 +805,7 @@ void RB_CalcModulateAlphasByFog(unsigned char *colors)
 void RB_CalcModulateRGBAsByFog(unsigned char *colors)
 {
 	int i;
-	float texCoords[SHADER_MAX_VERTEXES][2];
+	float texCoords[SHADER_MAX_VERTEXES][2]{};
 
 	// calculate texcoords so we can derive density
 	// this is not wasted, because it would only have
@@ -848,7 +848,7 @@ void RB_CalcFogTexCoords(float *st)
 	bool eyeOutside;
 	const fog_t *fog;
 	vec3_t local;
-	vec4_t fogDistanceVector, fogDepthVector = {0, 0, 0, 0};
+	vec4_t fogDistanceVector{}, fogDepthVector{ 0, 0, 0, 0 };
 
 	fog = tr.world->fogs + tess.fogNum;
 

@@ -4612,7 +4612,7 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
 			vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
 
-	std::array<float, 4> blendConstants = {{0.0f, 0.0f, 0.0f, 0.0f}};
+	std::array<float, 4> blendConstants{};
 
 	vk::PipelineColorBlendStateCreateInfo blend_state{{},
 													  VK_FALSE,
