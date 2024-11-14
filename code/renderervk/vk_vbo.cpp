@@ -260,8 +260,8 @@ static bool isStaticShader(shader_t &shader)
 static void VBO_AddGeometry(vbo_t &vbo, vbo_item_t &vi, shaderCommands_t &input)
 {
 	uint32_t size, offs;
-	uint32_t offs_st[NUM_TEXTURE_BUNDLES];
-	uint32_t offs_cl[NUM_TEXTURE_BUNDLES];
+	uint32_t offs_st[NUM_TEXTURE_BUNDLES]{};
+	uint32_t offs_cl[NUM_TEXTURE_BUNDLES]{};
 	int i;
 
 	offs_st[0] = offs_st[1] = offs_st[2] = 0;

@@ -56,8 +56,12 @@ static int R_MDRCullModel(mdrHeader_t &header, const trRefEntity_t &ent)
 	frameSize = (size_t)(&((mdrFrame_t *)0)->bones[header.numBones]);
 
 	// compute frame pointers
-	newFrame = (mdrFrame_t *)((byte &)header + header.ofsFrames + frameSize * ent.e.frame);
-	oldFrame = (mdrFrame_t *)((byte &)header + header.ofsFrames + frameSize * ent.e.oldframe);
+	newFrame = reinterpret_cast<mdrFrame_t*>(
+		reinterpret_cast<uintptr_t>(&header) + header.ofsFrames + frameSize * ent.e.frame
+		);
+	oldFrame = reinterpret_cast<mdrFrame_t*>(
+		reinterpret_cast<uintptr_t>(&header) + header.ofsFrames + frameSize * ent.e.oldframe
+		);
 
 	// cull bounding sphere ONLY if this is not an upscaled entity
 	if (!ent.e.nonNormalizedAxes)
@@ -158,7 +162,10 @@ static int R_MDRComputeFogNum(mdrHeader_t &header, const trRefEntity_t &ent)
 	int frameSize = (size_t)(&((mdrFrame_t *)0)->bones[header.numBones]);
 
 	// FIXME: non-normalized axis issues
-	mdrFrame = (mdrFrame_t *)((byte &)header + header.ofsFrames + frameSize * ent.e.frame);
+	mdrFrame = reinterpret_cast<mdrFrame_t*>(
+		reinterpret_cast<uintptr_t>(&header) + header.ofsFrames + frameSize * ent.e.frame
+	);
+
 	VectorAdd(ent.e.origin, mdrFrame->localOrigin, localOrigin);
 	for (i = 1; i < tr.world->numfogs; i++)
 	{
@@ -245,7 +252,8 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 	if (header.numLODs <= lodnum)
 		lodnum = header.numLODs - 1;
 
-	lod = (mdrLOD_t *)((byte &)header + header.ofsLODs);
+	//lod = (mdrLOD_t *)((byte &)header + header.ofsLODs);
+	lod = reinterpret_cast<mdrLOD_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofsLODs);
 	for (i = 0; i < lodnum; i++)
 	{
 		lod = (mdrLOD_t *)((byte *)lod + lod->ofsEnd);
@@ -327,7 +335,7 @@ void RB_MDRSurfaceAnim(mdrSurface_t &surface)
 	mdrHeader_t *header;
 	mdrFrame_t *frame;
 	mdrFrame_t *oldFrame;
-	mdrBone_t bones[MDR_MAX_BONES], *bonePtr, *bone;
+	mdrBone_t bones[MDR_MAX_BONES]{}, * bonePtr, * bone;
 
 	int frameSize;
 
@@ -350,7 +358,8 @@ void RB_MDRSurfaceAnim(mdrSurface_t &surface)
 		frontlerp = 1.0f - backlerp;
 	}
 
-	header = (mdrHeader_t *)((byte &)surface + surface.ofsHeader);
+	//header = (mdrHeader_t *)((byte &)surface + surface.ofsHeader);
+	header = reinterpret_cast<mdrHeader_t*>(reinterpret_cast<uintptr_t>(&surface) + surface.ofsHeader);
 
 	frameSize = (size_t)(&((mdrFrame_t *)0)->bones[header->numBones]);
 
@@ -361,7 +370,8 @@ void RB_MDRSurfaceAnim(mdrSurface_t &surface)
 
 	RB_CHECKOVERFLOW(surface.numVerts, surface.numTriangles * 3);
 
-	triangles = (int *)((byte &)surface + surface.ofsTriangles);
+	//triangles = (int *)((byte &)surface + surface.ofsTriangles);
+	triangles = reinterpret_cast<int*>(reinterpret_cast<uintptr_t>(&surface) + surface.ofsTriangles);
 	indexes = surface.numTriangles * 3;
 	baseIndex = tess.numIndexes;
 	baseVertex = tess.numVertexes;
@@ -395,7 +405,8 @@ void RB_MDRSurfaceAnim(mdrSurface_t &surface)
 	// deform the vertexes by the lerped bones
 	//
 	numVerts = surface.numVerts;
-	v = (mdrVertex_t *)((byte &)surface + surface.ofsVerts);
+	//v = (mdrVertex_t *)((byte &)surface + surface.ofsVerts);
+	v = reinterpret_cast<mdrVertex_t*>(reinterpret_cast<uintptr_t>(&surface) + surface.ofsVerts);
 	for (j = 0; j < numVerts; j++)
 	{
 		vec3_t tempVert{}, tempNormal{};

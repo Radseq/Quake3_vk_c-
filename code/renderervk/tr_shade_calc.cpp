@@ -847,8 +847,8 @@ void RB_CalcFogTexCoords(float *st)
 	float eyeT;
 	bool eyeOutside;
 	const fog_t *fog;
-	vec3_t local;
-	vec4_t fogDistanceVector{}, fogDepthVector{ 0, 0, 0, 0 };
+	vec3_t local{};
+	vec4_t fogDistanceVector{}, fogDepthVector{};
 
 	fog = tr.world->fogs + tess.fogNum;
 
@@ -942,7 +942,7 @@ RB_CalcFogProgramParms
 void RB_CalcFogProgramParms(fogProgramParms_t &parm)
 {
 	// const fog_t *fog;
-	vec3_t local;
+	vec3_t local{};
 
 	Com_Memset(parm.fogDepthVector, 0, sizeof(parm.fogDepthVector));
 

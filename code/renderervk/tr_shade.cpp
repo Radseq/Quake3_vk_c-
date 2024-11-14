@@ -460,12 +460,12 @@ uint32_t VK_PushUniform(const vkUniform_t &uniform)
 {
 	const uint32_t offset = vk_inst.cmd->uniform_read_offset = PAD(vk_inst.cmd->vertex_buffer_offset, vk_inst.uniform_alignment);
 
-	if (offset + vk_inst.uniform_item_size > vk_inst.geometry_buffer_size)
+	if (static_cast<uint64_t>(offset) + vk_inst.uniform_item_size > vk_inst.geometry_buffer_size)
 		return ~0U;
 
 	// push uniform
 	Com_Memcpy(vk_inst.cmd->vertex_buffer_ptr + offset, &uniform, sizeof(uniform));
-	vk_inst.cmd->vertex_buffer_offset = offset + vk_inst.uniform_item_size;
+	vk_inst.cmd->vertex_buffer_offset = static_cast<uint64_t>(offset) + vk_inst.uniform_item_size;
 
 	vk_reset_descriptor(VK_DESC_UNIFORM);
 	vk_update_descriptor(VK_DESC_UNIFORM, vk_inst.cmd->uniform_descriptor);
@@ -773,10 +773,10 @@ static bool ProjectDlightTexture(void)
 	vec3_t origin { };
 	float *texCoords;
 	byte *colors;
-	byte clipBits[SHADER_MAX_VERTEXES];
+	byte clipBits[SHADER_MAX_VERTEXES]{};
 	uint32_t pipeline;
 	bool rebindIndex = false;
-	glIndex_t hitIndexes[SHADER_MAX_INDEXES];
+	glIndex_t hitIndexes[SHADER_MAX_INDEXES]{};
 	int numIndexes;
 	float scale;
 	float radius;
