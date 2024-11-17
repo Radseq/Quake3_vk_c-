@@ -1945,17 +1945,17 @@ static bool ParseShader(const char **text)
 {
 	resultType res;
 	branchType branch;
-	const char *token;
+	std::string_view token;
 	int numStages;
 
 	numStages = 0;
 
 	s_extendedShader = (*text >= s_extensionOffset);
 
-	token = COM_ParseExt(text, true);
+	token = COM_ParseExt_cpp(text, true);
 	if (token[0] != '{')
 	{
-		ri.Printf(PRINT_WARNING, "WARNING: expecting '{', found '%s' instead in shader '%s'\n", token, shader.name);
+		ri.Printf(PRINT_WARNING, "WARNING: expecting '{', found '%s' instead in shader '%s'\n", token.data(), shader.name);
 		return false;
 	}
 
@@ -1965,7 +1965,7 @@ static bool ParseShader(const char **text)
 	{
 		// token = COM_ParseExt( text, true );
 		token = COM_ParseComplex(text, true);
-		if (!token[0])
+		if (token.empty())
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: no concluding '}' in shader %s\n", shader.name);
 			return false;
@@ -1994,35 +1994,35 @@ static bool ParseShader(const char **text)
 			continue;
 		}
 		// skip stuff that only the QuakeEdRadient needs
-		else if (!Q_stricmpn(token, "qer", 3))
+		else if (!Q_stricmpn_cpp(token, "qer", 3))
 		{
 			SkipRestOfLine(text);
 			continue;
 		}
 		// sun parms
-		else if (!Q_stricmp(token, "q3map_sun") || !Q_stricmp(token, "q3map_sunExt"))
+		else if (!Q_stricmp_cpp(token, "q3map_sun") || !Q_stricmp_cpp(token, "q3map_sunExt"))
 		{
 			float a, b;
 
-			token = COM_ParseExt(text, false);
-			tr.sunLight[0] = Q_atof(token);
-			token = COM_ParseExt(text, false);
-			tr.sunLight[1] = Q_atof(token);
-			token = COM_ParseExt(text, false);
-			tr.sunLight[2] = Q_atof(token);
+			token = COM_ParseExt_cpp(text, false);
+			tr.sunLight[0] = Q_atof_cpp(token);
+			token = COM_ParseExt_cpp(text, false);
+			tr.sunLight[1] = Q_atof_cpp(token);
+			token = COM_ParseExt_cpp(text, false);
+			tr.sunLight[2] = Q_atof_cpp(token);
 
 			VectorNormalize(tr.sunLight);
 
-			token = COM_ParseExt(text, false);
-			a = Q_atof(token);
+			token = COM_ParseExt_cpp(text, false);
+			a = Q_atof_cpp(token);
 			VectorScale(tr.sunLight, a, tr.sunLight);
 
-			token = COM_ParseExt(text, false);
-			a = Q_atof(token);
+			token = COM_ParseExt_cpp(text, false);
+			a = Q_atof_cpp(token);
 			a = a / 180 * M_PI;
 
-			token = COM_ParseExt(text, false);
-			b = Q_atof(token);
+			token = COM_ParseExt_cpp(text, false);
+			b = Q_atof_cpp(token);
 			b = b / 180 * M_PI;
 
 			tr.sunDirection[0] = cos(a) * cos(b);
@@ -2032,56 +2032,56 @@ static bool ParseShader(const char **text)
 			SkipRestOfLine(text);
 			continue;
 		}
-		else if (!Q_stricmp(token, "deformVertexes"))
+		else if (!Q_stricmp_cpp(token, "deformVertexes"))
 		{
 			ParseDeform(text);
 			continue;
 		}
-		else if (!Q_stricmp(token, "tesssize"))
+		else if (!Q_stricmp_cpp(token, "tesssize"))
 		{
 			SkipRestOfLine(text);
 			continue;
 		}
-		else if (!Q_stricmp(token, "clampTime"))
+		else if (!Q_stricmp_cpp(token, "clampTime"))
 		{
 			token = COM_ParseExt(text, false);
 			if (token[0])
 			{
-				shader.clampTime = Q_atof(token);
+				shader.clampTime = Q_atof_cpp(token);
 			}
 		}
 		// skip stuff that only the q3map needs
-		else if (!Q_stricmpn(token, "q3map", 5))
+		else if (!Q_stricmpn_cpp(token, "q3map", 5))
 		{
 			SkipRestOfLine(text);
 			continue;
 		}
 		// skip stuff that only q3map or the server needs
-		else if (!Q_stricmp(token, "surfaceParm"))
+		else if (!Q_stricmp_cpp(token, "surfaceParm"))
 		{
 			ParseSurfaceParm(text);
 			continue;
 		}
 		// no mip maps
-		else if (!Q_stricmp(token, "nomipmaps"))
+		else if (!Q_stricmp_cpp(token, "nomipmaps"))
 		{
 			shader.noMipMaps = 1;
 			shader.noPicMip = 1;
 			continue;
 		}
 		// no picmip adjustment
-		else if (!Q_stricmp(token, "nopicmip"))
+		else if (!Q_stricmp_cpp(token, "nopicmip"))
 		{
 			shader.noPicMip = 1;
 			continue;
 		}
-		else if (!Q_stricmp(token, "novlcollapse") && s_extendedShader)
+		else if (!Q_stricmp_cpp(token, "novlcollapse") && s_extendedShader)
 		{
 			shader.noVLcollapse = 1;
 			continue;
 		}
 		// polygonOffset
-		else if (!Q_stricmp(token, "polygonOffset"))
+		else if (!Q_stricmp_cpp(token, "polygonOffset"))
 		{
 			shader.polygonOffset = true;
 			continue;
@@ -2090,39 +2090,39 @@ static bool ParseShader(const char **text)
 		// to be merged into one batch.  This is a savings for smoke
 		// puffs and blood, but can't be used for anything where the
 		// shader calcs (not the surface function) reference the entity color or scroll
-		else if (!Q_stricmp(token, "entityMergable"))
+		else if (!Q_stricmp_cpp(token, "entityMergable"))
 		{
 			shader.entityMergable = true;
 			continue;
 		}
 		// fogParms
-		else if (!Q_stricmp(token, "fogParms"))
+		else if (!Q_stricmp_cpp(token, "fogParms"))
 		{
 			if (!ParseVector(text, 3, shader.fogParms.color))
 			{
 				return false;
 			}
 
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (!token[0])
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing parm for 'fogParms' keyword in shader '%s'\n", shader.name);
 				continue;
 			}
-			shader.fogParms.depthForOpaque = Q_atof(token);
+			shader.fogParms.depthForOpaque = Q_atof_cpp(token);
 
 			// skip any old gradient directions
 			SkipRestOfLine(text);
 			continue;
 		}
 		// portal
-		else if (!Q_stricmp(token, "portal"))
+		else if (!Q_stricmp_cpp(token, "portal"))
 		{
 			shader.sort = SS_PORTAL;
 			continue;
 		}
 		// skyparms <cloudheight> <outerbox> <innerbox>
-		else if (!Q_stricmp(token, "skyparms"))
+		else if (!Q_stricmp_cpp(token, "skyparms"))
 		{
 			ParseSkyParms(text);
 			if (r_neatsky->integer)
@@ -2133,45 +2133,45 @@ static bool ParseShader(const char **text)
 			continue;
 		}
 		// light <value> determines flaring in q3map, not needed here
-		else if (!Q_stricmp(token, "light"))
+		else if (!Q_stricmp_cpp(token, "light"))
 		{
-			COM_ParseExt(text, false);
+			COM_ParseExt_cpp(text, false);
 			continue;
 		}
 		// cull <face>
-		else if (!Q_stricmp(token, "cull"))
+		else if (!Q_stricmp_cpp(token, "cull"))
 		{
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (token[0] == 0)
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing cull parms in shader '%s'\n", shader.name);
 				continue;
 			}
 
-			if (!Q_stricmp(token, "none") || !Q_stricmp(token, "twosided") || !Q_stricmp(token, "disable"))
+			if (!Q_stricmp_cpp(token, "none") || !Q_stricmp_cpp(token, "twosided") || !Q_stricmp_cpp(token, "disable"))
 			{
 				shader.cullType = CT_TWO_SIDED;
 			}
-			else if (!Q_stricmp(token, "back") || !Q_stricmp(token, "backside") || !Q_stricmp(token, "backsided"))
+			else if (!Q_stricmp_cpp(token, "back") || !Q_stricmp_cpp(token, "backside") || !Q_stricmp_cpp(token, "backsided"))
 			{
 				shader.cullType = CT_BACK_SIDED;
 			}
 			else
 			{
-				ri.Printf(PRINT_WARNING, "WARNING: invalid cull parm '%s' in shader '%s'\n", token, shader.name);
+				ri.Printf(PRINT_WARNING, "WARNING: invalid cull parm '%s' in shader '%s'\n", token.data(), shader.name);
 			}
 			continue;
 		}
 		// sort
-		else if (!Q_stricmp(token, "sort"))
+		else if (!Q_stricmp_cpp(token, "sort"))
 		{
 			ParseSort(text);
 			continue;
 		}
 		// conditional stage definition
-		else if ((!Q_stricmp(token, "if") || !Q_stricmp(token, "else") || !Q_stricmp(token, "elif")) && s_extendedShader)
+		else if ((!Q_stricmp_cpp(token, "if") || !Q_stricmp_cpp(token, "else") || !Q_stricmp_cpp(token, "elif")) && s_extendedShader)
 		{
-			if (Q_stricmp(token, "if") == 0)
+			if (Q_stricmp_cpp(token, "if") == 0)
 			{
 				branch = brIF;
 			}
@@ -2180,10 +2180,10 @@ static bool ParseShader(const char **text)
 				if (res == res_invalid)
 				{
 					// we don't have any previous 'if' statements
-					ri.Printf(PRINT_WARNING, "WARNING: unexpected '%s' in '%s'\n", token, shader.name);
+					ri.Printf(PRINT_WARNING, "WARNING: unexpected '%s' in '%s'\n", token.data(), shader.name);
 					return false;
 				}
-				if (Q_stricmp(token, "else") == 0)
+				if (Q_stricmp_cpp(token, "else") == 0)
 					branch = brELSE;
 				else
 					branch = brELIF;
@@ -2207,7 +2207,7 @@ static bool ParseShader(const char **text)
 			if (res == res_false)
 			{
 				// skip next stage or keyword until newline
-				token = COM_ParseExt(text, true);
+				token = COM_ParseExt_cpp(text, true);
 				if (token[0] == '{')
 					SkipBracedSection(text, 1 /* depth */);
 				else
@@ -2227,7 +2227,7 @@ static bool ParseShader(const char **text)
 		}
 		else
 		{
-			ri.Printf(PRINT_WARNING, "WARNING: unknown general shader parameter '%s' in '%s'\n", token, shader.name);
+			ri.Printf(PRINT_WARNING, "WARNING: unknown general shader parameter '%s' in '%s'\n", token.data(), shader.name);
 			return false;
 		}
 	}
@@ -3858,22 +3858,22 @@ return NULL if not found
 If found, it will return a valid shader
 =====================
 */
-static const char *FindShaderInShaderText(const char *shadername)
+static const char *FindShaderInShaderText(std::string_view shadername)
 {
 
-	const char *token, *p;
-
+	std::string_view token;
+	const char  *p;
 	int i, hash;
 
-	hash = generateHashValue(shadername, MAX_SHADERTEXT_HASH);
+	hash = generateHashValue(shadername.data(), MAX_SHADERTEXT_HASH);
 
 	if (shaderTextHashTable[hash])
 	{
 		for (i = 0; shaderTextHashTable[hash][i]; i++)
 		{
 			p = shaderTextHashTable[hash][i];
-			token = COM_ParseExt(&p, true);
-			if (!Q_stricmp(token, shadername))
+			token = COM_ParseExt_cpp(&p, true);
+			if (!Q_stricmp_cpp(token, shadername))
 				return p;
 		}
 	}
