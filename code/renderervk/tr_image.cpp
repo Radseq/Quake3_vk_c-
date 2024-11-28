@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <algorithm> // for std::clamp
 #include <cstdint>	 // for std::uint32_t
 #include <algorithm>
+#include "string_operations.hpp"
 
 // Note that the ordering indicates the order of preference used
 // when there are multiple images of different formats available
@@ -340,7 +341,7 @@ static void R_LightScaleTexture(byte *in, int inwidth, int inheight, bool only_g
 	}
 }
 
-void TextureMode(const char *string)
+void TextureMode(std::string_view sv_mode)
 {
 	const textureMode_t *mode;
 	image_t *img;
@@ -349,7 +350,7 @@ void TextureMode(const char *string)
 	mode = NULL;
 	for (i = 0; i < static_cast<int>(arrayLen(modes)); i++)
 	{
-		if (!Q_stricmp(modes[i].name, string))
+		if (!Q_stricmp_cpp(modes[i].name, sv_mode))
 		{
 			mode = &modes[i];
 			break;
@@ -358,7 +359,7 @@ void TextureMode(const char *string)
 
 	if (mode == NULL)
 	{
-		ri.Printf(PRINT_ALL, "bad texture filter name '%s'\n", string);
+		ri.Printf(PRINT_ALL, "bad texture filter name '%s'\n", sv_mode.data());
 		return;
 	}
 

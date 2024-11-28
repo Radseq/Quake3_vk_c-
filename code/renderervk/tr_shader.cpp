@@ -937,7 +937,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			}
 			else if (!Q_stricmp_cpp(token, "const"))
 			{
-				vec3_t color {};
+				vec3_t color{};
 
 				ParseVector(text, 3, color);
 				stage.bundle[0].constantColor.rgba[0] = 255 * color[0];
@@ -3081,7 +3081,7 @@ static void VertexLightingCollapse(void)
 InitShader
 ===============
 */
-static void InitShader(const char *name, int lightmapIndex)
+static void InitShader(std::string_view name, int lightmapIndex)
 {
 	int i;
 
@@ -3089,7 +3089,7 @@ static void InitShader(const char *name, int lightmapIndex)
 	Com_Memset(&shader, 0, sizeof(shader));
 	Com_Memset(&stages, 0, sizeof(stages));
 
-	Q_strncpyz(shader.name, name, sizeof(shader.name));
+	Q_strncpyz(shader.name, name.data(), sizeof(shader.name));
 	shader.lightmapIndex = lightmapIndex;
 
 	// we need to know original (unmodified) lightmap index
@@ -3862,7 +3862,7 @@ static const char *FindShaderInShaderText(std::string_view shadername)
 {
 
 	std::string_view token;
-	const char  *p;
+	const char *p;
 	int i, hash;
 
 	hash = generateHashValue(shadername.data(), MAX_SHADERTEXT_HASH);
@@ -3889,20 +3889,20 @@ Will always return a valid shader, but it might be the
 default shader if the real one can't be found.
 ==================
 */
-shader_t *R_FindShaderByName(const char *name)
+shader_t *R_FindShaderByName(std::string_view name)
 {
-	char strippedName[MAX_QPATH];
+	std::string_view strippedName;
 	int hash;
 	shader_t *sh;
 
-	if ((name == NULL) || (name[0] == 0))
+	if (name.empty())
 	{
 		return tr.defaultShader;
 	}
 
-	COM_StripExtension(name, strippedName, sizeof(strippedName));
+	COM_StripExtension_cpp(name, strippedName);
 
-	hash = generateHashValue(strippedName, FILE_HASH_SIZE);
+	hash = generateHashValue(strippedName.data(), FILE_HASH_SIZE);
 
 	//
 	// see if the shader is already loaded
@@ -3913,7 +3913,7 @@ shader_t *R_FindShaderByName(const char *name)
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
 		// have to check all default shaders otherwise for every call to R_FindShader
 		// with that same strippedName a new default shader is created.
-		if (Q_stricmp(sh->name, strippedName) == 0)
+		if (Q_stricmp_cpp(sh->name, strippedName) == 0)
 		{
 			// match found
 			return sh;
@@ -4128,12 +4128,12 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 	return FinishShader();
 }
 
-qhandle_t RE_RegisterShaderFromImage(const char *name, int lightmapIndex, image_t &image, bool mipRawImage)
+qhandle_t RE_RegisterShaderFromImage(std::string_view name, int lightmapIndex, image_t &image, bool mipRawImage)
 {
 	unsigned long hash;
 	shader_t *sh;
 
-	hash = generateHashValue(name, FILE_HASH_SIZE);
+	hash = generateHashValue(name.data(), FILE_HASH_SIZE);
 
 	// probably not necessary since this function
 	// only gets called from tr_font.c with lightmapIndex == LIGHTMAP_2D
@@ -4152,14 +4152,14 @@ qhandle_t RE_RegisterShaderFromImage(const char *name, int lightmapIndex, image_
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
 		// have to check all default shaders otherwise for every call to R_FindShader
 		// with that same strippedName a new default shader is created.
-		if ((sh->lightmapSearchIndex == lightmapIndex || sh->defaultShader) && !Q_stricmp(sh->name, name))
+		if ((sh->lightmapSearchIndex == lightmapIndex || sh->defaultShader) && !Q_stricmp_cpp(sh->name, name))
 		{
 			// match found
 			return sh->index;
 		}
 	}
 
-	InitShader(name, lightmapIndex);
+	InitShader(name.data(), lightmapIndex);
 
 	// FIXME: set these "need" values appropriately
 	// shader.needsNormal = true;
@@ -4188,17 +4188,17 @@ This should really only be used for explicit shaders, because there is no
 way to ask for different implicit lighting modes (vertex, lightmap, etc)
 ====================
 */
-qhandle_t RE_RegisterShaderLightMap(const char *name, int lightmapIndex)
+qhandle_t RE_RegisterShaderLightMap(std::string_view name, int lightmapIndex)
 {
 	shader_t *sh;
 
-	if (strlen(name) >= MAX_QPATH)
+	if (name.length() >= MAX_QPATH)
 	{
 		ri.Printf(PRINT_ALL, "Shader name exceeds MAX_QPATH\n");
 		return 0;
 	}
 
-	sh = R_FindShader(name, lightmapIndex, true);
+	sh = R_FindShader(name.data(), lightmapIndex, true);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should
