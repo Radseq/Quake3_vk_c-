@@ -347,7 +347,7 @@ void TextureMode(std::string_view sv_mode)
 	image_t *img;
 	int i;
 
-	mode = NULL;
+	mode = nullptr;
 	for (i = 0; i < static_cast<int>(arrayLen(modes)); i++)
 	{
 		if (!Q_stricmp_cpp(modes[i].name, sv_mode))
@@ -357,7 +357,7 @@ void TextureMode(std::string_view sv_mode)
 		}
 	}
 
-	if (mode == NULL)
+	if (mode == nullptr)
 	{
 		ri.Printf(PRINT_ALL, "bad texture filter name '%s'\n", sv_mode.data());
 		return;
@@ -397,23 +397,23 @@ void R_ImageList_f(void)
 
 		switch (image->internalFormat)
 		{
-		case VK_FORMAT_B8G8R8A8_UNORM:
+		case vk::Format::eB8G8R8A8Unorm:
 			format = "BGRA ";
 			estSize *= 4;
 			break;
-		case VK_FORMAT_R8G8B8A8_UNORM:
+		case vk::Format::eR8G8B8A8Unorm:
 			format = "RGBA ";
 			estSize *= 4;
 			break;
-		case VK_FORMAT_R8G8B8_UNORM:
+		case vk::Format::eR8G8B8Unorm:
 			format = "RGB  ";
 			estSize *= 3;
 			break;
-		case VK_FORMAT_B4G4R4A4_UNORM_PACK16:
+		case vk::Format::eB4G4R4A4UnormPack16:
 			format = "RGBA ";
 			estSize *= 2;
 			break;
-		case VK_FORMAT_A1R5G5B5_UNORM_PACK16:
+		case vk::Format::eA1R5G5B5UnormPack16:
 			format = "RGB  ";
 			estSize *= 2;
 			break;
@@ -912,13 +912,13 @@ static void upload_vk_image(image_t *image, byte *pic)
 
 	if (r_texturebits->integer > 16 || r_texturebits->integer == 0 || (image->flags & IMGFLAG_LIGHTMAP))
 	{
-		image->internalFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		image->internalFormat = vk::Format::eR8G8B8A8Unorm;
 		// image->internalFormat = VK_FORMAT_B8G8R8A8_UNORM;
 	}
 	else
 	{
 		bool has_alpha = RawImage_HasAlpha(upload_data.buffer, w * h);
-		image->internalFormat = has_alpha ? VK_FORMAT_B4G4R4A4_UNORM_PACK16 : VK_FORMAT_A1R5G5B5_UNORM_PACK16;
+		image->internalFormat = has_alpha ? vk::Format::eB4G4R4A4UnormPack16 : vk::Format::eA1R5G5B5UnormPack16;
 	}
 
 	image->handle = nullptr;
