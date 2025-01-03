@@ -14,27 +14,19 @@ std::string_view COM_GetExtension_cpp(std::string_view name)
         return "";
 }
 
-void COM_StripExtension_cpp(std::string_view in, std::string_view &out)
-{
+std::string COM_StripExtension_cpp(std::string_view in) {
     auto dot = in.find_last_of('.');
     auto slash = in.find_last_of('/');
 
-    size_t destsize = in.size(); // Initialize destsize with size of 'in'
-
-    if (dot != std::string_view::npos && (slash == std::string_view::npos || slash < dot))
-    {
-        destsize = dot; // Update destsize to strip extension
+    if (dot != std::string_view::npos && (slash == std::string_view::npos || slash < dot)) {
+        // Return a new string excluding the extension
+        return std::string(in.substr(0, dot));
     }
 
-    if (in.data() == out.data() && destsize > 1)
-    {
-        out = in.substr(0, destsize);
-    }
-    else
-    {
-        out = in; // Fallback if out is not the same as in
-    }
+    // Return the original string as a new copy
+    return std::string(in);
 }
+
 
 static int com_tokenline;
 static int com_lines;
@@ -45,7 +37,7 @@ static inline bool isWhitespace(char c)
     return std::isspace(static_cast<unsigned char>(c));
 }
 
-std::string_view SkipWhitespace_cpp(std::string_view data, bool &hasNewLines)
+static std::string_view SkipWhitespace_cpp(std::string_view data, bool &hasNewLines)
 {
     hasNewLines = false;
     while (!data.empty() && isWhitespace(data.front()))

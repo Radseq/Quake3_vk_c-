@@ -359,7 +359,7 @@ qhandle_t RE_RegisterModel(const char *name)
 				// try again without the extension
 				orgNameFailed = true;
 				orgLoader = i;
-				COM_StripExtension_cpp(std::string_view(name), localName);
+				localName = COM_StripExtension_cpp(std::string_view(name));
 			}
 			else
 			{

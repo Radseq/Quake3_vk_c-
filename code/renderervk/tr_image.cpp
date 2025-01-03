@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cstdint>	 // for std::uint32_t
 #include <algorithm>
 #include "string_operations.hpp"
+#include <string>
 
 // Note that the ordering indicates the order of preference used
 // when there are multiple images of different formats available
@@ -1096,6 +1097,97 @@ static const char *R_LoadImage(const char *name, byte **pic, int *width, int *he
 	return localName;
 }
 
+image_t* R_FindImageFile2(std::string_view name, imgFlags_t flags)
+{
+	image_t* image;
+	std::string strippedName;
+	int width, height;
+	byte* pic;
+	int hash;
+
+	ri.Printf(PRINT_ALL, "name %s \n", name.data());
+
+	if (name.empty())
+	{
+		return NULL;
+	}
+
+	hash = generateHashValue(name.data());
+
+	//
+	// see if the image is already loaded
+	//
+	for (image = hashTable[hash]; image; image = image->next)
+	{
+		if (!Q_stricmp_cpp(name, image->imgName))
+		{
+			// the white image can be used with any set of parms, but other mismatches are errors
+			if (name.compare("*white"))
+			{
+				if (image->flags != flags)
+				{
+					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name, image->flags, flags);
+				}
+			}
+			return image;
+		}
+	}
+
+	if (strrchr_sv(name, '.'))
+	{
+		// try with stripped extension
+		strippedName = COM_StripExtension_cpp(name);
+		for (image = hashTable[hash]; image; image = image->next)
+		{
+			if (!Q_stricmp_cpp(strippedName, image->imgName))
+			{
+				// if ( strcmp( strippedName, "*white" ) ) {
+				if (image->flags != flags)
+				{
+					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", strippedName, image->flags, flags);
+				}
+				//}
+				return image;
+			}
+		}
+	}
+
+	//
+	// load the pic from disk
+	//
+	auto localName = R_LoadImage(name.data(), &pic, &width, &height);
+	if (pic == NULL)
+	{
+		return NULL;
+	}
+
+	if (tr.mapLoading && r_mapGreyScale->value > 0)
+	{
+		byte* img;
+		int i;
+		for (i = 0, img = pic; i < width * height; i++, img += 4)
+		{
+			if (r_mapGreyScale->integer)
+			{
+				byte luma = LUMA(img[0], img[1], img[2]);
+				img[0] = luma;
+				img[1] = luma;
+				img[2] = luma;
+			}
+			else
+			{
+				float luma = LUMA(img[0], img[1], img[2]);
+				img[0] = LERP(img[0], luma, r_mapGreyScale->value);
+				img[1] = LERP(img[1], luma, r_mapGreyScale->value);
+				img[2] = LERP(img[2], luma, r_mapGreyScale->value);
+			}
+		}
+	}
+
+	image = R_CreateImage(name.data(), localName, pic, width, height, flags);
+	ri.Free(pic);
+	return image;
+}
 /*
 ===============
 R_FindImageFile
@@ -1106,6 +1198,8 @@ Returns NULL if it fails, not a default image.
 */
 image_t *R_FindImageFile(const char *name, imgFlags_t flags)
 {
+	R_FindImageFile2(std::string_view(name), flags);
+
 	image_t *image;
 	const char *localName;
 	char strippedName[MAX_QPATH];

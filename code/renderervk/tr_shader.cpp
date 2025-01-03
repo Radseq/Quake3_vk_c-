@@ -3900,7 +3900,7 @@ shader_t *R_FindShaderByName(std::string_view name)
 		return tr.defaultShader;
 	}
 
-	COM_StripExtension_cpp(name, strippedName);
+	strippedName = COM_StripExtension_cpp(name);
 
 	hash = generateHashValue(strippedName.data(), FILE_HASH_SIZE);
 
