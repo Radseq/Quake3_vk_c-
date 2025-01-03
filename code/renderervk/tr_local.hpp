@@ -582,7 +582,7 @@ typedef struct image_s
 	int frameUsed; // for texture usage in frame statistics
 
 #ifdef USE_VULKAN
-	int internalFormat;
+	vk::Format internalFormat;
 
 	vk::SamplerAddressMode wrapClampMode;
 	vk::Image handle;

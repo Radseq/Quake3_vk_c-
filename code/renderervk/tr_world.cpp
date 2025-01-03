@@ -117,7 +117,7 @@ added to the sorting list.
 This will also allow mirrors on both sides of a model without recursion.
 ================
 */
-static bool R_CullSurface(const surfaceType_t *surface, shader_t *shader)
+static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 {
 	srfSurfaceFace_t *sface;
 	float d;
@@ -142,7 +142,7 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t *shader)
 		return false;
 	}
 
-	if (shader->cullType == CT_TWO_SIDED)
+	if (shader.cullType == CT_TWO_SIDED)
 	{
 		return false;
 	}
@@ -159,7 +159,7 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t *shader)
 	// don't cull exactly on the plane, because there are levels of rounding
 	// through the BSP, ICD, and hardware that may cause pixel gaps if an
 	// epsilon isn't allowed here
-	if (shader->cullType == CT_FRONT_SIDED)
+	if (shader.cullType == CT_FRONT_SIDED)
 	{
 		if (d < sface->plane.dist - 8)
 		{
@@ -404,7 +404,7 @@ static void R_AddWorldSurface(msurface_t &surf, int dlightBits)
 	// FIXME: bmodel fog?
 
 	// try to cull before dlighting or adding
-	if (R_CullSurface(surf.data, surf.shader))
+	if (R_CullSurface(surf.data, *surf.shader))
 	{
 		return;
 	}
