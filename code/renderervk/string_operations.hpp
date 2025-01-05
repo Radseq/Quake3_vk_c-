@@ -3,9 +3,14 @@
 
 #include <string_view>
 #include <array>
-
 #include "tr_local.hpp"
 #include <string>
+
+template <std::size_t Size>
+void Q_strncpyz_cpp(std::array<char, Size>& dest, const char* src);
+
+template <std::size_t Size>
+void Q_strncpyz_cpp(std::array<char, Size>& dest, std::string_view src);
 
 inline constexpr bool strrchr_sv(std::string_view sv, char character) {
 	// Find the last '.' character

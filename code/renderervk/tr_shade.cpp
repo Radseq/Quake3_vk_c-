@@ -58,7 +58,6 @@ to overflow.
 */
 void RB_BeginSurface(shader_t &shader, int fogNum)
 {
-
 	shader_t *state;
 
 #ifdef USE_VBO
