@@ -1097,7 +1097,15 @@ static const char *R_LoadImage(const char *name, byte **pic, int *width, int *he
 	return localName;
 }
 
-image_t* R_FindImageFile2(std::string_view name, imgFlags_t flags)
+/*
+===============
+R_FindImageFile
+
+Finds or loads the given image.
+Returns NULL if it fails, not a default image.
+==============
+*/
+image_t *R_FindImageFile(std::string name, imgFlags_t flags)
 {
 	image_t* image;
 	std::string strippedName;
@@ -1105,7 +1113,7 @@ image_t* R_FindImageFile2(std::string_view name, imgFlags_t flags)
 	byte* pic;
 	int hash;
 
-	ri.Printf(PRINT_ALL, "name %s \n", name.data());
+	//ri.Printf(PRINT_ALL, "name %s \n", name.data());
 
 	if (name.empty())
 	{
@@ -1144,7 +1152,7 @@ image_t* R_FindImageFile2(std::string_view name, imgFlags_t flags)
 				// if ( strcmp( strippedName, "*white" ) ) {
 				if (image->flags != flags)
 				{
-					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", strippedName, image->flags, flags);
+					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", strippedName.data(), image->flags, flags);
 				}
 				//}
 				return image;
@@ -1185,106 +1193,6 @@ image_t* R_FindImageFile2(std::string_view name, imgFlags_t flags)
 	}
 
 	image = R_CreateImage(name.data(), localName, pic, width, height, flags);
-	ri.Free(pic);
-	return image;
-}
-/*
-===============
-R_FindImageFile
-
-Finds or loads the given image.
-Returns NULL if it fails, not a default image.
-==============
-*/
-image_t *R_FindImageFile(const char *name, imgFlags_t flags)
-{
-	R_FindImageFile2(std::string_view(name), flags);
-
-	image_t *image;
-	const char *localName;
-	char strippedName[MAX_QPATH];
-	int width, height;
-	byte *pic;
-	int hash;
-
-	if (!name)
-	{
-		return NULL;
-	}
-
-	hash = generateHashValue(name);
-
-	//
-	// see if the image is already loaded
-	//
-	for (image = hashTable[hash]; image; image = image->next)
-	{
-		if (!Q_stricmp(name, image->imgName))
-		{
-			// the white image can be used with any set of parms, but other mismatches are errors
-			if (strcmp(name, "*white"))
-			{
-				if (image->flags != flags)
-				{
-					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name, image->flags, flags);
-				}
-			}
-			return image;
-		}
-	}
-
-	if (strrchr(name, '.') > name)
-	{
-		// try with stripped extension
-		COM_StripExtension(name, strippedName, sizeof(strippedName));
-		for (image = hashTable[hash]; image; image = image->next)
-		{
-			if (!Q_stricmp(strippedName, image->imgName))
-			{
-				// if ( strcmp( strippedName, "*white" ) ) {
-				if (image->flags != flags)
-				{
-					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", strippedName, image->flags, flags);
-				}
-				//}
-				return image;
-			}
-		}
-	}
-
-	//
-	// load the pic from disk
-	//
-	localName = R_LoadImage(name, &pic, &width, &height);
-	if (pic == NULL)
-	{
-		return NULL;
-	}
-
-	if (tr.mapLoading && r_mapGreyScale->value > 0)
-	{
-		byte *img;
-		int i;
-		for (i = 0, img = pic; i < width * height; i++, img += 4)
-		{
-			if (r_mapGreyScale->integer)
-			{
-				byte luma = LUMA(img[0], img[1], img[2]);
-				img[0] = luma;
-				img[1] = luma;
-				img[2] = luma;
-			}
-			else
-			{
-				float luma = LUMA(img[0], img[1], img[2]);
-				img[0] = LERP(img[0], luma, r_mapGreyScale->value);
-				img[1] = LERP(img[1], luma, r_mapGreyScale->value);
-				img[2] = LERP(img[2], luma, r_mapGreyScale->value);
-			}
-		}
-	}
-
-	image = R_CreateImage(name, localName, pic, width, height, flags);
 	ri.Free(pic);
 	return image;
 }
