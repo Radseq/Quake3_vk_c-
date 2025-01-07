@@ -3,45 +3,6 @@
 #include <cctype>
 #include <charconv>
 
-template <std::size_t Size>
-void Q_strncpyz_cpp(std::array<char, Size>& dest, const char* src) {
-    if (!src) {
-        throw std::invalid_argument("Q_strncpyz: NULL src");
-    }
-
-    if (Size < 1) {
-        throw std::invalid_argument("Q_strncpyz: dest size < 1");
-    }
-
-    std::size_t destsize = Size;
-
-    // Copy characters until the buffer is full or we encounter null terminator
-    std::size_t i = 0;
-    while (--destsize > 0 && (*dest.data() = *src++) != '\0') {
-        ++dest.data();
-        ++i;
-    }
-
-    // Null-terminate the destination array
-    dest[i] = '\0';
-}
-
-template <std::size_t Size>
-void Q_strncpyz_cpp(std::array<char, Size>& dest, std::string_view src) {
-    if (Size < 1) {
-        throw std::invalid_argument("Q_strncpyz_cpp: dest size < 1");
-    }
-
-    // Determine the number of characters to copy
-    std::size_t length = std::min(Size - 1, src.size()); // Leave room for null-terminator
-
-    // Copy the characters
-    std::copy_n(src.begin(), length, dest.begin());
-
-    // Null-terminate the destination array
-    dest[length] = '\0';
-}
-
 std::string_view COM_GetExtension_cpp(std::string_view name)
 {
     auto dot = name.find_last_of('.');
@@ -52,20 +13,6 @@ std::string_view COM_GetExtension_cpp(std::string_view name)
     else
         return "";
 }
-
-std::string COM_StripExtension_cpp(std::string_view in) {
-    auto dot = in.find_last_of('.');
-    auto slash = in.find_last_of('/');
-
-    if (dot != std::string_view::npos && (slash == std::string_view::npos || slash < dot)) {
-        // Return a new string excluding the extension
-        return std::string(in.substr(0, dot));
-    }
-
-    // Return the original string as a new copy
-    return std::string(in);
-}
-
 
 static int com_tokenline;
 static int com_lines;

@@ -418,6 +418,9 @@ void R_ImageList_f(void)
 			format = "RGB  ";
 			estSize *= 2;
 			break;
+		default:
+			ri.Printf(PRINT_ALL, "Unsupported vk::format of image->internalFormat \n");
+			break;
 		}
 
 		// mipmap adds about 50%
@@ -943,24 +946,27 @@ This is the only way any image_t are created
 Picture data may be modified in-place during mipmap processing
 ================
 */
-image_t *R_CreateImage(const char *name, const char *name2, byte *pic, int width, int height, imgFlags_t flags)
+image_t *R_CreateImage(std::string_view name, std::string_view name2, byte *pic, int width, int height, imgFlags_t flags)
 {
 	image_t *image;
 	long hash;
 	int namelen, namelen2;
-	const char *slash;
 
-	namelen = (int)strlen(name) + 1;
+	namelen = name.size() + 1;
 	if (namelen > MAX_QPATH)
 	{
-		ri.Error(ERR_DROP, "R_CreateImage: \"%s\" is too long", name);
+		ri.Error(ERR_DROP, "R_CreateImage: \"%s\" is too long", name.data());
 	}
 
-	if (name2 && Q_stricmp(name, name2) != 0)
+	if (!name2.empty() && Q_stricmp_cpp(name, name2) != 0)
 	{
 		// leave only file name
-		name2 = (slash = strrchr(name2, '/')) != NULL ? slash + 1 : name2;
-		namelen2 = (int)strlen(name2) + 1;
+		auto slash_pos = name2.rfind('/'); // Find the last '/'
+		if (slash_pos != std::string_view::npos)
+		{
+			name2 = name2.substr(slash_pos + 1); // Update name2 to the substring after '/'
+		}
+		namelen2 = name2.size() + 1;
 	}
 	else
 	{
@@ -974,18 +980,20 @@ image_t *R_CreateImage(const char *name, const char *name2, byte *pic, int width
 
 	image = static_cast<image_t *>(ri.Hunk_Alloc(sizeof(*image) + namelen + namelen2, h_low));
 	image->imgName = (char *)(image + 1);
-	strcpy(image->imgName, name);
+	// strcpy(image->imgName, name);
+	std::memcpy(image->imgName, name.data(), name.size());
 	if (namelen2)
 	{
 		image->imgName2 = image->imgName + namelen;
-		strcpy(image->imgName2, name2);
+		// strcpy(image->imgName2, name2);
+		std::memcpy(image->imgName2, name2.data(), name2.size());
 	}
 	else
 	{
 		image->imgName2 = image->imgName;
 	}
 
-	hash = generateHashValue(name);
+	hash = generateHashValue(name.data());
 	image->next = hashTable[hash];
 	hashTable[hash] = image;
 
@@ -1021,10 +1029,11 @@ Loads any of the supported image types into a canonical
 32 bit format.
 =================
 */
-static const char *R_LoadImage(const char *name, byte **pic, int *width, int *height)
+static std::array<char, MAX_QPATH> R_LoadImage(std::string_view name, byte **pic, int *width, int *height)
 {
-	static char localName[MAX_QPATH];
-	const char *altName, *ext;
+	static std::array<char, MAX_QPATH> localName;
+	std::string_view altName;
+	std::string_view ext;
 	// bool orgNameFailed = false;
 	int orgLoader = -1;
 	int i;
@@ -1033,18 +1042,18 @@ static const char *R_LoadImage(const char *name, byte **pic, int *width, int *he
 	*width = 0;
 	*height = 0;
 
-	Q_strncpyz(localName, name, sizeof(localName));
+	Q_strncpyz_cpp(localName, name);
 
-	ext = COM_GetExtension(localName);
-	if (*ext)
+	ext = COM_GetExtension_cpp(localName);
+	if (!ext.empty())
 	{
 		// Look for the correct loader and use it
 		for (i = 0; i < numImageLoaders; i++)
 		{
-			if (!Q_stricmp(ext, imageLoaders[i].ext))
+			if (!Q_stricmp_cpp(ext, imageLoaders[i].ext))
 			{
 				// Load
-				imageLoaders[i].ImageLoader(localName, pic, width, height);
+				imageLoaders[i].ImageLoader(localName.data(), pic, width, height);
 				break;
 			}
 		}
@@ -1058,7 +1067,7 @@ static const char *R_LoadImage(const char *name, byte **pic, int *width, int *he
 				// try again without the extension
 				// orgNameFailed = true;
 				orgLoader = i;
-				COM_StripExtension(name, localName, MAX_QPATH);
+				COM_StripExtension_cpp(name, localName);
 			}
 			else
 			{
@@ -1075,10 +1084,11 @@ static const char *R_LoadImage(const char *name, byte **pic, int *width, int *he
 		if (i == orgLoader)
 			continue;
 
-		altName = va("%s.%s", localName, imageLoaders[i].ext);
+		altName = va("%s.%s", localName.data(), imageLoaders[i].ext);
+		// ri.Printf(PRINT_ALL, "name %s \n", altName.data());
 
 		// Load
-		imageLoaders[i].ImageLoader(altName, pic, width, height);
+		imageLoaders[i].ImageLoader(altName.data(), pic, width, height);
 
 		if (*pic)
 		{
@@ -1089,7 +1099,7 @@ static const char *R_LoadImage(const char *name, byte **pic, int *width, int *he
 						name, altName );
 			}
 #endif
-			Q_strncpyz(localName, altName, sizeof(localName));
+			Q_strncpyz_cpp(localName, altName.data());
 			break;
 		}
 	}
@@ -1107,13 +1117,13 @@ Returns NULL if it fails, not a default image.
 */
 image_t *R_FindImageFile(std::string name, imgFlags_t flags)
 {
-	image_t* image;
-	std::string strippedName;
+	image_t *image;
+	std::array<char, MAX_QPATH> strippedName;
 	int width, height;
-	byte* pic;
+	byte *pic;
 	int hash;
 
-	//ri.Printf(PRINT_ALL, "name %s \n", name.data());
+	// ri.Printf(PRINT_ALL, "name %s \n", name.data());
 
 	if (name.empty())
 	{
@@ -1134,7 +1144,7 @@ image_t *R_FindImageFile(std::string name, imgFlags_t flags)
 			{
 				if (image->flags != flags)
 				{
-					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name, image->flags, flags);
+					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name.data(), image->flags, flags);
 				}
 			}
 			return image;
@@ -1144,10 +1154,10 @@ image_t *R_FindImageFile(std::string name, imgFlags_t flags)
 	if (strrchr_sv(name, '.'))
 	{
 		// try with stripped extension
-		strippedName = COM_StripExtension_cpp(name);
+		COM_StripExtension_cpp(name, strippedName);
 		for (image = hashTable[hash]; image; image = image->next)
 		{
-			if (!Q_stricmp_cpp(strippedName, image->imgName))
+			if (!Q_stricmp_cpp(std::string_view(strippedName.data(), strippedName.size()), image->imgName))
 			{
 				// if ( strcmp( strippedName, "*white" ) ) {
 				if (image->flags != flags)
@@ -1163,15 +1173,15 @@ image_t *R_FindImageFile(std::string name, imgFlags_t flags)
 	//
 	// load the pic from disk
 	//
-	auto localName = R_LoadImage(name.data(), &pic, &width, &height);
-	if (pic == NULL)
+	auto localName = R_LoadImage(name, &pic, &width, &height);
+	if (pic == nullptr)
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	if (tr.mapLoading && r_mapGreyScale->value > 0)
 	{
-		byte* img;
+		byte *img;
 		int i;
 		for (i = 0, img = pic; i < width * height; i++, img += 4)
 		{
@@ -1192,7 +1202,7 @@ image_t *R_FindImageFile(std::string name, imgFlags_t flags)
 		}
 	}
 
-	image = R_CreateImage(name.data(), localName, pic, width, height, flags);
+	image = R_CreateImage(name.data(), localName.data(), pic, width, height, flags);
 	ri.Free(pic);
 	return image;
 }
@@ -1218,7 +1228,7 @@ static void R_CreateFogImage(void)
 			data[(y * FOG_S + x) * 4 + 3] = 255 * d;
 		}
 	}
-	tr.fogImage = R_CreateImage("*fog", NULL, data, FOG_S, FOG_T, IMGFLAG_CLAMPTOEDGE);
+	tr.fogImage = R_CreateImage("*fog", {}, data, FOG_S, FOG_T, IMGFLAG_CLAMPTOEDGE);
 	ri.Hunk_FreeTempMemory(data);
 }
 
@@ -1252,7 +1262,7 @@ static void R_CreateDlightImage(void)
 			data[y][x][3] = 255;
 		}
 	}
-	tr.dlightImage = R_CreateImage("*dlight", NULL, (byte *)data, DLIGHT_SIZE, DLIGHT_SIZE, IMGFLAG_CLAMPTOEDGE);
+	tr.dlightImage = R_CreateImage("*dlight", {}, (byte *)data, DLIGHT_SIZE, DLIGHT_SIZE, IMGFLAG_CLAMPTOEDGE);
 }
 
 static int Hex(char c)
@@ -1338,7 +1348,7 @@ static bool R_BuildDefaultImage(const char *format)
 		}
 	}
 
-	tr.defaultImage = R_CreateImage("*default", NULL, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, IMGFLAG_MIPMAP);
+	tr.defaultImage = R_CreateImage("*default", {}, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, IMGFLAG_MIPMAP);
 
 	return true;
 }
@@ -1384,7 +1394,7 @@ static void R_CreateDefaultImage(void)
 					data[x][DEFAULT_SIZE - 1][3] = 255;
 	}
 
-	tr.defaultImage = R_CreateImage("*default", NULL, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, IMGFLAG_MIPMAP);
+	tr.defaultImage = R_CreateImage("*default", {}, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, IMGFLAG_MIPMAP);
 }
 
 static void R_CreateBuiltinImages(void)
@@ -1395,11 +1405,11 @@ static void R_CreateBuiltinImages(void)
 	R_CreateDefaultImage();
 
 	Com_Memset(data, 0, sizeof(data));
-	tr.blackImage = R_CreateImage("*black", NULL, (byte *)data, 8, 8, IMGFLAG_NONE);
+	tr.blackImage = R_CreateImage("*black", {}, (byte *)data, 8, 8, IMGFLAG_NONE);
 
 	// we use a solid white image instead of disabling texturing
 	Com_Memset(data, 255, sizeof(data));
-	tr.whiteImage = R_CreateImage("*white", NULL, (byte *)data, 8, 8, IMGFLAG_NONE);
+	tr.whiteImage = R_CreateImage("*white", {}, (byte *)data, 8, 8, IMGFLAG_NONE);
 
 	// with overbright bits active, we need an image which is some fraction of full color,
 	// for default lightmaps, etc
@@ -1414,7 +1424,7 @@ static void R_CreateBuiltinImages(void)
 		}
 	}
 
-	tr.identityLightImage = R_CreateImage("*identityLight", NULL, (byte *)data, 8, 8, IMGFLAG_NONE);
+	tr.identityLightImage = R_CreateImage("*identityLight", {}, (byte *)data, 8, 8, IMGFLAG_NONE);
 
 	// for ( x = 0; x < arrayLen2( tr.scratchImage ); x++ ) {
 	//  scratchimage is usually used for cinematic drawing

@@ -376,7 +376,7 @@ static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 	for (offs = 0, i = 0; i < tr.numLightmaps; i++)
 	{
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOBORDER);
-		tr.lightmaps[i] = R_CreateImage(va("*mergedLightmap%d", i), nullptr, NULL,
+		tr.lightmaps[i] = R_CreateImage(va("*mergedLightmap%d", i), {}, NULL,
 										lightmapWidth, lightmapHeight, flag);
 
 		for (y = 0; y < lightmapCountY; y++)
@@ -462,7 +462,7 @@ static void R_LoadLightmaps(const lump_t *l)
 	{
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOEDGE);
 		maxIntensity = R_ProcessLightmap(image, buf + i * LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3, maxIntensity);
-		tr.lightmaps[i] = R_CreateImage(va("*lightmap%d", i), NULL, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
+		tr.lightmaps[i] = R_CreateImage(va("*lightmap%d", i), {}, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
 										flag);
 	}
 
@@ -1915,7 +1915,7 @@ static void R_LoadSubmodels(const lump_t *l)
 
 		model->type = MOD_BRUSH;
 		model->bmodel = out;
-		Com_sprintf(model->name, sizeof(model->name), "*%d", i);
+		Com_sprintf(model->name.data(), sizeof(model->name), "*%d", i);
 
 		for (j = 0; j < 3; j++)
 		{

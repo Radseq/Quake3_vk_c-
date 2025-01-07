@@ -285,8 +285,8 @@ qhandle_t RE_RegisterModel(const char *name)
 	bool orgNameFailed = false;
 	int orgLoader = -1;
 	int i;
-	std::string_view localName = std::string_view(name);
-	char altName[MAX_QPATH];
+	std::array<char, MAX_QPATH> localName;
+	std::array<char, MAX_QPATH> altName;
 
 	if (!name || !name[0])
 	{
@@ -306,7 +306,7 @@ qhandle_t RE_RegisterModel(const char *name)
 	for (hModel = 1; hModel < tr.numModels; hModel++)
 	{
 		mod = tr.models[hModel];
-		if (!strcmp(mod->name, name))
+		if (!strcmp(mod->name.data(), name))
 		{
 			if (mod->type == MOD_BAD)
 			{
@@ -325,7 +325,7 @@ qhandle_t RE_RegisterModel(const char *name)
 	}
 
 	// only set the name after the model has been successfully loaded
-	Q_strncpyz(mod->name, name, sizeof(mod->name));
+	Q_strncpyz_cpp(mod->name, name);
 
 	mod->type = MOD_BAD;
 	mod->numLods = 0;
@@ -333,7 +333,7 @@ qhandle_t RE_RegisterModel(const char *name)
 	//
 	// load the files
 	//
-	// Q_strncpyz(localName, name, MAX_QPATH);
+	Q_strncpyz_cpp(localName, name, MAX_QPATH);
 
 	std::string_view ext = COM_GetExtension_cpp(localName);
 
@@ -345,7 +345,7 @@ qhandle_t RE_RegisterModel(const char *name)
 			if (!Q_stricmp_cpp(ext, modelLoaders[i].ext))
 			{
 				// Load
-				hModel = modelLoaders[i].ModelLoader(localName, *mod);
+				hModel = modelLoaders[i].ModelLoader(localName.data(), *mod);
 				break;
 			}
 		}
@@ -359,7 +359,7 @@ qhandle_t RE_RegisterModel(const char *name)
 				// try again without the extension
 				orgNameFailed = true;
 				orgLoader = i;
-				localName = COM_StripExtension_cpp(std::string_view(name));
+				COM_StripExtension_cpp(std::string_view(name), localName);
 			}
 			else
 			{
@@ -376,17 +376,17 @@ qhandle_t RE_RegisterModel(const char *name)
 		if (i == orgLoader)
 			continue;
 
-		Com_sprintf(altName, sizeof(altName), "%s.%s", localName.data(), modelLoaders[i].ext.data());
+		Com_sprintf(altName.data(), sizeof(altName), "%s.%s", localName.data(), modelLoaders[i].ext.data());
 
 		// Load
-		hModel = modelLoaders[i].ModelLoader(std::string_view(altName), *mod);
+		hModel = modelLoaders[i].ModelLoader(std::string_view(altName.data(), altName.size()), *mod);
 
 		if (hModel)
 		{
 			if (orgNameFailed)
 			{
 				ri.Printf(PRINT_DEVELOPER, "WARNING: %s not present, using %s instead\n",
-						  name, altName);
+						  name, altName.data());
 			}
 
 			break;
@@ -1052,7 +1052,7 @@ void R_Modellist_f(void)
 				lods++;
 			}
 		}
-		ri.Printf(PRINT_ALL, "%8i : (%i) %s\n", mod.dataSize, lods, mod.name);
+		ri.Printf(PRINT_ALL, "%8i : (%i) %s\n", mod.dataSize, lods, mod.name.data());
 		total += mod.dataSize;
 	}
 	ri.Printf(PRINT_ALL, "%8i : Total models\n", total);

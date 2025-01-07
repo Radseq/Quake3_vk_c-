@@ -997,7 +997,7 @@ typedef enum
 
 typedef struct model_s
 {
-	char name[MAX_QPATH];
+	std::array<char, MAX_QPATH> name;
 	modtype_t type;
 	int index; // model = tr.models[model->index]
 

@@ -810,7 +810,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			{
 				if (!tr.scratchImage[handle])
 				{
-					tr.scratchImage[handle] = R_CreateImage(va("*scratch%i", handle), NULL, NULL, 256, 256, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
+					tr.scratchImage[handle] = R_CreateImage(va("*scratch%i", handle), {}, NULL, 256, 256, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
 				}
 				stage.bundle[0].isVideoMap = true;
 				stage.bundle[0].videoMapHandle = handle;
@@ -3891,7 +3891,7 @@ default shader if the real one can't be found.
 */
 shader_t *R_FindShaderByName(std::string_view name)
 {
-	std::string_view strippedName;
+	std::array<char, MAX_QPATH> strippedName;
 	int hash;
 	shader_t *sh;
 
@@ -3900,7 +3900,7 @@ shader_t *R_FindShaderByName(std::string_view name)
 		return tr.defaultShader;
 	}
 
-	strippedName = COM_StripExtension_cpp(name);
+	COM_StripExtension_cpp(name, strippedName);
 
 	hash = generateHashValue(strippedName.data(), FILE_HASH_SIZE);
 
@@ -3913,7 +3913,7 @@ shader_t *R_FindShaderByName(std::string_view name)
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
 		// have to check all default shaders otherwise for every call to R_FindShader
 		// with that same strippedName a new default shader is created.
-		if (Q_stricmp_cpp(sh->name, strippedName) == 0)
+		if (Q_stricmp_cpp(sh->name, std::string_view(strippedName.data(), strippedName.size())) == 0)
 		{
 			// match found
 			return sh;
