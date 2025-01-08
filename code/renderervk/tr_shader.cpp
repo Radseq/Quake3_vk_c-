@@ -4016,7 +4016,7 @@ most world construction surfaces.
 
 ===============
 */
-shader_t *R_FindShader(std::string_view name, int lightmapIndex, bool mipRawImage)
+shader_t *R_FindShader(std::string name, int lightmapIndex, bool mipRawImage)
 {
 	std::array<char, MAX_QPATH> strippedName;
 	unsigned long hash;
