@@ -187,7 +187,7 @@ int Q_stricmpn_cpp(std::string_view s1, std::string_view s2, int n)
     return 0; // Strings are equal up to n characters
 }
 
-bool Q_isfinite(float f)
+static bool Q_isfinite(float f)
 {
     return std::isfinite(f);
 }
