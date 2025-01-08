@@ -7,6 +7,7 @@
 #include <format>
 #include <vector>
 #include <cstdarg>
+#include <algorithm> // For std::min
 
 template <std::size_t Size>
 void Q_strncpyz_cpp(std::array<char, Size> &dest, std::string_view src)
@@ -17,7 +18,7 @@ void Q_strncpyz_cpp(std::array<char, Size> &dest, std::string_view src)
     }
 
     // Determine the number of characters to copy
-    std::size_t length = std::min(Size - 1, src.size()); // Leave room for null-terminator
+    std::size_t length = std::min<std::size_t>(Size - 1, src.size()); // Leave room for null-terminator
 
     // Copy the characters
     std::copy_n(src.begin(), length, dest.begin());
@@ -35,7 +36,7 @@ void Q_strncpyz_cpp(std::array<char, Size> &dest, std::string_view src, std::siz
     }
 
     // Determine the number of characters to copy
-    std::size_t length = std::min({Size - 1, max_cpy_size, src.size()}); // Leave room for null-terminator
+    std::size_t length = std::min<std::size_t>({ Size - 1, max_cpy_size, src.size() }); // Leave room for null-terminator
 
     // Copy the characters
     std::copy_n(src.begin(), length, dest.begin());

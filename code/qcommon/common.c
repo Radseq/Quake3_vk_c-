@@ -2320,7 +2320,7 @@ Allocate permanent (until the hunk is cleared) memory
 =================
 */
 #ifdef HUNK_DEBUG
-void *Hunk_AllocDebug( int size, ha_pref preference, char *label, char *file, int line ) {
+void *Hunk_AllocDebug( int size, ha_pref preference, const char *label, const char *file, int line ) {
 #else
 void *Hunk_Alloc( int size, ha_pref preference ) {
 #endif
