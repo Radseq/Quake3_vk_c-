@@ -74,7 +74,7 @@ constexpr collapse_t collapse[] = {
 
 void RE_RemapShader(const char *shaderName, const char *newShaderName, const char *timeOffset)
 {
-	char strippedName[MAX_QPATH];
+	std::array<char, MAX_QPATH> strippedName;
 	int hash;
 	shader_t *sh, *sh2;
 	qhandle_t h;
@@ -106,11 +106,11 @@ void RE_RemapShader(const char *shaderName, const char *newShaderName, const cha
 
 	// remap all the shaders with the given name
 	// even tho they might have different lightmaps
-	COM_StripExtension(shaderName, strippedName, sizeof(strippedName));
-	hash = generateHashValue(strippedName, FILE_HASH_SIZE);
+	COM_StripExtension_cpp(shaderName, strippedName);
+	hash = generateHashValue(strippedName.data(), FILE_HASH_SIZE);
 	for (sh = shaderHashTable[hash]; sh; sh = sh->next)
 	{
-		if (Q_stricmp(sh->name, strippedName) == 0)
+		if (Q_stricmp_cpp(sh->name, strippedName.data()) == 0)
 		{
 			if (sh != sh2)
 			{
@@ -125,7 +125,7 @@ void RE_RemapShader(const char *shaderName, const char *newShaderName, const cha
 
 	if (timeOffset)
 	{
-		sh2->timeOffset = Q_atof(timeOffset);
+		sh2->timeOffset = Q_atof_cpp(timeOffset);
 	}
 }
 
@@ -733,6 +733,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 				flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
 			stage.bundle[0].image[0] = R_FindImageFile(token.data(), flags);
+
 			if (!stage.bundle[0].image[0])
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token.data(), shader.name);
@@ -755,6 +756,17 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			}
 			stage.bundle[0].imageAnimationSpeed = Q_atof_cpp(token);
 
+			imgFlags_t flags = IMGFLAG_NONE;
+
+			if (!shader.noMipMaps)
+				flags = static_cast<imgFlags_t>(flags | IMGFLAG_MIPMAP);
+
+			if (!shader.noPicMip)
+				flags = static_cast<imgFlags_t>(flags | IMGFLAG_PICMIP);
+
+			if (shader.noLightScale)
+				flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
+
 			// parse up to MAX_IMAGE_ANIMATIONS animations
 			while (1)
 			{
@@ -768,17 +780,6 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 				num = stage.bundle[0].numImageAnimations;
 				if (num < maxAnimations)
 				{
-					imgFlags_t flags = IMGFLAG_NONE;
-
-					if (!shader.noMipMaps)
-						flags = static_cast<imgFlags_t>(flags | IMGFLAG_MIPMAP);
-
-					if (!shader.noPicMip)
-						flags = static_cast<imgFlags_t>(flags | IMGFLAG_PICMIP);
-
-					if (shader.noLightScale)
-						flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
-
 					stage.bundle[0].image[num] = R_FindImageFile(token.data(), flags);
 					if (!stage.bundle[0].image[num])
 					{
@@ -810,7 +811,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			{
 				if (!tr.scratchImage[handle])
 				{
-					tr.scratchImage[handle] = R_CreateImage(va("*scratch%i", handle), {}, NULL, 256, 256, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
+					tr.scratchImage[handle] = R_CreateImage(va_cpp("*scratch%i", handle), {}, NULL, 256, 256, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
 				}
 				stage.bundle[0].isVideoMap = true;
 				stage.bundle[0].videoMapHandle = handle;
@@ -1946,9 +1947,7 @@ static bool ParseShader(const char **text)
 	resultType res;
 	branchType branch;
 	std::string_view token;
-	int numStages;
-
-	numStages = 0;
+	int numStages = 0;
 
 	s_extendedShader = (*text >= s_extensionOffset);
 
@@ -3878,7 +3877,7 @@ static const char *FindShaderInShaderText(std::string_view shadername)
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 /*
@@ -4017,9 +4016,9 @@ most world construction surfaces.
 
 ===============
 */
-shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
+shader_t *R_FindShader(std::string_view name, int lightmapIndex, bool mipRawImage)
 {
-	char strippedName[MAX_QPATH];
+	std::array<char, MAX_QPATH> strippedName;
 	unsigned long hash;
 	const char *shaderText;
 	image_t *image;
@@ -4039,13 +4038,13 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 	else if (lightmapIndex < LIGHTMAP_2D)
 	{
 		// negative lightmap indexes cause stray pointers (think tr.lightmaps[lightmapIndex])
-		ri.Printf(PRINT_WARNING, "WARNING: shader '%s' has invalid lightmap index of %d\n", name, lightmapIndex);
+		ri.Printf(PRINT_WARNING, "WARNING: shader '%s' has invalid lightmap index of %d\n", name.data(), lightmapIndex);
 		lightmapIndex = LIGHTMAP_BY_VERTEX;
 	}
 
-	COM_StripExtension(name, strippedName, sizeof(strippedName));
+	COM_StripExtension_cpp(name, strippedName);
 
-	hash = generateHashValue(strippedName, FILE_HASH_SIZE);
+	hash = generateHashValue(strippedName.data(), FILE_HASH_SIZE);
 
 	//
 	// see if the shader is already loaded
@@ -4056,14 +4055,14 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
 		// have to check all default shaders otherwise for every call to R_FindShader
 		// with that same strippedName a new default shader is created.
-		if ((sh->lightmapSearchIndex == lightmapIndex || sh->defaultShader) && !Q_stricmp(sh->name, strippedName))
+		if ((sh->lightmapSearchIndex == lightmapIndex || sh->defaultShader) && !Q_stricmp_cpp(sh->name, strippedName.data()))
 		{
 			// match found
 			return sh;
 		}
 	}
 
-	InitShader(strippedName, lightmapIndex);
+	InitShader(strippedName.data(), lightmapIndex);
 
 	// FIXME: set these "need" values appropriately
 	// shader.needsNormal = true;
@@ -4074,14 +4073,14 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 	//
 	// attempt to define shader from an explicit parameter file
 	//
-	shaderText = FindShaderInShaderText(strippedName);
+	shaderText = FindShaderInShaderText(strippedName.data());
 	if (shaderText)
 	{
 		// enable this when building a pak file to get a global list
 		// of all explicit shaders
 		if (r_printShaders->integer)
 		{
-			ri.Printf(PRINT_ALL, "*SHADER* %s\n", name);
+			ri.Printf(PRINT_ALL, "*SHADER* %s\n", name.data());
 		}
 
 		if (!ParseShader(&shaderText))
@@ -4114,7 +4113,7 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 		image = R_FindImageFile(name, flags);
 		if (!image)
 		{
-			ri.Printf(PRINT_DEVELOPER, "Couldn't find image file for shader %s\n", name);
+			ri.Printf(PRINT_DEVELOPER, "Couldn't find image file for shader %s\n", name.data());
 			shader.defaultShader = true;
 			return FinishShader();
 		}

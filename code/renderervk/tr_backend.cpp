@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_vbo.hpp"
 #include "vk.hpp"
 #include "tr_cmds.hpp"
+#include "string_operations.hpp"
 
 backEndData_t *backEndData;
 backEndState_t backEnd;
@@ -573,12 +574,11 @@ void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data, i
 
 void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client, bool dirty)
 {
-
 	image_t *image;
 
 	if (!tr.scratchImage[client])
 	{
-		tr.scratchImage[client] = R_CreateImage(va("*scratch%i", client), {}, data, cols, rows, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
+		tr.scratchImage[client] = R_CreateImage(va_cpp("*scratch%i", client), {}, data, cols, rows, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
 	}
 
 	image = tr.scratchImage[client];

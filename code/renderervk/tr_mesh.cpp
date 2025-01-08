@@ -323,7 +323,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	{
 		ri.Printf(PRINT_DEVELOPER, "R_AddMD3Surfaces: no such frame %d to %d for '%s'\n",
 				  ent.e.oldframe, ent.e.frame,
-				  tr.currentModel->name);
+				  tr.currentModel->name.data());
 		ent.e.frame = 0;
 		ent.e.oldframe = 0;
 	}

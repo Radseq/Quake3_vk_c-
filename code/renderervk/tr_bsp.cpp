@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_model.hpp"
 #include "math.hpp"
 #include "utils.hpp"
+#include "string_operations.hpp"
 
 static world_t s_worldData;
 static byte *fileBase;
@@ -376,7 +377,7 @@ static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 	for (offs = 0, i = 0; i < tr.numLightmaps; i++)
 	{
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOBORDER);
-		tr.lightmaps[i] = R_CreateImage(va("*mergedLightmap%d", i), {}, NULL,
+		tr.lightmaps[i] = R_CreateImage(va_cpp("*mergedLightmap%d", i), {}, NULL,
 										lightmapWidth, lightmapHeight, flag);
 
 		for (y = 0; y < lightmapCountY; y++)
@@ -462,7 +463,7 @@ static void R_LoadLightmaps(const lump_t *l)
 	{
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOEDGE);
 		maxIntensity = R_ProcessLightmap(image, buf + i * LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3, maxIntensity);
-		tr.lightmaps[i] = R_CreateImage(va("*lightmap%d", i), {}, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
+		tr.lightmaps[i] = R_CreateImage(va_cpp("*lightmap%d", i), {}, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
 										flag);
 	}
 

@@ -2,6 +2,7 @@
 #include "utils.hpp"
 #include <cctype>
 #include <charconv>
+#include "tr_local.hpp"
 
 std::string_view COM_GetExtension_cpp(std::string_view name)
 {

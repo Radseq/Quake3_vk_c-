@@ -3,7 +3,6 @@
 
 #include <string_view>
 #include <array>
-#include "tr_local.hpp"
 #include <string>
 #include <format>
 #include <vector>
@@ -88,8 +87,12 @@ std::string_view COM_GetExtension_cpp(std::string_view name);
 template <std::size_t Size>
 std::string_view COM_GetExtension_cpp(const std::array<char, Size> &name)
 {
+    std::size_t length = 0;
+    for (; length < Size && name[length] != '\0'; ++length)
+        ;
+
     // Convert the array to a string_view for efficient manipulation
-    std::string_view nameView(name.data(), strnlen(name.data(), Size));
+    std::string_view nameView(name.data(), length);
 
     // Find the last '.' and '/'
     auto dot = nameView.find_last_of('.');
@@ -180,5 +183,38 @@ std::array<char, Size> va_cpp(const char *format, ...)
 
     return buf;
 }
+
+template <std::size_t BufferSize = 32000, std::size_t BufferCount = 2, typename... Args>
+std::string_view va_cpp(const char *format, Args &&...args)
+{
+    static_assert(BufferSize > 0, "BufferSize must be greater than zero.");
+    static_assert(BufferCount > 0, "BufferCount must be greater than zero.");
+
+    // Thread-local static buffers for thread safety
+    thread_local char buffers[BufferCount][BufferSize];
+    thread_local int index = 0;
+
+    // Use the current buffer and increment index
+    char *buf = buffers[index];
+    index = (index + 1) % BufferCount;
+
+    // Format the string into the buffer
+    int result = std::snprintf(buf, BufferSize, format, std::forward<Args>(args)...);
+
+    if (result < 0)
+    {
+        // Handle formatting errors gracefully
+        std::snprintf(buf, BufferSize, "Formatting error.");
+    }
+    else if (static_cast<std::size_t>(result) >= BufferSize)
+    {
+        // Ensure null termination for truncated strings
+        buf[BufferSize - 1] = '\0';
+    }
+
+    // Return a string_view pointing to the formatted buffer
+    return std::string_view(buf);
+}
+
 
 #endif // STRING_OPERATIONS_HPP

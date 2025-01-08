@@ -1084,7 +1084,7 @@ static std::array<char, MAX_QPATH> R_LoadImage(std::string_view name, byte **pic
 		if (i == orgLoader)
 			continue;
 
-		altName = va("%s.%s", localName.data(), imageLoaders[i].ext);
+		altName = va_cpp("%s.%s", localName.data(), imageLoaders[i].ext);
 		// ri.Printf(PRINT_ALL, "name %s \n", altName.data());
 
 		// Load
@@ -1115,7 +1115,7 @@ Finds or loads the given image.
 Returns NULL if it fails, not a default image.
 ==============
 */
-image_t *R_FindImageFile(std::string name, imgFlags_t flags)
+image_t *R_FindImageFile(std::string_view name, imgFlags_t flags)
 {
 	image_t *image;
 	std::array<char, MAX_QPATH> strippedName;
@@ -1666,6 +1666,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 
 	totalSurfaces = 0;
 	text_p = text.c;
+
 	while (text_p && *text_p)
 	{
 		// get surface name

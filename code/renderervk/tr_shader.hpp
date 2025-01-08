@@ -22,19 +22,19 @@ typedef struct
 } collapse_t;
 
 shader_t *R_GetShaderByHandle(qhandle_t hShader);
-void RE_RemapShader(const char *shaderName, const char *newShaderName, const char *timeOffset);
 shader_t *R_FindShaderByName(std::string_view name);
-shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage);
+shader_t *R_FindShader(std::string_view name, int lightmapIndex, bool mipRawImage);
 
 qhandle_t RE_RegisterShaderFromImage(std::string_view name, int lightmapIndex, image_t &image, bool mipRawImage);
 qhandle_t RE_RegisterShaderLightMap(std::string_view name, int lightmapIndex);
-qhandle_t RE_RegisterShader(const char *name);
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
     qhandle_t RE_RegisterShaderNoMip(const char *name);
+    qhandle_t RE_RegisterShader(const char *name);
+    void RE_RemapShader(const char *shaderName, const char *newShaderName, const char *timeOffset);
 #ifdef __cplusplus
 }
 #endif

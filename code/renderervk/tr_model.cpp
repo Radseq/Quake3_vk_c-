@@ -594,6 +594,7 @@ static bool R_LoadMD3(model_t &mod, int lod, void *buffer, std::size_t fileSize,
 
 		// register the shaders
 		shader = (md3Shader_t *)((byte *)surf + surf->ofsShaders);
+
 		for (j = 0; j < surf->numShaders; j++, shader++)
 		{
 			shader_t *sh;

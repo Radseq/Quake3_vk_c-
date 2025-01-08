@@ -52,6 +52,7 @@ using byte = std::uint8_t;
 #include "tr_common.hpp"
 #include "iqm.hpp"
 #include "definitions.hpp"
+#include <array>
 
 constexpr int MAX_DRAWSURFS = 0x20000;
 constexpr int MAX_LITSURFS = (MAX_DRAWSURFS);
@@ -356,7 +357,7 @@ constexpr int LIGHTMAP_INDEX_OFFSET = 2;
 
 typedef struct
 {
-	image_t *image[MAX_IMAGE_ANIMATIONS];
+	std::array<image_t *, MAX_IMAGE_ANIMATIONS> image;
 	int numImageAnimations;
 	double imageAnimationSpeed; // -EC- set to double
 

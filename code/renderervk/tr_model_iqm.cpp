@@ -168,7 +168,7 @@ void R_AddIQMSurfaces(trRefEntity_t &ent)
 	{
 		ri.Printf(PRINT_DEVELOPER, "R_AddIQMSurfaces: no such frame %d to %d for '%s'\n",
 				  ent.e.oldframe, ent.e.frame,
-				  tr.currentModel->name);
+				  tr.currentModel->name.data());
 		ent.e.frame = 0;
 		ent.e.oldframe = 0;
 	}
@@ -1395,7 +1395,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 			surface->first_triangle = mesh->first_triangle;
 			surface->num_triangles = mesh->num_triangles;
 		}
-
+		//ri.Printf(PRINT_ALL, "RRRR header.num_meshes %d\n", header.num_meshes);
 		// copy triangles
 		//triangle = (iqmTriangle_t *)((byte &)header + header.ofs_triangles);
 		triangle = reinterpret_cast<iqmTriangle_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_triangles);
