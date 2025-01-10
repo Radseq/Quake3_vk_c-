@@ -62,9 +62,8 @@ Returns CULL_IN, CULL_CLIP, ort CULL_OUT
 int R_CullLocalBox(const vec3_t bounds[2])
 {
 	int i, j;
-	vec3_t transformed[8];
-	float dists[8];
-	vec3_t v;
+	vec3_t transformed[8]{};
+	float dists[8]{};
 	cplane_t *frust;
 	int anyBack;
 	int front, back;
@@ -77,9 +76,10 @@ int R_CullLocalBox(const vec3_t bounds[2])
 	// transform into world space
 	for (i = 0; i < 8; i++)
 	{
-		v[0] = bounds[i & 1][0];
-		v[1] = bounds[(i >> 1) & 1][1];
-		v[2] = bounds[(i >> 2) & 1][2];
+		vec3_t v{
+			bounds[i & 1][0],
+			bounds[(i >> 1) & 1][1],
+			bounds[(i >> 2) & 1][2]};
 
 		VectorCopy(tr.ort.origin, transformed[i]);
 		VectorMA(transformed[i], v[0], tr.ort.axis[0], transformed[i]);
@@ -352,8 +352,8 @@ Called by both the front end and the back end
 void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
 					   orientationr_t &ort)
 {
-	float glMatrix[16];
-	vec3_t delta;
+	float glMatrix[16]{};
+	vec3_t delta{};
 	float axisLength;
 
 	if (ent.e.reType != RT_MODEL)
@@ -426,8 +426,8 @@ Sets up the modelview matrix for a given viewParm
 */
 static void R_RotateForViewer(void)
 {
-	float viewerMatrix[16];
-	vec3_t origin;
+	float viewerMatrix[16]{};
+	vec3_t origin{};
 
 	Com_Memset(&tr.ort, 0, sizeof(tr.ort));
 	tr.ort.axis[0][0] = 1;
@@ -487,13 +487,12 @@ static void R_SetFarClip(void)
 	farthestCornerDistance = 0;
 	for (i = 0; i < 8; i++)
 	{
-		vec3_t v;
-		vec3_t vecTo;
+		vec3_t vecTo{};
 		float distance;
-
-		v[0] = tr.viewParms.visBounds[(i >> 0) & 1][0];
-		v[1] = tr.viewParms.visBounds[(i >> 1) & 1][1];
-		v[2] = tr.viewParms.visBounds[(i >> 2) & 1][2];
+		vec3_t v{
+			tr.viewParms.visBounds[(i >> 0) & 1][0],
+			tr.viewParms.visBounds[(i >> 1) & 1][1],
+			tr.viewParms.visBounds[(i >> 2) & 1][2]};
 
 		VectorSubtract(v, tr.viewParms.ort.origin, vecTo);
 
@@ -518,7 +517,7 @@ the projection matrix.
 */
 static void R_SetupFrustum(viewParms_t &dest, float xmin, float xmax, float ymax, float zProj, float stereoSep)
 {
-	vec3_t ofsorigin;
+	vec3_t ofsorigin{};
 	float oppleg, adjleg, length;
 	int i;
 
@@ -656,9 +655,7 @@ static void R_SetupProjectionZ(viewParms_t &dest)
 #endif
 	if (dest.portalView != PV_NONE)
 	{
-		float plane[4];
-		float plane2[4];
-		vec4_t q, c;
+		vec4_t c{};
 
 #ifdef USE_REVERSED_DEPTH
 		dest.projectionMatrix[10] = -zFar / depth;
@@ -666,22 +663,25 @@ static void R_SetupProjectionZ(viewParms_t &dest)
 #endif
 
 		// transform portal plane into camera space
-		plane[0] = dest.portalPlane.normal[0];
-		plane[1] = dest.portalPlane.normal[1];
-		plane[2] = dest.portalPlane.normal[2];
-		plane[3] = dest.portalPlane.dist;
+		float plane[4]{
+			dest.portalPlane.normal[0],
+			dest.portalPlane.normal[1],
+			dest.portalPlane.normal[2],
+			dest.portalPlane.dist};
 
-		plane2[0] = -DotProduct(dest.ort.axis[1], plane);
-		plane2[1] = DotProduct(dest.ort.axis[2], plane);
-		plane2[2] = -DotProduct(dest.ort.axis[0], plane);
-		plane2[3] = DotProduct(plane, dest.ort.origin) - plane[3];
+		float plane2[4]{
+			-DotProduct(dest.ort.axis[1], plane),
+			DotProduct(dest.ort.axis[2], plane),
+			-DotProduct(dest.ort.axis[0], plane),
+			DotProduct(plane, dest.ort.origin) - plane[3]};
 
 		// Lengyel, Eric. "Modifying the Projection Matrix to Perform Oblique Near-plane Clipping".
 		// Terathon Software 3D Graphics Library, 2004. http://www.terathon.com/code/oblique.html
-		q[0] = (SGN(plane2[0]) + dest.projectionMatrix[8]) / dest.projectionMatrix[0];
-		q[1] = (SGN(plane2[1]) + dest.projectionMatrix[9]) / dest.projectionMatrix[5];
-		q[2] = -1.0f;
-		q[3] = -dest.projectionMatrix[10] / dest.projectionMatrix[14];
+		vec4_t q{
+			(SGN(plane2[0]) + dest.projectionMatrix[8]) / dest.projectionMatrix[0],
+			(SGN(plane2[1]) + dest.projectionMatrix[9]) / dest.projectionMatrix[5],
+			-1.0f,
+			-dest.projectionMatrix[10] / dest.projectionMatrix[14]};
 		VectorScale4(plane2, 2.0f / DotProduct4(plane2, q), c);
 
 		dest.projectionMatrix[2] = c[0];
@@ -706,8 +706,8 @@ R_MirrorPoint
 static void R_MirrorPoint(const vec3_t &in, const orientation_t &surface, const orientation_t &camera, vec3_t &out)
 {
 	int i;
-	vec3_t local;
-	vec3_t transformed {};
+	vec3_t local{};
+	vec3_t transformed{};
 	float d;
 
 	VectorSubtract(in, surface.origin, local);
@@ -794,9 +794,9 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 									vec3_t &pvsOrigin, portalView_t *portalView)
 {
 	int i;
-	cplane_t originalPlane, plane;
+	cplane_t originalPlane, plane{};
 	float d;
-	vec3_t transformed;
+	vec3_t transformed{};
 
 	// create plane axis for the portal we are seeing
 	R_PlaneForSurface(drawSurf.surface, &originalPlane);
@@ -924,7 +924,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 static bool IsMirror(const drawSurf_t &drawSurf, int entityNum)
 {
 	int i;
-	cplane_t originalPlane, plane;
+	cplane_t originalPlane, plane{};
 	trRefEntity_t *e;
 	float d;
 
@@ -1051,7 +1051,7 @@ static bool SurfIsOffscreen(const drawSurf_t &drawSurf, bool *isMirror)
 
 	for (i = 0; i < tess.numIndexes; i += 3)
 	{
-		vec3_t normal;
+		vec3_t normal{};
 		float len;
 
 		VectorSubtract(tess.xyz[tess.indexes[i]], tr.viewParms.ort.origin, normal);
@@ -1096,11 +1096,10 @@ R_GetModelViewBounds
 */
 static void R_GetModelViewBounds(int *mins, int *maxs)
 {
-	float minn[2];
-	float maxn[2];
-	float norm[2];
+	float minn[2]{};
+	float maxn[2]{};
+	float norm[2]{};
 	float mvp[16];
-	float dist[4];
 	vec4_t clip;
 	int i, j;
 
@@ -1115,10 +1114,13 @@ static void R_GetModelViewBounds(int *mins, int *maxs)
 		R_TransformModelToClipMVP(tess.xyz[i], mvp, clip);
 		if (clip[3] <= 0.0)
 		{
-			dist[0] = DotProduct(tess.xyz[i], tr.viewParms.frustum[0].normal) - tr.viewParms.frustum[0].dist; // right
-			dist[1] = DotProduct(tess.xyz[i], tr.viewParms.frustum[1].normal) - tr.viewParms.frustum[1].dist; // left
-			dist[2] = DotProduct(tess.xyz[i], tr.viewParms.frustum[2].normal) - tr.viewParms.frustum[2].dist; // bottom
-			dist[3] = DotProduct(tess.xyz[i], tr.viewParms.frustum[3].normal) - tr.viewParms.frustum[3].dist; // top
+			float dist[4]{
+				DotProduct(tess.xyz[i], tr.viewParms.frustum[0].normal) - tr.viewParms.frustum[0].dist, // right
+				DotProduct(tess.xyz[i], tr.viewParms.frustum[1].normal) - tr.viewParms.frustum[1].dist, // left
+				DotProduct(tess.xyz[i], tr.viewParms.frustum[2].normal) - tr.viewParms.frustum[2].dist, // bottom
+				DotProduct(tess.xyz[i], tr.viewParms.frustum[3].normal) - tr.viewParms.frustum[3].dist	// top
+			};
+
 			if (dist[0] <= 0 && dist[1] <= 0)
 			{
 				if (dist[0] < dist[1])
@@ -1388,7 +1390,7 @@ typedef struct litSurf_tape_s
 
 static void R_SortLitsurfs(dlight_t &dl)
 {
-	litSurf_tape_t tape[4];
+	litSurf_tape_t tape[4]{};
 	int base;
 	litSurf_t *p;
 	litSurf_t *next;

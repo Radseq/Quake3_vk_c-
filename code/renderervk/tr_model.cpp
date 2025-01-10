@@ -50,7 +50,7 @@ static qhandle_t R_RegisterMD3(std::string_view name, model_t &mod)
 	{
 		uint32_t *u;
 		void *v;
-	} buf;
+	} buf{};
 	int lod;
 	uint32_t ident;
 	bool loaded = false;
@@ -137,7 +137,7 @@ static qhandle_t R_RegisterMDR(std::string_view name, model_t &mod)
 	{
 		uint32_t *u;
 		void *v;
-	} buf;
+	} buf{};
 	uint32_t ident;
 	bool loaded = false;
 	int filesize;
@@ -183,7 +183,7 @@ static qhandle_t R_RegisterIQM(std::string_view name, model_t &mod)
 	{
 		unsigned *u;
 		void *v;
-	} buf;
+	} buf{};
 	bool loaded = false;
 	int filesize;
 
@@ -286,7 +286,7 @@ qhandle_t RE_RegisterModel(const char *name)
 	int orgLoader = -1;
 	int i;
 	std::array<char, MAX_QPATH> localName;
-	std::array<char, MAX_QPATH> altName;
+	std::array<char, MAX_QPATH> altName{};
 
 	if (!name || !name[0])
 	{

@@ -791,7 +791,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 	{
 		byte *b;
 		float *f;
-	} blendWeights;
+	} blendWeights{};
 
 	if (static_cast<std::size_t>(filesize) < sizeof(iqmHeader_t))
 	{

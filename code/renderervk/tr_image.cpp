@@ -495,6 +495,11 @@ Apply a color blend over a set of pixels
 */
 static void R_BlendOverTexture(byte *data, int pixelCount, int mipLevel)
 {
+	if (data == NULL)
+		return;
+
+	if (mipLevel <= 0)
+		return;
 
 	static constexpr byte blendColors[][4] = {
 		{255, 0, 0, 128},
@@ -504,23 +509,14 @@ static void R_BlendOverTexture(byte *data, int pixelCount, int mipLevel)
 		{0, 0, 255, 128},
 		{255, 0, 255, 128}};
 
-	const byte *blend;
+	const byte *blend = blendColors[(mipLevel - 1) % arrayLen(blendColors)];
+	
 	int i;
-	int inverseAlpha;
-	int premult[3];
-
-	if (data == NULL)
-		return;
-
-	if (mipLevel <= 0)
-		return;
-
-	blend = blendColors[(mipLevel - 1) % arrayLen(blendColors)];
-
-	inverseAlpha = 255 - blend[3];
-	premult[0] = blend[0] * blend[3];
-	premult[1] = blend[1] * blend[3];
-	premult[2] = blend[2] * blend[3];
+	int inverseAlpha = 255 - blend[3];
+	int premult[3]{
+		blend[0] * blend[3],
+		blend[1] * blend[3],
+		blend[2] * blend[3]};
 
 	for (i = 0; i < pixelCount; i++, data += 4)
 	{
@@ -549,8 +545,8 @@ static void ResampleTexture(unsigned *in, int inwidth, int inheight, unsigned *o
 	int i, j;
 	unsigned *inrow, *inrow2;
 	unsigned frac, fracstep;
-	unsigned p1[MAX_TEXTURE_SIZE];
-	unsigned p2[MAX_TEXTURE_SIZE];
+	unsigned p1[MAX_TEXTURE_SIZE]{};
+	unsigned p2[MAX_TEXTURE_SIZE]{};
 	byte *pix1, *pix2, *pix3, *pix4;
 
 	if (outwidth > static_cast<int>(arrayLen(p1)))
@@ -1093,10 +1089,10 @@ static std::array<char, MAX_QPATH> R_LoadImage(std::string_view name, byte **pic
 		if (*pic)
 		{
 #if 0
-			if ( orgNameFailed )
+			if (orgNameFailed)
 			{
-				ri.Printf( PRINT_DEVELOPER, S_COLOR_YELLOW "WARNING: %s not present, using %s instead\n",
-						name, altName );
+				ri.Printf(PRINT_DEVELOPER, S_COLOR_YELLOW "WARNING: %s not present, using %s instead\n",
+					name, altName);
 			}
 #endif
 			Q_strncpyz_cpp(localName, altName.data());
@@ -1235,7 +1231,7 @@ static void R_CreateFogImage(void)
 static void R_CreateDlightImage(void)
 {
 	int x, y;
-	byte data[DLIGHT_SIZE][DLIGHT_SIZE][4];
+	byte data[DLIGHT_SIZE][DLIGHT_SIZE][4]{};
 	int b;
 
 	// make a centered inverse-square falloff blob for dynamic lighting
@@ -1294,9 +1290,9 @@ Create solid color texture from following input formats (hex):
 */
 static bool R_BuildDefaultImage(const char *format)
 {
-	byte data[DEFAULT_SIZE][DEFAULT_SIZE][4];
-	byte color[4];
-	int i, len, hex[6];
+	byte data[DEFAULT_SIZE][DEFAULT_SIZE][4]{};
+	byte color[4]{};
+	int i, len, hex[6]{};
 	int x, y;
 
 	if (*format++ != '#')
@@ -1596,7 +1592,7 @@ static const char *CommaParse(const char **data_p)
 
 qhandle_t RE_RegisterSkin(const char *name)
 {
-	skinSurface_t parseSurfaces[MAX_SKIN_SURFACES];
+	skinSurface_t parseSurfaces[MAX_SKIN_SURFACES]{};
 	qhandle_t hSkin;
 	skin_t *skin;
 	skinSurface_t *surf;
@@ -1604,7 +1600,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 	{
 		char *c;
 		void *v;
-	} text;
+	} text{};
 	const char *text_p;
 	const char *token;
 	char surfName[MAX_QPATH];

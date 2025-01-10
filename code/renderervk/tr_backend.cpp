@@ -96,7 +96,7 @@ A player has predicted a teleport, but hasn't arrived yet
 */
 static void RB_Hyperspace(void)
 {
-	color4ub_t c;
+	color4ub_t c{};
 
 	if (!backEnd.isHyperspace)
 	{
@@ -708,8 +708,8 @@ static void RB_DebugPolygon(int color, int numPoints, float *points)
 {
 	vec3_t pa;
 	vec3_t pb;
-	vec3_t p;
-	vec3_t q;
+	vec3_t p{};
+	vec3_t q{};
 	vec3_t n;
 	int i;
 
@@ -1120,7 +1120,6 @@ RB_ExecuteRenderCommands
 */
 void RB_ExecuteRenderCommands(const void *data)
 {
-
 	backEnd.pc.msec = ri.Milliseconds();
 
 	while (1)

@@ -336,12 +336,13 @@ static void vk_set_object_name(uint64_t obj, const char *objName, VkDebugReportO
 {
 	if (qvkDebugMarkerSetObjectNameEXT && obj)
 	{
-		VkDebugMarkerObjectNameInfoEXT info;
-		info.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
-		info.pNext = nullptr;
-		info.objectType = objType;
-		info.object = obj;
-		info.pObjectName = objName;
+		VkDebugMarkerObjectNameInfoEXT info{
+			VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
+			nullptr,
+			objType,
+			obj,
+			objName
+		};
 		qvkDebugMarkerSetObjectNameEXT(vk_inst.device, &info);
 	}
 }

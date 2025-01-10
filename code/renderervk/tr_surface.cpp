@@ -80,7 +80,7 @@ RB_AddQuadStampExt
 */
 void RB_AddQuadStampExt(const vec3_t &origin, const vec3_t &left, const vec3_t &up, const color4ub_t &color, float s1, float t1, float s2, float t2)
 {
-	vec3_t normal;
+	vec3_t normal{};
 	int ndx;
 
 #ifdef USE_VBO
@@ -227,7 +227,7 @@ RB_SurfaceSprite
 */
 static void RB_SurfaceSprite(void)
 {
-	vec3_t left, up;
+	vec3_t left{}, up{};
 	float radius;
 
 	// calculate the xyz locations for the four corners
@@ -424,19 +424,20 @@ static void RB_SurfaceBeam(void)
 	const refEntity_t *e;
 	int i;
 	vec3_t perpvec;
-	vec3_t direction, normalized_direction;
-	vec3_t points[NUM_BEAM_SEGS + 1][2];
-	vec3_t oldorigin, origin;
+	vec3_t direction{}, normalized_direction{};
+	vec3_t points[NUM_BEAM_SEGS + 1][2]{};
 
 	e = &backEnd.currentEntity->e;
 
-	oldorigin[0] = e->oldorigin[0];
-	oldorigin[1] = e->oldorigin[1];
-	oldorigin[2] = e->oldorigin[2];
+	vec3_t oldorigin{
+		e->oldorigin[0],
+		e->oldorigin[1],
+		e->oldorigin[2]};
 
-	origin[0] = e->origin[0];
-	origin[1] = e->origin[1];
-	origin[2] = e->origin[2];
+	vec3_t origin{
+		e->origin[0],
+		e->origin[1],
+		e->origin[2]};
 
 	normalized_direction[0] = direction[0] = oldorigin[0] - origin[0];
 	normalized_direction[1] = direction[1] = oldorigin[1] - origin[1];
@@ -482,7 +483,7 @@ static void RB_SurfaceBeam(void)
 
 //================================================================================
 
-static void DoRailCore(const vec3_t& start, const vec3_t& end, const vec3_t& up, float len, float spanWidth)
+static void DoRailCore(const vec3_t &start, const vec3_t &end, const vec3_t &up, float len, float spanWidth)
 {
 	float spanWidth2;
 	int vbase;
@@ -539,17 +540,16 @@ static void DoRailCore(const vec3_t& start, const vec3_t& end, const vec3_t& up,
 
 static void DoRailDiscs(int numSegs, const vec3_t start, const vec3_t dir, const vec3_t right, const vec3_t up)
 {
-	int i;
-	vec3_t pos[4];
-	vec3_t v;
-	int spanWidth = r_railWidth->integer;
-	float c, s;
-	float scale;
-
 	if (numSegs > 1)
 		numSegs--;
 	if (!numSegs)
 		return;
+
+	int i;
+	vec3_t pos[4]{};
+	int spanWidth = r_railWidth->integer;
+	float c, s;
+	float scale;
 
 	scale = 0.25;
 
@@ -557,9 +557,11 @@ static void DoRailDiscs(int numSegs, const vec3_t start, const vec3_t dir, const
 	{
 		c = cos(DEG2RAD(45 + i * 90));
 		s = sin(DEG2RAD(45 + i * 90));
-		v[0] = (right[0] * c + up[0] * s) * scale * spanWidth;
-		v[1] = (right[1] * c + up[1] * s) * scale * spanWidth;
-		v[2] = (right[2] * c + up[2] * s) * scale * spanWidth;
+		vec3_t v{
+			(right[0] * c + up[0] * s) * scale * spanWidth,
+			(right[1] * c + up[1] * s) * scale * spanWidth,
+			(right[2] * c + up[2] * s) * scale * spanWidth};
+
 		VectorAdd(start, v, pos[i]);
 
 		if (numSegs > 1)
@@ -605,9 +607,9 @@ static void RB_SurfaceRailRings(void)
 	const refEntity_t *e;
 	int numSegs;
 	int len;
-	vec3_t vec;
+	vec3_t vec{};
 	vec3_t right, up;
-	vec3_t start, end;
+	vec3_t start{}, end{};
 
 	e = &backEnd.currentEntity->e;
 
@@ -637,9 +639,9 @@ static void RB_SurfaceRailCore(void)
 	const refEntity_t *e;
 	int len;
 	vec3_t right;
-	vec3_t vec;
-	vec3_t start, end;
-	vec3_t v1, v2;
+	vec3_t vec{};
+	vec3_t start{}, end{};
+	vec3_t v1{}, v2{};
 
 	e = &backEnd.currentEntity->e;
 
@@ -668,11 +670,11 @@ static void RB_SurfaceLightningBolt(void)
 	const refEntity_t *e;
 	int len;
 	vec3_t right;
-	vec3_t vec;
-	vec3_t start, end;
-	vec3_t v1, v2;
+	vec3_t vec{};
+	vec3_t start{}, end{};
+	vec3_t v1{}, v2{};
 	int i;
-
+	// todo radek
 	e = &backEnd.currentEntity->e;
 
 	VectorCopy(e->oldorigin, end);
@@ -784,7 +786,6 @@ static void LerpMeshVertexes_scalar(md3Surface_t *surf, float backlerp)
 			oldXyz += 4, newXyz += 4, oldNormals += 4, newNormals += 4,
 			outXyz += 4, outNormal += 4)
 		{
-			vec3_t uncompressedOldNormal, uncompressedNewNormal;
 
 			// interpolate the xyz
 			outXyz[0] = oldXyz[0] * oldXyzScale + newXyz[0] * newXyzScale;
@@ -796,18 +797,20 @@ static void LerpMeshVertexes_scalar(md3Surface_t *surf, float backlerp)
 			lng = (newNormals[0] & 0xff);
 			lat *= 4;
 			lng *= 4;
-			uncompressedNewNormal[0] = tr.sinTable[(lat + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK] * tr.sinTable[lng];
-			uncompressedNewNormal[1] = tr.sinTable[lat] * tr.sinTable[lng];
-			uncompressedNewNormal[2] = tr.sinTable[(lng + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK];
+			vec3_t uncompressedNewNormal = {
+				tr.sinTable[(lat + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK] * tr.sinTable[lng],
+				tr.sinTable[lat] * tr.sinTable[lng],
+				tr.sinTable[(lng + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK]};
 
 			lat = (oldNormals[0] >> 8) & 0xff;
 			lng = (oldNormals[0] & 0xff);
 			lat *= 4;
 			lng *= 4;
 
-			uncompressedOldNormal[0] = tr.sinTable[(lat + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK] * tr.sinTable[lng];
-			uncompressedOldNormal[1] = tr.sinTable[lat] * tr.sinTable[lng];
-			uncompressedOldNormal[2] = tr.sinTable[(lng + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK];
+			vec3_t uncompressedOldNormal{
+				tr.sinTable[(lat + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK] * tr.sinTable[lng],
+				tr.sinTable[lat] * tr.sinTable[lng],
+				tr.sinTable[(lng + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK]};
 
 			outNormal[0] = uncompressedOldNormal[0] * oldNormalScale + uncompressedNewNormal[0] * newNormalScale;
 			outNormal[1] = uncompressedOldNormal[1] * oldNormalScale + uncompressedNewNormal[1] * newNormalScale;
@@ -995,24 +998,22 @@ static void RB_SurfaceFace(const srfSurfaceFace_t *surf)
 
 static float LodErrorForVolume(vec3_t local, float radius)
 {
-	vec3_t world;
-	float d;
-
 	// never let it go negative
 	if (r_lodCurveError->value < 0)
 	{
 		return 0;
 	}
 
-	world[0] = local[0] * backEnd.ort.axis[0][0] + local[1] * backEnd.ort.axis[1][0] +
-			   local[2] * backEnd.ort.axis[2][0] + backEnd.ort.origin[0];
-	world[1] = local[0] * backEnd.ort.axis[0][1] + local[1] * backEnd.ort.axis[1][1] +
-			   local[2] * backEnd.ort.axis[2][1] + backEnd.ort.origin[1];
-	world[2] = local[0] * backEnd.ort.axis[0][2] + local[1] * backEnd.ort.axis[1][2] +
-			   local[2] * backEnd.ort.axis[2][2] + backEnd.ort.origin[2];
+	vec3_t world{
+		local[0] * backEnd.ort.axis[0][0] + local[1] * backEnd.ort.axis[1][0] +
+			local[2] * backEnd.ort.axis[2][0] + backEnd.ort.origin[0],
+		local[0] * backEnd.ort.axis[0][1] + local[1] * backEnd.ort.axis[1][1] +
+			local[2] * backEnd.ort.axis[2][1] + backEnd.ort.origin[1],
+		local[0] * backEnd.ort.axis[0][2] + local[1] * backEnd.ort.axis[1][2] +
+			local[2] * backEnd.ort.axis[2][2] + backEnd.ort.origin[2]};
 
 	VectorSubtract(world, backEnd.viewParms.ort.origin, world);
-	d = DotProduct(world, backEnd.viewParms.ort.axis[0]);
+	float d = DotProduct(world, backEnd.viewParms.ort.axis[0]);
 
 	if (d < 0)
 	{
@@ -1120,8 +1121,8 @@ static void RB_SurfaceGrid(srfGridMesh_t *cv)
 	drawVert_t *dv;
 	int rows, irows, vrows;
 	int used;
-	int widthTable[MAX_GRID_SIZE];
-	int heightTable[MAX_GRID_SIZE];
+	int widthTable[MAX_GRID_SIZE]{};
+	int heightTable[MAX_GRID_SIZE]{};
 	float lodError;
 	int lodWidth, lodHeight;
 	int numVertexes;

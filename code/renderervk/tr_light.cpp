@@ -46,7 +46,7 @@ the back end (before doing the lighting calculation)
 void R_TransformDlights(int count, dlight_t *dl, orientationr_t &ort)
 {
     int i;
-    vec3_t temp, temp2;
+    vec3_t temp{}, temp2{};
 
     for (i = 0; i < count; i++, dl++)
     {
@@ -132,12 +132,11 @@ void R_DlightBmodel(bmodel_t &bmodel)
 
 static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
 {
-    vec3_t lightOrigin;
-    int pos[3];
+    vec3_t lightOrigin{};
+    int pos[3]{};
     int i, j;
     byte *gridData;
-    float frac[3];
-    int gridStep[3];
+    float frac[3]{};
     vec3_t direction {};
     float totalFactor;
 
@@ -175,9 +174,11 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
     assert(tr.world->lightGridData); // NULL with -nolight maps
 
     // trilerp the light value
-    gridStep[0] = 8;
-    gridStep[1] = 8 * tr.world->lightGridBounds[0];
-    gridStep[2] = 8 * tr.world->lightGridBounds[0] * tr.world->lightGridBounds[1];
+    int gridStep[3] = {
+        8,
+        8 * tr.world->lightGridBounds[0],
+        8 * tr.world->lightGridBounds[0] * tr.world->lightGridBounds[1]
+    };
     gridData = tr.world->lightGridData + pos[0] * gridStep[0] + pos[1] * gridStep[1] + pos[2] * gridStep[2];
 
     totalFactor = 0;
@@ -186,7 +187,6 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
         float factor;
         byte *data;
         int lat, lng;
-        vec3_t normal;
         factor = 1.0;
         data = gridData;
         for (j = 0; j < 3; j++)
@@ -234,9 +234,11 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
         // decode Y as sin( lat ) * sin( long )
         // decode Z as cos( long )
 
-        normal[0] = tr.sinTable[(lat + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK] * tr.sinTable[lng];
-        normal[1] = tr.sinTable[lat] * tr.sinTable[lng];
-        normal[2] = tr.sinTable[(lng + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK];
+        vec3_t normal = {
+            tr.sinTable[(lat + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK] * tr.sinTable[lng],
+            tr.sinTable[lat] * tr.sinTable[lng],
+            tr.sinTable[(lng + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK]
+        };
 
         VectorMA(direction, factor, normal, direction);
     }
@@ -315,12 +317,12 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
 {
     uint32_t i;
     float power;
-    vec3_t dir;
+    vec3_t dir{};
     float d;
-    vec3_t lightDir;
-    vec3_t lightOrigin;
+    vec3_t lightDir{};
+    vec3_t lightOrigin{};
 #ifdef USE_PMLIGHT
-    vec3_t shadowLightDir;
+    vec3_t shadowLightDir{};
 #endif
 
     // lighting calculations

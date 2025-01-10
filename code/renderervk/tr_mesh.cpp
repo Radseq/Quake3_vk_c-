@@ -35,8 +35,8 @@ static float ProjectRadius(float r, const vec3_t &location)
 	float pr;
 	float dist;
 	float c;
-	vec3_t p;
-	float projected[4];
+
+	float projected[4]{};
 
 	c = DotProduct(tr.viewParms.ort.axis[0], tr.viewParms.ort.origin);
 	dist = DotProduct(tr.viewParms.ort.axis[0], location) - c;
@@ -44,15 +44,16 @@ static float ProjectRadius(float r, const vec3_t &location)
 	if (dist <= 0)
 		return 0;
 
-	p[0] = 0;
-	p[1] = fabs(r);
-	p[2] = -dist;
+	vec3_t p{
+		0,
+		fabs(r),
+		-dist};
 
 #if 0
 	projected[0] = p[0] * tr.viewParms.projectionMatrix[0] +
-					p[1] * tr.viewParms.projectionMatrix[4] +
-					p[2] * tr.viewParms.projectionMatrix[8] +
-					tr.viewParms.projectionMatrix[12];
+		p[1] * tr.viewParms.projectionMatrix[4] +
+		p[2] * tr.viewParms.projectionMatrix[8] +
+		tr.viewParms.projectionMatrix[12];
 #endif
 	projected[1] = p[0] * tr.viewParms.projectionMatrix[1] +
 				   p[1] * tr.viewParms.projectionMatrix[5] +
@@ -60,9 +61,9 @@ static float ProjectRadius(float r, const vec3_t &location)
 				   tr.viewParms.projectionMatrix[13];
 #if 0
 	projected[2] = p[0] * tr.viewParms.projectionMatrix[2] +
-					p[1] * tr.viewParms.projectionMatrix[6] +
-					p[2] * tr.viewParms.projectionMatrix[10] +
-					tr.viewParms.projectionMatrix[14];
+		p[1] * tr.viewParms.projectionMatrix[6] +
+		p[2] * tr.viewParms.projectionMatrix[10] +
+		tr.viewParms.projectionMatrix[14];
 #endif
 	projected[3] = p[0] * tr.viewParms.projectionMatrix[3] +
 				   p[1] * tr.viewParms.projectionMatrix[7] +
@@ -253,7 +254,7 @@ static int R_ComputeFogNum(md3Header_t *header, const trRefEntity_t &ent)
 	int i, j;
 	const fog_t *fog;
 	md3Frame_t *md3Frame;
-	vec3_t localOrigin;
+	vec3_t localOrigin{};
 
 	if (tr.refdef.rdflags & RDF_NOWORLDMODEL)
 	{
@@ -300,7 +301,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	bool personalModel;
 #ifdef USE_PMLIGHT
 	dlight_t *dl;
-	dlight_t *dlights[ARRAY_LEN(backEndData->dlights)];
+	dlight_t *dlights[ARRAY_LEN(backEndData->dlights)]{};
 	int numDlights;
 #endif
 

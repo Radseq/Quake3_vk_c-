@@ -67,7 +67,7 @@ AddSkyPolygon
 static void AddSkyPolygon(int nump, vec3_t vecs)
 {
 	int i, j;
-	vec3_t v, av;
+	vec3_t v{};
 	float s, t, dv;
 	int axis;
 	float *vp;
@@ -93,9 +93,11 @@ static void AddSkyPolygon(int nump, vec3_t vecs)
 	{
 		VectorAdd(vp, v, v);
 	}
-	av[0] = fabs(v[0]);
-	av[1] = fabs(v[1]);
-	av[2] = fabs(v[2]);
+	vec3_t av{
+		fabs(v[0]),
+		fabs(v[1]),
+		fabs(v[2])};
+
 	if (av[0] > av[1] && av[0] > av[2])
 	{
 		if (v[0] < 0)
@@ -161,10 +163,10 @@ static void ClipSkyPolygon(int nump, vec3_t vecs, int stage)
 	float *v;
 	bool front, back;
 	float d, e;
-	float dists[MAX_CLIP_VERTS];
-	int sides[MAX_CLIP_VERTS];
-	vec3_t newv[2][MAX_CLIP_VERTS];
-	int newc[2];
+	float dists[MAX_CLIP_VERTS]{};
+	int sides[MAX_CLIP_VERTS]{};
+	vec3_t newv[2][MAX_CLIP_VERTS]{};
+	int newc[2]{};
 	int i, j;
 
 	if (nump > MAX_CLIP_VERTS - 2)
@@ -205,7 +207,6 @@ static void ClipSkyPolygon(int nump, vec3_t vecs, int stage)
 	sides[i] = sides[0];
 	dists[i] = dists[0];
 	VectorCopy(vecs, (vecs + (i * 3)));
-	newc[0] = newc[1] = 0;
 
 	for (i = 0, v = vecs; i < nump; i++, v += 3)
 	{
@@ -481,7 +482,7 @@ static void DrawSkyBox(const shader_t &shader)
 
 	for (i = 0; i < 6; i++)
 	{
-		int sky_mins_subd[2], sky_maxs_subd[2];
+		int sky_mins_subd[2]{}, sky_maxs_subd[2]{};
 		int s, t;
 
 		sky_mins[0][i] = floor(sky_mins[0][i] * HALF_SKY_SUBDIVISIONS) / HALF_SKY_SUBDIVISIONS;
@@ -541,7 +542,7 @@ static void FillCloudBox(void)
 
 	for (i = 0; i < 6; i++)
 	{
-		int sky_mins_subd[2], sky_maxs_subd[2];
+		int sky_mins_subd[2]{}, sky_maxs_subd[2]{};
 		int s, t;
 		float MIN_T;
 
@@ -769,7 +770,7 @@ void RB_DrawSun(float scale, shader_t &shader)
 	float size;
 	float dist;
 	vec3_t origin, vec1, vec2;
-	color4ub_t sunColor;
+	color4ub_t sunColor{};
 
 	if (!backEnd.skyRenderedThisView)
 		return;

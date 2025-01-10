@@ -126,11 +126,11 @@ static void MakeMeshNormals(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE
 {
 	int i, j, k, dist;
 	vec3_t normal;
-	vec3_t base;
-	vec3_t delta;
+	vec3_t base{};
+	vec3_t delta{};
 	int x, y;
-	vec3_t around[8], temp;
-	bool good[8];
+	vec3_t around[8]{}, temp{};
+	bool good[8]{};
 	bool wrapWidth, wrapHeight;
 	float len;
 	static constexpr int neighbors[8][2] = {
@@ -328,7 +328,7 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh(int width, int height,
 {
 	int i, j, size;
 	drawVert_t *vert;
-	vec3_t tmpVec;
+	vec3_t tmpVec{};
 	srfGridMesh_t *grid;
 
 	// copy the results out to a grid
@@ -402,8 +402,8 @@ srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
 	float len, maxLen;
 	int n;
 	int t;
-	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE];
-	float errorTable[2][MAX_GRID_SIZE];
+	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE]{};
+	float errorTable[2][MAX_GRID_SIZE]{};
 
 	memset(&prev, 0, sizeof(prev));
 	memset(&next, 0, sizeof(next));
@@ -436,10 +436,10 @@ srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
 			maxLen = 0;
 			for (i = 0; i < height; i++)
 			{
-				vec3_t midxyz;
-				vec3_t midxyz2;
-				vec3_t dir;
-				vec3_t projected;
+				vec3_t midxyz{};
+				vec3_t midxyz2{};
+				vec3_t dir{};
+				vec3_t projected{};
 				float d;
 
 				// calculate the point on the curve
@@ -585,10 +585,10 @@ srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, int column, int row, cons
 {
 	int i, j;
 	int width, height, oldwidth;
-	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE];
-	float errorTable[2][MAX_GRID_SIZE];
+	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE]{};
+	float errorTable[2][MAX_GRID_SIZE]{};
 	float lodRadius;
-	vec3_t lodOrigin;
+	vec3_t lodOrigin{};
 
 	oldwidth = 0;
 	width = grid.width + 1;
@@ -645,10 +645,10 @@ srfGridMesh_t *R_GridInsertRow(srfGridMesh_t &grid, int row, int column, const v
 {
 	int i, j;
 	int width, height, oldheight;
-	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE];
-	float errorTable[2][MAX_GRID_SIZE];
+	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE]{};
+	float errorTable[2][MAX_GRID_SIZE]{};
 	float lodRadius;
-	vec3_t lodOrigin;
+	vec3_t lodOrigin{};
 
 	oldheight = 0;
 	width = grid.width;

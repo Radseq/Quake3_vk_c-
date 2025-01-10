@@ -1667,7 +1667,7 @@ if ( $cvar|<integer value> [<condition> $cvar|<integer value> [ [ || .. ] && .. 
 static bool ParseCondition(const char **text, resultType *res)
 {
 	char lval_str[MAX_CVAR_VALUE_STRING];
-	char rval_str[MAX_CVAR_VALUE_STRING];
+	char rval_str[MAX_CVAR_VALUE_STRING]{};
 	tokenType_t lval_type;
 	tokenType_t rval_type;
 	const char *token;
@@ -4197,7 +4197,7 @@ qhandle_t RE_RegisterShaderLightMap(std::string_view name, int lightmapIndex)
 		return 0;
 	}
 
-	sh = R_FindShader(name.data(), lightmapIndex, true);
+	sh = R_FindShader(std::string(name), lightmapIndex, true);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should
@@ -4239,7 +4239,7 @@ qhandle_t RE_RegisterShader(const char *name)
 		return 0;
 	}
 
-	sh = R_FindShader(name, LIGHTMAP_2D, true);
+	sh = R_FindShader(std::string(name), LIGHTMAP_2D, true);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should
@@ -4271,7 +4271,7 @@ qhandle_t RE_RegisterShaderNoMip(const char *name)
 		return 0;
 	}
 
-	sh = R_FindShader(name, LIGHTMAP_2D, false);
+	sh = R_FindShader(std::string(name), LIGHTMAP_2D, false);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should
@@ -4697,8 +4697,8 @@ CreateExternalShaders
 */
 static void CreateExternalShaders(void)
 {
-	tr.projectionShadowShader = R_FindShader("projectionShadow", LIGHTMAP_NONE, true);
-	tr.flareShader = R_FindShader("flareShader", LIGHTMAP_NONE, true);
+	tr.projectionShadowShader = R_FindShader(std::string("projectionShadow"), LIGHTMAP_NONE, true);
+	tr.flareShader = R_FindShader(std::string("flareShader"), LIGHTMAP_NONE, true);
 
 	// Hack to make fogging work correctly on flares. Fog colors are calculated
 	// in tr_flare.c already.
@@ -4713,7 +4713,7 @@ static void CreateExternalShaders(void)
 		}
 	}
 
-	tr.sunShader = R_FindShader("sun", LIGHTMAP_NONE, true);
+	tr.sunShader = R_FindShader(std::string("sun"), LIGHTMAP_NONE, true);
 }
 
 /*

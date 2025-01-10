@@ -146,8 +146,8 @@ void RB_ShadowTessEnd(void)
 {
 	int i;
 	int numTris;
-	vec3_t lightDir;
-	uint32_t pipeline[2];
+	vec3_t lightDir{};
+	uint32_t pipeline[2]{};
 
 	if (glConfig.stencilBits < 4)
 	{
@@ -181,7 +181,7 @@ void RB_ShadowTessEnd(void)
 	for (i = 0; i < numTris; i++)
 	{
 		int i1, i2, i3;
-		vec3_t d1, d2, normal;
+		vec3_t d1{}, d2{}, normal;
 		float *v1, *v2, *v3;
 		float d;
 
@@ -321,17 +321,17 @@ void RB_ProjectionShadowDeform(void)
 	float *xyz;
 	int i;
 	float h;
-	vec3_t ground;
-	vec3_t light;
+
 	float groundDist;
 	float d;
-	vec3_t lightDir;
+	vec3_t lightDir{};
 
 	xyz = (float *)tess.xyz;
 
-	ground[0] = backEnd.ort.axis[0][2];
-	ground[1] = backEnd.ort.axis[1][2];
-	ground[2] = backEnd.ort.axis[2][2];
+	vec3_t ground{
+		backEnd.ort.axis[0][2],
+		backEnd.ort.axis[1][2],
+		backEnd.ort.axis[2][2]};
 
 	groundDist = backEnd.ort.origin[2] - backEnd.currentEntity->e.shadowPlane;
 
@@ -351,9 +351,10 @@ void RB_ProjectionShadowDeform(void)
 	}
 	d = 1.0 / d;
 
-	light[0] = lightDir[0] * d;
-	light[1] = lightDir[1] * d;
-	light[2] = lightDir[2] * d;
+	vec3_t light{
+		lightDir[0] * d,
+		lightDir[1] * d,
+		lightDir[2] * d};
 
 	for (i = 0; i < tess.numVertexes; i++, xyz += 4)
 	{

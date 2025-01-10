@@ -520,7 +520,7 @@ void RB_TakeScreenshotBMP(int x, int y, int width, int height, const char *fileN
 	byte *srcptr, *srcline;
 	byte *destptr, *dstline;
 	byte *endmem;
-	byte temp[4];
+	byte temp[4]{};
 	size_t memcount, offset;
 	const int header_size = 54; // bitmapfileheader(14) + bitmapinfoheader(40)
 	int scanlen, padlen;

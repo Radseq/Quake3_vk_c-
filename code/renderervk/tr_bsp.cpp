@@ -573,7 +573,7 @@ static shader_t *ShaderForShaderNum(const int shaderNum, int lightmapNum)
 #ifdef USE_PMLIGHT
 static void GenerateNormals(srfSurfaceFace_t *face)
 {
-	vec3_t ba, ca, cross;
+	vec3_t ba{}, ca{}, cross;
 	float *v1, *v2, *v3, *n1, *n2, *n3;
 	int i, *indices, i0, i1, i2;
 
@@ -786,11 +786,11 @@ static void ParseMesh(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 	srfGridMesh_t *grid;
 	int i, j;
 	int width, height, numPoints;
-	drawVert_t points[MAX_PATCH_SIZE * MAX_PATCH_SIZE];
+	drawVert_t points[MAX_PATCH_SIZE * MAX_PATCH_SIZE]{};
 	int lightmapNum;
 	float lightmapX, lightmapY;
-	vec3_t bounds[2];
-	vec3_t tmpVec;
+	vec3_t bounds[2]{};
+	vec3_t tmpVec{};
 	static surfaceType_t skipData = SF_SKIP;
 
 	// get fog volume
@@ -2179,7 +2179,7 @@ static void R_LoadFogs(const lump_t *l, const lump_t *brushesLump, const lump_t 
 	shader_t *shader;
 	float d;
 	int firstSide;
-	vec3_t fogColor;
+	vec3_t fogColor{};
 
 	fogs = reinterpret_cast<const dfog_t *>((fileBase + l->fileofs));
 	if (l->filelen % sizeof(*fogs))
@@ -2317,7 +2317,7 @@ R_LoadLightGrid
 static void R_LoadLightGrid(const lump_t *l)
 {
 	int i;
-	vec3_t maxs;
+	vec3_t maxs{};
 	int numGridPoints;
 	world_t *w;
 	float *wMins, *wMaxs;
@@ -2491,7 +2491,7 @@ void RE_LoadWorldMap(const char *name)
 	{
 		byte *b;
 		void *v;
-	} buffer;
+	} buffer{};
 	byte *startMarker;
 
 	if (tr.worldMapLoaded)

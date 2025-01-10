@@ -122,7 +122,7 @@ RB_CalcDeformVertexes
 static void RB_CalcDeformVertexes(deformStage_t &ds)
 {
 	int i;
-	vec3_t offset;
+	vec3_t offset{};
 	float scale;
 	float *xyz = (float *)tess.xyz;
 	float *normal = (float *)tess.normal;
@@ -181,17 +181,17 @@ static void RB_CalcDeformNormals(deformStage_t &ds)
 	{
 		scale = 0.98f;
 		scale = R_NoiseGet4f(xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
-						   tess.shaderTime * ds.deformationWave.frequency);
+							 tess.shaderTime * ds.deformationWave.frequency);
 		normal[0] += ds.deformationWave.amplitude * scale;
 
 		scale = 0.98f;
 		scale = R_NoiseGet4f(100 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
-						   tess.shaderTime * ds.deformationWave.frequency);
+							 tess.shaderTime * ds.deformationWave.frequency);
 		normal[1] += ds.deformationWave.amplitude * scale;
 
 		scale = 0.98f;
 		scale = R_NoiseGet4f(200 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
-						   tess.shaderTime * ds.deformationWave.frequency);
+							 tess.shaderTime * ds.deformationWave.frequency);
 		normal[2] += ds.deformationWave.amplitude * scale;
 
 		VectorNormalizeFast(normal);
@@ -241,7 +241,7 @@ static void RB_CalcMoveVertexes(deformStage_t &ds)
 	float *xyz;
 	float *table;
 	float scale;
-	vec3_t offset {};
+	vec3_t offset{};
 
 	table = TableForFunc(ds.deformationWave.func);
 
@@ -272,9 +272,9 @@ static void DeformText(std::string_view text)
 	vec3_t origin{}, width, height{};
 	int len;
 	int ch;
-	color4ub_t color;
+	color4ub_t color{};
 	float bottom, top;
-	vec3_t mid {};
+	vec3_t mid{};
 
 	height[0] = 0;
 	height[1] = 0;
@@ -344,7 +344,7 @@ static void DeformText(std::string_view text)
 GlobalVectorToLocal
 ==================
 */
-static void GlobalVectorToLocal(const vec3_t& in, vec3_t& out)
+static void GlobalVectorToLocal(const vec3_t &in, vec3_t &out)
 {
 	out[0] = DotProduct(in, backEnd.ort.axis[0]);
 	out[1] = DotProduct(in, backEnd.ort.axis[1]);
@@ -401,8 +401,7 @@ static void AutospriteDeform(void)
 		vec3_t mid = {
 			{0.25f * (xyz[0] + xyz[4] + xyz[8] + xyz[12])},
 			{0.25f * (xyz[1] + xyz[5] + xyz[9] + xyz[13])},
-			{0.25f * (xyz[2] + xyz[6] + xyz[10] + xyz[14])}
-		};
+			{0.25f * (xyz[2] + xyz[6] + xyz[10] + xyz[14])}};
 
 		VectorSubtract(xyz, mid, delta);
 		radius = VectorLength(delta) * 0.707f; // / sqrt(2)
@@ -476,17 +475,15 @@ static void Autosprite2Deform(void)
 	// the shader abstraction
 	for (i = 0, indexes = 0; i < tess.numVertexes; i += 4, indexes += 6)
 	{
-		float lengths[2];
+		// identify the two shortest edges
+		float lengths[2]{999999, 999999};
 		int nums[2]{};
 		vec3_t mid[2]{};
-		vec3_t major, minor;
+		vec3_t major{}, minor;
 		float *v1, *v2;
 
 		// find the midpoint
 		xyz = tess.xyz[i];
-
-		// identify the two shortest edges
-		lengths[0] = lengths[1] = 999999;
 
 		for (j = 0; j < 6; j++)
 		{
@@ -651,7 +648,7 @@ void RB_CalcColorFromOneMinusEntity(unsigned char *dstColors)
 {
 	int i;
 	uint32_t *pColors = (uint32_t *)dstColors;
-	color4ub_t invModulate;
+	color4ub_t invModulate{};
 
 	if (!backEnd.currentEntity)
 		return;
@@ -711,7 +708,7 @@ void RB_CalcWaveColor(const waveForm_t &wf, unsigned char *dstColors)
 	int v, i;
 	float glow;
 	uint32_t *colors = (uint32_t *)dstColors;
-	color4ub_t color;
+	color4ub_t color{};
 
 	if (wf.func == GF_NOISE)
 	{
@@ -785,7 +782,7 @@ void RB_CalcModulateColorsByFog(unsigned char *colors)
 void RB_CalcModulateAlphasByFog(unsigned char *colors)
 {
 	int i;
-	float texCoords[SHADER_MAX_VERTEXES][2];
+	float texCoords[SHADER_MAX_VERTEXES][2]{};
 
 	// calculate texcoords so we can derive density
 	// this is not wasted, because it would only have
@@ -1004,7 +1001,7 @@ static void RB_CalcEnvironmentTexCoordsFPscr(float *st)
 {
 	int i;
 	const float *v, *normal;
-	vec3_t viewer, reflected;
+	vec3_t viewer{};
 	float d;
 
 	v = tess.xyz[0];
@@ -1016,9 +1013,10 @@ static void RB_CalcEnvironmentTexCoordsFPscr(float *st)
 		VectorNormalizeFast(viewer);
 
 		d = DotProduct(normal, viewer);
-
-		reflected[1] = normal[1] * 2 * d - viewer[1];
-		reflected[2] = normal[2] * 2 * d - viewer[2];
+		vec3_t reflected{
+			0,
+			normal[1] * 2 * d - viewer[1],
+			normal[2] * 2 * d - viewer[2]};
 
 		st[0] = 0.5 - reflected[1] * 0.5;
 		st[1] = 0.5 + reflected[2] * 0.5;
@@ -1036,7 +1034,7 @@ void RB_CalcEnvironmentTexCoordsFP(float *st, int screenMap)
 {
 	int i;
 	const float *v, *normal;
-	vec3_t viewer, reflected, where, why, who; // what
+	vec3_t viewer{}, reflected{}, where{}, why{}, who{}; // what
 	float d;
 
 	if (!backEnd.currentEntity || (backEnd.currentEntity->e.renderfx & RF_FIRST_PERSON) == 0)
@@ -1087,7 +1085,7 @@ void RB_CalcEnvironmentTexCoords(float *st)
 {
 	int i;
 	const float *v, *normal;
-	vec3_t viewer, reflected;
+	vec3_t viewer{}, reflected{};
 	float d;
 
 	v = tess.xyz[0];
@@ -1192,7 +1190,7 @@ void RB_CalcRotateTexCoords(float degsPerSecond, float *src, float *dst)
 	double degs;						// -EC- set to double
 	int64_t index;
 	float sinValue, cosValue;
-	texModInfo_t tmi;
+	texModInfo_t tmi{};
 
 	degs = -degsPerSecond * timeScale;
 	index = degs * (FUNCTABLE_SIZE / 360.0f);
@@ -1222,10 +1220,10 @@ void RB_CalcSpecularAlpha(unsigned char *alphas)
 {
 	int i;
 	const float *v, *normal;
-	vec3_t viewer, reflected;
+	vec3_t viewer{};
 	float l, d;
 	int b;
-	vec3_t lightDir;
+	vec3_t lightDir{};
 	int numVertexes;
 
 	v = tess.xyz[0];
@@ -1248,9 +1246,10 @@ void RB_CalcSpecularAlpha(unsigned char *alphas)
 
 		// we don't optimize for the d < 0 case since this tends to
 		// cause visual artifacts such as faceted "snapping"
-		reflected[0] = normal[0] * 2 * d - lightDir[0];
-		reflected[1] = normal[1] * 2 * d - lightDir[1];
-		reflected[2] = normal[2] * 2 * d - lightDir[2];
+		vec3_t reflected{
+			normal[0] * 2 * d - lightDir[0],
+			normal[1] * 2 * d - lightDir[1],
+			normal[2] * 2 * d - lightDir[2]};
 
 		VectorSubtract(backEnd.ort.viewOrigin, v, viewer);
 		ilength = Q_rsqrt(DotProduct(viewer, viewer));
@@ -1290,7 +1289,7 @@ static void RB_CalcDiffuseColor_scalar(unsigned char *colors)
 	int ambientLightInt = ent->ambientLightInt;
 	int numVertexes = tess.numVertexes;
 
-	vec3_t ambientLight, lightDir, directedLight;
+	vec3_t ambientLight{}, lightDir{}, directedLight{};
 
 	VectorCopy(ent->ambientLight, ambientLight);
 	VectorCopy(ent->directedLight, directedLight);
