@@ -110,7 +110,7 @@
     <EmbedManifest>false</EmbedManifest>
     <TargetName>quake3e.x64</TargetName>
     <IncludePath>C:\VulkanSDK\1.3.296.0\Include;$(ProjectDir)..\..\libogg\include;$(ProjectDir)..\..\libvorbis\include;D:\Programming\vulkanSDK\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VulkanSDK\1.3.296.0\Lib;$(LibraryPath)</LibraryPath>
+    <LibraryPath>C:\VulkanSDK\1.3.296.0\Lib;D:\Programming\vulkanSDK\Lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <EmbedManifest>false</EmbedManifest>
@@ -227,6 +227,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <DebugInformationFormat>None</DebugInformationFormat>
     </ClCompile>
     <Link>
       <AdditionalOptions>/DYNAMICBASE %(AdditionalOptions)</AdditionalOptions>
