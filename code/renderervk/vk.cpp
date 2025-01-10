@@ -206,14 +206,16 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer)
 							   nullptr,
 							   nullptr};
 
-	VK_CHECK(vk_inst.queue.submit(1, &submit_info, nullptr));
+	//VK_CHECK(vk_inst.queue.submit(1, &submit_info, nullptr));
 	vk::Fence fence;
-	//= vk_inst.device.createFence(vk::FenceCreateInfo{});
 	VK_CHECK_ASSIGN(fence, vk_inst.device.createFence(vk::FenceCreateInfo{}));
 
 	VK_CHECK(vk_inst.queue.submit(1, &submit_info, fence));
 	VK_CHECK(vk_inst.device.waitForFences(1, &fence, vk::True, UINT64_MAX));
 	vk_inst.device.destroyFence(fence);
+
+	//VK_CHECK(vk_inst.queue.waitIdle());
+
 	vk_inst.device.freeCommandBuffers(vk_inst.command_pool,
 									  1,
 									  &command_buffer);

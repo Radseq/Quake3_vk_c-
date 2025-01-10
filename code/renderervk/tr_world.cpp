@@ -470,7 +470,7 @@ static void R_AddLitSurface(msurface_t &surf, const dlight_t &light)
 		return;
 	}
 
-	R_AddLitSurf(surf.data, *surf.shader, surf.fogIndex);
+	R_AddLitSurf(*surf.data, *surf.shader, surf.fogIndex);
 }
 
 static void R_RecursiveLightNode(const mnode_t *node)
@@ -806,14 +806,14 @@ R_PointInLeaf
 */
 static mnode_t *R_PointInLeaf(const vec3_t p)
 {
-	mnode_t *node;
-	float d;
-	const cplane_t *plane;
-
 	if (!tr.world)
 	{
 		ri.Error(ERR_DROP, "R_PointInLeaf: bad model");
 	}
+
+	mnode_t *node;
+	float d;
+	const cplane_t *plane;
 
 	node = tr.world->nodes;
 	while (1)

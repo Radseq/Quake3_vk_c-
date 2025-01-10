@@ -273,7 +273,6 @@ static void DeformText(std::string_view text)
 	int len;
 	int ch;
 	color4ub_t color{};
-	float bottom, top;
 	vec3_t mid{};
 
 	height[0] = 0;
@@ -282,8 +281,8 @@ static void DeformText(std::string_view text)
 	CrossProduct(tess.normal[0], height, width);
 
 	// find the midpoint of the box
-	bottom = 999999;
-	top = -999999;
+	float bottom = 999999;
+	float top = -999999;
 	for (i = 0; i < 4; i++)
 	{
 		VectorAdd(tess.xyz[i], mid, mid);
@@ -417,8 +416,7 @@ static void AutospriteDeform(void)
 		// compensate for scale in the axes if necessary
 		if (backEnd.currentEntity->e.nonNormalizedAxes)
 		{
-			float axisLength;
-			axisLength = VectorLength(backEnd.currentEntity->e.axis[0]);
+			float axisLength = VectorLength(backEnd.currentEntity->e.axis[0]);
 			if (!axisLength)
 			{
 				axisLength = 0;
@@ -845,16 +843,17 @@ void RB_CalcFogTexCoords(float *st)
 	bool eyeOutside;
 	const fog_t *fog;
 	vec3_t local{};
-	vec4_t fogDistanceVector{}, fogDepthVector{};
+	vec4_t fogDepthVector{};
 
 	fog = tr.world->fogs + tess.fogNum;
 
 	// all fogging distance is based on world Z units
 	VectorSubtract(backEnd.ort.origin, backEnd.viewParms.ort.origin, local);
-	fogDistanceVector[0] = -backEnd.ort.modelMatrix[2];
-	fogDistanceVector[1] = -backEnd.ort.modelMatrix[6];
-	fogDistanceVector[2] = -backEnd.ort.modelMatrix[10];
-	fogDistanceVector[3] = DotProduct(local, backEnd.viewParms.ort.axis[0]);
+	vec4_t fogDistanceVector{
+		-backEnd.ort.modelMatrix[2],
+		-backEnd.ort.modelMatrix[6],
+		-backEnd.ort.modelMatrix[10],
+		DotProduct(local, backEnd.viewParms.ort.axis[0])};
 
 	// scale the fog vectors based on the fog's thickness
 	fogDistanceVector[0] *= fog->tcScale;

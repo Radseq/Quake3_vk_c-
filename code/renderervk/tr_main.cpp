@@ -488,7 +488,7 @@ static void R_SetFarClip(void)
 	for (i = 0; i < 8; i++)
 	{
 		vec3_t vecTo{};
-		float distance;
+
 		vec3_t v{
 			tr.viewParms.visBounds[(i >> 0) & 1][0],
 			tr.viewParms.visBounds[(i >> 1) & 1][1],
@@ -496,7 +496,7 @@ static void R_SetFarClip(void)
 
 		VectorSubtract(v, tr.viewParms.ort.origin, vecTo);
 
-		distance = DotProduct(vecTo, vecTo);
+		float distance = DotProduct(vecTo, vecTo);
 
 		if (distance > farthestCornerDistance)
 		{
@@ -925,7 +925,6 @@ static bool IsMirror(const drawSurf_t &drawSurf, int entityNum)
 {
 	int i;
 	cplane_t originalPlane, plane{};
-	trRefEntity_t *e;
 	float d;
 
 	// create plane axis for the portal we are seeing
@@ -958,22 +957,22 @@ static bool IsMirror(const drawSurf_t &drawSurf, int entityNum)
 	// the origin of the camera
 	for (i = 0; i < tr.refdef.num_entities; i++)
 	{
-		e = &tr.refdef.entities[i];
-		if (e->e.reType != RT_PORTALSURFACE)
+		trRefEntity_t &e = tr.refdef.entities[i];
+		if (e.e.reType != RT_PORTALSURFACE)
 		{
 			continue;
 		}
 
-		d = DotProduct(e->e.origin, originalPlane.normal) - originalPlane.dist;
+		d = DotProduct(e.e.origin, originalPlane.normal) - originalPlane.dist;
 		if (d > 64 || d < -64)
 		{
 			continue;
 		}
 
 		// if the entity is just a mirror, don't use as a camera point
-		if (e->e.oldorigin[0] == e->e.origin[0] &&
-			e->e.oldorigin[1] == e->e.origin[1] &&
-			e->e.oldorigin[2] == e->e.origin[2])
+		if (e.e.oldorigin[0] == e.e.origin[0] &&
+			e.e.oldorigin[1] == e.e.origin[1] &&
+			e.e.oldorigin[2] == e.e.origin[2])
 		{
 			return true;
 		}
@@ -1484,7 +1483,7 @@ static void R_SortLitsurfs(dlight_t &dl)
 R_AddLitSurf
 =================
 */
-void R_AddLitSurf(surfaceType_t *surface, shader_t &shader, int fogIndex)
+void R_AddLitSurf(surfaceType_t &surface, shader_t &shader, int fogIndex)
 {
 	struct litSurf_s *litsurf;
 
@@ -1496,7 +1495,7 @@ void R_AddLitSurf(surfaceType_t *surface, shader_t &shader, int fogIndex)
 	litsurf = &tr.refdef.litSurfs[tr.refdef.numLitSurfs++];
 
 	litsurf->sort = (shader.sortedIndex << QSORT_SHADERNUM_SHIFT) | tr.shiftedEntityNum | (fogIndex << QSORT_FOGNUM_SHIFT);
-	litsurf->surface = surface;
+	litsurf->surface = &surface;
 
 	if (!tr.light->head)
 		tr.light->head = litsurf;

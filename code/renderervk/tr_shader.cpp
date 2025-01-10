@@ -325,7 +325,7 @@ static genFunc_t NameToGenFunc(std::string_view funcname)
 ParseWaveForm
 ===================
 */
-static void ParseWaveForm(const char **text, waveForm_t *wave)
+static void ParseWaveForm(const char **text, waveForm_t &wave)
 {
 	const char *token;
 
@@ -335,7 +335,7 @@ static void ParseWaveForm(const char **text, waveForm_t *wave)
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave->func = NameToGenFunc(token);
+	wave.func = NameToGenFunc(token);
 
 	// BASE, AMP, PHASE, FREQ
 	token = COM_ParseExt(text, false);
@@ -344,7 +344,7 @@ static void ParseWaveForm(const char **text, waveForm_t *wave)
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave->base = Q_atof(token);
+	wave.base = Q_atof(token);
 
 	token = COM_ParseExt(text, false);
 	if (token[0] == 0)
@@ -352,7 +352,7 @@ static void ParseWaveForm(const char **text, waveForm_t *wave)
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave->amplitude = Q_atof(token);
+	wave.amplitude = Q_atof(token);
 
 	token = COM_ParseExt(text, false);
 	if (token[0] == 0)
@@ -360,7 +360,7 @@ static void ParseWaveForm(const char **text, waveForm_t *wave)
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave->phase = Q_atof(token);
+	wave.phase = Q_atof(token);
 
 	token = COM_ParseExt(text, false);
 	if (token[0] == 0)
@@ -368,7 +368,7 @@ static void ParseWaveForm(const char **text, waveForm_t *wave)
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave->frequency = Q_atof(token);
+	wave.frequency = Q_atof(token);
 }
 
 /*
@@ -933,7 +933,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 
 			if (!Q_stricmp_cpp(token, "wave"))
 			{
-				ParseWaveForm(text, &stage.bundle[0].rgbWave);
+				ParseWaveForm(text, stage.bundle[0].rgbWave);
 				stage.bundle[0].rgbGen = CGEN_WAVEFORM;
 			}
 			else if (!Q_stricmp_cpp(token, "const"))
@@ -1003,7 +1003,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 
 			if (!Q_stricmp_cpp(token, "wave"))
 			{
-				ParseWaveForm(text, &stage.bundle[0].alphaWave);
+				ParseWaveForm(text, stage.bundle[0].alphaWave);
 				stage.bundle[0].alphaGen = AGEN_WAVEFORM;
 			}
 			else if (!Q_stricmp_cpp(token, "const"))
@@ -1354,7 +1354,7 @@ static void ParseDeform(const char **text)
 			ri.Printf(PRINT_WARNING, "WARNING: illegal div value of 0 in deformVertexes command for shader '%s'\n", shader.name);
 		}
 
-		ParseWaveForm(text, &ds.deformationWave);
+		ParseWaveForm(text, ds.deformationWave);
 		ds.deformation = DEFORM_WAVE;
 		return;
 	}
@@ -1396,7 +1396,7 @@ static void ParseDeform(const char **text)
 			ds.moveVector[i] = Q_atof(token);
 		}
 
-		ParseWaveForm(text, &ds.deformationWave);
+		ParseWaveForm(text, ds.deformationWave);
 		ds.deformation = DEFORM_MOVE;
 		return;
 	}

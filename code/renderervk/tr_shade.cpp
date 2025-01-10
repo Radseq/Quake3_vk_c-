@@ -767,28 +767,29 @@ Perform dynamic lighting with another rendering pass
 */
 static bool ProjectDlightTexture(void)
 {
-	int i;
-	uint32_t l;
-	vec3_t origin { };
-	float *texCoords;
-	byte *colors;
-	byte clipBits[SHADER_MAX_VERTEXES]{};
-	uint32_t pipeline;
 	bool rebindIndex = false;
-	glIndex_t hitIndexes[SHADER_MAX_INDEXES]{};
-	int numIndexes;
-	float scale;
-	float radius;
-	float modulate = 0.0f;
 
 	if (!backEnd.refdef.num_dlights)
 	{
 		return rebindIndex;
 	}
 
+	int i;
+	uint32_t l;
+	vec3_t origin{};
+	float *texCoords;
+	byte *colors;
+	byte clipBits[SHADER_MAX_VERTEXES]{};
+	uint32_t pipeline;
+
+	glIndex_t hitIndexes[SHADER_MAX_INDEXES]{};
+	int numIndexes;
+	float scale;
+	float radius;
+	float modulate = 0.0f;
+
 	for (l = 0; l < backEnd.refdef.num_dlights; l++)
 	{
-
 		if (!(tess.dlightBits & (1 << l)))
 		{
 			continue; // this surface definitely doesn't have any of this light
@@ -805,7 +806,7 @@ static bool ProjectDlightTexture(void)
 		for (i = 0; i < tess.numVertexes; i++, texCoords += 2, colors += 4)
 		{
 			int clip = 0;
-			vec3_t dist { };
+			vec3_t dist{};
 
 			VectorSubtract(origin, tess.xyz[i], dist);
 

@@ -667,18 +667,15 @@ static void RB_SurfaceRailCore(void)
 */
 static void RB_SurfaceLightningBolt(void)
 {
-	const refEntity_t *e;
 	int len;
 	vec3_t right;
 	vec3_t vec{};
 	vec3_t start{}, end{};
 	vec3_t v1{}, v2{};
 	int i;
-	// todo radek
-	e = &backEnd.currentEntity->e;
 
-	VectorCopy(e->oldorigin, end);
-	VectorCopy(e->origin, start);
+	VectorCopy(backEnd.currentEntity->e.oldorigin, end);
+	VectorCopy(backEnd.currentEntity->e.origin, start);
 
 	// compute variables
 	VectorSubtract(end, start, vec);
