@@ -44,7 +44,7 @@ Returns 1, 2, or 1 + 2
 
 int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 {
-	float dist[2];
+	float dist[2]{};
 	int sides, b, i;
 
 	// fast axial cases
@@ -58,7 +58,6 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 	}
 
 	// general case
-	dist[0] = dist[1] = 0;
 	if (p.signbits < 8) // >= 8: default case is original code (dist[0]=dist[1]=0)
 	{
 		for (i = 0; i < 3; i++)

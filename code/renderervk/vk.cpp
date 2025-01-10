@@ -206,14 +206,16 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer)
 							   nullptr,
 							   nullptr};
 
-	VK_CHECK(vk_inst.queue.submit(1, &submit_info, nullptr));
+	//VK_CHECK(vk_inst.queue.submit(1, &submit_info, nullptr));
 	vk::Fence fence;
-	//= vk_inst.device.createFence(vk::FenceCreateInfo{});
 	VK_CHECK_ASSIGN(fence, vk_inst.device.createFence(vk::FenceCreateInfo{}));
 
 	VK_CHECK(vk_inst.queue.submit(1, &submit_info, fence));
-	VK_CHECK(vk_inst.device.waitForFences(1, &fence, VK_TRUE, UINT64_MAX));
+	VK_CHECK(vk_inst.device.waitForFences(1, &fence, vk::True, UINT64_MAX));
 	vk_inst.device.destroyFence(fence);
+
+	//VK_CHECK(vk_inst.queue.waitIdle());
+
 	vk_inst.device.freeCommandBuffers(vk_inst.command_pool,
 									  1,
 									  &command_buffer);
@@ -336,12 +338,13 @@ static void vk_set_object_name(uint64_t obj, const char *objName, VkDebugReportO
 {
 	if (qvkDebugMarkerSetObjectNameEXT && obj)
 	{
-		VkDebugMarkerObjectNameInfoEXT info;
-		info.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
-		info.pNext = nullptr;
-		info.objectType = objType;
-		info.object = obj;
-		info.pObjectName = objName;
+		VkDebugMarkerObjectNameInfoEXT info{
+			VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
+			nullptr,
+			objType,
+			obj,
+			objName
+		};
 		qvkDebugMarkerSetObjectNameEXT(vk_inst.device, &info);
 	}
 }
@@ -464,7 +467,7 @@ static void vk_create_swapchain(const vk::PhysicalDevice &physical_device, const
 									surface_caps.currentTransform,
 									vk::CompositeAlphaFlagBitsKHR::eOpaque,
 									present_mode,
-									VK_TRUE,
+									vk::True,
 									nullptr,
 									nullptr};
 
@@ -830,7 +833,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags
 	OutputDebugString("\n");
 	DebugBreak();
 #endif
-	return VK_FALSE;
+	return vk::False;
 }
 #endif
 
@@ -1322,7 +1325,7 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, int devi
 
 		vk::PhysicalDeviceFeatures device_features;
 		device_features = physical_device.getFeatures();
-		if (device_features.fillModeNonSolid == VK_FALSE)
+		if (device_features.fillModeNonSolid == vk::False)
 		{
 			ri.Printf(PRINT_ERROR, "...fillModeNonSolid feature is not supported\n");
 			return false;
@@ -1335,23 +1338,23 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, int devi
 											 nullptr};
 
 		vk::PhysicalDeviceFeatures features{};
-		features.fillModeNonSolid = VK_TRUE;
+		features.fillModeNonSolid = vk::True;
 
 		if (device_features.wideLines)
 		{ // needed for RB_SurfaceAxis
-			features.wideLines = VK_TRUE;
+			features.wideLines = vk::True;
 			vk_inst.wideLines = true;
 		}
 
 		if ( device_features.fragmentStoresAndAtomics && device_features.vertexPipelineStoresAndAtomics ) {
-			features.vertexPipelineStoresAndAtomics = VK_TRUE;
-			features.fragmentStoresAndAtomics = VK_TRUE;
+			features.vertexPipelineStoresAndAtomics = vk::True;
+			features.fragmentStoresAndAtomics = vk::True;
 			vk_inst.fragmentStores = true;
 		}
 
 		if (r_ext_texture_filter_anisotropic->integer && device_features.samplerAnisotropy)
 		{
-			features.samplerAnisotropy = VK_TRUE;
+			features.samplerAnisotropy = vk::True;
 			vk_inst.samplerAnisotropy = true;
 		}
 
@@ -1707,22 +1710,22 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def &def)
 							   0.0f,
 							   {},
 							   {},
-							   VK_FALSE,
+							   vk::False,
 							   vk::CompareOp::eAlways,
 							   0.0f,
 							   (maxLod == vk_inst.maxLod) ? VK_LOD_CLAMP_NONE : maxLod,
 							   vk::BorderColor::eFloatTransparentBlack,
-							   VK_FALSE,
+							   vk::False,
 							   nullptr};
 
 	if (def.noAnisotropy || mipmap_mode == vk::SamplerMipmapMode::eNearest || mag_filter == vk::Filter::eNearest)
 	{
-		desc.anisotropyEnable = VK_FALSE;
+		desc.anisotropyEnable = vk::False;
 		desc.maxAnisotropy = 1.0f;
 	}
 	else
 	{
-		desc.anisotropyEnable = (r_ext_texture_filter_anisotropic->integer && vk_inst.samplerAnisotropy) ? VK_TRUE : VK_FALSE;
+		desc.anisotropyEnable = (r_ext_texture_filter_anisotropic->integer && vk_inst.samplerAnisotropy) ? vk::True : vk::False;
 		if (desc.anisotropyEnable)
 		{
 			desc.maxAnisotropy = MIN(r_ext_max_anisotropy->integer, vk_inst.maxAnisotropy);
@@ -2706,7 +2709,7 @@ static void vk_alloc_attachments(void)
 	num_attachments = 0;
 }
 
-static void vk_add_attachment_desc(const vk::Image &desc, vk::ImageView *image_view, vk::ImageUsageFlags usage,
+static void vk_add_attachment_desc(const vk::Image &desc, vk::ImageView &image_view, vk::ImageUsageFlags usage,
 								   vk::MemoryRequirements *reqs, vk::Format image_format,
 								   vk::ImageAspectFlags aspect_flags, vk::ImageLayout image_layout)
 {
@@ -2717,7 +2720,7 @@ static void vk_add_attachment_desc(const vk::Image &desc, vk::ImageView *image_v
 	else
 	{
 		attachments[num_attachments].descriptor = desc;
-		attachments[num_attachments].image_view = image_view;
+		attachments[num_attachments].image_view = &image_view;
 		attachments[num_attachments].usage = usage;
 		attachments[num_attachments].reqs = *reqs;
 		attachments[num_attachments].aspect_flags = aspect_flags;
@@ -2758,8 +2761,8 @@ static void vk_get_image_memory_requirements(const vk::Image &image, vk::MemoryR
 }
 
 static void create_color_attachment(uint32_t width, uint32_t height, vk::SampleCountFlagBits samples,
-									vk::Format format, vk::ImageUsageFlags usage, vk::Image *image,
-									vk::ImageView *image_view, vk::ImageLayout image_layout, bool multisample)
+									vk::Format format, vk::ImageUsageFlags usage, vk::Image &image,
+									vk::ImageView &image_view, vk::ImageLayout image_layout, bool multisample)
 {
 	vk::MemoryRequirements memory_requirements;
 
@@ -2783,15 +2786,15 @@ static void create_color_attachment(uint32_t width, uint32_t height, vk::SampleC
 									nullptr};
 
 	// VK_CHECK(qvkCreateImage(vk_inst.device, &create_desc, nullptr, image));
-	VK_CHECK_ASSIGN(*image, vk_inst.device.createImage(create_desc));
+	VK_CHECK_ASSIGN(image, vk_inst.device.createImage(create_desc));
 
-	vk_get_image_memory_requirements(*image, &memory_requirements);
+	vk_get_image_memory_requirements(image, &memory_requirements);
 
-	vk_add_attachment_desc(*image, image_view, usage, &memory_requirements, format, vk::ImageAspectFlagBits::eColor, image_layout);
+	vk_add_attachment_desc(image, image_view, usage, &memory_requirements, format, vk::ImageAspectFlagBits::eColor, image_layout);
 }
 
 static void create_depth_attachment(uint32_t width, uint32_t height, vk::SampleCountFlagBits samples,
-									vk::Image *image, vk::ImageView *image_view, bool allowTransient)
+									vk::Image &image, vk::ImageView &image_view, bool allowTransient)
 {
 	vk::MemoryRequirements memory_requirements;
 	vk::ImageAspectFlags image_aspect_flags;
@@ -2823,11 +2826,11 @@ static void create_depth_attachment(uint32_t width, uint32_t height, vk::SampleC
 		image_aspect_flags |= vk::ImageAspectFlagBits::eStencil;
 
 	// VK_CHECK(qvkCreateImage(vk_inst.device, &create_desc, nullptr, image));
-	VK_CHECK_ASSIGN(*image, vk_inst.device.createImage(create_desc));
+	VK_CHECK_ASSIGN(image, vk_inst.device.createImage(create_desc));
 
-	vk_get_image_memory_requirements(*image, &memory_requirements);
+	vk_get_image_memory_requirements(image, &memory_requirements);
 
-	vk_add_attachment_desc(*image, image_view, create_desc.usage, &memory_requirements, vk_inst.depth_format,
+	vk_add_attachment_desc(image, image_view, create_desc.usage, &memory_requirements, vk_inst.depth_format,
 						   image_aspect_flags, vk::ImageLayout::eDepthStencilAttachmentOptimal);
 }
 
@@ -2855,7 +2858,7 @@ static void vk_create_attachments(void)
 			uint32_t height = gls.captureHeight;
 
 			create_color_attachment(width, height, vk::SampleCountFlagBits::e1, vk_inst.bloom_format,
-									usage, &vk_inst.bloom_image[0], &vk_inst.bloom_image_view[0],
+									usage, vk_inst.bloom_image[0], vk_inst.bloom_image_view[0],
 									vk::ImageLayout::eShaderReadOnlyOptimal, false);
 
 			for (i = 1; i < arrayLen(vk_inst.bloom_image); i += 2)
@@ -2863,35 +2866,35 @@ static void vk_create_attachments(void)
 				width /= 2;
 				height /= 2;
 				create_color_attachment(width, height, vk::SampleCountFlagBits::e1, vk_inst.bloom_format,
-										usage, &vk_inst.bloom_image[i + 0], &vk_inst.bloom_image_view[i + 0], vk::ImageLayout::eShaderReadOnlyOptimal, false);
+										usage, vk_inst.bloom_image[i + 0], vk_inst.bloom_image_view[i + 0], vk::ImageLayout::eShaderReadOnlyOptimal, false);
 
 				create_color_attachment(width, height, vk::SampleCountFlagBits::e1, vk_inst.bloom_format,
-										usage, &vk_inst.bloom_image[i + 1], &vk_inst.bloom_image_view[i + 1], vk::ImageLayout::eShaderReadOnlyOptimal, false);
+										usage, vk_inst.bloom_image[i + 1], vk_inst.bloom_image_view[i + 1], vk::ImageLayout::eShaderReadOnlyOptimal, false);
 			}
 		}
 
 		// post-processing/msaa-resolve
 		create_color_attachment(glConfig.vidWidth, glConfig.vidHeight, vk::SampleCountFlagBits::e1, vk_inst.color_format,
-								usage | vk::ImageUsageFlagBits::eTransferSrc, &vk_inst.color_image, &vk_inst.color_image_view, vk::ImageLayout::eShaderReadOnlyOptimal, false);
+								usage | vk::ImageUsageFlagBits::eTransferSrc, vk_inst.color_image, vk_inst.color_image_view, vk::ImageLayout::eShaderReadOnlyOptimal, false);
 
 		// screenmap-msaa
 		if (vk_inst.screenMapSamples > vk::SampleCountFlagBits::e1)
 		{
 			create_color_attachment(vk_inst.screenMapWidth, vk_inst.screenMapHeight, vk_inst.screenMapSamples, vk_inst.color_format,
-									vk::ImageUsageFlagBits::eColorAttachment, &vk_inst.screenMap.color_image_msaa, &vk_inst.screenMap.color_image_view_msaa, vk::ImageLayout::eColorAttachmentOptimal, true);
+									vk::ImageUsageFlagBits::eColorAttachment, vk_inst.screenMap.color_image_msaa, vk_inst.screenMap.color_image_view_msaa, vk::ImageLayout::eColorAttachmentOptimal, true);
 		}
 
 		// screenmap/msaa-resolve
 		create_color_attachment(vk_inst.screenMapWidth, vk_inst.screenMapHeight, vk::SampleCountFlagBits::e1, vk_inst.color_format,
-								usage, &vk_inst.screenMap.color_image, &vk_inst.screenMap.color_image_view, vk::ImageLayout::eShaderReadOnlyOptimal, false);
+								usage, vk_inst.screenMap.color_image, vk_inst.screenMap.color_image_view, vk::ImageLayout::eShaderReadOnlyOptimal, false);
 
 		// screenmap depth
-		create_depth_attachment(vk_inst.screenMapWidth, vk_inst.screenMapHeight, vk_inst.screenMapSamples, &vk_inst.screenMap.depth_image, &vk_inst.screenMap.depth_image_view, true);
+		create_depth_attachment(vk_inst.screenMapWidth, vk_inst.screenMapHeight, vk_inst.screenMapSamples, vk_inst.screenMap.depth_image, vk_inst.screenMap.depth_image_view, true);
 
 		if (vk_inst.msaaActive)
 		{
 			create_color_attachment(glConfig.vidWidth, glConfig.vidHeight, vkSamples, vk_inst.color_format,
-									vk::ImageUsageFlagBits::eColorAttachment, &vk_inst.msaa_image, &vk_inst.msaa_image_view, vk::ImageLayout::eColorAttachmentOptimal, true);
+									vk::ImageUsageFlagBits::eColorAttachment, vk_inst.msaa_image, vk_inst.msaa_image_view, vk::ImageLayout::eColorAttachmentOptimal, true);
 		}
 
 		if (r_ext_supersample->integer)
@@ -2899,13 +2902,13 @@ static void vk_create_attachments(void)
 			// capture buffer
 			usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc;
 			create_color_attachment(gls.captureWidth, gls.captureHeight, vk::SampleCountFlagBits::e1, vk_inst.capture_format,
-									usage, &vk_inst.capture.image, &vk_inst.capture.image_view, vk::ImageLayout::eTransferSrcOptimal, false);
+									usage, vk_inst.capture.image, vk_inst.capture.image_view, vk::ImageLayout::eTransferSrcOptimal, false);
 		}
 	} // if ( vk_inst.fboActive )
 
 	// vk_alloc_attachments();
 
-	create_depth_attachment(glConfig.vidWidth, glConfig.vidHeight, vkSamples, &vk_inst.depth_image, &vk_inst.depth_image_view,
+	create_depth_attachment(glConfig.vidWidth, glConfig.vidHeight, vkSamples, vk_inst.depth_image, vk_inst.depth_image_view,
 							(vk_inst.fboActive && r_bloom->integer) ? false : true);
 
 	vk_alloc_attachments();
@@ -4094,9 +4097,6 @@ static void record_buffer_memory_barrier(const vk::CommandBuffer &cb, const vk::
 
 void vk_create_image(image_t &image, int width, int height, int mip_levels)
 {
-
-	vk::Format format = vk::Format(image.internalFormat);
-
 	if (image.handle)
 	{
 		vk_inst.device.destroyImage(image.handle);
@@ -4113,7 +4113,7 @@ void vk_create_image(image_t &image, int width, int height, int mip_levels)
 
 	vk::ImageCreateInfo desc{{},
 							 vk::ImageType::e2D,
-							 format,
+							 image.internalFormat,
 							 {(uint32_t)width, (uint32_t)height, 1},
 							 (uint32_t)mip_levels,
 							 1,
@@ -4134,7 +4134,7 @@ void vk_create_image(image_t &image, int width, int height, int mip_levels)
 	vk::ImageViewCreateInfo descImageView{{},
 										  image.handle,
 										  vk::ImageViewType::e2D,
-										  format,
+										  image.internalFormat,
 										  {},
 										  {vk::ImageAspectFlagBits::eColor,
 										   0,
@@ -4164,13 +4164,13 @@ void vk_create_image(image_t &image, int width, int height, int mip_levels)
 #endif
 }
 
-static byte *resample_image_data(const int target_format, byte *data, const int data_size, int *bytes_per_pixel)
+static byte *resample_image_data(vk::Format target_format, byte *data, const int data_size, int *bytes_per_pixel)
 {
 	byte *buffer;
 	uint16_t *p;
 	int i, n;
 
-	switch (vk::Format(target_format))
+	switch (target_format)
 	{
 	case vk::Format::eB4G4R4A4UnormPack16:
 		buffer = (byte *)ri.Hunk_AllocateTempMemory(data_size / 2);
@@ -4557,7 +4557,7 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 	//
 	// Primitive assembly.
 	//
-	vk::PipelineInputAssemblyStateCreateInfo input_assembly_state{{}, vk::PrimitiveTopology::eTriangleStrip, VK_FALSE};
+	vk::PipelineInputAssemblyStateCreateInfo input_assembly_state{{}, vk::PrimitiveTopology::eTriangleStrip, vk::False};
 
 	//
 	// Viewport.
@@ -4580,12 +4580,12 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 	// Rasterization.
 	//
 	vk::PipelineRasterizationStateCreateInfo rasterization_state{{},
-																 VK_FALSE,
-																 VK_FALSE,
+																 vk::False,
+																 vk::False,
 																 vk::PolygonMode::eFill,
 																 vk::CullModeFlagBits::eNone,
 																 vk::FrontFace::eClockwise,
-																 VK_FALSE,
+																 vk::False,
 																 0.0f,
 																 0.0f,
 																 0.0f,
@@ -4594,11 +4594,11 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 
 	vk::PipelineMultisampleStateCreateInfo multisample_state{{},
 															 samples,
-															 VK_FALSE,
+															 vk::False,
 															 1.0f,
 															 nullptr,
-															 VK_FALSE,
-															 VK_FALSE,
+															 vk::False,
+															 vk::False,
 															 nullptr};
 
 	vk::PipelineColorBlendAttachmentState attachment_blend_state{
@@ -4615,18 +4615,18 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 	std::array<float, 4> blendConstants{};
 
 	vk::PipelineColorBlendStateCreateInfo blend_state{{},
-													  VK_FALSE,
+													  vk::False,
 													  vk::LogicOp::eCopy,
 													  1,
 													  &attachment_blend_state,
 													  blendConstants};
 
 	vk::PipelineDepthStencilStateCreateInfo depth_stencil_state{{},
-																VK_FALSE,
-																VK_FALSE,
+																vk::False,
+																vk::False,
 																vk::CompareOp::eNever,
-																VK_FALSE,
-																VK_FALSE,
+																vk::False,
+																vk::False,
 																{},
 																{},
 																0.0f,
@@ -4722,7 +4722,7 @@ void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bo
 	//
 	vk::PipelineInputAssemblyStateCreateInfo input_assembly_state{{},
 																  vk::PrimitiveTopology::eTriangleStrip,
-																  VK_FALSE,
+																  vk::False,
 																  nullptr};
 
 	//
@@ -4738,12 +4738,12 @@ void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bo
 	//
 	vk::PipelineRasterizationStateCreateInfo rasterization_state{
 		{},
-		VK_FALSE,
-		VK_FALSE,
+		vk::False,
+		vk::False,
 		vk::PolygonMode::eFill,
 		vk::CullModeFlagBits::eNone,
 		vk::FrontFace::eClockwise,
-		VK_FALSE,
+		vk::False,
 		0.0f,
 		0.0f,
 		0.0f,
@@ -4752,15 +4752,15 @@ void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bo
 
 	vk::PipelineMultisampleStateCreateInfo multisample_state{{},
 															 vk::SampleCountFlagBits::e1,
-															 VK_FALSE,
+															 vk::False,
 															 1.0f,
 															 nullptr,
-															 VK_FALSE,
-															 VK_FALSE,
+															 vk::False,
+															 vk::False,
 															 nullptr};
 
 	vk::PipelineColorBlendAttachmentState attachment_blend_state{
-		VK_FALSE,
+		vk::False,
 		{},
 		{},
 		{},
@@ -4772,7 +4772,7 @@ void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bo
 
 	vk::PipelineColorBlendStateCreateInfo blend_state{
 		{},
-		VK_FALSE,
+		vk::False,
 		vk::LogicOp::eCopy,
 		1,
 		&attachment_blend_state,
@@ -4882,7 +4882,7 @@ void GetCullModeByFaceCulling(const Vk_Pipeline_Def &def, vk::CullModeFlags &cul
 vk::PipelineColorBlendAttachmentState createBlendAttachmentState(uint32_t state_bits, const Vk_Pipeline_Def &def)
 {
 	// Determine whether blending is enabled
-	bool blendEnable = (state_bits & (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)) ? VK_TRUE : VK_FALSE;
+	bool blendEnable = (state_bits & (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)) ? vk::True : vk::False;
 
 	// Initialize colorWriteMask based on shader phase/type
 	vk::ColorComponentFlags colorWriteMask =
@@ -4984,7 +4984,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	vk::DynamicState dynamic_state_array[] = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
 
 	vk::Pipeline pipeline;
-	vk::Bool32 alphaToCoverage = VK_FALSE;
+	vk::Bool32 alphaToCoverage = vk::False;
 	unsigned int atest_bits;
 	unsigned int state_bits = def.state_bits;
 
@@ -5222,7 +5222,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 #if 0
 	if ( r_ext_alpha_to_coverage->integer && vkSamples != VK_SAMPLE_COUNT_1_BIT && frag_spec_data[0].i ) {
 		frag_spec_data[3].i = 1;
-		alphaToCoverage = VK_TRUE;
+		alphaToCoverage = vk::True;
 	}
 #endif
 
@@ -5643,7 +5643,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	//
 	vk::PipelineInputAssemblyStateCreateInfo input_assembly_state{{},
 																  GetTopologyByPrimitivies(def),
-																  VK_FALSE,
+																  vk::False,
 																  nullptr};
 
 	//
@@ -5660,12 +5660,12 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	// Rasterization.
 	//
 	vk::PipelineRasterizationStateCreateInfo rasterization_state{{},
-																 VK_FALSE,
-																 VK_FALSE,
+																 vk::False,
+																 vk::False,
 																 def.shader_type == TYPE_DOT ? vk::PolygonMode::ePoint : ((state_bits & GLS_POLYMODE_LINE) ? vk::PolygonMode::eLine : vk::PolygonMode::eFill),
 																 {},
 																 vk::FrontFace::eClockwise, // Q3 defaults to clockwise vertex order
-																 def.polygon_offset ? VK_TRUE : VK_FALSE,
+																 def.polygon_offset ? vk::True : vk::False,
 																 {},
 																 0.0f,
 																 {},
@@ -5677,7 +5677,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	// depth bias state
 	if (def.polygon_offset)
 	{
-		rasterization_state.depthBiasEnable = VK_TRUE;
+		rasterization_state.depthBiasEnable = vk::True;
 		rasterization_state.depthBiasClamp = 0.0f;
 #ifdef USE_REVERSED_DEPTH
 		rasterization_state.depthBiasConstantFactor = -r_offsetUnits->value;
@@ -5689,7 +5689,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	}
 	else
 	{
-		rasterization_state.depthBiasEnable = VK_FALSE;
+		rasterization_state.depthBiasEnable = vk::False;
 		rasterization_state.depthBiasClamp = 0.0f;
 		rasterization_state.depthBiasConstantFactor = 0.0f;
 		rasterization_state.depthBiasSlopeFactor = 0.0f;
@@ -5697,19 +5697,19 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 
 	vk::PipelineMultisampleStateCreateInfo multisample_state{{},
 															 (vk_inst.renderPassIndex == RENDER_PASS_SCREENMAP) ? vk_inst.screenMapSamples : vkSamples,
-															 VK_FALSE,
+															 vk::False,
 															 1.0f,
 															 nullptr,
 															 alphaToCoverage,
-															 VK_FALSE,
+															 vk::False,
 															 nullptr};
 
 	vk::PipelineDepthStencilStateCreateInfo depth_stencil_state{{},
-																(state_bits & GLS_DEPTHTEST_DISABLE) ? VK_FALSE : VK_TRUE,
-																(state_bits & GLS_DEPTHMASK_TRUE) ? VK_TRUE : VK_FALSE,
+																(state_bits & GLS_DEPTHTEST_DISABLE) ? vk::False : vk::True,
+																(state_bits & GLS_DEPTHMASK_TRUE) ? vk::True : vk::False,
 																{},
-																VK_FALSE,
-																(def.shadow_phase != SHADOW_DISABLED) ? VK_TRUE : VK_FALSE,
+																vk::False,
+																(def.shadow_phase != SHADOW_DISABLED) ? vk::True : vk::False,
 																{},
 																{},
 																0.0f,
@@ -5766,7 +5766,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	}
 
 	vk::PipelineColorBlendStateCreateInfo blend_state{{},
-													  VK_FALSE,
+													  vk::False,
 													  vk::LogicOp::eCopy,
 													  1,
 													  &attachment_blend_state,
@@ -6641,7 +6641,7 @@ void vk_begin_frame(void)
 		vk_inst.cmd_index %= NUM_COMMAND_BUFFERS;
 
 		vk_inst.cmd->waitForFence = false;
-		vk::Result res = vk_inst.device.waitForFences(vk_inst.cmd->rendering_finished_fence, VK_FALSE, 1e10);
+		vk::Result res = vk_inst.device.waitForFences(vk_inst.cmd->rendering_finished_fence, vk::False, 1e10);
 		if (res != vk::Result::eSuccess)
 		{
 			if (res == vk::Result::eErrorDeviceLost)
@@ -6822,7 +6822,7 @@ void vk_end_frame(void)
 			vk_begin_render_pass(vk_inst.render_pass.capture, vk_inst.framebuffers.capture, false, gls.captureWidth, gls.captureHeight);
 			vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_inst.capture_pipeline);
 
-			vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk::PipelineLayout(vk_inst.pipeline_layout_post_process), 0, vk::DescriptorSet(vk_inst.color_descriptor), nullptr);
+			vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, vk_inst.color_descriptor, nullptr);
 
 			vk_inst.cmd->command_buffer.draw(4, 1, 0, 0);
 		}
@@ -6840,7 +6840,7 @@ void vk_end_frame(void)
 			vk_begin_render_pass(vk_inst.render_pass.gamma, vk_inst.framebuffers.gamma[vk_inst.swapchain_image_index], false, vk_inst.renderWidth, vk_inst.renderHeight);
 			vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_inst.gamma_pipeline);
 
-			vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk::PipelineLayout(vk_inst.pipeline_layout_post_process), 0, vk::DescriptorSet(vk_inst.color_descriptor), nullptr);
+			vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, vk_inst.color_descriptor, nullptr);
 
 			vk_inst.cmd->command_buffer.draw(4, 1, 0, 0);
 		}
@@ -6942,7 +6942,7 @@ void vk_read_pixels(byte *buffer, uint32_t width, uint32_t height)
 	uint32_t i, n;
 	bool invalidate_ptr;
 
-	VK_CHECK(vk_inst.device.waitForFences(vk_inst.cmd->rendering_finished_fence, VK_FALSE, 1e12));
+	VK_CHECK(vk_inst.device.waitForFences(vk_inst.cmd->rendering_finished_fence, vk::False, 1e12));
 
 	if (vk_inst.fboActive)
 	{

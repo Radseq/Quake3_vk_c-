@@ -39,9 +39,9 @@ static void R_ChopPolyBehindPlane(int numInPoints, vec3_t inPoints[MAX_VERTS_ON_
 								  int *numOutPoints, vec3_t outPoints[MAX_VERTS_ON_POLY],
 								  const vec3_t &normal, const vec_t &dist, const vec_t &epsilon)
 {
-	float dists[MAX_VERTS_ON_POLY + 4];
-	int sides[MAX_VERTS_ON_POLY + 4];
-	int counts[3];
+	float dists[MAX_VERTS_ON_POLY + 4]{};
+	int sides[MAX_VERTS_ON_POLY + 4]{};
+	int counts[3]{};
 	float dot;
 	int i, j;
 	float *p1, *p2, *clip;
@@ -54,7 +54,6 @@ static void R_ChopPolyBehindPlane(int numInPoints, vec3_t inPoints[MAX_VERTS_ON_
 		return;
 	}
 
-	counts[0] = counts[1] = counts[2] = 0;
 	dists[0] = 0.0;
 	sides[0] = 0;
 
@@ -291,16 +290,16 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 	vec3_t mins, maxs;
 	int returnedFragments;
 	int returnedPoints;
-	vec3_t normals[MAX_VERTS_ON_POLY + 2];
-	float dists[MAX_VERTS_ON_POLY + 2];
-	vec3_t clipPoints[2][MAX_VERTS_ON_POLY];
+	vec3_t normals[MAX_VERTS_ON_POLY + 2]{};
+	float dists[MAX_VERTS_ON_POLY + 2]{};
+	vec3_t clipPoints[2][MAX_VERTS_ON_POLY]{};
 	int numClipPoints;
 	float *v;
 	srfGridMesh_t *cv;
 	drawVert_t *dv;
 	vec3_t normal;
 	vec3_t projectionDir;
-	vec3_t v1, v2;
+	vec3_t v1{}, v2{};
 	int *indexes;
 
 	if (numPoints <= 0)
@@ -317,7 +316,7 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 	ClearBounds(mins, maxs);
 	for (i = 0; i < numPoints; i++)
 	{
-		vec3_t temp;
+		vec3_t temp{};
 
 		AddPointToBounds(points[i], mins, maxs);
 		VectorAdd(points[i], projection, temp);

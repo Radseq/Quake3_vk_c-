@@ -117,7 +117,7 @@ added to the sorting list.
 This will also allow mirrors on both sides of a model without recursion.
 ================
 */
-static bool R_CullSurface(const surfaceType_t *surface, shader_t *shader)
+static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 {
 	srfSurfaceFace_t *sface;
 	float d;
@@ -142,7 +142,7 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t *shader)
 		return false;
 	}
 
-	if (shader->cullType == CT_TWO_SIDED)
+	if (shader.cullType == CT_TWO_SIDED)
 	{
 		return false;
 	}
@@ -159,7 +159,7 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t *shader)
 	// don't cull exactly on the plane, because there are levels of rounding
 	// through the BSP, ICD, and hardware that may cause pixel gaps if an
 	// epsilon isn't allowed here
-	if (shader->cullType == CT_FRONT_SIDED)
+	if (shader.cullType == CT_FRONT_SIDED)
 	{
 		if (d < sface->plane.dist - 8)
 		{
@@ -324,25 +324,25 @@ static int R_DlightTrisurf(srfTriangles_t &surf, int dlightBits)
 	return dlightBits;
 #if 0
 	int			i;
-	const dlight_t	*dl;
+	const dlight_t* dl;
 
-	for ( i = 0 ; i < tr.refdef.num_dlights ; i++ ) {
-		if ( ! ( dlightBits & ( 1 << i ) ) ) {
+	for (i = 0; i < tr.refdef.num_dlights; i++) {
+		if (!(dlightBits & (1 << i))) {
 			continue;
 		}
 		dl = &tr.refdef.dlights[i];
-		if ( dl->origin[0] - dl->radius > grid->meshBounds[1][0]
+		if (dl->origin[0] - dl->radius > grid->meshBounds[1][0]
 			|| dl->origin[0] + dl->radius < grid->meshBounds[0][0]
 			|| dl->origin[1] - dl->radius > grid->meshBounds[1][1]
 			|| dl->origin[1] + dl->radius < grid->meshBounds[0][1]
 			|| dl->origin[2] - dl->radius > grid->meshBounds[1][2]
-			|| dl->origin[2] + dl->radius < grid->meshBounds[0][2] ) {
+			|| dl->origin[2] + dl->radius < grid->meshBounds[0][2]) {
 			// dlight doesn't reach the bounds
-			dlightBits &= ~( 1 << i );
+			dlightBits &= ~(1 << i);
 		}
 	}
 
-	if ( !dlightBits ) {
+	if (!dlightBits) {
 		tr.pc.c_dlightSurfacesCulled++;
 	}
 
@@ -404,7 +404,7 @@ static void R_AddWorldSurface(msurface_t &surf, int dlightBits)
 	// FIXME: bmodel fog?
 
 	// try to cull before dlighting or adding
-	if (R_CullSurface(surf.data, surf.shader))
+	if (R_CullSurface(surf.data, *surf.shader))
 	{
 		return;
 	}
@@ -470,12 +470,11 @@ static void R_AddLitSurface(msurface_t &surf, const dlight_t &light)
 		return;
 	}
 
-	R_AddLitSurf(surf.data, *surf.shader, surf.fogIndex);
+	R_AddLitSurf(*surf.data, *surf.shader, surf.fogIndex);
 }
 
 static void R_RecursiveLightNode(const mnode_t *node)
 {
-	bool children[2];
 	msurface_t **mark;
 	msurface_t *surf;
 	float d;
@@ -489,7 +488,7 @@ static void R_RecursiveLightNode(const mnode_t *node)
 		if (static_cast<uint32_t>(node->contents) != CONTENTS_NODE)
 			break;
 
-		children[0] = children[1] = false;
+		bool children[2]{false, false};
 
 		d = DotProduct(tr.light->origin, node->plane->normal) - node->plane->dist;
 		if (d > -tr.light->radius)
@@ -637,11 +636,8 @@ R_RecursiveWorldNode
 */
 static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, unsigned int dlightBits)
 {
-
 	do
 	{
-		unsigned int newDlights[2];
-
 		// if the node wasn't marked as potentially visible, exit
 		if (node->visframe != tr.visCount)
 		{
@@ -717,8 +713,7 @@ static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, un
 		// since we don't care about sort orders, just go positive to negative
 
 		// determine which dlights are needed
-		newDlights[0] = 0;
-		newDlights[1] = 0;
+		unsigned int newDlights[2]{};
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
 		if (!r_dlightMode->integer)
@@ -811,14 +806,14 @@ R_PointInLeaf
 */
 static mnode_t *R_PointInLeaf(const vec3_t p)
 {
-	mnode_t *node;
-	float d;
-	const cplane_t *plane;
-
 	if (!tr.world)
 	{
 		ri.Error(ERR_DROP, "R_PointInLeaf: bad model");
 	}
+
+	mnode_t *node;
+	float d;
+	const cplane_t *plane;
 
 	node = tr.world->nodes;
 	while (1)

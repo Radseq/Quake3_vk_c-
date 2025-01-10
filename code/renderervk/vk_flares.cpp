@@ -140,7 +140,7 @@ void RB_AddFlare(void *surface, int fogNum, const vec3_t &point, const vec3_t &c
 {
 	int i;
 	flare_t *flare;
-	vec3_t local;
+	vec3_t local{};
 	float d = 1;
 	vec4_t eye, clip, normalized, window;
 
@@ -420,10 +420,10 @@ RB_RenderFlare
 static void RB_RenderFlare(flare_t &f)
 {
 	float size;
-	vec3_t color;
+	vec3_t color{};
 	float distance, intensity, factor;
 	byte fogFactors[3] = {255, 255, 255};
-	color4ub_t c;
+	color4ub_t c{};
 
 	// if ( f->drawIntensity == 0.0 )
 	//	return;

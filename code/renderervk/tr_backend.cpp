@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_vbo.hpp"
 #include "vk.hpp"
 #include "tr_cmds.hpp"
+#include "string_operations.hpp"
 
 backEndData_t *backEndData;
 backEndState_t backEnd;
@@ -95,7 +96,7 @@ A player has predicted a teleport, but hasn't arrived yet
 */
 static void RB_Hyperspace(void)
 {
-	color4ub_t c;
+	color4ub_t c{};
 
 	if (!backEnd.isHyperspace)
 	{
@@ -573,12 +574,11 @@ void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data, i
 
 void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client, bool dirty)
 {
-
 	image_t *image;
 
 	if (!tr.scratchImage[client])
 	{
-		tr.scratchImage[client] = R_CreateImage(va("*scratch%i", client), NULL, data, cols, rows, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
+		tr.scratchImage[client] = R_CreateImage(va_cpp("*scratch%i", client), {}, data, cols, rows, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
 	}
 
 	image = tr.scratchImage[client];
@@ -708,8 +708,8 @@ static void RB_DebugPolygon(int color, int numPoints, float *points)
 {
 	vec3_t pa;
 	vec3_t pb;
-	vec3_t p;
-	vec3_t q;
+	vec3_t p{};
+	vec3_t q{};
 	vec3_t n;
 	int i;
 
@@ -1120,7 +1120,6 @@ RB_ExecuteRenderCommands
 */
 void RB_ExecuteRenderCommands(const void *data)
 {
-
 	backEnd.pc.msec = ri.Milliseconds();
 
 	while (1)

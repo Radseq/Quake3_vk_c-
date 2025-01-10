@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_model.hpp"
 #include "math.hpp"
 #include "utils.hpp"
+#include "string_operations.hpp"
 
 static world_t s_worldData;
 static byte *fileBase;
@@ -40,7 +41,7 @@ constexpr int LIGHTMAP_SIZE = 128;
 constexpr int LIGHTMAP_BORDER = 2;
 constexpr int LIGHTMAP_LEN = LIGHTMAP_SIZE + LIGHTMAP_BORDER * 2;
 
-static const int lightmapFlags = IMGFLAG_NOLIGHTSCALE | IMGFLAG_NO_COMPRESSION | IMGFLAG_LIGHTMAP | IMGFLAG_NOSCALE;
+static constexpr int lightmapFlags = IMGFLAG_NOLIGHTSCALE | IMGFLAG_NO_COMPRESSION | IMGFLAG_LIGHTMAP | IMGFLAG_NOSCALE;
 
 static int lightmapWidth;
 static int lightmapHeight;
@@ -376,7 +377,7 @@ static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 	for (offs = 0, i = 0; i < tr.numLightmaps; i++)
 	{
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOBORDER);
-		tr.lightmaps[i] = R_CreateImage(va("*mergedLightmap%d", i), NULL, NULL,
+		tr.lightmaps[i] = R_CreateImage(va_cpp("*mergedLightmap%d", i), {}, NULL,
 										lightmapWidth, lightmapHeight, flag);
 
 		for (y = 0; y < lightmapCountY; y++)
@@ -462,7 +463,7 @@ static void R_LoadLightmaps(const lump_t *l)
 	{
 		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOEDGE);
 		maxIntensity = R_ProcessLightmap(image, buf + i * LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3, maxIntensity);
-		tr.lightmaps[i] = R_CreateImage(va("*lightmap%d", i), NULL, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
+		tr.lightmaps[i] = R_CreateImage(va_cpp("*lightmap%d", i), {}, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
 										flag);
 	}
 
@@ -572,7 +573,7 @@ static shader_t *ShaderForShaderNum(const int shaderNum, int lightmapNum)
 #ifdef USE_PMLIGHT
 static void GenerateNormals(srfSurfaceFace_t *face)
 {
-	vec3_t ba, ca, cross;
+	vec3_t ba{}, ca{}, cross;
 	float *v1, *v2, *v3, *n1, *n2, *n3;
 	int i, *indices, i0, i1, i2;
 
@@ -785,11 +786,11 @@ static void ParseMesh(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 	srfGridMesh_t *grid;
 	int i, j;
 	int width, height, numPoints;
-	drawVert_t points[MAX_PATCH_SIZE * MAX_PATCH_SIZE];
+	drawVert_t points[MAX_PATCH_SIZE * MAX_PATCH_SIZE]{};
 	int lightmapNum;
 	float lightmapX, lightmapY;
-	vec3_t bounds[2];
-	vec3_t tmpVec;
+	vec3_t bounds[2]{};
+	vec3_t tmpVec{};
 	static surfaceType_t skipData = SF_SKIP;
 
 	// get fog volume
@@ -1915,7 +1916,7 @@ static void R_LoadSubmodels(const lump_t *l)
 
 		model->type = MOD_BRUSH;
 		model->bmodel = out;
-		Com_sprintf(model->name, sizeof(model->name), "*%d", i);
+		Com_sprintf(model->name.data(), sizeof(model->name), "*%d", i);
 
 		for (j = 0; j < 3; j++)
 		{
@@ -2178,7 +2179,7 @@ static void R_LoadFogs(const lump_t *l, const lump_t *brushesLump, const lump_t 
 	shader_t *shader;
 	float d;
 	int firstSide;
-	vec3_t fogColor;
+	vec3_t fogColor{};
 
 	fogs = reinterpret_cast<const dfog_t *>((fileBase + l->fileofs));
 	if (l->filelen % sizeof(*fogs))
@@ -2316,7 +2317,7 @@ R_LoadLightGrid
 static void R_LoadLightGrid(const lump_t *l)
 {
 	int i;
-	vec3_t maxs;
+	vec3_t maxs{};
 	int numGridPoints;
 	world_t *w;
 	float *wMins, *wMaxs;
@@ -2490,7 +2491,7 @@ void RE_LoadWorldMap(const char *name)
 	{
 		byte *b;
 		void *v;
-	} buffer;
+	} buffer{};
 	byte *startMarker;
 
 	if (tr.worldMapLoaded)

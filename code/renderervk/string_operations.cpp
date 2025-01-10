@@ -2,6 +2,7 @@
 #include "utils.hpp"
 #include <cctype>
 #include <charconv>
+#include "tr_local.hpp"
 
 std::string_view COM_GetExtension_cpp(std::string_view name)
 {
@@ -14,28 +15,6 @@ std::string_view COM_GetExtension_cpp(std::string_view name)
         return "";
 }
 
-void COM_StripExtension_cpp(std::string_view in, std::string_view &out)
-{
-    auto dot = in.find_last_of('.');
-    auto slash = in.find_last_of('/');
-
-    size_t destsize = in.size(); // Initialize destsize with size of 'in'
-
-    if (dot != std::string_view::npos && (slash == std::string_view::npos || slash < dot))
-    {
-        destsize = dot; // Update destsize to strip extension
-    }
-
-    if (in.data() == out.data() && destsize > 1)
-    {
-        out = in.substr(0, destsize);
-    }
-    else
-    {
-        out = in; // Fallback if out is not the same as in
-    }
-}
-
 static int com_tokenline;
 static int com_lines;
 static char com_token[MAX_TOKEN_CHARS];
@@ -45,7 +24,7 @@ static inline bool isWhitespace(char c)
     return std::isspace(static_cast<unsigned char>(c));
 }
 
-std::string_view SkipWhitespace_cpp(std::string_view data, bool &hasNewLines)
+static std::string_view SkipWhitespace_cpp(std::string_view data, bool &hasNewLines)
 {
     hasNewLines = false;
     while (!data.empty() && isWhitespace(data.front()))
@@ -208,7 +187,7 @@ int Q_stricmpn_cpp(std::string_view s1, std::string_view s2, int n)
     return 0; // Strings are equal up to n characters
 }
 
-bool Q_isfinite(float f)
+static bool Q_isfinite(float f)
 {
     return std::isfinite(f);
 }

@@ -74,7 +74,7 @@ constexpr collapse_t collapse[] = {
 
 void RE_RemapShader(const char *shaderName, const char *newShaderName, const char *timeOffset)
 {
-	char strippedName[MAX_QPATH];
+	std::array<char, MAX_QPATH> strippedName;
 	int hash;
 	shader_t *sh, *sh2;
 	qhandle_t h;
@@ -106,11 +106,11 @@ void RE_RemapShader(const char *shaderName, const char *newShaderName, const cha
 
 	// remap all the shaders with the given name
 	// even tho they might have different lightmaps
-	COM_StripExtension(shaderName, strippedName, sizeof(strippedName));
-	hash = generateHashValue(strippedName, FILE_HASH_SIZE);
+	COM_StripExtension_cpp(shaderName, strippedName);
+	hash = generateHashValue(strippedName.data(), FILE_HASH_SIZE);
 	for (sh = shaderHashTable[hash]; sh; sh = sh->next)
 	{
-		if (Q_stricmp(sh->name, strippedName) == 0)
+		if (Q_stricmp_cpp(sh->name, strippedName.data()) == 0)
 		{
 			if (sh != sh2)
 			{
@@ -125,7 +125,7 @@ void RE_RemapShader(const char *shaderName, const char *newShaderName, const cha
 
 	if (timeOffset)
 	{
-		sh2->timeOffset = Q_atof(timeOffset);
+		sh2->timeOffset = Q_atof_cpp(timeOffset);
 	}
 }
 
@@ -325,7 +325,7 @@ static genFunc_t NameToGenFunc(std::string_view funcname)
 ParseWaveForm
 ===================
 */
-static void ParseWaveForm(const char **text, waveForm_t *wave)
+static void ParseWaveForm(const char **text, waveForm_t &wave)
 {
 	const char *token;
 
@@ -335,7 +335,7 @@ static void ParseWaveForm(const char **text, waveForm_t *wave)
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave->func = NameToGenFunc(token);
+	wave.func = NameToGenFunc(token);
 
 	// BASE, AMP, PHASE, FREQ
 	token = COM_ParseExt(text, false);
@@ -344,7 +344,7 @@ static void ParseWaveForm(const char **text, waveForm_t *wave)
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave->base = Q_atof(token);
+	wave.base = Q_atof(token);
 
 	token = COM_ParseExt(text, false);
 	if (token[0] == 0)
@@ -352,7 +352,7 @@ static void ParseWaveForm(const char **text, waveForm_t *wave)
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave->amplitude = Q_atof(token);
+	wave.amplitude = Q_atof(token);
 
 	token = COM_ParseExt(text, false);
 	if (token[0] == 0)
@@ -360,7 +360,7 @@ static void ParseWaveForm(const char **text, waveForm_t *wave)
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave->phase = Q_atof(token);
+	wave.phase = Q_atof(token);
 
 	token = COM_ParseExt(text, false);
 	if (token[0] == 0)
@@ -368,7 +368,7 @@ static void ParseWaveForm(const char **text, waveForm_t *wave)
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave->frequency = Q_atof(token);
+	wave.frequency = Q_atof(token);
 }
 
 /*
@@ -733,6 +733,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 				flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
 			stage.bundle[0].image[0] = R_FindImageFile(token.data(), flags);
+
 			if (!stage.bundle[0].image[0])
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token.data(), shader.name);
@@ -755,6 +756,17 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			}
 			stage.bundle[0].imageAnimationSpeed = Q_atof_cpp(token);
 
+			imgFlags_t flags = IMGFLAG_NONE;
+
+			if (!shader.noMipMaps)
+				flags = static_cast<imgFlags_t>(flags | IMGFLAG_MIPMAP);
+
+			if (!shader.noPicMip)
+				flags = static_cast<imgFlags_t>(flags | IMGFLAG_PICMIP);
+
+			if (shader.noLightScale)
+				flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
+
 			// parse up to MAX_IMAGE_ANIMATIONS animations
 			while (1)
 			{
@@ -768,17 +780,6 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 				num = stage.bundle[0].numImageAnimations;
 				if (num < maxAnimations)
 				{
-					imgFlags_t flags = IMGFLAG_NONE;
-
-					if (!shader.noMipMaps)
-						flags = static_cast<imgFlags_t>(flags | IMGFLAG_MIPMAP);
-
-					if (!shader.noPicMip)
-						flags = static_cast<imgFlags_t>(flags | IMGFLAG_PICMIP);
-
-					if (shader.noLightScale)
-						flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
-
 					stage.bundle[0].image[num] = R_FindImageFile(token.data(), flags);
 					if (!stage.bundle[0].image[num])
 					{
@@ -810,7 +811,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			{
 				if (!tr.scratchImage[handle])
 				{
-					tr.scratchImage[handle] = R_CreateImage(va("*scratch%i", handle), NULL, NULL, 256, 256, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
+					tr.scratchImage[handle] = R_CreateImage(va_cpp("*scratch%i", handle), {}, NULL, 256, 256, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
 				}
 				stage.bundle[0].isVideoMap = true;
 				stage.bundle[0].videoMapHandle = handle;
@@ -932,12 +933,12 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 
 			if (!Q_stricmp_cpp(token, "wave"))
 			{
-				ParseWaveForm(text, &stage.bundle[0].rgbWave);
+				ParseWaveForm(text, stage.bundle[0].rgbWave);
 				stage.bundle[0].rgbGen = CGEN_WAVEFORM;
 			}
 			else if (!Q_stricmp_cpp(token, "const"))
 			{
-				vec3_t color {};
+				vec3_t color{};
 
 				ParseVector(text, 3, color);
 				stage.bundle[0].constantColor.rgba[0] = 255 * color[0];
@@ -1002,7 +1003,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 
 			if (!Q_stricmp_cpp(token, "wave"))
 			{
-				ParseWaveForm(text, &stage.bundle[0].alphaWave);
+				ParseWaveForm(text, stage.bundle[0].alphaWave);
 				stage.bundle[0].alphaGen = AGEN_WAVEFORM;
 			}
 			else if (!Q_stricmp_cpp(token, "const"))
@@ -1353,7 +1354,7 @@ static void ParseDeform(const char **text)
 			ri.Printf(PRINT_WARNING, "WARNING: illegal div value of 0 in deformVertexes command for shader '%s'\n", shader.name);
 		}
 
-		ParseWaveForm(text, &ds.deformationWave);
+		ParseWaveForm(text, ds.deformationWave);
 		ds.deformation = DEFORM_WAVE;
 		return;
 	}
@@ -1395,7 +1396,7 @@ static void ParseDeform(const char **text)
 			ds.moveVector[i] = Q_atof(token);
 		}
 
-		ParseWaveForm(text, &ds.deformationWave);
+		ParseWaveForm(text, ds.deformationWave);
 		ds.deformation = DEFORM_MOVE;
 		return;
 	}
@@ -1666,7 +1667,7 @@ if ( $cvar|<integer value> [<condition> $cvar|<integer value> [ [ || .. ] && .. 
 static bool ParseCondition(const char **text, resultType *res)
 {
 	char lval_str[MAX_CVAR_VALUE_STRING];
-	char rval_str[MAX_CVAR_VALUE_STRING];
+	char rval_str[MAX_CVAR_VALUE_STRING]{};
 	tokenType_t lval_type;
 	tokenType_t rval_type;
 	const char *token;
@@ -1945,17 +1946,15 @@ static bool ParseShader(const char **text)
 {
 	resultType res;
 	branchType branch;
-	const char *token;
-	int numStages;
-
-	numStages = 0;
+	std::string_view token;
+	int numStages = 0;
 
 	s_extendedShader = (*text >= s_extensionOffset);
 
-	token = COM_ParseExt(text, true);
+	token = COM_ParseExt_cpp(text, true);
 	if (token[0] != '{')
 	{
-		ri.Printf(PRINT_WARNING, "WARNING: expecting '{', found '%s' instead in shader '%s'\n", token, shader.name);
+		ri.Printf(PRINT_WARNING, "WARNING: expecting '{', found '%s' instead in shader '%s'\n", token.data(), shader.name);
 		return false;
 	}
 
@@ -1965,7 +1964,7 @@ static bool ParseShader(const char **text)
 	{
 		// token = COM_ParseExt( text, true );
 		token = COM_ParseComplex(text, true);
-		if (!token[0])
+		if (token.empty())
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: no concluding '}' in shader %s\n", shader.name);
 			return false;
@@ -1994,35 +1993,35 @@ static bool ParseShader(const char **text)
 			continue;
 		}
 		// skip stuff that only the QuakeEdRadient needs
-		else if (!Q_stricmpn(token, "qer", 3))
+		else if (!Q_stricmpn_cpp(token, "qer", 3))
 		{
 			SkipRestOfLine(text);
 			continue;
 		}
 		// sun parms
-		else if (!Q_stricmp(token, "q3map_sun") || !Q_stricmp(token, "q3map_sunExt"))
+		else if (!Q_stricmp_cpp(token, "q3map_sun") || !Q_stricmp_cpp(token, "q3map_sunExt"))
 		{
 			float a, b;
 
-			token = COM_ParseExt(text, false);
-			tr.sunLight[0] = Q_atof(token);
-			token = COM_ParseExt(text, false);
-			tr.sunLight[1] = Q_atof(token);
-			token = COM_ParseExt(text, false);
-			tr.sunLight[2] = Q_atof(token);
+			token = COM_ParseExt_cpp(text, false);
+			tr.sunLight[0] = Q_atof_cpp(token);
+			token = COM_ParseExt_cpp(text, false);
+			tr.sunLight[1] = Q_atof_cpp(token);
+			token = COM_ParseExt_cpp(text, false);
+			tr.sunLight[2] = Q_atof_cpp(token);
 
 			VectorNormalize(tr.sunLight);
 
-			token = COM_ParseExt(text, false);
-			a = Q_atof(token);
+			token = COM_ParseExt_cpp(text, false);
+			a = Q_atof_cpp(token);
 			VectorScale(tr.sunLight, a, tr.sunLight);
 
-			token = COM_ParseExt(text, false);
-			a = Q_atof(token);
+			token = COM_ParseExt_cpp(text, false);
+			a = Q_atof_cpp(token);
 			a = a / 180 * M_PI;
 
-			token = COM_ParseExt(text, false);
-			b = Q_atof(token);
+			token = COM_ParseExt_cpp(text, false);
+			b = Q_atof_cpp(token);
 			b = b / 180 * M_PI;
 
 			tr.sunDirection[0] = cos(a) * cos(b);
@@ -2032,56 +2031,56 @@ static bool ParseShader(const char **text)
 			SkipRestOfLine(text);
 			continue;
 		}
-		else if (!Q_stricmp(token, "deformVertexes"))
+		else if (!Q_stricmp_cpp(token, "deformVertexes"))
 		{
 			ParseDeform(text);
 			continue;
 		}
-		else if (!Q_stricmp(token, "tesssize"))
+		else if (!Q_stricmp_cpp(token, "tesssize"))
 		{
 			SkipRestOfLine(text);
 			continue;
 		}
-		else if (!Q_stricmp(token, "clampTime"))
+		else if (!Q_stricmp_cpp(token, "clampTime"))
 		{
 			token = COM_ParseExt(text, false);
 			if (token[0])
 			{
-				shader.clampTime = Q_atof(token);
+				shader.clampTime = Q_atof_cpp(token);
 			}
 		}
 		// skip stuff that only the q3map needs
-		else if (!Q_stricmpn(token, "q3map", 5))
+		else if (!Q_stricmpn_cpp(token, "q3map", 5))
 		{
 			SkipRestOfLine(text);
 			continue;
 		}
 		// skip stuff that only q3map or the server needs
-		else if (!Q_stricmp(token, "surfaceParm"))
+		else if (!Q_stricmp_cpp(token, "surfaceParm"))
 		{
 			ParseSurfaceParm(text);
 			continue;
 		}
 		// no mip maps
-		else if (!Q_stricmp(token, "nomipmaps"))
+		else if (!Q_stricmp_cpp(token, "nomipmaps"))
 		{
 			shader.noMipMaps = 1;
 			shader.noPicMip = 1;
 			continue;
 		}
 		// no picmip adjustment
-		else if (!Q_stricmp(token, "nopicmip"))
+		else if (!Q_stricmp_cpp(token, "nopicmip"))
 		{
 			shader.noPicMip = 1;
 			continue;
 		}
-		else if (!Q_stricmp(token, "novlcollapse") && s_extendedShader)
+		else if (!Q_stricmp_cpp(token, "novlcollapse") && s_extendedShader)
 		{
 			shader.noVLcollapse = 1;
 			continue;
 		}
 		// polygonOffset
-		else if (!Q_stricmp(token, "polygonOffset"))
+		else if (!Q_stricmp_cpp(token, "polygonOffset"))
 		{
 			shader.polygonOffset = true;
 			continue;
@@ -2090,39 +2089,39 @@ static bool ParseShader(const char **text)
 		// to be merged into one batch.  This is a savings for smoke
 		// puffs and blood, but can't be used for anything where the
 		// shader calcs (not the surface function) reference the entity color or scroll
-		else if (!Q_stricmp(token, "entityMergable"))
+		else if (!Q_stricmp_cpp(token, "entityMergable"))
 		{
 			shader.entityMergable = true;
 			continue;
 		}
 		// fogParms
-		else if (!Q_stricmp(token, "fogParms"))
+		else if (!Q_stricmp_cpp(token, "fogParms"))
 		{
 			if (!ParseVector(text, 3, shader.fogParms.color))
 			{
 				return false;
 			}
 
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (!token[0])
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing parm for 'fogParms' keyword in shader '%s'\n", shader.name);
 				continue;
 			}
-			shader.fogParms.depthForOpaque = Q_atof(token);
+			shader.fogParms.depthForOpaque = Q_atof_cpp(token);
 
 			// skip any old gradient directions
 			SkipRestOfLine(text);
 			continue;
 		}
 		// portal
-		else if (!Q_stricmp(token, "portal"))
+		else if (!Q_stricmp_cpp(token, "portal"))
 		{
 			shader.sort = SS_PORTAL;
 			continue;
 		}
 		// skyparms <cloudheight> <outerbox> <innerbox>
-		else if (!Q_stricmp(token, "skyparms"))
+		else if (!Q_stricmp_cpp(token, "skyparms"))
 		{
 			ParseSkyParms(text);
 			if (r_neatsky->integer)
@@ -2133,45 +2132,45 @@ static bool ParseShader(const char **text)
 			continue;
 		}
 		// light <value> determines flaring in q3map, not needed here
-		else if (!Q_stricmp(token, "light"))
+		else if (!Q_stricmp_cpp(token, "light"))
 		{
-			COM_ParseExt(text, false);
+			COM_ParseExt_cpp(text, false);
 			continue;
 		}
 		// cull <face>
-		else if (!Q_stricmp(token, "cull"))
+		else if (!Q_stricmp_cpp(token, "cull"))
 		{
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (token[0] == 0)
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing cull parms in shader '%s'\n", shader.name);
 				continue;
 			}
 
-			if (!Q_stricmp(token, "none") || !Q_stricmp(token, "twosided") || !Q_stricmp(token, "disable"))
+			if (!Q_stricmp_cpp(token, "none") || !Q_stricmp_cpp(token, "twosided") || !Q_stricmp_cpp(token, "disable"))
 			{
 				shader.cullType = CT_TWO_SIDED;
 			}
-			else if (!Q_stricmp(token, "back") || !Q_stricmp(token, "backside") || !Q_stricmp(token, "backsided"))
+			else if (!Q_stricmp_cpp(token, "back") || !Q_stricmp_cpp(token, "backside") || !Q_stricmp_cpp(token, "backsided"))
 			{
 				shader.cullType = CT_BACK_SIDED;
 			}
 			else
 			{
-				ri.Printf(PRINT_WARNING, "WARNING: invalid cull parm '%s' in shader '%s'\n", token, shader.name);
+				ri.Printf(PRINT_WARNING, "WARNING: invalid cull parm '%s' in shader '%s'\n", token.data(), shader.name);
 			}
 			continue;
 		}
 		// sort
-		else if (!Q_stricmp(token, "sort"))
+		else if (!Q_stricmp_cpp(token, "sort"))
 		{
 			ParseSort(text);
 			continue;
 		}
 		// conditional stage definition
-		else if ((!Q_stricmp(token, "if") || !Q_stricmp(token, "else") || !Q_stricmp(token, "elif")) && s_extendedShader)
+		else if ((!Q_stricmp_cpp(token, "if") || !Q_stricmp_cpp(token, "else") || !Q_stricmp_cpp(token, "elif")) && s_extendedShader)
 		{
-			if (Q_stricmp(token, "if") == 0)
+			if (Q_stricmp_cpp(token, "if") == 0)
 			{
 				branch = brIF;
 			}
@@ -2180,10 +2179,10 @@ static bool ParseShader(const char **text)
 				if (res == res_invalid)
 				{
 					// we don't have any previous 'if' statements
-					ri.Printf(PRINT_WARNING, "WARNING: unexpected '%s' in '%s'\n", token, shader.name);
+					ri.Printf(PRINT_WARNING, "WARNING: unexpected '%s' in '%s'\n", token.data(), shader.name);
 					return false;
 				}
-				if (Q_stricmp(token, "else") == 0)
+				if (Q_stricmp_cpp(token, "else") == 0)
 					branch = brELSE;
 				else
 					branch = brELIF;
@@ -2207,7 +2206,7 @@ static bool ParseShader(const char **text)
 			if (res == res_false)
 			{
 				// skip next stage or keyword until newline
-				token = COM_ParseExt(text, true);
+				token = COM_ParseExt_cpp(text, true);
 				if (token[0] == '{')
 					SkipBracedSection(text, 1 /* depth */);
 				else
@@ -2227,7 +2226,7 @@ static bool ParseShader(const char **text)
 		}
 		else
 		{
-			ri.Printf(PRINT_WARNING, "WARNING: unknown general shader parameter '%s' in '%s'\n", token, shader.name);
+			ri.Printf(PRINT_WARNING, "WARNING: unknown general shader parameter '%s' in '%s'\n", token.data(), shader.name);
 			return false;
 		}
 	}
@@ -3081,7 +3080,7 @@ static void VertexLightingCollapse(void)
 InitShader
 ===============
 */
-static void InitShader(const char *name, int lightmapIndex)
+static void InitShader(std::string_view name, int lightmapIndex)
 {
 	int i;
 
@@ -3089,7 +3088,7 @@ static void InitShader(const char *name, int lightmapIndex)
 	Com_Memset(&shader, 0, sizeof(shader));
 	Com_Memset(&stages, 0, sizeof(stages));
 
-	Q_strncpyz(shader.name, name, sizeof(shader.name));
+	Q_strncpyz(shader.name, name.data(), sizeof(shader.name));
 	shader.lightmapIndex = lightmapIndex;
 
 	// we need to know original (unmodified) lightmap index
@@ -3858,27 +3857,27 @@ return NULL if not found
 If found, it will return a valid shader
 =====================
 */
-static const char *FindShaderInShaderText(const char *shadername)
+static const char *FindShaderInShaderText(std::string_view shadername)
 {
 
-	const char *token, *p;
-
+	std::string_view token;
+	const char *p;
 	int i, hash;
 
-	hash = generateHashValue(shadername, MAX_SHADERTEXT_HASH);
+	hash = generateHashValue(shadername.data(), MAX_SHADERTEXT_HASH);
 
 	if (shaderTextHashTable[hash])
 	{
 		for (i = 0; shaderTextHashTable[hash][i]; i++)
 		{
 			p = shaderTextHashTable[hash][i];
-			token = COM_ParseExt(&p, true);
-			if (!Q_stricmp(token, shadername))
+			token = COM_ParseExt_cpp(&p, true);
+			if (!Q_stricmp_cpp(token, shadername))
 				return p;
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 /*
@@ -3889,20 +3888,20 @@ Will always return a valid shader, but it might be the
 default shader if the real one can't be found.
 ==================
 */
-shader_t *R_FindShaderByName(const char *name)
+shader_t *R_FindShaderByName(std::string_view name)
 {
-	char strippedName[MAX_QPATH];
+	std::array<char, MAX_QPATH> strippedName;
 	int hash;
 	shader_t *sh;
 
-	if ((name == NULL) || (name[0] == 0))
+	if (name.empty())
 	{
 		return tr.defaultShader;
 	}
 
-	COM_StripExtension(name, strippedName, sizeof(strippedName));
+	COM_StripExtension_cpp(name, strippedName);
 
-	hash = generateHashValue(strippedName, FILE_HASH_SIZE);
+	hash = generateHashValue(strippedName.data(), FILE_HASH_SIZE);
 
 	//
 	// see if the shader is already loaded
@@ -3913,7 +3912,7 @@ shader_t *R_FindShaderByName(const char *name)
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
 		// have to check all default shaders otherwise for every call to R_FindShader
 		// with that same strippedName a new default shader is created.
-		if (Q_stricmp(sh->name, strippedName) == 0)
+		if (Q_stricmp_cpp(sh->name, std::string_view(strippedName.data(), strippedName.size())) == 0)
 		{
 			// match found
 			return sh;
@@ -4017,9 +4016,9 @@ most world construction surfaces.
 
 ===============
 */
-shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
+shader_t *R_FindShader(std::string name, int lightmapIndex, bool mipRawImage)
 {
-	char strippedName[MAX_QPATH];
+	std::array<char, MAX_QPATH> strippedName;
 	unsigned long hash;
 	const char *shaderText;
 	image_t *image;
@@ -4039,13 +4038,13 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 	else if (lightmapIndex < LIGHTMAP_2D)
 	{
 		// negative lightmap indexes cause stray pointers (think tr.lightmaps[lightmapIndex])
-		ri.Printf(PRINT_WARNING, "WARNING: shader '%s' has invalid lightmap index of %d\n", name, lightmapIndex);
+		ri.Printf(PRINT_WARNING, "WARNING: shader '%s' has invalid lightmap index of %d\n", name.data(), lightmapIndex);
 		lightmapIndex = LIGHTMAP_BY_VERTEX;
 	}
 
-	COM_StripExtension(name, strippedName, sizeof(strippedName));
+	COM_StripExtension_cpp(name, strippedName);
 
-	hash = generateHashValue(strippedName, FILE_HASH_SIZE);
+	hash = generateHashValue(strippedName.data(), FILE_HASH_SIZE);
 
 	//
 	// see if the shader is already loaded
@@ -4056,14 +4055,14 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
 		// have to check all default shaders otherwise for every call to R_FindShader
 		// with that same strippedName a new default shader is created.
-		if ((sh->lightmapSearchIndex == lightmapIndex || sh->defaultShader) && !Q_stricmp(sh->name, strippedName))
+		if ((sh->lightmapSearchIndex == lightmapIndex || sh->defaultShader) && !Q_stricmp_cpp(sh->name, strippedName.data()))
 		{
 			// match found
 			return sh;
 		}
 	}
 
-	InitShader(strippedName, lightmapIndex);
+	InitShader(strippedName.data(), lightmapIndex);
 
 	// FIXME: set these "need" values appropriately
 	// shader.needsNormal = true;
@@ -4074,14 +4073,14 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 	//
 	// attempt to define shader from an explicit parameter file
 	//
-	shaderText = FindShaderInShaderText(strippedName);
+	shaderText = FindShaderInShaderText(strippedName.data());
 	if (shaderText)
 	{
 		// enable this when building a pak file to get a global list
 		// of all explicit shaders
 		if (r_printShaders->integer)
 		{
-			ri.Printf(PRINT_ALL, "*SHADER* %s\n", name);
+			ri.Printf(PRINT_ALL, "*SHADER* %s\n", name.data());
 		}
 
 		if (!ParseShader(&shaderText))
@@ -4114,7 +4113,7 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 		image = R_FindImageFile(name, flags);
 		if (!image)
 		{
-			ri.Printf(PRINT_DEVELOPER, "Couldn't find image file for shader %s\n", name);
+			ri.Printf(PRINT_DEVELOPER, "Couldn't find image file for shader %s\n", name.data());
 			shader.defaultShader = true;
 			return FinishShader();
 		}
@@ -4128,12 +4127,12 @@ shader_t *R_FindShader(const char *name, int lightmapIndex, bool mipRawImage)
 	return FinishShader();
 }
 
-qhandle_t RE_RegisterShaderFromImage(const char *name, int lightmapIndex, image_t &image, bool mipRawImage)
+qhandle_t RE_RegisterShaderFromImage(std::string_view name, int lightmapIndex, image_t &image, bool mipRawImage)
 {
 	unsigned long hash;
 	shader_t *sh;
 
-	hash = generateHashValue(name, FILE_HASH_SIZE);
+	hash = generateHashValue(name.data(), FILE_HASH_SIZE);
 
 	// probably not necessary since this function
 	// only gets called from tr_font.c with lightmapIndex == LIGHTMAP_2D
@@ -4152,14 +4151,14 @@ qhandle_t RE_RegisterShaderFromImage(const char *name, int lightmapIndex, image_
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
 		// have to check all default shaders otherwise for every call to R_FindShader
 		// with that same strippedName a new default shader is created.
-		if ((sh->lightmapSearchIndex == lightmapIndex || sh->defaultShader) && !Q_stricmp(sh->name, name))
+		if ((sh->lightmapSearchIndex == lightmapIndex || sh->defaultShader) && !Q_stricmp_cpp(sh->name, name))
 		{
 			// match found
 			return sh->index;
 		}
 	}
 
-	InitShader(name, lightmapIndex);
+	InitShader(name.data(), lightmapIndex);
 
 	// FIXME: set these "need" values appropriately
 	// shader.needsNormal = true;
@@ -4188,17 +4187,17 @@ This should really only be used for explicit shaders, because there is no
 way to ask for different implicit lighting modes (vertex, lightmap, etc)
 ====================
 */
-qhandle_t RE_RegisterShaderLightMap(const char *name, int lightmapIndex)
+qhandle_t RE_RegisterShaderLightMap(std::string_view name, int lightmapIndex)
 {
 	shader_t *sh;
 
-	if (strlen(name) >= MAX_QPATH)
+	if (name.length() >= MAX_QPATH)
 	{
 		ri.Printf(PRINT_ALL, "Shader name exceeds MAX_QPATH\n");
 		return 0;
 	}
 
-	sh = R_FindShader(name, lightmapIndex, true);
+	sh = R_FindShader(std::string(name), lightmapIndex, true);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should
@@ -4240,7 +4239,7 @@ qhandle_t RE_RegisterShader(const char *name)
 		return 0;
 	}
 
-	sh = R_FindShader(name, LIGHTMAP_2D, true);
+	sh = R_FindShader(std::string(name), LIGHTMAP_2D, true);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should
@@ -4272,7 +4271,7 @@ qhandle_t RE_RegisterShaderNoMip(const char *name)
 		return 0;
 	}
 
-	sh = R_FindShader(name, LIGHTMAP_2D, false);
+	sh = R_FindShader(std::string(name), LIGHTMAP_2D, false);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should
@@ -4698,8 +4697,8 @@ CreateExternalShaders
 */
 static void CreateExternalShaders(void)
 {
-	tr.projectionShadowShader = R_FindShader("projectionShadow", LIGHTMAP_NONE, true);
-	tr.flareShader = R_FindShader("flareShader", LIGHTMAP_NONE, true);
+	tr.projectionShadowShader = R_FindShader(std::string("projectionShadow"), LIGHTMAP_NONE, true);
+	tr.flareShader = R_FindShader(std::string("flareShader"), LIGHTMAP_NONE, true);
 
 	// Hack to make fogging work correctly on flares. Fog colors are calculated
 	// in tr_flare.c already.
@@ -4714,7 +4713,7 @@ static void CreateExternalShaders(void)
 		}
 	}
 
-	tr.sunShader = R_FindShader("sun", LIGHTMAP_NONE, true);
+	tr.sunShader = R_FindShader(std::string("sun"), LIGHTMAP_NONE, true);
 }
 
 /*

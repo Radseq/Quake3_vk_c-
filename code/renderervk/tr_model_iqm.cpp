@@ -41,7 +41,7 @@ static constexpr float identityMatrix[12] = {
 
 static int R_CullIQM(const iqmData_t &data, const trRefEntity_t &ent)
 {
-	vec3_t bounds[2];
+	vec3_t bounds[2]{};
 	vec_t *oldBounds, *newBounds;
 	int i;
 
@@ -82,8 +82,8 @@ static int R_ComputeIQMFogNum(const iqmData_t &data, const trRefEntity_t &ent)
 	int i, j;
 	const vec_t *bounds;
 	constexpr vec_t defaultBounds[6] = {-8, -8, -8, 8, 8, 8};
-	vec3_t diag, center;
-	vec3_t localOrigin;
+	vec3_t diag{}, center{};
+	vec3_t localOrigin{};
 	vec_t radius;
 
 	if (tr.refdef.rdflags & RDF_NOWORLDMODEL)
@@ -168,7 +168,7 @@ void R_AddIQMSurfaces(trRefEntity_t &ent)
 	{
 		ri.Printf(PRINT_DEVELOPER, "R_AddIQMSurfaces: no such frame %d to %d for '%s'\n",
 				  ent.e.oldframe, ent.e.frame,
-				  tr.currentModel->name);
+				  tr.currentModel->name.data());
 		ent.e.frame = 0;
 		ent.e.oldframe = 0;
 	}
@@ -264,7 +264,7 @@ static void Matrix34Multiply(const float *a, const float *b, float *out)
 static void QuatSlerp(const quat_t from, const quat_t _to, float fraction, quat_t out)
 {
 	float angle, cosAngle, sinAngle, backlerp, lerp;
-	quat_t to;
+	quat_t to { -_to[0], -_to[1], -_to[2], -_to[3] };
 
 	// cos() of angle
 	cosAngle = from[0] * _to[0] + from[1] * _to[1] + from[2] * _to[2] + from[3] * _to[3];
@@ -273,10 +273,6 @@ static void QuatSlerp(const quat_t from, const quat_t _to, float fraction, quat_
 	if (cosAngle < 0.0f)
 	{
 		cosAngle = -cosAngle;
-		to[0] = -_to[0];
-		to[1] = -_to[1];
-		to[2] = -_to[2];
-		to[3] = -_to[3];
 	}
 	else
 	{
@@ -334,7 +330,7 @@ static void JointToMatrix(const quat_t rot, const vec3_t &scale, const vec3_t &t
 static void ComputePoseMats(iqmData_t &data, int frame, int oldframe,
 							float backlerp, float *poseMats)
 {
-	iqmTransform_t relativeJoints[IQM_MAX_JOINTS];
+	iqmTransform_t relativeJoints[IQM_MAX_JOINTS]{};
 	iqmTransform_t *relativeJoint;
 	const iqmTransform_t *pose;
 	const iqmTransform_t *oldpose;
@@ -476,8 +472,8 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 	srfIQModel_t &surf = (srfIQModel_t &)surface;
 	iqmData_t *data = surf.data;
 	float poseMats[IQM_MAX_JOINTS * 12];
-	float influenceVtxMat[SHADER_MAX_VERTEXES * 12];
-	float influenceNrmMat[SHADER_MAX_VERTEXES * 9];
+	float influenceVtxMat[SHADER_MAX_VERTEXES * 12]{};
+	float influenceNrmMat[SHADER_MAX_VERTEXES * 9]{};
 	int i;
 
 	float *xyz;
@@ -529,7 +525,7 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 			float *vtxMat = &influenceVtxMat[12 * i];
 			float *nrmMat = &influenceNrmMat[9 * i];
 			int j;
-			float blendWeights[4];
+			float blendWeights[4]{};
 
 			if (data->blendWeightsType == IQM_FLOAT)
 			{
@@ -740,7 +736,6 @@ static vec_t QuatNormalize2(const quat_t v, quat_t out)
 
 static void Matrix34Invert(const float *inMat, float *outMat)
 {
-	vec3_t trans;
 	float invSqrLen, *v;
 
 	outMat[0] = inMat[0];
@@ -763,9 +758,7 @@ static void Matrix34Invert(const float *inMat, float *outMat)
 	invSqrLen = 1.0f / DotProduct(v, v);
 	VectorScale(v, invSqrLen, v);
 
-	trans[0] = inMat[3];
-	trans[1] = inMat[7];
-	trans[2] = inMat[11];
+	vec3_t trans = { inMat[3], inMat[7], inMat[11] };
 
 	outMat[3] = -DotProduct(outMat + 0, trans);
 	outMat[7] = -DotProduct(outMat + 4, trans);
@@ -790,14 +783,15 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 	byte *dataPtr;
 	srfIQModel_t *surface;
 	char meshName[MAX_QPATH];
-	int vertexArrayFormat[IQM_COLOR + 1];
+	//int vertexArrayFormat[IQM_COLOR + 1];
+	std::array<int, IQM_COLOR + 1> vertexArrayFormat = { -1 };
 	int allocateInfluences;
 	byte *blendIndexes;
 	union
 	{
 		byte *b;
 		float *f;
-	} blendWeights;
+	} blendWeights{};
 
 	if (static_cast<std::size_t>(filesize) < sizeof(iqmHeader_t))
 	{
@@ -858,11 +852,6 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		return false;
 	}
 
-	for (i = 0; i < arrayLen(vertexArrayFormat); i++)
-	{
-		vertexArrayFormat[i] = -1;
-	}
-
 	blendIndexes = NULL;
 	blendWeights.b = NULL;
 
@@ -877,7 +866,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		{
 			return false;
 		}
-		vertexarray = (iqmVertexArray_t *)((byte &)header + header.ofs_vertexarrays);
+		//vertexarray = (iqmVertexArray_t *)((byte &)header + header.ofs_vertexarrays);
+		vertexarray = reinterpret_cast<iqmVertexArray_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_vertexarrays);
 		for (i = 0; i < header.num_vertexarrays; i++, vertexarray++)
 		{
 			int n, *intPtr;
@@ -922,7 +912,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 				break;
 			}
 
-			if (vertexarray->type < arrayLen(vertexArrayFormat))
+			if (vertexarray->type < vertexArrayFormat.size())
 			{
 				vertexArrayFormat[vertexarray->type] = vertexarray->format;
 			}
@@ -1017,7 +1007,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		{
 			return false;
 		}
-		triangle = (iqmTriangle_t *)((byte &)header + header.ofs_triangles);
+		//triangle = (iqmTriangle_t *)((byte &)header + header.ofs_triangles);
+		triangle = reinterpret_cast<iqmTriangle_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_triangles);
 		for (i = 0; i < header.num_triangles; i++, triangle++)
 		{
 			LL(triangle->vertex[0]);
@@ -1038,7 +1029,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		{
 			return false;
 		}
-		mesh = (iqmMesh_t *)((byte &)header + header.ofs_meshes);
+		//mesh = (iqmMesh_t *)((byte &)header + header.ofs_meshes);
+		mesh = reinterpret_cast<iqmMesh_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_meshes);
 		for (i = 0; i < header.num_meshes; i++, mesh++)
 		{
 			LL(mesh->name);
@@ -1144,7 +1136,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		{
 			return false;
 		}
-		joint = (iqmJoint_t *)((byte &)header + header.ofs_joints);
+		//joint = (iqmJoint_t *)((byte &)header + header.ofs_joints);
+		joint = reinterpret_cast<iqmJoint_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_joints);
 		for (i = 0; i < header.num_joints; i++, joint++)
 		{
 			LL(joint->name);
@@ -1180,7 +1173,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		{
 			return false;
 		}
-		pose = (iqmPose_t *)((byte &)header + header.ofs_poses);
+		//pose = (iqmPose_t *)((byte &)header + header.ofs_poses);
+		pose = reinterpret_cast<iqmPose_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_poses);
 		for (i = 0; i < header.num_poses; i++, pose++)
 		{
 			LL(pose->parent);
@@ -1216,7 +1210,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		{
 			return false;
 		}
-		bounds = (iqmBounds_t *)((byte &)header + header.ofs_bounds);
+		//bounds = (iqmBounds_t *)((byte &)header + header.ofs_bounds);
+		bounds = reinterpret_cast<iqmBounds_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_bounds);
 		for (i = 0; i < header.num_frames; i++)
 		{
 			LL(bounds->bbmin[0]);
@@ -1382,7 +1377,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 	{
 		// register shaders
 		// overwrite the material offset with the shader index
-		mesh = (iqmMesh_t *)((byte &)header + header.ofs_meshes);
+		//mesh = (iqmMesh_t *)((byte &)header + header.ofs_meshes);
+		mesh = reinterpret_cast<iqmMesh_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_meshes);
 		surface = iqmData.surfaces;
 		str = &(char &)header + header.ofs_text;
 		for (i = 0; i < header.num_meshes; i++, mesh++, surface++)
@@ -1399,9 +1395,10 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 			surface->first_triangle = mesh->first_triangle;
 			surface->num_triangles = mesh->num_triangles;
 		}
-
+		//ri.Printf(PRINT_ALL, "RRRR header.num_meshes %d\n", header.num_meshes);
 		// copy triangles
-		triangle = (iqmTriangle_t *)((byte &)header + header.ofs_triangles);
+		//triangle = (iqmTriangle_t *)((byte &)header + header.ofs_triangles);
+		triangle = reinterpret_cast<iqmTriangle_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_triangles);
 		for (i = 0; i < header.num_triangles; i++, triangle++)
 		{
 			iqmData.triangles[3 * i + 0] = triangle->vertex[0];
@@ -1410,13 +1407,14 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		}
 
 		// copy vertexarrays and indexes
-		vertexarray = (iqmVertexArray_t *)((byte &)header + header.ofs_vertexarrays);
+		//vertexarray = (iqmVertexArray_t *)((byte &)header + header.ofs_vertexarrays);
+		vertexarray = reinterpret_cast<iqmVertexArray_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_vertexarrays);
 		for (i = 0; i < header.num_vertexarrays; i++, vertexarray++)
 		{
 			int n;
 
 			// skip disabled arrays
-			if (vertexarray->type < arrayLen(vertexArrayFormat) && vertexArrayFormat[vertexarray->type] == -1)
+			if (vertexarray->type < vertexArrayFormat.size() && vertexArrayFormat[vertexarray->type] == -1)
 				continue;
 
 			// total number of values
@@ -1536,7 +1534,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 	{
 		// copy joint names
 		str = iqmData.jointNames;
-		joint = (iqmJoint_t *)((byte &)header + header.ofs_joints);
+		//joint = (iqmJoint_t *)((byte &)header + header.ofs_joints);
+		joint = reinterpret_cast<iqmJoint_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_joints);
 		for (i = 0; i < header.num_joints; i++, joint++)
 		{
 			char *name = &(char &)header + header.ofs_text +
@@ -1547,7 +1546,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		}
 
 		// copy joint parents
-		joint = (iqmJoint_t *)((byte &)header + header.ofs_joints);
+		//joint = (iqmJoint_t *)((byte &)header + header.ofs_joints);
+		joint = reinterpret_cast<iqmJoint_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_joints);
 		for (i = 0; i < header.num_joints; i++, joint++)
 		{
 			iqmData.jointParents[i] = joint->parent;
@@ -1556,7 +1556,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		// calculate bind joint matrices and their inverses
 		mat = iqmData.bindJoints;
 		matInv = iqmData.invBindJoints;
-		joint = (iqmJoint_t *)((byte &)header + header.ofs_joints);
+		//joint = (iqmJoint_t *)((byte &)header + header.ofs_joints);
+		joint = reinterpret_cast<iqmJoint_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_joints);
 		for (i = 0; i < header.num_joints; i++, joint++)
 		{
 			float baseFrame[12], invBaseFrame[12];
@@ -1590,7 +1591,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 		framedata = (unsigned short *)((byte &)header + header.ofs_frames);
 		for (i = 0; i < header.num_frames; i++)
 		{
-			pose = (iqmPose_t *)((byte &)header + header.ofs_poses);
+			//pose = (iqmPose_t *)((byte &)header + header.ofs_poses);
+			pose = reinterpret_cast<iqmPose_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_poses);
 			for (j = 0; j < static_cast<int>(header.num_poses); j++, pose++, transform++)
 			{
 				vec3_t translate{};
@@ -1641,7 +1643,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_na
 	if (header.ofs_bounds)
 	{
 		mat = iqmData.bounds;
-		bounds = (iqmBounds_t *)((byte &)header + header.ofs_bounds);
+		//bounds = (iqmBounds_t *)((byte &)header + header.ofs_bounds);
+		bounds = reinterpret_cast<iqmBounds_t*>(reinterpret_cast<uintptr_t>(&header) + header.ofs_bounds);
 		for (i = 0; i < header.num_frames; i++)
 		{
 			mat[0] = bounds->bbmin[0];

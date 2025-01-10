@@ -29,7 +29,7 @@ void R_WorldToLocal(const vec3_t &world, vec3_t &local);
 
 // Philip Erdelsky gets all the credit for this one...
 
-void R_AddLitSurf(surfaceType_t *surface, shader_t &shader, int fogIndex);
+void R_AddLitSurf(surfaceType_t &surface, shader_t &shader, int fogIndex);
 
 void R_DecomposeLitSort(unsigned sort, int *entityNum, shader_t **shader, int *fogNum);
 
