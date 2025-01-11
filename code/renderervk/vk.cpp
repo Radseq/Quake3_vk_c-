@@ -76,7 +76,7 @@ static PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;
 #else
 
 template <typename T>
-inline void vkCheckFunctionCall(vk::ResultValue<T> res, const char *funcName)
+inline void vkCheckFunctionCall(const vk::ResultValue<T> res, const char *funcName)
 {
 	if (static_cast<int>(res.result) < 0)
 	{
@@ -84,7 +84,7 @@ inline void vkCheckFunctionCall(vk::ResultValue<T> res, const char *funcName)
 	}
 }
 
-inline void vkCheckFunctionCall(vk::Result res, const char *funcName)
+static inline void vkCheckFunctionCall(const vk::Result res, const char *funcName)
 {
 	if (static_cast<int>(res) < 0)
 	{
@@ -106,7 +106,7 @@ inline void vkCheckFunctionCall(vk::Result res, const char *funcName)
 
 #endif
 
-constexpr vk::SampleCountFlagBits convertToVkSampleCountFlagBits(int sampleCountInt)
+static constexpr vk::SampleCountFlagBits convertToVkSampleCountFlagBits(const int sampleCountInt)
 {
 	switch (sampleCountInt)
 	{
@@ -134,7 +134,7 @@ constexpr vk::SampleCountFlagBits convertToVkSampleCountFlagBits(int sampleCount
 
 ////////////////////////////////////////////////////////////////////////////
 
-static inline uint32_t find_memory_type(uint32_t memory_type_bits, vk::MemoryPropertyFlags properties)
+static inline uint32_t find_memory_type(const uint32_t memory_type_bits, const vk::MemoryPropertyFlags properties)
 {
 	uint32_t i;
 
@@ -152,7 +152,7 @@ static inline uint32_t find_memory_type(uint32_t memory_type_bits, vk::MemoryPro
 	return ~0U;
 }
 
-static inline uint32_t find_memory_type2(uint32_t memory_type_bits, vk::MemoryPropertyFlags properties, vk::MemoryPropertyFlags *outprops)
+static inline uint32_t find_memory_type2(const uint32_t memory_type_bits, const vk::MemoryPropertyFlags properties, vk::MemoryPropertyFlags *outprops)
 {
 	const vk::PhysicalDeviceMemoryProperties memory_properties = vk_inst.physical_device.getMemoryProperties();
 
@@ -206,7 +206,7 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer)
 							   nullptr,
 							   nullptr};
 
-	//VK_CHECK(vk_inst.queue.submit(1, &submit_info, nullptr));
+	// VK_CHECK(vk_inst.queue.submit(1, &submit_info, nullptr));
 	vk::Fence fence;
 	VK_CHECK_ASSIGN(fence, vk_inst.device.createFence(vk::FenceCreateInfo{}));
 
@@ -214,14 +214,14 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer)
 	VK_CHECK(vk_inst.device.waitForFences(1, &fence, vk::True, UINT64_MAX));
 	vk_inst.device.destroyFence(fence);
 
-	//VK_CHECK(vk_inst.queue.waitIdle());
+	// VK_CHECK(vk_inst.queue.waitIdle());
 
 	vk_inst.device.freeCommandBuffers(vk_inst.command_pool,
 									  1,
 									  &command_buffer);
 }
 
-constexpr vk::PipelineStageFlagBits get_src_stage(vk::ImageLayout old_layout)
+static constexpr vk::PipelineStageFlagBits get_src_stage(const vk::ImageLayout old_layout)
 {
 	switch (old_layout)
 	{
@@ -241,7 +241,7 @@ constexpr vk::PipelineStageFlagBits get_src_stage(vk::ImageLayout old_layout)
 	}
 }
 
-constexpr vk::AccessFlags get_src_access_mask(vk::ImageLayout old_layout)
+static constexpr vk::AccessFlags get_src_access_mask(const vk::ImageLayout old_layout)
 {
 	switch (old_layout)
 	{
@@ -260,7 +260,7 @@ constexpr vk::AccessFlags get_src_access_mask(vk::ImageLayout old_layout)
 	}
 }
 
-constexpr vk::PipelineStageFlagBits get_dst_stage(vk::ImageLayout new_layout)
+static constexpr vk::PipelineStageFlagBits get_dst_stage(const vk::ImageLayout new_layout)
 {
 	switch (new_layout)
 	{
@@ -282,7 +282,7 @@ constexpr vk::PipelineStageFlagBits get_dst_stage(vk::ImageLayout new_layout)
 	}
 }
 
-constexpr vk::AccessFlags get_dst_access_mask(vk::ImageLayout new_layout)
+static constexpr vk::AccessFlags get_dst_access_mask(const vk::ImageLayout new_layout)
 {
 	switch (new_layout)
 	{
@@ -303,7 +303,8 @@ constexpr vk::AccessFlags get_dst_access_mask(vk::ImageLayout new_layout)
 	}
 }
 
-static void record_image_layout_transition(const vk::CommandBuffer &command_buffer, const vk::Image &image, vk::ImageAspectFlags image_aspect_flags, vk::ImageLayout old_layout, vk::ImageLayout new_layout)
+static void record_image_layout_transition(const vk::CommandBuffer &command_buffer, const vk::Image &image,
+										   const vk::ImageAspectFlags image_aspect_flags, const vk::ImageLayout old_layout, const vk::ImageLayout new_layout)
 {
 	vk::ImageMemoryBarrier barrier{get_src_access_mask(old_layout),
 								   get_dst_access_mask(new_layout),
@@ -343,8 +344,7 @@ static void vk_set_object_name(uint64_t obj, const char *objName, VkDebugReportO
 			nullptr,
 			objType,
 			obj,
-			objName
-		};
+			objName};
 		qvkDebugMarkerSetObjectNameEXT(vk_inst.device, &info);
 	}
 }
@@ -837,7 +837,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags
 }
 #endif
 
-static bool used_instance_extension(std::string_view ext)
+static bool used_instance_extension(const std::string_view ext)
 {
 	// Find the last underscore
 	std::size_t pos = ext.find_last_of('_');
@@ -950,7 +950,7 @@ static void create_instance(void)
 static vk::Format get_depth_format(const vk::PhysicalDevice &physical_device)
 {
 	vk::FormatProperties props;
-	std::array<vk::Format, 2> formats;
+	std::array<vk::Format, 2> formats{};
 
 	if (glConfig.stencilBits > 0)
 	{
@@ -982,9 +982,7 @@ static vk::Format get_depth_format(const vk::PhysicalDevice &physical_device)
 // Check if we can use vkCmdBlitImage for the given source and destination image formats.
 static bool vk_blit_enabled(const vk::PhysicalDevice &physical_device, const vk::Format srcFormat, const vk::Format dstFormat)
 {
-	vk::FormatProperties formatProps;
-
-	formatProps = physical_device.getFormatProperties(srcFormat);
+	vk::FormatProperties formatProps = physical_device.getFormatProperties(srcFormat);
 	if ((formatProps.optimalTilingFeatures & vk::FormatFeatureFlagBits::eBlitSrc) == vk::FormatFeatureFlags{})
 	{
 		return false;
@@ -999,7 +997,7 @@ static bool vk_blit_enabled(const vk::PhysicalDevice &physical_device, const vk:
 	return true;
 }
 
-static vk::Format get_hdr_format(vk::Format base_format)
+inline static vk::Format get_hdr_format(const vk::Format base_format)
 {
 	if (r_fbo->integer == 0)
 	{
@@ -1033,7 +1031,7 @@ static constexpr present_format_t present_formats[] = {
 	//{32, VK_FORMAT_B10G11R11_UFLOAT_PACK32, VK_FORMAT_B10G11R11_UFLOAT_PACK32}
 };
 
-static void get_present_format(int present_bits, vk::Format &bgr, vk::Format &rgb)
+static void get_present_format(const int present_bits, vk::Format &bgr, vk::Format &rgb)
 {
 	const present_format_t *pf, *sel;
 	std::size_t i;
@@ -1186,7 +1184,7 @@ static const char *renderer_name(const vk::PhysicalDeviceProperties &props)
 	return buf;
 }
 
-static bool vk_create_device(const vk::PhysicalDevice &physical_device, int device_index)
+static bool vk_create_device(const vk::PhysicalDevice &physical_device, const int device_index)
 {
 
 	ri.Printf(PRINT_ALL, "...selected physical device: %i\n", device_index);
@@ -1346,7 +1344,8 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, int devi
 			vk_inst.wideLines = true;
 		}
 
-		if ( device_features.fragmentStoresAndAtomics && device_features.vertexPipelineStoresAndAtomics ) {
+		if (device_features.fragmentStoresAndAtomics && device_features.vertexPipelineStoresAndAtomics)
+		{
 			features.vertexPipelineStoresAndAtomics = vk::True;
 			features.fragmentStoresAndAtomics = vk::True;
 			vk_inst.fragmentStores = true;
@@ -1577,7 +1576,7 @@ static vk::ShaderModule SHADER_MODULE(const uint8_t *bytes, const int count)
 	return module;
 }
 
-static vk::DescriptorSetLayout vk_create_layout_binding(int binding, vk::DescriptorType type, vk::ShaderStageFlags flags)
+static vk::DescriptorSetLayout vk_create_layout_binding(const int binding, const vk::DescriptorType type, const vk::ShaderStageFlags flags)
 {
 
 	vk::DescriptorSetLayoutBinding bind{(uint32_t)binding,
@@ -2453,7 +2452,7 @@ static void vk_alloc_persistent_pipelines(void)
 	}
 
 	// flare visibility test dot
-	if ( vk_inst.fragmentStores )
+	if (vk_inst.fragmentStores)
 	{
 		def = {};
 		// def.state_bits = GLS_DEFAULT;
@@ -2661,7 +2660,7 @@ static void vk_alloc_attachments(void)
 	vk::MemoryDedicatedAllocateInfoKHR alloc_info2{};
 	if (num_attachments == 1 && vk_inst.dedicatedAllocation)
 	{
-		alloc_info2 = { attachments[0].descriptor, {} };
+		alloc_info2 = {attachments[0].descriptor, {}};
 		alloc_info.pNext = &alloc_info2;
 	}
 
@@ -3225,7 +3224,7 @@ static void vk_set_render_scale(void)
 	}
 }
 
-constexpr int sampleCountFlagsToInt(vk::SampleCountFlags sampleCountFlags)
+static constexpr int sampleCountFlagsToInt(vk::SampleCountFlags sampleCountFlags)
 {
 	if (sampleCountFlags & vk::SampleCountFlagBits::e1)
 		return 1;
@@ -3548,7 +3547,7 @@ void vk_initialize(void)
 		vk_inst.pipeline_layout_storage = vk_inst.device.createPipelineLayout(desc);
 
 
-	//	VK_CHECK( qvkCreatePipelineLayout( vk_inst.device, &desc, nullptr, &vk_inst.pipeline_layout_storage ) );
+		//	VK_CHECK( qvkCreatePipelineLayout( vk_inst.device, &desc, nullptr, &vk_inst.pipeline_layout_storage ) );
 #endif
 
 		// post-processing pipeline
@@ -3811,7 +3810,7 @@ static void vk_destroy_pipelines(bool resetCounter)
 	}
 }
 
-void vk_shutdown(refShutdownCode_t code)
+void vk_shutdown(const refShutdownCode_t code)
 {
 	uint32_t i, j, k, l;
 
@@ -4095,7 +4094,7 @@ static void record_buffer_memory_barrier(const vk::CommandBuffer &cb, const vk::
 	);
 }
 
-void vk_create_image(image_t &image, int width, int height, int mip_levels)
+void vk_create_image(image_t &image, const int width, const int height, const int mip_levels)
 {
 	if (image.handle)
 	{
@@ -4317,7 +4316,7 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 	}
 }
 
-void vk_update_descriptor_set(const image_t &image, bool mipmap)
+void vk_update_descriptor_set(const image_t &image, const bool mipmap)
 {
 	Vk_Sampler_Def sampler_def = {};
 
@@ -4431,7 +4430,7 @@ static bool vk_surface_format_color_depth(const vk::Format format, int *r, int *
 	}
 }
 
-void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t height)
+void vk_create_post_process_pipeline(const int program_index, const uint32_t width, const uint32_t height)
 {
 	vk::Pipeline *pipeline;
 	vk::ShaderModule fsmodule;
@@ -4456,7 +4455,7 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 		int depth_r;
 		int depth_g;
 		int depth_b;
-	} frag_spec_data;
+	};
 
 	switch (program_index)
 	{
@@ -4521,14 +4520,18 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 	set_shader_stage_desc(shader_stages[0], vk::ShaderStageFlagBits::eVertex, vk_inst.modules.gamma_vs, "main");
 	set_shader_stage_desc(shader_stages[1], vk::ShaderStageFlagBits::eFragment, fsmodule, "main");
 
-	frag_spec_data.gamma = 1.0 / (r_gamma->value);
-	frag_spec_data.overbright = (float)(1 << tr.overbrightBits);
-	frag_spec_data.greyscale = r_greyscale->value;
-	frag_spec_data.bloom_threshold = r_bloom_threshold->value;
-	frag_spec_data.bloom_intensity = r_bloom_intensity->value;
-	frag_spec_data.bloom_threshold_mode = r_bloom_threshold_mode->integer;
-	frag_spec_data.bloom_modulate = r_bloom_modulate->integer;
-	frag_spec_data.dither = r_dither->integer;
+	FragSpecData frag_spec_data{
+		1.0f / (r_gamma->value),
+		(float)(1 << tr.overbrightBits),
+		r_greyscale->value,
+		r_bloom_threshold->value,
+		r_bloom_intensity->value,
+		r_bloom_threshold_mode->integer,
+		r_bloom_modulate->integer,
+		r_dither->integer,
+		0,
+		0,
+		0};
 
 	if (!vk_surface_format_color_depth(vk_inst.present_format.format, &frag_spec_data.depth_r, &frag_spec_data.depth_g, &frag_spec_data.depth_b))
 		ri.Printf(PRINT_ALL, "Format %s not recognized, dither to assume 8bpc\n", vk::to_string(vk_inst.base_format.format).data());
@@ -4676,7 +4679,7 @@ void vk_create_post_process_pipeline(int program_index, uint32_t width, uint32_t
 #endif
 }
 
-void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass)
+void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const uint32_t height, const bool horizontal_pass)
 {
 	vk::Pipeline *pipeline = &vk_inst.blur_pipeline[index];
 
@@ -4860,7 +4863,7 @@ static constexpr vk::PrimitiveTopology GetTopologyByPrimitivies(const Vk_Pipelin
 	}
 }
 
-void GetCullModeByFaceCulling(const Vk_Pipeline_Def &def, vk::CullModeFlags &cullMode)
+static void GetCullModeByFaceCulling(const Vk_Pipeline_Def &def, vk::CullModeFlags &cullMode)
 {
 	switch (def.face_culling)
 	{
@@ -4879,7 +4882,7 @@ void GetCullModeByFaceCulling(const Vk_Pipeline_Def &def, vk::CullModeFlags &cul
 	}
 }
 
-vk::PipelineColorBlendAttachmentState createBlendAttachmentState(uint32_t state_bits, const Vk_Pipeline_Def &def)
+static vk::PipelineColorBlendAttachmentState createBlendAttachmentState(const uint32_t state_bits, const Vk_Pipeline_Def &def)
 {
 	// Determine whether blending is enabled
 	bool blendEnable = (state_bits & (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)) ? vk::True : vk::False;
@@ -4974,7 +4977,7 @@ vk::PipelineColorBlendAttachmentState createBlendAttachmentState(uint32_t state_
 	return attachmentBlendState;
 }
 
-vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPassIndex)
+vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t renderPassIndex)
 {
 	vk::ShaderModule *vs_module = nullptr;
 	vk::ShaderModule *fs_module = nullptr;
@@ -5220,7 +5223,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	frag_spec_data[2].f = 0.85f;
 
 #if 0
-	if ( r_ext_alpha_to_coverage->integer && vkSamples != VK_SAMPLE_COUNT_1_BIT && frag_spec_data[0].i ) {
+	if (r_ext_alpha_to_coverage->integer && vkSamples != VK_SAMPLE_COUNT_1_BIT && frag_spec_data[0].i) {
 		frag_spec_data[3].i = 1;
 		alphaToCoverage = vk::True;
 	}
@@ -5349,12 +5352,12 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	//
 #if 0
 	spec_entries[0].constantID = 0; // clip_plane
-	spec_entries[0].offset = 0 * sizeof( int32_t );
-	spec_entries[0].size = sizeof( int32_t );
+	spec_entries[0].offset = 0 * sizeof(int32_t);
+	spec_entries[0].size = sizeof(int32_t);
 
 	vert_spec_info.mapEntryCount = 1;
 	vert_spec_info.pMapEntries = spec_entries + 0;
-	vert_spec_info.dataSize = 1 * sizeof( int32_t );
+	vert_spec_info.dataSize = 1 * sizeof(int32_t);
 	vert_spec_info.pData = &vert_spec_data[0];
 	shader_stages[0].pSpecializationInfo = &vert_spec_info;
 #endif
@@ -5827,7 +5830,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, renderPass_t renderPass
 	return resultPipeline;
 }
 
-vk::Pipeline vk_gen_pipeline(uint32_t index)
+vk::Pipeline vk_gen_pipeline(const uint32_t index)
 {
 	if (index < vk_inst.pipelines_count)
 	{
@@ -5863,7 +5866,7 @@ uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def)
 	}
 }
 
-uint32_t vk_find_pipeline_ext(uint32_t base, const Vk_Pipeline_Def &def, bool use)
+uint32_t vk_find_pipeline_ext(const uint32_t base, const Vk_Pipeline_Def &def, bool use)
 {
 	const Vk_Pipeline_Def *cur_def;
 	uint32_t index;
@@ -5886,7 +5889,7 @@ found:
 	return index;
 }
 
-void vk_get_pipeline_def(uint32_t pipeline, Vk_Pipeline_Def &def)
+void vk_get_pipeline_def(const uint32_t pipeline, Vk_Pipeline_Def &def)
 {
 	if (pipeline >= vk_inst.pipelines_count)
 	{
@@ -5919,7 +5922,7 @@ static void get_viewport_rect(vk::Rect2D &r)
 	}
 }
 
-static void get_viewport(vk::Viewport &viewport, Vk_Depth_Range depth_range)
+static void get_viewport(vk::Viewport &viewport, const Vk_Depth_Range depth_range)
 {
 	vk::Rect2D r;
 
@@ -6082,7 +6085,7 @@ void vk_clear_color(const vec4_t &color)
 	vk_inst.cmd->command_buffer.clearAttachments(1, &attachment, rect_count, clear_rect);
 }
 
-void vk_clear_depth(bool clear_stencil)
+void vk_clear_depth(const bool clear_stencil)
 {
 	if (!vk_inst.active || vk_world.dirty_depth_attachment == 0)
 		return;
@@ -6094,7 +6097,7 @@ void vk_clear_depth(bool clear_stencil)
 
 	vk::ClearAttachment attachment{
 		clear_stencil && glConfig.stencilBits ? vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil
-												: vk::ImageAspectFlagBits::eDepth,
+											  : vk::ImageAspectFlagBits::eDepth,
 		0,
 		{vk::ClearDepthStencilValue{0, 1}}};
 
@@ -6161,7 +6164,7 @@ static void vk_bind_attr(int index, unsigned int item_size, const void *src)
 	vk_bind_index_attr(index);
 }
 
-uint32_t vk_tess_index(uint32_t numIndexes, const void *src)
+uint32_t vk_tess_index(const uint32_t numIndexes, const void *src)
 {
 	const uint32_t offset = vk_inst.cmd->vertex_buffer_offset;
 	const uint32_t size = numIndexes * sizeof(tess.indexes[0]);
@@ -6180,7 +6183,7 @@ uint32_t vk_tess_index(uint32_t numIndexes, const void *src)
 	}
 }
 
-void vk_bind_index_buffer(const vk::Buffer &buffer, uint32_t offset)
+void vk_bind_index_buffer(const vk::Buffer &buffer, const uint32_t offset)
 {
 	if (vk_inst.cmd->curr_index_buffer != buffer || vk_inst.cmd->curr_index_offset != offset)
 		vk_inst.cmd->command_buffer.bindIndexBuffer(buffer, offset, vk::IndexType::eUint32);
@@ -6189,7 +6192,7 @@ void vk_bind_index_buffer(const vk::Buffer &buffer, uint32_t offset)
 	vk_inst.cmd->curr_index_offset = offset;
 }
 
-void vk_draw_indexed(uint32_t indexCount, uint32_t firstIndex)
+void vk_draw_indexed(const uint32_t indexCount, const uint32_t firstIndex)
 {
 	vk_inst.cmd->command_buffer.drawIndexed(indexCount, 1, firstIndex, 0, 0);
 }
@@ -6223,7 +6226,7 @@ void vk_bind_index_ext(const int numIndexes, const uint32_t *indexes)
 	}
 }
 
-void vk_bind_geometry(uint32_t flags)
+void vk_bind_geometry(const uint32_t flags)
 {
 	// unsigned int size;
 	bind_base = -1;
@@ -6337,7 +6340,7 @@ void vk_bind_geometry(uint32_t flags)
 	}
 }
 
-void vk_bind_lighting(int stage, int bundle)
+void vk_bind_lighting(const int stage, const int bundle)
 {
 	bind_base = -1;
 	bind_count = 0;
@@ -6367,12 +6370,12 @@ void vk_bind_lighting(int stage, int bundle)
 	}
 }
 
-void vk_reset_descriptor(int index)
+void vk_reset_descriptor(const int index)
 {
 	vk_inst.cmd->descriptor_set.current[index] = nullptr;
 }
 
-void vk_update_descriptor(int index, const vk::DescriptorSet &descriptor)
+void vk_update_descriptor(const int index, const vk::DescriptorSet &descriptor)
 {
 	if (vk_inst.cmd->descriptor_set.current[index] != descriptor)
 	{
@@ -6382,14 +6385,14 @@ void vk_update_descriptor(int index, const vk::DescriptorSet &descriptor)
 	vk_inst.cmd->descriptor_set.current[index] = descriptor;
 }
 
-void vk_update_descriptor_offset(int index, uint32_t offset)
+void vk_update_descriptor_offset(const int index, const uint32_t offset)
 {
 	vk_inst.cmd->descriptor_set.offset[index] = offset;
 }
 
 void vk_bind_descriptor_sets(void)
 {
-	uint32_t offsets[2], offset_count;
+	uint32_t offsets[2]{}, offset_count;
 	uint32_t start, end, count;
 
 	start = vk_inst.cmd->descriptor_set.start;
@@ -6420,7 +6423,7 @@ void vk_bind_descriptor_sets(void)
 	vk_inst.cmd->descriptor_set.start = ~0U;
 }
 
-void vk_bind_pipeline(uint32_t pipeline)
+void vk_bind_pipeline(const uint32_t pipeline)
 {
 	vk::Pipeline vkpipe;
 
@@ -6435,7 +6438,7 @@ void vk_bind_pipeline(uint32_t pipeline)
 	vk_world.dirty_depth_attachment |= (vk_inst.pipelines[pipeline].def.state_bits & GLS_DEPTHMASK_TRUE);
 }
 
-void vk_draw_geometry(Vk_Depth_Range depth_range, bool indexed)
+void vk_draw_geometry(const Vk_Depth_Range depth_range, const bool indexed)
 {
 	vk::Rect2D scissor_rect;
 	vk::Viewport viewport;
@@ -6482,7 +6485,7 @@ void vk_draw_geometry(Vk_Depth_Range depth_range, bool indexed)
 	}
 }
 
-static void vk_begin_render_pass(const vk::RenderPass &renderPass, const vk::Framebuffer &frameBuffer, bool clearValues, uint32_t width, uint32_t height)
+static void vk_begin_render_pass(const vk::RenderPass &renderPass, const vk::Framebuffer &frameBuffer, const bool clearValues, const uint32_t width, const uint32_t height)
 {
 	vk::ClearValue clear_values[3]{};
 
@@ -6561,7 +6564,7 @@ void vk_begin_bloom_extract_render_pass(void)
 	vk_begin_render_pass(vk_inst.render_pass.bloom_extract, frameBuffer, false, vk_inst.renderWidth, vk_inst.renderHeight);
 }
 
-void vk_begin_blur_render_pass(uint32_t index)
+void vk_begin_blur_render_pass(const uint32_t index)
 {
 	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.blur[index];
 
@@ -6702,17 +6705,18 @@ void vk_begin_frame(void)
 
 #if 0
 	// add explicit layout transition dependency
-	if ( vk_inst.fboActive ) {
-		record_image_layout_transition( vk_inst.cmd->command_buffer,
+	if (vk_inst.fboActive) {
+		record_image_layout_transition(vk_inst.cmd->command_buffer,
 			vk_inst.color_image, VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
-			VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL );
+			VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-	} else {
-		record_image_layout_transition( vk_inst.cmd->command_buffer,
-			vk_inst.swapchain_images[ vk_inst.swapchain_image_index ], VK_IMAGE_ASPECT_COLOR_BIT,
+	}
+	else {
+		record_image_layout_transition(vk_inst.cmd->command_buffer,
+			vk_inst.swapchain_images[vk_inst.swapchain_image_index], VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
-			VK_ACCESS_MEMORY_READ_BIT, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR );
+			VK_ACCESS_MEMORY_READ_BIT, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 	}
 #endif
 
@@ -6914,7 +6918,7 @@ void vk_present_frame(void)
 	}
 }
 
-static constexpr bool is_bgr(vk::Format format)
+static constexpr bool is_bgr(const vk::Format format)
 {
 	switch (format)
 	{
@@ -6930,7 +6934,7 @@ static constexpr bool is_bgr(vk::Format format)
 	}
 }
 
-void vk_read_pixels(byte *buffer, uint32_t width, uint32_t height)
+void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 {
 	vk::MemoryPropertyFlags memory_flags;
 
@@ -7208,17 +7212,17 @@ bool vk_bloom(void)
 		vk_end_render_pass();
 #if 0
 		// horizontal blur
-		vk_begin_blur_render_pass( i+0 );
-		qvkCmdBindPipeline( vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.blur_pipeline[i+0] );
-		qvkCmdBindDescriptorSets( vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.bloom_image_descriptor[i+2], 0, nullptr );
-		qvkCmdDraw( vk_inst.cmd->command_buffer, 4, 1, 0, 0 );
+		vk_begin_blur_render_pass(i + 0);
+		qvkCmdBindPipeline(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.blur_pipeline[i + 0]);
+		qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.bloom_image_descriptor[i + 2], 0, nullptr);
+		qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
 		vk_end_render_pass();
 
 		// vectical blur
-		vk_begin_blur_render_pass( i+1 );
-		qvkCmdBindPipeline( vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.blur_pipeline[i+1] );
-		qvkCmdBindDescriptorSets( vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.bloom_image_descriptor[i+1], 0, nullptr );
-		qvkCmdDraw( vk_inst.cmd->command_buffer, 4, 1, 0, 0 );
+		vk_begin_blur_render_pass(i + 1);
+		qvkCmdBindPipeline(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.blur_pipeline[i + 1]);
+		qvkCmdBindDescriptorSets(vk_inst.cmd->command_buffer, vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, 1, &vk_inst.bloom_image_descriptor[i + 1], 0, nullptr);
+		qvkCmdDraw(vk_inst.cmd->command_buffer, 4, 1, 0, 0);
 		vk_end_render_pass();
 #endif
 	}
@@ -7268,4 +7272,3 @@ bool vk_bloom(void)
 
 	return true;
 }
-

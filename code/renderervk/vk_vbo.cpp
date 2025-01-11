@@ -503,7 +503,7 @@ static void initItem(vbo_item_t *item)
 	item->soft_offset = -1;
 }
 
-void R_BuildWorldVBO(msurface_t &surf, int surfCount)
+void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 {
 	vbo_t &vbo = world_vbo;
 	msurface_t **surfList;
@@ -837,7 +837,7 @@ static int run_length(const int *a, int from, int to, int *count)
 	return n;
 }
 
-void VBO_QueueItem(int itemIndex)
+void VBO_QueueItem(const int itemIndex)
 {
 	vbo_t &vbo = world_vbo;
 

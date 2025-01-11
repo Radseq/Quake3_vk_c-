@@ -7,8 +7,8 @@
 void VBO_Cleanup();
 void VBO_PushData(const int itemIndex, shaderCommands_t &input);
 void VBO_UnBind();
-void R_BuildWorldVBO(msurface_t &surf, int surfCount);
-void VBO_QueueItem(int itemIndex);
+void R_BuildWorldVBO(msurface_t &surf, const int surfCount);
+void VBO_QueueItem(const int itemIndex);
 void VBO_ClearQueue();
 void VBO_Flush();
 void VBO_RenderIBOItems();
