@@ -6,7 +6,7 @@
 #endif
 
 #ifdef DEBUG
-//#define USE_VK_VALIDATION
+#define USE_VK_VALIDATION
 #endif
 
 #ifndef USE_VK_VALIDATION

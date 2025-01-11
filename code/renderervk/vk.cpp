@@ -525,9 +525,11 @@ static void vk_create_render_passes(void)
 	vk::Format depth_format = vk_inst.depth_format;
 	vk::Device device = vk_inst.device;
 	vk::AttachmentDescription attachments[3]; // color | depth | msaa color
-	vk::AttachmentReference colorResolveRef, colorRef0, depthRef0;
+	vk::AttachmentReference colorRef0, depthRef0;
 	vk::SubpassDependency deps[3]{};
 	vk::RenderPassCreateInfo desc{};
+
+	vk::AttachmentReference colorResolveRef = {0, vk::ImageLayout::eColorAttachmentOptimal}; // Not UNDEFINED
 
 	auto setup_attachment = [&](vk::AttachmentDescription &attachment, vk::Format format, vk::SampleCountFlagBits samples,
 								vk::AttachmentLoadOp loadOp, vk::AttachmentStoreOp storeOp,
@@ -594,6 +596,11 @@ static void vk_create_render_passes(void)
 		colorRef0.attachment = 2;
 		colorResolveRef.attachment = 0;
 		subpass.pResolveAttachments = &colorResolveRef;
+	}
+	else
+	{
+		// Don't use resolve attachments when MSAA is disabled
+		subpass.pResolveAttachments = nullptr;
 	}
 
 	setup_subpass_dependency(deps[2], vk::SubpassExternal, 0,
@@ -4305,7 +4312,8 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 		vk_world.staging_buffer,
 		image.handle,
 		vk::ImageLayout::eTransferDstOptimal,
-		regions);
+		num_regions,
+		regions.data());
 
 	record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 	end_command_buffer(command_buffer);
@@ -6897,6 +6905,37 @@ void vk_present_frame(void)
 									nullptr,
 									nullptr};
 
+#ifdef USE_VK_VALIDATION
+	try
+	{
+		vk::Result res = vk_inst.queue.presentKHR(present_info);
+		switch (res)
+		{
+		case vk::Result::eSuccess:
+			break;
+		case vk::Result::eSuboptimalKHR:
+		case vk::Result::eErrorOutOfDateKHR:
+			// swapchain re-creation needed
+			vk_restart_swapchain(__func__);
+			break;
+		case vk::Result::eErrorDeviceLost:
+			// we can ignore that
+			ri.Printf(PRINT_DEVELOPER, "vkQueuePresentKHR: device lost\n");
+			break;
+		default:
+			// or we don't
+			ri.Error(ERR_FATAL, "vkQueuePresentKHR returned %s", vk::to_string(res).data());
+		}
+	}
+	catch (vk::OutOfDateKHRError &err)
+	{
+		vk_restart_swapchain(__func__);
+	}
+	catch (vk::SystemError &e)
+	{
+		ri.Error(ERR_FATAL, "vkQueuePresentKHR failed: %s", e.what());
+	}
+#else
 	vk::Result res = vk_inst.queue.presentKHR(present_info);
 
 	switch (res)
@@ -6916,6 +6955,7 @@ void vk_present_frame(void)
 		// or we don't
 		ri.Error(ERR_FATAL, "vkQueuePresentKHR returned %s", vk::to_string(res).data());
 	}
+#endif
 }
 
 static constexpr bool is_bgr(const vk::Format format)
