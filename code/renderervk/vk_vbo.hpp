@@ -5,7 +5,7 @@
 
 #ifdef USE_VBO
 void VBO_Cleanup();
-void VBO_PushData(int itemIndex, shaderCommands_t &input);
+void VBO_PushData(const int itemIndex, shaderCommands_t &input);
 void VBO_UnBind();
 void R_BuildWorldVBO(msurface_t &surf, int surfCount);
 void VBO_QueueItem(int itemIndex);

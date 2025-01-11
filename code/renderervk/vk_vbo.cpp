@@ -119,7 +119,7 @@ constexpr static bool isStaticRGBgen(colorGen_t cgen)
 	}
 }
 
-constexpr static bool isStaticTCgen(const shaderStage_t &stage, int bundle)
+constexpr static bool isStaticTCgen(const shaderStage_t &stage, const int bundle)
 {
 	switch (stage.bundle[bundle].tcGen)
 	{
@@ -427,7 +427,7 @@ static void VBO_AddStageTxCoords(vbo_t &vbo, const int stage, const shaderComman
 	memcpy(vbo.vbo_buffer + offs, input.svars.texcoordPtr[bundle], size);
 }
 
-void VBO_PushData(int itemIndex, shaderCommands_t &input)
+void VBO_PushData(const int itemIndex, shaderCommands_t &input)
 {
 	vbo_t &vbo = world_vbo;
 	vbo_item_t *vi = vbo.items + itemIndex;

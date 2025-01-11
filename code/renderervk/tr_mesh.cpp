@@ -450,7 +450,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 			{
 				dl = dlights[n];
 				tr.light = dl;
-				R_AddLitSurf(reinterpret_cast<surfaceType_t &>(surface), *shader, fogNum);
+				R_AddLitSurf(*reinterpret_cast<surfaceType_t *>(surface), *shader, fogNum);
 			}
 		}
 #endif

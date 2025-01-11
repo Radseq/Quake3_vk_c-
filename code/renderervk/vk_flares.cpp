@@ -136,7 +136,7 @@ RB_AddFlare
 This is called at surface tesselation time
 ==================
 */
-void RB_AddFlare(void *surface, int fogNum, const vec3_t &point, const vec3_t &color, const vec3_t &normal)
+void RB_AddFlare(void *surface, const int fogNum, const vec3_t &point, const vec3_t &color, const vec3_t &normal)
 {
 	int i;
 	flare_t *flare;

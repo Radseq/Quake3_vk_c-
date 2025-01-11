@@ -122,7 +122,7 @@ MakeMeshNormals
 Handles all the complicated wrapping and degenerate cases
 =================
 */
-static void MakeMeshNormals(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE])
+static void MakeMeshNormals(const int width, const int height, drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE])
 {
 	int i, j, k, dist;
 	vec3_t normal;
@@ -247,7 +247,7 @@ static void MakeMeshNormals(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE
 InvertCtrl
 ============
 */
-static void InvertCtrl(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE])
+static void InvertCtrl(const int width, const int height, drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE])
 {
 	int i, j;
 	drawVert_t temp;
@@ -268,7 +268,7 @@ static void InvertCtrl(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE][MAX
 InvertErrorTable
 =================
 */
-static void InvertErrorTable(float errorTable[2][MAX_GRID_SIZE], int width, int height)
+static void InvertErrorTable(float errorTable[2][MAX_GRID_SIZE], const int width, const int height)
 {
 	int i;
 	float copy[2][MAX_GRID_SIZE];
@@ -292,7 +292,7 @@ PutPointsOnCurve
 ==================
 */
 static void PutPointsOnCurve(drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE],
-							 int width, int height)
+							 const int width, const int height)
 {
 	int i, j;
 	drawVert_t prev, next;
@@ -323,7 +323,7 @@ static void PutPointsOnCurve(drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE],
 R_CreateSurfaceGridMesh
 =================
 */
-static srfGridMesh_t *R_CreateSurfaceGridMesh(int width, int height,
+static srfGridMesh_t *R_CreateSurfaceGridMesh(const int width, const int height,
 											  drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE], float errorTable[2][MAX_GRID_SIZE])
 {
 	int i, j, size;
@@ -581,7 +581,7 @@ srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
 R_GridInsertColumn
 ===============
 */
-srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, int column, int row, const vec3_t &point, float loderror)
+srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, const int column, const int row, const vec3_t &point, const float loderror)
 {
 	int i, j;
 	int width, height, oldwidth;
@@ -641,7 +641,7 @@ srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, int column, int row, cons
 R_GridInsertRow
 ===============
 */
-srfGridMesh_t *R_GridInsertRow(srfGridMesh_t &grid, int row, int column, const vec3_t &point, float loderror)
+srfGridMesh_t *R_GridInsertRow(srfGridMesh_t &grid, const int row, const int column, const vec3_t &point, const float loderror)
 {
 	int i, j;
 	int width, height, oldheight;

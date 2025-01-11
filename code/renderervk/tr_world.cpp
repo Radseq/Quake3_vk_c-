@@ -364,15 +364,15 @@ static int R_DlightSurface(msurface_t &surf, int dlightBits)
 {
 	if (*surf.data == SF_FACE)
 	{
-		dlightBits = R_DlightFace((srfSurfaceFace_t &)surf.data, dlightBits);
+		dlightBits = R_DlightFace(reinterpret_cast<srfSurfaceFace_t&>(*surf.data), dlightBits);
 	}
 	else if (*surf.data == SF_GRID)
 	{
-		dlightBits = R_DlightGrid((srfGridMesh_t &)surf.data, dlightBits);
+		dlightBits = R_DlightGrid(reinterpret_cast<srfGridMesh_t&>(*surf.data), dlightBits);
 	}
 	else if (*surf.data == SF_TRIANGLES)
 	{
-		dlightBits = R_DlightTrisurf((srfTriangles_t &)surf.data, dlightBits);
+		dlightBits = R_DlightTrisurf(reinterpret_cast<srfTriangles_t&>(*surf.data), dlightBits);
 	}
 	else
 	{
@@ -842,7 +842,7 @@ static mnode_t *R_PointInLeaf(const vec3_t p)
 R_ClusterPVS
 ==============
 */
-static const byte *R_ClusterPVS(int cluster)
+static const byte *R_ClusterPVS(const int cluster)
 {
 	if (!tr.world->vis || cluster < 0 || cluster >= tr.world->numClusters)
 	{
@@ -972,10 +972,6 @@ R_AddWorldSurfaces
 */
 void R_AddWorldSurfaces(void)
 {
-#ifdef USE_PMLIGHT
-	uint32_t i;
-#endif
-
 	if (!r_drawworld->integer)
 	{
 		return;
@@ -1014,7 +1010,7 @@ void R_AddWorldSurfaces(void)
 	// instead of having copypasted versions for both world and local cases
 
 	R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, tr.viewParms.world);
-	for (i = 0; i < tr.viewParms.num_dlights; i++)
+	for (uint32_t i = 0; i < tr.viewParms.num_dlights; i++)
 	{
 		dlight_t &dl = tr.viewParms.dlights[i];
 		dl.head = dl.tail = NULL;
