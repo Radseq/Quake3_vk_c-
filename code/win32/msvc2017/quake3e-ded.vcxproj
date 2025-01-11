@@ -106,6 +106,7 @@
     <IntDir>.\build\$(ProjectName)_$(Configuration)_$(PlatformTarget)\</IntDir>
     <EmbedManifest>false</EmbedManifest>
     <TargetName>quake3e.ded.x64</TargetName>
+    <IncludePath>D:\Programming\vulkanSDK\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <EmbedManifest>false</EmbedManifest>
