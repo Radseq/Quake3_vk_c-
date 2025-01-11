@@ -2541,7 +2541,7 @@ static void vk_alloc_persistent_pipelines(void)
 	}
 }
 
-void vk_create_blur_pipeline(uint32_t index, uint32_t width, uint32_t height, bool horizontal_pass);
+void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const uint32_t height, const bool horizontal_pass);
 
 void vk_update_post_process_pipelines(void)
 {
@@ -4367,7 +4367,7 @@ void vk_destroy_image_resources(vk::Image &image, vk::ImageView &imageView)
 	}
 }
 
-static void set_shader_stage_desc(vk::PipelineShaderStageCreateInfo &desc, vk::ShaderStageFlagBits stage, const vk::ShaderModule &shader_module, const char *entry)
+static void set_shader_stage_desc(vk::PipelineShaderStageCreateInfo &desc, const vk::ShaderStageFlagBits stage, const vk::ShaderModule &shader_module, const char *entry)
 {
 	desc.pNext = nullptr;
 	desc.flags = {};
@@ -4831,7 +4831,7 @@ static vk::VertexInputAttributeDescription attribsCpp[8];
 static uint32_t num_binds;
 static uint32_t num_attrs;
 
-static void push_bind(uint32_t binding, uint32_t stride)
+static void push_bind(const uint32_t binding, const uint32_t stride)
 {
 	bindingsCpp[num_binds].binding = binding;
 	bindingsCpp[num_binds].stride = stride;
@@ -4839,7 +4839,7 @@ static void push_bind(uint32_t binding, uint32_t stride)
 	num_binds++;
 }
 
-static void push_attr(uint32_t location, uint32_t binding, vk::Format format)
+static void push_attr(const uint32_t location, const uint32_t binding, const vk::Format format)
 {
 	attribsCpp[num_attrs].location = location;
 	attribsCpp[num_attrs].binding = binding;
@@ -6131,7 +6131,7 @@ static vk::Buffer shade_bufs[8];
 static int bind_base;
 static int bind_count;
 
-static void vk_bind_index_attr(int index)
+static void vk_bind_index_attr(const int index)
 {
 	if (bind_base == -1)
 	{
@@ -6144,7 +6144,7 @@ static void vk_bind_index_attr(int index)
 	}
 }
 
-static void vk_bind_attr(int index, unsigned int item_size, const void *src)
+static void vk_bind_attr(const int index, const unsigned int item_size, const void *src)
 {
 	const uint32_t offset = PAD(vk_inst.cmd->vertex_buffer_offset, 32);
 	const uint32_t size = tess.numVertexes * item_size;
