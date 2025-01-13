@@ -6,8 +6,9 @@
 void Bind(image_t *image);
 void SelectTexture(int unit);
 void GL_Cull(cullType_t cullType);
-void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data, int client, bool dirty);
-void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client, bool dirty);
+void RE_StretchRaw(const int x, const int y, const int w, const int h,
+	const int cols, const int rows, byte* data, const int client, const bool dirty);
+void RE_UploadCinematic(const int w, const int h, const int cols, const int rows, byte* data, const int client, const bool dirty);
 void RB_ShowImages(void);
 void RB_ExecuteRenderCommands(const void *data);
 

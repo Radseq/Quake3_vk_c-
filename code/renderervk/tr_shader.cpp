@@ -327,10 +327,10 @@ ParseWaveForm
 */
 static void ParseWaveForm(const char **text, waveForm_t &wave)
 {
-	const char *token;
+	std::string_view token;
 
-	token = COM_ParseExt(text, false);
-	if (token[0] == 0)
+	token = COM_ParseExt_cpp(text, false);
+	if (token.empty())
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
@@ -338,37 +338,37 @@ static void ParseWaveForm(const char **text, waveForm_t &wave)
 	wave.func = NameToGenFunc(token);
 
 	// BASE, AMP, PHASE, FREQ
-	token = COM_ParseExt(text, false);
+	token = COM_ParseExt_cpp(text, false);
 	if (token[0] == 0)
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave.base = Q_atof(token);
+	wave.base = Q_atof_cpp(token);
 
-	token = COM_ParseExt(text, false);
+	token = COM_ParseExt_cpp(text, false);
 	if (token[0] == 0)
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave.amplitude = Q_atof(token);
+	wave.amplitude = Q_atof_cpp(token);
 
-	token = COM_ParseExt(text, false);
+	token = COM_ParseExt_cpp(text, false);
 	if (token[0] == 0)
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave.phase = Q_atof(token);
+	wave.phase = Q_atof_cpp(token);
 
-	token = COM_ParseExt(text, false);
+	token = COM_ParseExt_cpp(text, false);
 	if (token[0] == 0)
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
 	}
-	wave.frequency = Q_atof(token);
+	wave.frequency = Q_atof_cpp(token);
 }
 
 /*
@@ -1871,7 +1871,7 @@ static void FinishStage(shaderStage_t &stage)
 			{
 				texModInfo_t *tmi = &bundle.texMods[bundle.numTexMods];
 				float x, y;
-				const int lightmapIndex = R_GetLightmapCoords(bundle.lightmap - LIGHTMAP_INDEX_OFFSET, &x, &y);
+				const int lightmapIndex = R_GetLightmapCoords(bundle.lightmap - LIGHTMAP_INDEX_OFFSET, x, y);
 				bundle.image[0] = tr.lightmaps[lightmapIndex];
 				tmi->type = TMOD_OFFSET;
 				tmi->offset[0] = x - tr.lightmapOffset[0];
@@ -2283,14 +2283,8 @@ Attempt to combine two stages into a single multitexture stage
 FIXME: I think modulated add + modulated add collapses incorrectly
 =================
 */
-static int CollapseMultitexture(unsigned int st0bits, shaderStage_t &st0, shaderStage_t &st1, int num_stages)
+static int CollapseMultitexture(unsigned int st0bits, shaderStage_t &st0, shaderStage_t &st1, const int num_stages)
 {
-	int abits, bbits;
-	int i, mtEnv;
-	textureBundle_t tmpBundle;
-	bool nonIdenticalColors;
-	bool swapLightmap;
-
 	// make sure both stages are active
 	if (!st0.active || !st1.active)
 	{
@@ -2301,6 +2295,12 @@ static int CollapseMultitexture(unsigned int st0bits, shaderStage_t &st0, shader
 	{
 		return 0;
 	}
+
+	int abits, bbits;
+	int i, mtEnv;
+	textureBundle_t tmpBundle;
+	bool nonIdenticalColors;
+	bool swapLightmap;
 
 	abits = st0bits; // st0.stateBits;
 	bbits = st1.stateBits;
@@ -2472,7 +2472,7 @@ static int rgbWeight( const textureBundle_t *bundle ) {
 }
 #endif
 
-static const textureBundle_t *lightingBundle(int stageIndex, const textureBundle_t *selected)
+static const textureBundle_t *lightingBundle(const int stageIndex, const textureBundle_t *selected)
 {
 	const shaderStage_t *stage = &stages[stageIndex];
 	int i;
@@ -2570,7 +2570,7 @@ to be rendered with bad shaders. To fix this, need to go through all render comm
 sortedIndex.
 ==============
 */
-static void FixRenderCommandList(int newShader)
+static void FixRenderCommandList(const int newShader)
 {
 	renderCommandList_t *cmdList = &backEndData->commands;
 
@@ -2611,7 +2611,7 @@ static void FixRenderCommandList(int newShader)
 
 				for (i = 0, drawSurf = ds_cmd->drawSurfs; i < ds_cmd->numDrawSurfs; i++, drawSurf++)
 				{
-					R_DecomposeSort(drawSurf->sort, &entityNum, &sh, &fogNum, &dlightMap);
+					R_DecomposeSort(drawSurf->sort, entityNum, &sh, fogNum, dlightMap);
 					sortedIndex = ((drawSurf->sort >> QSORT_SHADERNUM_SHIFT) & SHADERNUM_MASK);
 					if (sortedIndex >= newShader)
 					{
@@ -2736,7 +2736,7 @@ static bool EqualRGBgen(const shaderStage_t *st1, const shaderStage_t *st2)
 	return true;
 }
 
-static bool EqualTCgen(int bundle, const shaderStage_t *st1, const shaderStage_t *st2)
+static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderStage_t *st2)
 {
 	int tm;
 
@@ -3080,7 +3080,7 @@ static void VertexLightingCollapse(void)
 InitShader
 ===============
 */
-static void InitShader(std::string_view name, int lightmapIndex)
+static void InitShader(std::string_view name, const int lightmapIndex)
 {
 	int i;
 
@@ -3271,7 +3271,7 @@ static shader_t *FinishShader(void)
 
 		// not a true lightmap but we want to leave existing
 		// behaviour in place and not print out a warning
-		// if (pStage->rgbGen == CGEN_VERTEX) {
+		// if (pStage.rgbGen == CGEN_VERTEX) {
 		//  vertexLightmap = true;
 		//}
 
@@ -3349,15 +3349,15 @@ static shader_t *FinishShader(void)
 	// fix alphaGen flags to avoid redundant comparisons in R_ComputeColors()
 	for (i = 0; i < MAX_SHADER_STAGES; i++)
 	{
-		shaderStage_t *pStage = &stages[i];
-		if (!pStage->active)
+		shaderStage_t &pStage = stages[i];
+		if (!pStage.active)
 			break;
-		if (pStage->bundle[0].rgbGen == CGEN_IDENTITY && pStage->bundle[0].alphaGen == AGEN_IDENTITY)
-			pStage->bundle[0].alphaGen = AGEN_SKIP;
-		else if (pStage->bundle[0].rgbGen == CGEN_CONST && pStage->bundle[0].alphaGen == AGEN_CONST)
-			pStage->bundle[0].alphaGen = AGEN_SKIP;
-		else if (pStage->bundle[0].rgbGen == CGEN_VERTEX && pStage->bundle[0].alphaGen == AGEN_VERTEX)
-			pStage->bundle[0].alphaGen = AGEN_SKIP;
+		if (pStage.bundle[0].rgbGen == CGEN_IDENTITY && pStage.bundle[0].alphaGen == AGEN_IDENTITY)
+			pStage.bundle[0].alphaGen = AGEN_SKIP;
+		else if (pStage.bundle[0].rgbGen == CGEN_CONST && pStage.bundle[0].alphaGen == AGEN_CONST)
+			pStage.bundle[0].alphaGen = AGEN_SKIP;
+		else if (pStage.bundle[0].rgbGen == CGEN_VERTEX && pStage.bundle[0].alphaGen == AGEN_VERTEX)
+			pStage.bundle[0].alphaGen = AGEN_SKIP;
 	}
 
 	//
@@ -3516,52 +3516,52 @@ static shader_t *FinishShader(void)
 		for (i = 0; i < stage; i++)
 		{
 			int env_mask;
-			shaderStage_t *pStage = &stages[i];
-			def.state_bits = pStage->stateBits;
+			shaderStage_t &pStage = stages[i];
+			def.state_bits = pStage.stateBits;
 
-			if (pStage->mtEnv3)
+			if (pStage.mtEnv3)
 			{
-				switch (pStage->mtEnv3)
+				switch (pStage.mtEnv3)
 				{
 				case GL_MODULATE:
-					pStage->tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2;
+					pStage.tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2;
 					def.shader_type = TYPE_MULTI_TEXTURE_MUL3;
 					break;
 				case GL_ADD:
-					pStage->tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2;
+					pStage.tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2;
 					def.shader_type = TYPE_MULTI_TEXTURE_ADD3_1_1;
 					break;
 				case GL_ADD_NONIDENTITY:
-					pStage->tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2;
+					pStage.tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2;
 					def.shader_type = TYPE_MULTI_TEXTURE_ADD3;
 					break;
 
 				case GL_BLEND_MODULATE:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
 					def.shader_type = TYPE_BLEND3_MUL;
 					break;
 				case GL_BLEND_ADD:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
 					def.shader_type = TYPE_BLEND3_ADD;
 					break;
 				case GL_BLEND_ALPHA:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
 					def.shader_type = TYPE_BLEND3_ALPHA;
 					break;
 				case GL_BLEND_ONE_MINUS_ALPHA:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
 					def.shader_type = TYPE_BLEND3_ONE_MINUS_ALPHA;
 					break;
 				case GL_BLEND_MIX_ONE_MINUS_ALPHA:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
 					def.shader_type = TYPE_BLEND3_MIX_ONE_MINUS_ALPHA;
 					break;
 				case GL_BLEND_MIX_ALPHA:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
 					def.shader_type = TYPE_BLEND3_MIX_ALPHA;
 					break;
 				case GL_BLEND_DST_COLOR_SRC_ALPHA:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
 					def.shader_type = TYPE_BLEND3_DST_COLOR_SRC_ALPHA;
 					break;
 
@@ -3571,141 +3571,141 @@ static shader_t *FinishShader(void)
 			}
 			else
 			{
-				switch (pStage->mtEnv)
+				switch (pStage.mtEnv)
 				{
 				case GL_MODULATE:
-					pStage->tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1;
+					pStage.tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1;
 					def.shader_type = TYPE_MULTI_TEXTURE_MUL2;
-					if ((pStage->bundle[0].adjustColorsForFog == ACFF_NONE && pStage->bundle[1].adjustColorsForFog == ACFF_NONE) || fogCollapse)
+					if ((pStage.bundle[0].adjustColorsForFog == ACFF_NONE && pStage.bundle[1].adjustColorsForFog == ACFF_NONE) || fogCollapse)
 					{
-						if (pStage->bundle[0].rgbGen == CGEN_IDENTITY && pStage->bundle[1].rgbGen == CGEN_IDENTITY)
+						if (pStage.bundle[0].rgbGen == CGEN_IDENTITY && pStage.bundle[1].rgbGen == CGEN_IDENTITY)
 						{
-							if (pStage->bundle[1].alphaGen == AGEN_SKIP && pStage->bundle[0].alphaGen == AGEN_SKIP)
+							if (pStage.bundle[1].alphaGen == AGEN_SKIP && pStage.bundle[0].alphaGen == AGEN_SKIP)
 							{
-								pStage->tessFlags = TESS_ST0 | TESS_ST1;
+								pStage.tessFlags = TESS_ST0 | TESS_ST1;
 								def.shader_type = TYPE_MULTI_TEXTURE_MUL2_IDENTITY;
 							}
 						}
-						else if (pStage->bundle[0].rgbGen == CGEN_IDENTITY_LIGHTING && pStage->bundle[1].rgbGen == CGEN_IDENTITY_LIGHTING && pStage->bundle[0].alphaGen == pStage->bundle[1].alphaGen)
+						else if (pStage.bundle[0].rgbGen == CGEN_IDENTITY_LIGHTING && pStage.bundle[1].rgbGen == CGEN_IDENTITY_LIGHTING && pStage.bundle[0].alphaGen == pStage.bundle[1].alphaGen)
 						{
-							if (pStage->bundle[0].alphaGen == AGEN_SKIP || pStage->bundle[0].alphaGen == AGEN_IDENTITY)
+							if (pStage.bundle[0].alphaGen == AGEN_SKIP || pStage.bundle[0].alphaGen == AGEN_IDENTITY)
 							{
-								pStage->tessFlags = TESS_ST0 | TESS_ST1;
+								pStage.tessFlags = TESS_ST0 | TESS_ST1;
 								def.shader_type = TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR;
 								def.color.rgb = tr.identityLightByte;
-								def.color.alpha = pStage->bundle[0].alphaGen == AGEN_IDENTITY ? 255 : tr.identityLightByte;
+								def.color.alpha = pStage.bundle[0].alphaGen == AGEN_IDENTITY ? 255 : tr.identityLightByte;
 							}
 						}
 					}
 					break;
 				case GL_ADD:
-					pStage->tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1;
+					pStage.tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1;
 					def.shader_type = TYPE_MULTI_TEXTURE_ADD2_1_1;
-					if ((pStage->bundle[0].adjustColorsForFog == ACFF_NONE && pStage->bundle[1].adjustColorsForFog == ACFF_NONE) || fogCollapse)
+					if ((pStage.bundle[0].adjustColorsForFog == ACFF_NONE && pStage.bundle[1].adjustColorsForFog == ACFF_NONE) || fogCollapse)
 					{
-						if (pStage->bundle[0].rgbGen == CGEN_IDENTITY && pStage->bundle[1].rgbGen == CGEN_IDENTITY)
+						if (pStage.bundle[0].rgbGen == CGEN_IDENTITY && pStage.bundle[1].rgbGen == CGEN_IDENTITY)
 						{
-							if (pStage->bundle[0].alphaGen == AGEN_SKIP && pStage->bundle[1].alphaGen == AGEN_SKIP)
+							if (pStage.bundle[0].alphaGen == AGEN_SKIP && pStage.bundle[1].alphaGen == AGEN_SKIP)
 							{
-								pStage->tessFlags = TESS_ST0 | TESS_ST1;
+								pStage.tessFlags = TESS_ST0 | TESS_ST1;
 								def.shader_type = TYPE_MULTI_TEXTURE_ADD2_IDENTITY;
 							}
 						}
-						else if (pStage->bundle[0].rgbGen == CGEN_IDENTITY_LIGHTING && pStage->bundle[1].rgbGen == CGEN_IDENTITY_LIGHTING && pStage->bundle[0].alphaGen == pStage->bundle[1].alphaGen)
+						else if (pStage.bundle[0].rgbGen == CGEN_IDENTITY_LIGHTING && pStage.bundle[1].rgbGen == CGEN_IDENTITY_LIGHTING && pStage.bundle[0].alphaGen == pStage.bundle[1].alphaGen)
 						{
-							if (pStage->bundle[0].alphaGen == AGEN_SKIP || pStage->bundle[0].alphaGen == AGEN_IDENTITY)
+							if (pStage.bundle[0].alphaGen == AGEN_SKIP || pStage.bundle[0].alphaGen == AGEN_IDENTITY)
 							{
-								pStage->tessFlags = TESS_ST0 | TESS_ST1;
+								pStage.tessFlags = TESS_ST0 | TESS_ST1;
 								def.shader_type = TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR;
 								def.color.rgb = tr.identityLightByte;
-								def.color.alpha = pStage->bundle[0].alphaGen == AGEN_IDENTITY ? 255 : tr.identityLightByte;
+								def.color.alpha = pStage.bundle[0].alphaGen == AGEN_IDENTITY ? 255 : tr.identityLightByte;
 							}
 						}
 					}
 					break;
 				case GL_ADD_NONIDENTITY:
-					pStage->tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1;
+					pStage.tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1;
 					def.shader_type = TYPE_MULTI_TEXTURE_ADD2;
-					if ((pStage->bundle[0].adjustColorsForFog == ACFF_NONE && pStage->bundle[1].adjustColorsForFog == ACFF_NONE) || fogCollapse)
+					if ((pStage.bundle[0].adjustColorsForFog == ACFF_NONE && pStage.bundle[1].adjustColorsForFog == ACFF_NONE) || fogCollapse)
 					{
-						if (pStage->bundle[0].rgbGen == CGEN_IDENTITY && pStage->bundle[1].rgbGen == CGEN_IDENTITY)
+						if (pStage.bundle[0].rgbGen == CGEN_IDENTITY && pStage.bundle[1].rgbGen == CGEN_IDENTITY)
 						{
-							if (pStage->bundle[0].alphaGen == AGEN_SKIP && pStage->bundle[1].alphaGen == AGEN_SKIP)
+							if (pStage.bundle[0].alphaGen == AGEN_SKIP && pStage.bundle[1].alphaGen == AGEN_SKIP)
 							{
-								pStage->tessFlags = TESS_ST0 | TESS_ST1;
+								pStage.tessFlags = TESS_ST0 | TESS_ST1;
 								def.shader_type = TYPE_MULTI_TEXTURE_ADD2_IDENTITY;
 							}
 						}
-						else if (pStage->bundle[0].rgbGen == CGEN_IDENTITY_LIGHTING && pStage->bundle[1].rgbGen == CGEN_IDENTITY_LIGHTING && pStage->bundle[0].alphaGen == pStage->bundle[1].alphaGen)
+						else if (pStage.bundle[0].rgbGen == CGEN_IDENTITY_LIGHTING && pStage.bundle[1].rgbGen == CGEN_IDENTITY_LIGHTING && pStage.bundle[0].alphaGen == pStage.bundle[1].alphaGen)
 						{
-							if (pStage->bundle[0].alphaGen == AGEN_SKIP || pStage->bundle[0].alphaGen == AGEN_IDENTITY)
+							if (pStage.bundle[0].alphaGen == AGEN_SKIP || pStage.bundle[0].alphaGen == AGEN_IDENTITY)
 							{
-								pStage->tessFlags = TESS_ST0 | TESS_ST1;
+								pStage.tessFlags = TESS_ST0 | TESS_ST1;
 								def.shader_type = TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR;
 								def.color.rgb = tr.identityLightByte;
-								def.color.alpha = pStage->bundle[0].alphaGen == AGEN_IDENTITY ? 255 : tr.identityLightByte;
+								def.color.alpha = pStage.bundle[0].alphaGen == AGEN_IDENTITY ? 255 : tr.identityLightByte;
 							}
 						}
 					}
 					break;
 				// extended blending modes
 				case GL_BLEND_MODULATE:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = TYPE_BLEND2_MUL;
 					break;
 				case GL_BLEND_ADD:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = TYPE_BLEND2_ADD;
 					break;
 				case GL_BLEND_ALPHA:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = TYPE_BLEND2_ALPHA;
 					break;
 				case GL_BLEND_ONE_MINUS_ALPHA:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = TYPE_BLEND2_ONE_MINUS_ALPHA;
 					break;
 				case GL_BLEND_MIX_ALPHA:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = TYPE_BLEND2_MIX_ALPHA;
 					break;
 				case GL_BLEND_MIX_ONE_MINUS_ALPHA:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = TYPE_BLEND2_MIX_ONE_MINUS_ALPHA;
 					break;
 				case GL_BLEND_DST_COLOR_SRC_ALPHA:
-					pStage->tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
+					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = TYPE_BLEND2_DST_COLOR_SRC_ALPHA;
 					break;
 
 				default:
-					pStage->tessFlags = TESS_RGBA0 | TESS_ST0;
+					pStage.tessFlags = TESS_RGBA0 | TESS_ST0;
 					def.shader_type = TYPE_SIGNLE_TEXTURE;
-					if (pStage->bundle[0].adjustColorsForFog == ACFF_NONE || fogCollapse)
+					if (pStage.bundle[0].adjustColorsForFog == ACFF_NONE || fogCollapse)
 					{
-						if (pStage->bundle[0].rgbGen == CGEN_IDENTITY)
+						if (pStage.bundle[0].rgbGen == CGEN_IDENTITY)
 						{
-							if (pStage->bundle[0].alphaGen == AGEN_SKIP)
+							if (pStage.bundle[0].alphaGen == AGEN_SKIP)
 							{
-								pStage->tessFlags = TESS_ST0;
+								pStage.tessFlags = TESS_ST0;
 								def.shader_type = TYPE_SIGNLE_TEXTURE_IDENTITY;
 							}
 						}
-						else if (pStage->bundle[0].rgbGen == CGEN_IDENTITY_LIGHTING)
+						else if (pStage.bundle[0].rgbGen == CGEN_IDENTITY_LIGHTING)
 						{
-							if (pStage->bundle[0].alphaGen == AGEN_SKIP || pStage->bundle[0].alphaGen == AGEN_IDENTITY)
+							if (pStage.bundle[0].alphaGen == AGEN_SKIP || pStage.bundle[0].alphaGen == AGEN_IDENTITY)
 							{
-								pStage->tessFlags = TESS_ST0;
+								pStage.tessFlags = TESS_ST0;
 								def.shader_type = TYPE_SIGNLE_TEXTURE_FIXED_COLOR;
 								def.color.rgb = tr.identityLightByte;
-								def.color.alpha = pStage->bundle[0].alphaGen == AGEN_IDENTITY ? 255 : tr.identityLightByte;
+								def.color.alpha = pStage.bundle[0].alphaGen == AGEN_IDENTITY ? 255 : tr.identityLightByte;
 							}
 						}
-						else if (pStage->bundle[0].rgbGen == CGEN_ENTITY)
+						else if (pStage.bundle[0].rgbGen == CGEN_ENTITY)
 						{
-							if (pStage->bundle[0].alphaGen == AGEN_ENTITY || pStage->bundle[0].alphaGen == AGEN_SKIP || pStage->bundle[0].alphaGen == AGEN_IDENTITY)
+							if (pStage.bundle[0].alphaGen == AGEN_ENTITY || pStage.bundle[0].alphaGen == AGEN_SKIP || pStage.bundle[0].alphaGen == AGEN_IDENTITY)
 							{
-								pStage->tessFlags = TESS_ST0 | TESS_ENT0;
+								pStage.tessFlags = TESS_ST0 | TESS_ENT0;
 								def.shader_type = TYPE_SIGNLE_TEXTURE_ENT_COLOR;
 							}
 						}
@@ -3714,44 +3714,44 @@ static shader_t *FinishShader(void)
 				}
 			} // switch mtEnv3 / mtEnv
 
-			for (env_mask = 0, n = 0; n < pStage->numTexBundles; n++)
+			for (env_mask = 0, n = 0; n < pStage.numTexBundles; n++)
 			{
-				if (pStage->bundle[n].numTexMods)
+				if (pStage.bundle[n].numTexMods)
 				{
 					continue;
 				}
-				if (pStage->bundle[n].tcGen == TCGEN_ENVIRONMENT_MAPPED && (pStage->bundle[n].lightmap == LIGHTMAP_INDEX_NONE || !tr.mergeLightmaps))
+				if (pStage.bundle[n].tcGen == TCGEN_ENVIRONMENT_MAPPED && (pStage.bundle[n].lightmap == LIGHTMAP_INDEX_NONE || !tr.mergeLightmaps))
 				{
 					env_mask |= (1 << n);
 				}
 			}
 
-			if (env_mask == 1 && !pStage->depthFragment)
+			if (env_mask == 1 && !pStage.depthFragment)
 			{
 				if (def.shader_type >= TYPE_GENERIC_BEGIN && def.shader_type <= TYPE_GENERIC_END)
 				{
 					int prev = static_cast<int>(def.shader_type);
 					def.shader_type = static_cast<Vk_Shader_Type>(prev++); // switch to *_ENV version
 					shader.tessFlags |= TESS_NNN | TESS_VPOS;
-					pStage->tessFlags &= ~TESS_ST0;
-					pStage->tessFlags |= TESS_ENV;
-					pStage->bundle[0].tcGen = TCGEN_BAD;
+					pStage.tessFlags &= ~TESS_ST0;
+					pStage.tessFlags |= TESS_ENV;
+					pStage.bundle[0].tcGen = TCGEN_BAD;
 				}
 			}
 
 			def.mirror = false;
-			pStage->vk_pipeline[0] = vk_find_pipeline_ext(0, def, true);
+			pStage.vk_pipeline[0] = vk_find_pipeline_ext(0, def, true);
 			def.mirror = true;
-			pStage->vk_mirror_pipeline[0] = vk_find_pipeline_ext(0, def, false);
+			pStage.vk_mirror_pipeline[0] = vk_find_pipeline_ext(0, def, false);
 
-			if (pStage->depthFragment)
+			if (pStage.depthFragment)
 			{
 				def.mirror = false;
 				def.shader_type = TYPE_SIGNLE_TEXTURE_DF;
-				pStage->vk_pipeline_df = vk_find_pipeline_ext(0, def, true);
+				pStage.vk_pipeline_df = vk_find_pipeline_ext(0, def, true);
 				def.mirror = true;
 				def.shader_type = TYPE_SIGNLE_TEXTURE_DF;
-				pStage->vk_mirror_pipeline_df = vk_find_pipeline_ext(0, def, false);
+				pStage.vk_mirror_pipeline_df = vk_find_pipeline_ext(0, def, false);
 			}
 
 #ifdef USE_FOG_COLLAPSE
@@ -3760,18 +3760,18 @@ static shader_t *FinishShader(void)
 				Vk_Pipeline_Def def;
 				Vk_Pipeline_Def def_mirror;
 
-				vk_get_pipeline_def(pStage->vk_pipeline[0], def);
-				vk_get_pipeline_def(pStage->vk_mirror_pipeline[0], def_mirror);
+				vk_get_pipeline_def(pStage.vk_pipeline[0], def);
+				vk_get_pipeline_def(pStage.vk_mirror_pipeline[0], def_mirror);
 
 				def.fog_stage = 1;
 				def_mirror.fog_stage = 1;
-				def.acff = pStage->bundle[0].adjustColorsForFog;
-				def_mirror.acff = pStage->bundle[0].adjustColorsForFog;
+				def.acff = pStage.bundle[0].adjustColorsForFog;
+				def_mirror.acff = pStage.bundle[0].adjustColorsForFog;
 
-				pStage->vk_pipeline[1] = vk_find_pipeline_ext(0, def, false);
-				pStage->vk_mirror_pipeline[1] = vk_find_pipeline_ext(0, def_mirror, false);
+				pStage.vk_pipeline[1] = vk_find_pipeline_ext(0, def, false);
+				pStage.vk_mirror_pipeline[1] = vk_find_pipeline_ext(0, def_mirror, false);
 
-				pStage->bundle[0].adjustColorsForFog = ACFF_NONE; // will be handled in shader from now
+				pStage.bundle[0].adjustColorsForFog = ACFF_NONE; // will be handled in shader from now
 
 				shader.fogCollapse = true;
 			}
@@ -4016,7 +4016,7 @@ most world construction surfaces.
 
 ===============
 */
-shader_t *R_FindShader(std::string name, int lightmapIndex, bool mipRawImage)
+shader_t *R_FindShader(std::string name, int lightmapIndex, const bool mipRawImage)
 {
 	std::array<char, MAX_QPATH> strippedName;
 	unsigned long hash;

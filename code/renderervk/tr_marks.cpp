@@ -39,6 +39,13 @@ static void R_ChopPolyBehindPlane(int numInPoints, vec3_t inPoints[MAX_VERTS_ON_
 								  int *numOutPoints, vec3_t outPoints[MAX_VERTS_ON_POLY],
 								  const vec3_t &normal, const vec_t &dist, const vec_t &epsilon)
 {
+	// don't clip if it might overflow
+	if (numInPoints >= MAX_VERTS_ON_POLY - 2)
+	{
+		*numOutPoints = 0;
+		return;
+	}
+
 	float dists[MAX_VERTS_ON_POLY + 4]{};
 	int sides[MAX_VERTS_ON_POLY + 4]{};
 	int counts[3]{};
@@ -46,13 +53,6 @@ static void R_ChopPolyBehindPlane(int numInPoints, vec3_t inPoints[MAX_VERTS_ON_
 	int i, j;
 	float *p1, *p2, *clip;
 	float d;
-
-	// don't clip if it might overflow
-	if (numInPoints >= MAX_VERTS_ON_POLY - 2)
-	{
-		*numOutPoints = 0;
-		return;
-	}
 
 	dists[0] = 0.0;
 	sides[0] = 0;
@@ -141,7 +141,7 @@ static void R_ChopPolyBehindPlane(int numInPoints, vec3_t inPoints[MAX_VERTS_ON_
 	}
 }
 
-static void R_BoxSurfaces_r(mnode_t *node, const vec3_t &mins, const vec3_t &maxs, surfaceType_t **list, int listsize, int *listlength, const vec3_t &dir)
+static void R_BoxSurfaces_r(mnode_t *node, const vec3_t &mins, const vec3_t &maxs, surfaceType_t **list, const int listsize, int *listlength, const vec3_t &dir)
 {
 
 	int s, c;
@@ -356,10 +356,8 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 
 	for (i = 0; i < numsurfaces; i++)
 	{
-
 		if (*surfaces[i] == SF_GRID)
 		{
-
 			cv = (srfGridMesh_t *)surfaces[i];
 			for (m = 0; m < cv->height - 1; m++)
 			{

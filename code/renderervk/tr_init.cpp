@@ -363,7 +363,7 @@ Stores the length of padding after a line of pixels to address padlen
 Return value must be freed with ri.Hunk_FreeTempMemory()
 ==================
 */
-static byte *RB_ReadPixels(int width, int height, size_t *offset, int *padlen)
+static byte *RB_ReadPixels(const int width, const int height, size_t *offset, int *padlen)
 {
 	byte *buffer, *bufstart;
 	int linelen;
@@ -392,7 +392,7 @@ static byte *RB_ReadPixels(int width, int height, size_t *offset, int *padlen)
 RB_TakeScreenshot
 ==================
 */
-void RB_TakeScreenshot(int x, int y, int width, int height, const char *fileName)
+void RB_TakeScreenshot(const int x, const int y, const int width, const int height, const char *fileName)
 {
 	const int header_size = 18;
 	byte *allbuf, *buffer;
@@ -453,7 +453,7 @@ void RB_TakeScreenshot(int x, int y, int width, int height, const char *fileName
 RB_TakeScreenshotJPEG
 ==================
 */
-void RB_TakeScreenshotJPEG(int x, int y, int width, int height, const char *fileName)
+void RB_TakeScreenshotJPEG(const int x, const int y, const int width, const int height, const char *fileName)
 {
 	byte *buffer;
 	size_t offset = 0, memcount;
@@ -469,7 +469,7 @@ void RB_TakeScreenshotJPEG(int x, int y, int width, int height, const char *file
 	ri.Hunk_FreeTempMemory(buffer);
 }
 
-static void FillBMPHeader(byte *buffer, int width, int height, int memcount, int header_size)
+static void FillBMPHeader(byte *buffer, const int width, const int height, const int memcount, const int header_size)
 {
 	int filesize;
 	Com_Memset(buffer, 0, header_size);
@@ -513,7 +513,7 @@ static void FillBMPHeader(byte *buffer, int width, int height, int memcount, int
 RB_TakeScreenshotBMP
 ==================
 */
-void RB_TakeScreenshotBMP(int x, int y, int width, int height, const char *fileName, int clipboardOnly)
+void RB_TakeScreenshotBMP(const int x, const int y, const int width, const int height, const char *fileName, const int clipboardOnly)
 {
 	byte *allbuf;
 	byte *buffer; // destination buffer
@@ -894,14 +894,14 @@ Workaround for ri.Printf's 1024 characters buffer limit.
 */
 static void R_PrintLongString(const char *string)
 {
-	char buffer[1024];
+	std::array< char,1024> buffer;
 	const char *p;
 	int size = strlen(string);
 
 	p = string;
 	while (size > 0)
 	{
-		Q_strncpyz(buffer, p, sizeof(buffer));
+		Q_strncpyz_cpp(buffer, p);
 		ri.Printf(PRINT_DEVELOPER, "%s", buffer);
 		p += 1023;
 		size -= 1023;
@@ -917,8 +917,8 @@ Prints persistent rendering configuration
 */
 static void GfxInfo(void)
 {
-	const char *fsstrings[] = {"windowed", "fullscreen"};
-	const char *fs;
+	std::array<std::string_view, 2> fsstrings{"windowed", "fullscreen"};
+	std::string_view fs;
 	int mode;
 	ri.Printf(PRINT_ALL, "\nVK_VENDOR: %s\n", glConfig.vendor_string);
 	ri.Printf(PRINT_ALL, "VK_RENDERER: %s\n", glConfig.renderer_string);
@@ -963,7 +963,7 @@ static void GfxInfo(void)
 	}
 	else
 	{
-		ri.Printf(PRINT_ALL, "MODE: %d, %d x %d %s hz:", mode, gls.windowWidth, gls.windowHeight, fs);
+		ri.Printf(PRINT_ALL, "MODE: %d, %d x %d %s hz:", mode, gls.windowWidth, gls.windowHeight, fs.data());
 	}
 
 	if (glConfig.displayFrequency)

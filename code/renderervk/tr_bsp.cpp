@@ -60,7 +60,7 @@ void RE_LoadWorldMap( const char *name );
 
 //===============================================================================
 
-static void HSVtoRGB(float h, float s, float v, float rgb[3])
+static void HSVtoRGB(float h, const float s, float v, float rgb[3])
 {
 	int i;
 	float f;
@@ -115,7 +115,7 @@ static void HSVtoRGB(float h, float s, float v, float rgb[3])
 R_ColorShiftLightingBytes_plus
 ===============
 */
-void R_ColorShiftLightingBytes(const byte in[4], byte out[4], bool hasAlpha)
+void R_ColorShiftLightingBytes(const byte in[4], byte out[4], const bool hasAlpha)
 {
 	int shift, r, g, b;
 
@@ -309,7 +309,7 @@ static float R_ProcessLightmap(byte *image, const byte *buf_p, float maxIntensit
 	return maxIntensity;
 }
 
-static int SetLightmapParams(int numLightmaps, int maxTextureSize)
+static int SetLightmapParams(int numLightmaps, const int maxTextureSize)
 {
 	lightmapWidth = log2pad_plus(LIGHTMAP_LEN, 1);
 	lightmapHeight = log2pad_plus(LIGHTMAP_LEN, 1);
@@ -337,15 +337,15 @@ static int SetLightmapParams(int numLightmaps, int maxTextureSize)
 	return numLightmaps;
 }
 
-int R_GetLightmapCoords(const int lightmapIndex, float *x, float *y)
+int R_GetLightmapCoords(const int lightmapIndex, float &x, float &y)
 {
 	const int lightmapNum = lightmapIndex / tr.lightmapMod;
 	const int cN = lightmapIndex % tr.lightmapMod;
 	const int cX = cN % lightmapCountX;
 	const int cY = cN / lightmapCountX;
 
-	*x = (float)(LIGHTMAP_BORDER + cX * LIGHTMAP_LEN) / (float)lightmapWidth;
-	*y = (float)(LIGHTMAP_BORDER + cY * LIGHTMAP_LEN) / (float)lightmapHeight;
+	x = (float)(LIGHTMAP_BORDER + cX * LIGHTMAP_LEN) / (float)lightmapWidth;
+	y = (float)(LIGHTMAP_BORDER + cY * LIGHTMAP_LEN) / (float)lightmapHeight;
 
 	return lightmapNum;
 }
@@ -355,20 +355,20 @@ int R_GetLightmapCoords(const int lightmapIndex, float *x, float *y)
 R_LoadMergedLightmaps
 ===============
 */
-static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
+static void R_LoadMergedLightmaps(const lump_t &l, byte *image)
 {
 	const byte *buf;
 	int offs;
 	int i, x, y;
 	float maxIntensity = 0;
 
-	if (l->filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
+	if (l.filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
 		return;
 
-	buf = fileBase + l->fileofs;
+	buf = fileBase + l.fileofs;
 
 	// create all the lightmaps
-	tr.numLightmaps = l->filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
+	tr.numLightmaps = l.filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
 
 	tr.numLightmaps = SetLightmapParams(tr.numLightmaps, glConfig.maxTextureSize);
 
@@ -382,12 +382,12 @@ static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 
 		for (y = 0; y < lightmapCountY; y++)
 		{
-			if (offs >= l->filelen)
+			if (offs >= l.filelen)
 				break;
 
 			for (x = 0; x < lightmapCountX; x++)
 			{
-				if (offs >= l->filelen)
+				if (offs >= l.filelen)
 					break;
 
 				R_ProcessLightmap(image, buf + offs, maxIntensity);
@@ -409,7 +409,7 @@ static void R_LoadMergedLightmaps(const lump_t *l, byte *image)
 R_LoadLightmaps
 ===============
 */
-static void R_LoadLightmaps(const lump_t *l)
+static void R_LoadLightmaps(const lump_t &l)
 {
 	const byte *buf;
 	byte image[LIGHTMAP_LEN * LIGHTMAP_LEN * 4];
@@ -428,7 +428,7 @@ static void R_LoadLightmaps(const lump_t *l)
 	lightmapCountX = 1;
 	lightmapCountY = 1;
 
-	if (l->filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
+	if (l.filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
 	{
 		return;
 	}
@@ -439,7 +439,7 @@ static void R_LoadLightmaps(const lump_t *l)
 		return;
 	}
 
-	numLightmaps = l->filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
+	numLightmaps = l.filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
 
 	if (r_mergeLightmaps->integer && numLightmaps > 1)
 	{
@@ -452,7 +452,7 @@ static void R_LoadLightmaps(const lump_t *l)
 		}
 	}
 
-	buf = fileBase + l->fileofs;
+	buf = fileBase + l.fileofs;
 
 	// create all the lightmaps
 	tr.numLightmaps = numLightmaps;
@@ -490,7 +490,7 @@ void RE_SetWorldVisData(const byte *vis)
 R_LoadVisibility
 =================
 */
-static void R_LoadVisibility(const lump_t *l)
+static void R_LoadVisibility(const lump_t &l)
 {
 	int len;
 	byte *buf;
@@ -499,12 +499,12 @@ static void R_LoadVisibility(const lump_t *l)
 	s_worldData.novis = static_cast<byte *>(ri.Hunk_Alloc(len, h_low));
 	Com_Memset(s_worldData.novis, 0xff, len);
 
-	len = l->filelen;
+	len = l.filelen;
 	if (!len)
 	{
 		return;
 	}
-	buf = fileBase + l->fileofs;
+	buf = fileBase + l.fileofs;
 
 	s_worldData.numClusters = LittleLong(((int *)buf)[0]);
 	s_worldData.clusterBytes = LittleLong(((int *)buf)[1]);
@@ -670,7 +670,7 @@ static void ParseFace(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 	lightmapNum = LittleLong(ds.lightmapNum);
 	if (lightmapNum >= 0 && tr.mergeLightmaps)
 	{
-		lightmapNum = R_GetLightmapCoords(lightmapNum, &lightmapX, &lightmapY);
+		lightmapNum = R_GetLightmapCoords(lightmapNum, lightmapX, lightmapY);
 	}
 	else
 	{
@@ -799,7 +799,7 @@ static void ParseMesh(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 	lightmapNum = LittleLong(ds.lightmapNum);
 	if (lightmapNum >= 0 && tr.mergeLightmaps)
 	{
-		lightmapNum = R_GetLightmapCoords(lightmapNum, &lightmapX, &lightmapY);
+		lightmapNum = R_GetLightmapCoords(lightmapNum, lightmapX, lightmapY);
 	}
 	else
 	{
@@ -883,7 +883,7 @@ static void ParseTriSurf(const dsurface_t &ds, const drawVert_t *verts, msurface
 	lightmapNum = LittleLong(ds.lightmapNum);
 	if (lightmapNum >= 0 && tr.mergeLightmaps)
 	{
-		lightmapNum = R_GetLightmapCoords(lightmapNum, &lightmapX, &lightmapY);
+		lightmapNum = R_GetLightmapCoords(lightmapNum, lightmapX, lightmapY);
 	}
 	else
 	{
@@ -2560,7 +2560,7 @@ void RE_LoadWorldMap(const char *name)
 	}
 
 	// load into heap
-	R_LoadLightmaps(&header->lumps[LUMP_LIGHTMAPS]);
+	R_LoadLightmaps(header->lumps[LUMP_LIGHTMAPS]);
 	R_PreLoadFogs(&header->lumps[LUMP_FOGS]);
 	R_LoadShaders(&header->lumps[LUMP_SHADERS]);
 	R_LoadPlanes(&header->lumps[LUMP_PLANES]);
@@ -2569,7 +2569,7 @@ void RE_LoadWorldMap(const char *name)
 	R_LoadMarksurfaces(&header->lumps[LUMP_LEAFSURFACES]);
 	R_LoadNodesAndLeafs(&header->lumps[LUMP_NODES], &header->lumps[LUMP_LEAFS]);
 	R_LoadSubmodels(&header->lumps[LUMP_MODELS]);
-	R_LoadVisibility(&header->lumps[LUMP_VISIBILITY]);
+	R_LoadVisibility(header->lumps[LUMP_VISIBILITY]);
 	R_LoadEntities(&header->lumps[LUMP_ENTITIES]);
 	R_LoadLightGrid(&header->lumps[LUMP_LIGHTGRID]);
 

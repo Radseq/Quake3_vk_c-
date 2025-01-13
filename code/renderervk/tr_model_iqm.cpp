@@ -328,8 +328,8 @@ static void JointToMatrix(const quat_t rot, const vec3_t &scale, const vec3_t &t
 	mat[11] = trans[2];
 }
 
-static void ComputePoseMats(iqmData_t &data, int frame, int oldframe,
-							float backlerp, float *poseMats)
+static void ComputePoseMats(iqmData_t &data, const int frame, const int oldframe,
+	const float backlerp, float *poseMats)
 {
 	iqmTransform_t relativeJoints[IQM_MAX_JOINTS]{};
 	iqmTransform_t *relativeJoint;
@@ -396,8 +396,8 @@ static void ComputePoseMats(iqmData_t &data, int frame, int oldframe,
 	}
 }
 
-static void ComputeJointMats(iqmData_t &data, int frame, int oldframe,
-							 float backlerp, float *mat)
+static void ComputeJointMats(iqmData_t &data, const int frame, const int oldframe,
+	const float backlerp, float *mat)
 {
 	float *mat1;
 	int i;
@@ -422,8 +422,8 @@ static void ComputeJointMats(iqmData_t &data, int frame, int oldframe,
 }
 
 int R_IQMLerpTag(orientation_t &tag, iqmData_t &data,
-				 int startFrame, int endFrame,
-				 float frac, const char *tagName)
+	const int startFrame, const int endFrame,
+	const float frac, const char *tagName)
 {
 	float jointMats[IQM_MAX_JOINTS * 12];
 	int joint;
@@ -697,8 +697,8 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 	tess.numVertexes += surf.num_vertexes;
 }
 
-static bool IQM_CheckRange(iqmHeader_t *header, int offset,
-						   int count, int size)
+static bool IQM_CheckRange(iqmHeader_t *header, const int offset,
+	const int count, const int size)
 {
 	// return true if the range specified by offset, count and size
 	// doesn't fit into the file
@@ -711,9 +711,7 @@ static bool IQM_CheckRange(iqmHeader_t *header, int offset,
 
 static vec_t QuatNormalize2(const quat_t v, quat_t out)
 {
-	float length;
-
-	length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3];
+	float length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3];
 
 	if (length)
 	{
@@ -766,7 +764,7 @@ static void Matrix34Invert(const float *inMat, float *outMat)
 	outMat[11] = -DotProduct(outMat + 8, trans);
 }
 
-bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_name)
+bool R_LoadIQM(model_t &mod, void *buffer, const int filesize, std::string_view mod_name)
 {
 	iqmVertexArray_t *vertexarray;
 	iqmTriangle_t *triangle;

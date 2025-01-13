@@ -56,7 +56,7 @@ because a surface may be forced to perform a RB_End due
 to overflow.
 ==============
 */
-void RB_BeginSurface(shader_t &shader, int fogNum)
+void RB_BeginSurface(shader_t &shader, const int fogNum)
 {
 	shader_t *state;
 
@@ -119,12 +119,12 @@ void RB_BeginSurface(shader_t &shader, int fogNum)
 
 void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 {
+	if (!tess.numVertexes)
+		return;
+
 	int i;
 	int tm;
 	vec2_t *src, *dst;
-
-	if (!tess.numVertexes)
-		return;
 
 	src = dst = tess.svars.texcoords[b];
 
@@ -244,7 +244,7 @@ void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 	tess.svars.texcoordPtr[b] = src;
 }
 
-void VK_SetFogParams(vkUniform_t &uniform, int *fogStage)
+void VK_SetFogParams(vkUniform_t &uniform, int &fogStage)
 {
 	if (tess.fogNum && tess.shader->fogPass)
 	{
@@ -264,11 +264,11 @@ void VK_SetFogParams(vkUniform_t &uniform, int *fogStage)
 		}
 		// fragment data
 		Vector4Copy(fp.fogColor, uniform.fogColor);
-		*fogStage = 1;
+		fogStage = 1;
 	}
 	else
 	{
-		*fogStage = 0;
+		fogStage = 0;
 	}
 }
 
@@ -568,7 +568,7 @@ void VK_LightingPass(void)
 	{
 
 		// fog parameters
-		VK_SetFogParams(uniform, &fog_stage);
+		VK_SetFogParams(uniform, fog_stage);
 		// light parameters
 		VK_SetLightParams(uniform, *tess.light);
 
@@ -623,7 +623,7 @@ void VK_LightingPass(void)
 }
 #endif // USE_PMLIGHT
 
-static void RB_IterateStagesGeneric(const shaderCommands_t &input, bool fogCollapse)
+static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fogCollapse)
 {
 	int tess_flags;
 	int stage;
@@ -641,7 +641,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, bool fogColla
 #ifdef USE_FOG_COLLAPSE
 	if (fogCollapse)
 	{
-		VK_SetFogParams(uniform, &fog_stage);
+		VK_SetFogParams(uniform, fog_stage);
 		VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
 		vk_update_descriptor(VK_DESC_FOG_COLLAPSE, tr.fogImage->descriptor);
 		pushUniform = true;
@@ -937,7 +937,7 @@ static void RB_FogPass(bool rebindIndex)
 	{
 		vk_bind_index();
 	}
-	VK_SetFogParams(uniform, &fog_stage);
+	VK_SetFogParams(uniform, fog_stage);
 	VK_PushUniform(uniform);
 	vk_update_descriptor(VK_DESC_FOG_ONLY, tr.fogImage->descriptor);
 	vk_draw_geometry(DEPTH_RANGE_NORMAL, true);

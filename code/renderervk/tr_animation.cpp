@@ -155,7 +155,6 @@ static int R_MDRComputeFogNum(mdrHeader_t &header, const trRefEntity_t &ent)
 	}
 
 	int i, j;
-	const fog_t *fog;
 	mdrFrame_t *mdrFrame;
 	vec3_t localOrigin{};
 
@@ -169,14 +168,14 @@ static int R_MDRComputeFogNum(mdrHeader_t &header, const trRefEntity_t &ent)
 	VectorAdd(ent.e.origin, mdrFrame->localOrigin, localOrigin);
 	for (i = 1; i < tr.world->numfogs; i++)
 	{
-		fog = &tr.world->fogs[i];
+		const fog_t& fog = tr.world->fogs[i];
 		for (j = 0; j < 3; j++)
 		{
-			if (localOrigin[j] - mdrFrame->radius >= fog->bounds[1][j])
+			if (localOrigin[j] - mdrFrame->radius >= fog.bounds[1][j])
 			{
 				break;
 			}
-			if (localOrigin[j] + mdrFrame->radius <= fog->bounds[0][j])
+			if (localOrigin[j] + mdrFrame->radius <= fog.bounds[0][j])
 			{
 				break;
 			}
@@ -272,7 +271,6 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 
 	for (i = 0; i < lod->numSurfaces; i++)
 	{
-
 		if (ent.e.customShader)
 			shader = R_GetShaderByHandle(ent.e.customShader);
 		else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)

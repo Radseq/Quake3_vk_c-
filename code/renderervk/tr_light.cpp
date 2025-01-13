@@ -43,7 +43,7 @@ Used by both the front end (for DlightBmodel) and
 the back end (before doing the lighting calculation)
 ===============
 */
-void R_TransformDlights(int count, dlight_t *dl, orientationr_t &ort)
+void R_TransformDlights(const int count, dlight_t *dl, orientationr_t &ort)
 {
     int i;
     vec3_t temp{}, temp2{};
