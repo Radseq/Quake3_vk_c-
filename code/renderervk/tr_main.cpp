@@ -1563,11 +1563,6 @@ R_SortDrawSurfs
 */
 static void R_SortDrawSurfs(drawSurf_t &drawSurfs, int numDrawSurfs)
 {
-	shader_t *shader;
-	int fogNum;
-	int entityNum;
-	int dlighted;
-
 	// it is possible for some views to not have any surfaces
 	if (numDrawSurfs < 1)
 	{
@@ -1575,6 +1570,11 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, int numDrawSurfs)
 		R_AddDrawSurfCmd(drawSurfs, numDrawSurfs);
 		return;
 	}
+
+	shader_t *shader;
+	int fogNum;
+	int entityNum;
+	int dlighted;
 
 	// sort the drawsurfs by sort type, then orientation, then shader
 	R_RadixSort(&drawSurfs, numDrawSurfs);
@@ -1616,15 +1616,14 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, int numDrawSurfs)
 	if (r_dlightMode->integer)
 #endif
 	{
-		dlight_t *dl;
 		// all the lit surfaces are in a single queue
 		// but each light's surfaces are sorted within its subsection
 		for (uint32_t i = 0; i < tr.refdef.num_dlights; ++i)
 		{
-			dl = &tr.refdef.dlights[i];
-			if (dl->head)
+			dlight_t &dl = tr.refdef.dlights[i];
+			if (dl.head)
 			{
-				R_SortLitsurfs(*dl);
+				R_SortLitsurfs(dl);
 			}
 		}
 	}

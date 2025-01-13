@@ -33,6 +33,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_cmds.hpp"
 #include "string_operations.hpp"
 
+#ifdef PARALLEL_RENDER_DRAW_SURF_LIST
+#include <execution>
+#endif
+
 backEndData_t *backEndData;
 backEndState_t backEnd;
 
@@ -184,6 +188,160 @@ static void RB_LightingPass(void);
 RB_RenderDrawSurfList
 ==================
 */
+#ifdef PARALLEL_RENDER_DRAW_SURF_LIST
+static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
+{
+	shader_t *shader, *oldShader = nullptr;
+	int fogNum;
+	int entityNum, oldEntityNum = -1;
+	int dlighted;
+	bool depthRange = false, isCrosshair;
+	unsigned int oldSort = MAX_UINT;
+	double originalTime; // -EC-
+
+#ifdef USE_PMLIGHT
+	float oldShaderSort = -1;
+#endif
+
+	// Save original time for entity shader offsets
+	originalTime = backEnd.refdef.floatTime;
+
+	// Track processed draw surfaces
+	backEnd.pc.c_surfaces += numDrawSurfs;
+
+	// Create a vector of indices to handle pointer arithmetic
+	std::vector<int> indices(numDrawSurfs);
+	for (int i = 0; i < numDrawSurfs; ++i)
+		indices[i] = i;
+
+	std::for_each(std::execution::par, indices.begin(), indices.end(), [&](int i)
+				  {
+        drawSurf_t *drawSurf = &drawSurfs[i];
+
+        if (drawSurf->sort == oldSort)
+        {
+            // Fast path, same as previous sort
+            rb_surfaceTable[*drawSurf->surface](drawSurf->surface);
+            return;
+        }
+
+        R_DecomposeSort(drawSurf->sort, &entityNum, &shader, &fogNum, &dlighted);
+
+        if (vk_inst.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
+        {
+            return;
+        }
+
+        // change the tess parameters if needed
+		// a "entityMergable" shader is a shader that can have surfaces from separate
+		// entities merged into a single batch, like smoke and blood puff sprites
+        if (((oldSort ^ drawSurfs->sort) & ~QSORT_REFENTITYNUM_MASK) || !shader->entityMergable)
+        {
+            if (oldShader != nullptr)
+            {
+                RB_EndSurface();
+            }
+
+#ifdef USE_PMLIGHT
+#define INSERT_POINT SS_FOG
+            if (backEnd.refdef.numLitSurfs && oldShaderSort < static_cast<float>(INSERT_POINT) && shader->sort >= static_cast<float>(INSERT_POINT))
+            {
+				// RB_BeginDrawingLitSurfs(); // no need, already setup in RB_BeginDrawingView()
+                RB_LightingPass();
+                oldEntityNum = -1; // Force matrix setup
+            }
+            oldShaderSort = shader->sort;
+#endif
+
+            RB_BeginSurface(*shader, fogNum);
+            oldShader = shader;
+        }
+
+        oldSort = drawSurf->sort;
+
+        // Change the modelview matrix if needed
+        if (entityNum != oldEntityNum)
+        {
+            depthRange = isCrosshair = false;
+
+            if (entityNum != REFENTITYNUM_WORLD)
+            {
+                backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
+                if (backEnd.currentEntity->intShaderTime)
+                    backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
+                else
+                    backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
+
+                R_RotateForEntity(*backEnd.currentEntity, backEnd.viewParms, backEnd.ort);
+
+#ifdef USE_LEGACY_DLIGHTS
+#ifdef USE_PMLIGHT
+                if (!r_dlightMode->integer)
+#endif
+                    if (backEnd.currentEntity->needDlights)
+                    {
+                        R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+                    }
+#endif // USE_LEGACY_DLIGHTS
+
+				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
+				{
+					// hack the depth range to prevent view model from poking into walls
+					depthRange = true;
+
+					if (backEnd.currentEntity->e.renderfx & RF_CROSSHAIR)
+						isCrosshair = true;
+				}
+            }
+            else
+            {
+                backEnd.currentEntity = &tr.worldEntity;
+                backEnd.refdef.floatTime = originalTime;
+                backEnd.ort = backEnd.viewParms.world;
+
+#ifdef USE_LEGACY_DLIGHTS
+#ifdef USE_PMLIGHT
+                if (!r_dlightMode->integer)
+#endif
+                    R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+#endif // USE_LEGACY_DLIGHTS
+            }
+
+			// we have to reset the shaderTime as well otherwise image animations on
+			// the world (like water) continue with the wrong frame
+            tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
+
+            Com_Memcpy(vk_world.modelview_transform, backEnd.ort.modelMatrix, 64);
+            tess.depthRange = depthRange ? DEPTH_RANGE_WEAPON : DEPTH_RANGE_NORMAL;
+            vk_update_mvp(nullptr);
+
+			//
+			// change depthrange. Also change projection matrix so first person weapon does not look like coming
+			// out of the screen.
+			//
+
+            oldEntityNum = entityNum;
+        }
+
+        // Add the triangles for this surface
+        rb_surfaceTable[*drawSurf->surface](drawSurf->surface); });
+
+	// Draw the contents of the last shader batch
+	if (oldShader != nullptr)
+	{
+		RB_EndSurface();
+	}
+
+	backEnd.refdef.floatTime = originalTime;
+
+	// go back to the world modelview matrix
+	Com_Memcpy(vk_world.modelview_transform, backEnd.viewParms.world.modelMatrix, 64);
+	tess.depthRange = DEPTH_RANGE_NORMAL;
+	// vk_update_mvp();
+}
+
+#else
+
 static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 {
 	shader_t *shader, *oldShader;
@@ -336,6 +494,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 	tess.depthRange = DEPTH_RANGE_NORMAL;
 	// vk_update_mvp();
 }
+#endif // PARALLEL_RENDER_DRAW_SURF_LIST
 
 #ifdef USE_PMLIGHT
 /*
