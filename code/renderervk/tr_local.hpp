@@ -1783,9 +1783,9 @@ extern int max_polyverts;
 
 extern backEndData_t *backEndData;
 
-void RB_TakeScreenshot(int x, int y, int width, int height, const char *fileName);
-void RB_TakeScreenshotJPEG(int x, int y, int width, int height, const char *fileName);
-void RB_TakeScreenshotBMP(int x, int y, int width, int height, const char *fileName, int clipboard);
+void RB_TakeScreenshot(const int x, const int y, const int width, const int height, const char* fileName);
+void RB_TakeScreenshotJPEG(const int x, const int y, const int width, const int height, const char* fileName);
+void RB_TakeScreenshotBMP(const int x, const int y, const int width, const int height, const char* fileName, const int clipboardOnly);
 
 #ifndef USE_VULKAN
 #define GLE(ret, name, ...) extern ret(APIENTRY *q##name)(__VA_ARGS__);

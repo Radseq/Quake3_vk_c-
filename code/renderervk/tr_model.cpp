@@ -251,14 +251,12 @@ model_t *R_GetModelByHandle(qhandle_t index)
 */
 model_t *R_AllocModel(void)
 {
-	model_t *mod;
-
 	if (tr.numModels >= MAX_MOD_KNOWN)
 	{
 		return NULL;
 	}
 
-	mod = static_cast<model_t *>(ri.Hunk_Alloc(sizeof(*tr.models[tr.numModels]), h_low));
+	model_t*  mod = static_cast<model_t *>(ri.Hunk_Alloc(sizeof(*tr.models[tr.numModels]), h_low));
 	mod->index = tr.numModels;
 	tr.models[tr.numModels] = mod;
 	tr.numModels++;
@@ -401,7 +399,7 @@ qhandle_t RE_RegisterModel(const char *name)
 R_LoadMD3
 =================
 */
-static bool R_LoadMD3(model_t &mod, int lod, void *buffer, std::size_t fileSize, std::string_view mod_name)
+static bool R_LoadMD3(model_t &mod, const int lod, void *buffer, const std::size_t fileSize, std::string_view mod_name)
 {
 	int i, j;
 	md3Header_t *pinmodel, *hdr;
@@ -653,7 +651,7 @@ static bool R_LoadMD3(model_t &mod, int lod, void *buffer, std::size_t fileSize,
 R_LoadMDR
 =================
 */
-static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, std::string_view mod_name)
+static bool R_LoadMDR(model_t &mod, void *buffer, const int filesize, std::string_view mod_name)
 {
 	int i, j, k, l;
 	mdrHeader_t *pinmodel, *mdr;
@@ -1142,8 +1140,8 @@ static md3Tag_t *R_GetAnimTag(mdrHeader_t *mod, int framenum, std::string_view t
 R_LerpTag
 ================
 */
-int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame,
-			  float frac, const char *tagName)
+int R_LerpTag(orientation_t *tag, qhandle_t handle, const int startFrame, const int endFrame,
+	const float frac, const char *tagName)
 {
 	md3Tag_t *start, *end;
 	md3Tag_t start_space, end_space;

@@ -124,16 +124,17 @@ RE_AddPolyToScene
 */
 void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts, int numPolys)
 {
+	if (!tr.registered)
+	{
+		return;
+	}
+
 	srfPoly_t *poly;
 	int i, j;
 	int fogIndex;
 	const fog_t *fog;
 	vec3_t bounds[2]{};
 
-	if (!tr.registered)
-	{
-		return;
-	}
 #if 0
 	if ( !hShader ) {
 		ri.Printf( PRINT_WARNING, "WARNING: RE_AddPolyToScene: NULL poly shader\n");
@@ -261,10 +262,8 @@ void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
 RE_AddDynamicLightToScene
 =====================
 */
-static void RE_AddDynamicLightToScene(const vec3_t org, float intensity, float r, float g, float b, int additive)
+static void RE_AddDynamicLightToScene(const vec3_t org, float intensity, float r, float g, float b, const int additive)
 {
-	dlight_t *dl;
-
 	if (!tr.registered)
 	{
 		return;
@@ -298,14 +297,14 @@ static void RE_AddDynamicLightToScene(const vec3_t org, float intensity, float r
 		b = LERP(luminance, b, r_dlightSaturation->value);
 	}
 
-	dl = &backEndData->dlights[r_numdlights++];
-	VectorCopy(org, dl->origin);
-	dl->radius = intensity;
-	dl->color[0] = r;
-	dl->color[1] = g;
-	dl->color[2] = b;
-	dl->additive = additive;
-	dl->linear = false;
+	dlight_t &dl = backEndData->dlights[r_numdlights++];
+	VectorCopy(org, dl.origin);
+	dl.radius = intensity;
+	dl.color[0] = r;
+	dl.color[1] = g;
+	dl.color[2] = b;
+	dl.additive = additive;
+	dl.linear = false;
 }
 
 /*

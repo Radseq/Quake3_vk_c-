@@ -223,7 +223,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, int numDrawSurfs)
 			continue;
 		}
 
-		R_DecomposeSort(drawSurf->sort, &entityNum, &shader, &fogNum, &dlighted);
+		R_DecomposeSort(drawSurf->sort, entityNum, &shader, fogNum, dlighted);
 		if (vk_inst.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
 		{
 			continue;
@@ -397,7 +397,7 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 			continue;
 		}
 
-		R_DecomposeLitSort(litSurf->sort, &entityNum, &shader, &fogNum);
+		R_DecomposeLitSort(litSurf->sort, entityNum, &shader, fogNum);
 
 		if (vk_inst.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
 		{
@@ -531,15 +531,15 @@ Stretches a raw 32 bit power of 2 bitmap image over the given screen rectangle.
 Used for cinematics.
 =============
 */
-void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data, int client, bool dirty)
+void RE_StretchRaw(const int x, const int y, const int w, const int h,
+	const int cols, const int rows, byte *data, const int client, const bool dirty)
 {
-	int i, j;
-	int start, end;
-
 	if (!tr.registered)
 	{
 		return;
 	}
+	int i, j;
+	int start, end;
 
 	start = 0;
 	if (r_speeds->integer)
@@ -572,7 +572,7 @@ void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data, i
 	RE_StretchPic(x, y, w, h, 0.5f / cols, 0.5f / rows, 1.0f - 0.5f / cols, 1.0f - 0.5 / rows, tr.cinematicShader->index);
 }
 
-void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client, bool dirty)
+void RE_UploadCinematic(const int w, const int h, const int cols, const int rows, byte *data, const int client, const bool dirty)
 {
 	image_t *image;
 

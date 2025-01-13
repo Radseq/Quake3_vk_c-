@@ -269,15 +269,12 @@ Change a polygon into a bunch of text polygons
 static void DeformText(std::string_view text)
 {
 	int i;
-	vec3_t origin{}, width, height{};
+	vec3_t origin{}, width, height{0, 0, -1};
 	int len;
 	int ch;
 	color4ub_t color{};
 	vec3_t mid{};
 
-	height[0] = 0;
-	height[1] = 0;
-	height[2] = -1;
 	CrossProduct(tess.normal[0], height, width);
 
 	// find the midpoint of the box
