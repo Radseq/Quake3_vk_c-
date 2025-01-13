@@ -531,44 +531,62 @@ static void vk_create_render_passes(void)
 
 	vk::AttachmentReference colorResolveRef = {0, vk::ImageLayout::eColorAttachmentOptimal}; // Not UNDEFINED
 
-	auto setup_attachment = [&](vk::AttachmentDescription &attachment, vk::Format format, vk::SampleCountFlagBits samples,
-								vk::AttachmentLoadOp loadOp, vk::AttachmentStoreOp storeOp,
-								vk::ImageLayout initialLayout, vk::ImageLayout finalLayout)
-	{
-		attachment = vk::AttachmentDescription({}, format, samples, loadOp, storeOp,
-											   vk::AttachmentLoadOp::eDontCare,
-											   vk::AttachmentStoreOp::eDontCare,
-											   initialLayout, finalLayout);
-	};
-
-	auto setup_subpass_dependency = [&](vk::SubpassDependency &dep, uint32_t srcSubpass, uint32_t dstSubpass,
-										vk::PipelineStageFlagBits srcStageMask, vk::PipelineStageFlagBits dstStageMask,
-										vk::Flags<vk::AccessFlagBits> srcAccessMask, vk::Flags<vk::AccessFlagBits> dstAccessMask,
-										vk::DependencyFlagBits dependencyFlags)
-	{
-		dep = vk::SubpassDependency(srcSubpass, dstSubpass, srcStageMask, dstStageMask,
-									srcAccessMask, dstAccessMask, dependencyFlags);
-	};
-
 	if (r_fbo->integer == 0)
 	{
-		setup_attachment(attachments[0], vk_inst.present_format.format, vk::SampleCountFlagBits::e1,
-						 vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eStore,
-						 vk_inst.initSwapchainLayout, vk::ImageLayout::ePresentSrcKHR);
+		// presentation
+		attachments[0].format = vk_inst.present_format.format;
+		attachments[0].samples = vk::SampleCountFlagBits::e1;
+#ifdef USE_BUFFER_CLEAR
+		attachments[0].loadOp = vk::AttachmentLoadOp::eClear;
+#else
+		attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare; // Assuming this will be completely overwritten
+#endif
+		attachments[0].storeOp = vk::AttachmentStoreOp::eStore; // needed for presentation
+		attachments[0].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+		attachments[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+		attachments[0].initialLayout = vk_inst.initSwapchainLayout;
+		attachments[0].finalLayout = vk::ImageLayout::ePresentSrcKHR;
 	}
 	else
 	{
-		setup_attachment(attachments[0], vk_inst.color_format, vk::SampleCountFlagBits::e1,
-						 vk_inst.msaaActive ? vk::AttachmentLoadOp::eDontCare : vk::AttachmentLoadOp::eClear,
-						 vk::AttachmentStoreOp::eStore, vk::ImageLayout::eShaderReadOnlyOptimal,
-						 vk::ImageLayout::eShaderReadOnlyOptimal);
+		// resolve/color buffer
+		attachments[0].format = vk_inst.color_format;
+		attachments[0].samples = vk::SampleCountFlagBits::e1;
+		;
+
+#ifdef USE_BUFFER_CLEAR
+		if (vk.msaaActive)
+			attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare; // Assuming this will be completely overwritten
+		else
+			attachments[0].loadOp = vk::AttachmentLoadOp::eClear;
+#else
+		attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare; // Assuming this will be completely overwritten
+#endif
+
+		attachments[0].storeOp = vk::AttachmentStoreOp::eStore; // needed for next render pass
+		attachments[0].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+		attachments[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+		attachments[0].initialLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+		attachments[0].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 	}
 
-	// Setup depth attachment
-	setup_attachment(attachments[1], depth_format, vkSamples, vk::AttachmentLoadOp::eClear,
-					 r_bloom->integer ? vk::AttachmentStoreOp::eStore : vk::AttachmentStoreOp::eDontCare,
-					 vk::ImageLayout::eDepthStencilAttachmentOptimal,
-					 vk::ImageLayout::eDepthStencilAttachmentOptimal);
+	// depth buffer
+	attachments[1].format = depth_format;
+	attachments[1].samples = vkSamples;
+	attachments[1].loadOp = vk::AttachmentLoadOp::eClear; // Need empty depth buffer before use
+	attachments[1].stencilLoadOp = glConfig.stencilBits ? vk::AttachmentLoadOp::eClear : vk::AttachmentLoadOp::eDontCare;
+	if (r_bloom->integer)
+	{
+		attachments[1].storeOp = vk::AttachmentStoreOp::eStore; // keep it for post-bloom pass
+		attachments[1].stencilStoreOp = glConfig.stencilBits ? vk::AttachmentStoreOp::eStore : vk::AttachmentStoreOp::eDontCare;
+	}
+	else
+	{
+		attachments[1].storeOp = vk::AttachmentStoreOp::eDontCare;
+		attachments[1].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+	}
+	attachments[1].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+	attachments[1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
 	colorRef0 = {0, vk::ImageLayout::eColorAttachmentOptimal};
 	depthRef0 = {1, vk::ImageLayout::eDepthStencilAttachmentOptimal};
@@ -588,13 +606,34 @@ static void vk_create_render_passes(void)
 
 	if (vk_inst.msaaActive)
 	{
-		setup_attachment(attachments[2], vk_inst.color_format, vkSamples, vk::AttachmentLoadOp::eClear,
-						 vk::AttachmentStoreOp::eDontCare, vk::ImageLayout::eColorAttachmentOptimal,
-						 vk::ImageLayout::eColorAttachmentOptimal);
+		attachments[2].format = vk_inst.color_format;
+		attachments[2].samples = vkSamples;
+#ifdef USE_BUFFER_CLEAR
+		attachments[2].loadOp = vk::AttachmentLoadOp::eClear;
+#else
+		attachments[2].loadOp = vk::AttachmentLoadOp::eDontCare;
+#endif
+		if (r_bloom->integer)
+		{
+			attachments[2].storeOp = vk::AttachmentStoreOp::eStore; // keep it for post-bloom pass
+		}
+		else
+		{
+			attachments[2].storeOp = vk::AttachmentStoreOp::eDontCare; // Intermediate storage (not written)
+		}
+		attachments[2].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+		attachments[2].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+		attachments[2].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+		attachments[2].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
 		desc.attachmentCount = 3;
-		colorRef0.attachment = 2;
-		colorResolveRef.attachment = 0;
+
+		colorRef0.attachment = 2; // msaa image attachment
+		colorRef0.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+		colorResolveRef.attachment = 0; // resolve image attachment
+		colorResolveRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
 		subpass.pResolveAttachments = &colorResolveRef;
 	}
 	else
@@ -603,34 +642,45 @@ static void vk_create_render_passes(void)
 		subpass.pResolveAttachments = nullptr;
 	}
 
-	setup_subpass_dependency(deps[2], vk::SubpassExternal, 0,
-							 vk::PipelineStageFlagBits::eColorAttachmentOutput,
-							 vk::PipelineStageFlagBits::eColorAttachmentOutput,
-							 vk::AccessFlagBits::eColorAttachmentRead,
-							 vk::AccessFlagBits::eColorAttachmentWrite, {});
+	Com_Memset(&deps, 0, sizeof(deps));
+
+	deps[2].srcSubpass = VK_SUBPASS_EXTERNAL;
+	deps[2].dstSubpass = 0;
+	deps[2].srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput; // What pipeline stage is waiting on the dependency
+	deps[2].dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput; // What pipeline stage is waiting on the dependency
+	deps[2].srcAccessMask = vk::AccessFlagBits::eColorAttachmentRead;		  // What access scopes are influence the dependency
+	deps[2].dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;		  // What access scopes are waiting on the dependency
+	deps[2].dependencyFlags = {};
 
 	if (r_fbo->integer == 0)
 	{
 		desc.dependencyCount = 1;
 		desc.pDependencies = &deps[2];
+		VK_CHECK_ASSIGN(vk_inst.render_pass.main, device.createRenderPass(desc));
+#ifdef USE_VK_VALIDATION
+		SET_OBJECT_NAME(VkRenderPass(vk_inst.render_pass.main), "render pass - main", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
+#endif
+		return;
 	}
-	else
-	{
-		setup_subpass_dependency(deps[0], static_cast<uint32_t>(vk::SubpassExternal), 0,
-								 vk::PipelineStageFlagBits::eFragmentShader,
-								 vk::PipelineStageFlagBits::eColorAttachmentOutput,
-								 vk::AccessFlagBits::eShaderRead,
-								 vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite,
-								 vk::DependencyFlagBits::eByRegion);
-		setup_subpass_dependency(deps[1], 0, vk::SubpassExternal,
-								 vk::PipelineStageFlagBits::eColorAttachmentOutput,
-								 vk::PipelineStageFlagBits::eFragmentShader,
-								 vk::AccessFlagBits::eColorAttachmentWrite,
-								 vk::AccessFlagBits::eShaderRead, vk::DependencyFlagBits::eByRegion);
 
-		desc.dependencyCount = 2;
-		desc.pDependencies = deps;
-	}
+	deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+	deps[0].dstSubpass = 0;
+	deps[0].srcStageMask = vk::PipelineStageFlagBits::eFragmentShader;											  // What pipeline stage must have completed for the dependency
+	deps[0].dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;									  // What pipeline stage is waiting on the dependency
+	deps[0].srcAccessMask = vk::AccessFlagBits::eShaderRead;													  // What access scopes are influence the dependency
+	deps[0].dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite; // What access scopes are waiting on the dependency
+	deps[0].dependencyFlags = vk::DependencyFlagBits::eByRegion;												  // Only need the current fragment (or tile) synchronized, not the whole framebuffer
+
+	deps[1].srcSubpass = 0;
+	deps[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+	deps[1].srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput; // Fragment data has been written
+	deps[1].dstStageMask = vk::PipelineStageFlagBits::eFragmentShader;		  // Don't start shading until data is available
+	deps[1].srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;		  // Waiting for color data to be written
+	deps[1].dstAccessMask = vk::AccessFlagBits::eShaderRead;				  // Don't read things from the shader before ready
+	deps[1].dependencyFlags = vk::DependencyFlagBits::eByRegion;			  // Only need the current fragment (or tile) synchronized, not the whole framebuffer
+
+	desc.dependencyCount = 2;
+	desc.pDependencies = &deps[0];
 
 	VK_CHECK_ASSIGN(vk_inst.render_pass.main, device.createRenderPass(desc));
 #ifdef USE_VK_VALIDATION
@@ -638,13 +688,17 @@ static void vk_create_render_passes(void)
 #endif
 	if (r_bloom->integer)
 	{
+		// post-bloom pass
+		// color buffer
 		attachments[0].loadOp = vk::AttachmentLoadOp::eLoad;
+		// depth buffer
 		attachments[1].loadOp = vk::AttachmentLoadOp::eLoad;
 		attachments[1].storeOp = vk::AttachmentStoreOp::eDontCare;
 		attachments[1].stencilLoadOp = glConfig.stencilBits ? vk::AttachmentLoadOp::eLoad : vk::AttachmentLoadOp::eDontCare;
 
 		if (vk_inst.msaaActive)
 		{
+			// msaa render target
 			attachments[2].loadOp = vk::AttachmentLoadOp::eLoad;
 			attachments[2].storeOp = vk::AttachmentStoreOp::eDontCare;
 		}
@@ -654,10 +708,31 @@ static void vk_create_render_passes(void)
 		SET_OBJECT_NAME(VkRenderPass(vk_inst.render_pass.post_bloom), "render pass - post_bloom", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
 #endif
 
+		// bloom extraction, using resolved/main fbo as a source
 		desc.attachmentCount = 1;
-		setup_attachment(attachments[0], vk_inst.bloom_format, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eDontCare,
-						 vk::AttachmentStoreOp::eStore, vk::ImageLayout::eShaderReadOnlyOptimal,
-						 vk::ImageLayout::eShaderReadOnlyOptimal);
+
+		colorRef0.attachment = 0;
+		colorRef0.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+		subpass = {{},
+				   vk::PipelineBindPoint::eGraphics,
+				   0,
+				   nullptr,
+				   1,
+				   &colorRef0,
+				   nullptr,
+				   nullptr,
+				   0,
+				   nullptr};
+
+		attachments[0].format = vk_inst.bloom_format;
+		attachments[0].samples = vk::SampleCountFlagBits::e1;
+		attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare; // Assuming this will be completely overwritten
+		attachments[0].storeOp = vk::AttachmentStoreOp::eStore;	 // needed for next render pass
+		attachments[0].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+		attachments[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+		attachments[0].initialLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+		attachments[0].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 
 		VK_CHECK_ASSIGN(vk_inst.render_pass.bloom_extract, device.createRenderPass(desc));
 #ifdef USE_VK_VALIDATION
@@ -675,8 +750,36 @@ static void vk_create_render_passes(void)
 
 	if (vk_inst.capture.image)
 	{
-		setup_attachment(attachments[0], vk_inst.capture_format, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eDontCare,
-						 vk::AttachmentStoreOp::eStore, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferSrcOptimal);
+
+		subpass = {{},
+				   vk::PipelineBindPoint::eGraphics,
+				   0,
+				   nullptr,
+				   1,
+				   &colorRef0,
+				   nullptr,
+				   nullptr,
+				   0,
+				   nullptr};
+
+		attachments[0].format = vk_inst.capture_format;
+		attachments[0].samples = vk::SampleCountFlagBits::e1;
+		attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare; // this will be completely overwritten
+		attachments[0].storeOp = vk::AttachmentStoreOp::eStore;	 // needed for next render pass
+		attachments[0].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+		attachments[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+		attachments[0].initialLayout = vk::ImageLayout::eUndefined;
+		attachments[0].finalLayout = vk::ImageLayout::eTransferSrcOptimal;
+
+		colorRef0.attachment = 0;
+		colorRef0.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+		desc.sType = vk::StructureType::eRenderPassCreateInfo;
+		desc.pNext = nullptr;
+		desc.pAttachments = attachments;
+		desc.attachmentCount = 1;
+		desc.pSubpasses = &subpass;
+		desc.subpassCount = 1;
 
 		VK_CHECK_ASSIGN(vk_inst.render_pass.capture, device.createRenderPass(desc));
 #ifdef USE_VK_VALIDATION
@@ -684,8 +787,31 @@ static void vk_create_render_passes(void)
 #endif
 	}
 
-	setup_attachment(attachments[0], vk_inst.present_format.format, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eDontCare,
-					 vk::AttachmentStoreOp::eStore, vk_inst.initSwapchainLayout, vk::ImageLayout::ePresentSrcKHR);
+	colorRef0.attachment = 0;
+	colorRef0.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+	desc.attachmentCount = 1;
+
+	subpass = {{},
+			   vk::PipelineBindPoint::eGraphics,
+			   0,
+			   nullptr,
+			   1,
+			   &colorRef0,
+			   nullptr,
+			   nullptr,
+			   0,
+			   nullptr};
+
+	// gamma post-processing
+	attachments[0].format = vk_inst.present_format.format;
+	attachments[0].samples = vk::SampleCountFlagBits::e1;
+	attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare;
+	attachments[0].storeOp = vk::AttachmentStoreOp::eStore; // needed for presentation
+	attachments[0].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+	attachments[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+	attachments[0].initialLayout = vk_inst.initSwapchainLayout;
+	attachments[0].finalLayout = vk::ImageLayout::ePresentSrcKHR;
 
 	desc.dependencyCount = 1;
 	desc.pDependencies = &deps[2];
@@ -695,29 +821,77 @@ static void vk_create_render_passes(void)
 	SET_OBJECT_NAME(VkRenderPass(vk_inst.render_pass.gamma), "render pass - gamma", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT);
 #endif
 	desc.dependencyCount = 2;
-	desc.pDependencies = deps;
+	desc.pDependencies = &deps[0];
 
-	setup_attachment(attachments[0], vk_inst.color_format, vk::SampleCountFlagBits::e1,
-					 vk_inst.screenMapSamples > vk::SampleCountFlagBits::e1 ? vk::AttachmentLoadOp::eDontCare : vk::AttachmentLoadOp::eClear,
-					 vk::AttachmentStoreOp::eStore, vk::ImageLayout::eShaderReadOnlyOptimal,
-					 vk::ImageLayout::eShaderReadOnlyOptimal);
+	// screenmap resolve/color buffer
+	attachments[0].format = vk_inst.color_format;
+	attachments[0].samples = vk::SampleCountFlagBits::e1;
+#ifdef USE_BUFFER_CLEAR
+	if (vk.screenMapSamples > vk::SampleCountFlagBits::e1)
+		attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare;
+	else
+		attachments[0].loadOp = vk::AttachmentLoadOp::eClear;
+#else
+	attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare; // Assuming this will be completely overwritten
+#endif
+	attachments[0].storeOp = vk::AttachmentStoreOp::eStore; // needed for next render pass
+	attachments[0].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+	attachments[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+	attachments[0].initialLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+	attachments[0].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 
-	setup_attachment(attachments[1], depth_format, vk_inst.screenMapSamples, vk::AttachmentLoadOp::eClear,
-					 vk::AttachmentStoreOp::eDontCare, vk::ImageLayout::eDepthStencilAttachmentOptimal,
-					 vk::ImageLayout::eDepthStencilAttachmentOptimal);
+	// screenmap depth buffer
+	attachments[1].format = depth_format;
+	attachments[1].samples = vk_inst.screenMapSamples;
+	attachments[1].loadOp = vk::AttachmentLoadOp::eClear; // Need empty depth buffer before use
+	attachments[1].storeOp = vk::AttachmentStoreOp::eDontCare;
+	attachments[1].stencilLoadOp = vk::AttachmentLoadOp::eClear;
+	attachments[1].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+	attachments[1].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+	attachments[1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
 	colorRef0.attachment = 0;
+	colorRef0.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
 	depthRef0.attachment = 1;
+	depthRef0.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+
+	subpass = {{},
+			   vk::PipelineBindPoint::eGraphics,
+			   0,
+			   nullptr,
+			   1,
+			   &colorRef0,
+			   nullptr,
+			   &depthRef0,
+			   0,
+			   nullptr};
+
+	desc = {{}, 1, attachments, 1, &subpass, 2, deps};
 
 	if (vk_inst.screenMapSamples > vk::SampleCountFlagBits::e1)
 	{
-		setup_attachment(attachments[2], vk_inst.color_format, vk_inst.screenMapSamples, vk::AttachmentLoadOp::eClear,
-						 vk::AttachmentStoreOp::eDontCare, vk::ImageLayout::eColorAttachmentOptimal,
-						 vk::ImageLayout::eColorAttachmentOptimal);
+		attachments[2].format = vk_inst.color_format;
+		attachments[2].samples = vk_inst.screenMapSamples;
+#ifdef USE_BUFFER_CLEAR
+		attachments[2].loadOp = vk::AttachmentLoadOp::eClear;
+#else
+		attachments[2].loadOp = vk::AttachmentLoadOp::eDontCare;
+#endif
+		attachments[2].storeOp = vk::AttachmentStoreOp::eDontCare;
+		attachments[2].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+		attachments[2].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+		attachments[2].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+		attachments[2].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
 		desc.attachmentCount = 3;
-		colorRef0.attachment = 2;
-		colorResolveRef.attachment = 0;
+
+		colorRef0.attachment = 2; // screenmap msaa image attachment
+		colorRef0.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+		colorResolveRef.attachment = 0; // screenmap resolve image attachment
+		colorResolveRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
 		subpass.pResolveAttachments = &colorResolveRef;
 	}
 
@@ -5231,7 +5405,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	frag_spec_data[2].f = 0.85f;
 
 #if 0
-	if (r_ext_alpha_to_coverage->integer && vkSamples != VK_SAMPLE_COUNT_1_BIT && frag_spec_data[0].i) {
+	if (r_ext_alpha_to_coverage->integer && vkSamples != vk::SampleCountFlagBits::e1 && frag_spec_data[0].i) {
 		frag_spec_data[3].i = 1;
 		alphaToCoverage = vk::True;
 	}
@@ -6716,15 +6890,15 @@ void vk_begin_frame(void)
 	if (vk_inst.fboActive) {
 		record_image_layout_transition(vk_inst.cmd->command_buffer,
 			vk_inst.color_image, VK_IMAGE_ASPECT_COLOR_BIT,
-			VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
-			VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+			vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite, VK_IMAGE_LAYOUT_UNDEFINED,
+			vk::AccessFlagBits::eShaderRead, vk::ImageLayout::eShaderReadOnlyOptimal);
 
 	}
 	else {
 		record_image_layout_transition(vk_inst.cmd->command_buffer,
 			vk_inst.swapchain_images[vk_inst.swapchain_image_index], VK_IMAGE_ASPECT_COLOR_BIT,
-			VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
-			VK_ACCESS_MEMORY_READ_BIT, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+			vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite, VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_ACCESS_MEMORY_READ_BIT, vk::ImageLayout::ePresentSrcKHR);
 	}
 #endif
 
