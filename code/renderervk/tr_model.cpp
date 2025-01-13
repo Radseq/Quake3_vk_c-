@@ -256,7 +256,7 @@ model_t *R_AllocModel(void)
 		return NULL;
 	}
 
-	model_t*  mod = static_cast<model_t *>(ri.Hunk_Alloc(sizeof(*tr.models[tr.numModels]), h_low));
+	model_t *mod = static_cast<model_t *>(ri.Hunk_Alloc(sizeof(*tr.models[tr.numModels]), h_low));
 	mod->index = tr.numModels;
 	tr.models[tr.numModels] = mod;
 	tr.numModels++;
@@ -1140,8 +1140,8 @@ static md3Tag_t *R_GetAnimTag(mdrHeader_t *mod, int framenum, std::string_view t
 R_LerpTag
 ================
 */
-int R_LerpTag(orientation_t *tag, qhandle_t handle, const int startFrame, const int endFrame,
-	const float frac, const char *tagName)
+int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame,
+			  float frac, const char *tagName)
 {
 	md3Tag_t *start, *end;
 	md3Tag_t start_space, end_space;
