@@ -510,7 +510,6 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 	srfSurfaceFace_t *face;
 	srfTriangles_t *tris;
 	srfGridMesh_t *grid;
-	msurface_t *sf;
 	int ibo_size;
 	int vbo_size;
 	int i, n;
@@ -656,10 +655,10 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 
 	for (i = 0; i < numStaticSurfaces; i++)
 	{
-		sf = surfList[i];
-		face = (srfSurfaceFace_t *)sf->data;
-		tris = (srfTriangles_t *)sf->data;
-		grid = (srfGridMesh_t *)sf->data;
+		msurface_t& sf = surf;
+		face = (srfSurfaceFace_t *)sf.data;
+		tris = (srfTriangles_t *)sf.data;
+		grid = (srfGridMesh_t *)sf.data;
 		if (face->surfaceType == SF_FACE)
 			face->vboItemIndex = i + 1;
 		else if (tris->surfaceType == SF_TRIANGLES)
@@ -675,7 +674,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 			ri.Error(ERR_DROP, "Unexpected surface type");
 		}
 		initItem(vbo.items + i + 1);
-		RB_BeginSurface(*sf->shader, 0);
+		RB_BeginSurface(*sf.shader, 0);
 		tess.allowVBO = false; // block execution of VBO path as we need to tesselate geometry
 #ifdef USE_TESS_NEEDS_NORMAL
 		tess.needsNormal = true;
@@ -684,7 +683,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 		tess.needsST2 = true;
 #endif
 		// tesselate
-		rb_surfaceTable[*sf->data](sf->data); // VBO_PushData() may be called multiple times there
+		rb_surfaceTable[*sf.data](sf.data); // VBO_PushData() may be called multiple times there
 		// setup colors and texture coordinates
 		VBO_PushData(i + 1, tess);
 		if (grid->surfaceType == SF_GRID)

@@ -64,7 +64,6 @@ int R_CullLocalBox(const vec3_t bounds[2])
 	int i, j;
 	vec3_t transformed[8]{};
 	float dists[8]{};
-	cplane_t *frust;
 	int anyBack;
 	int front, back;
 
@@ -91,13 +90,13 @@ int R_CullLocalBox(const vec3_t bounds[2])
 	anyBack = 0;
 	for (i = 0; i < 4; i++)
 	{
-		frust = &tr.viewParms.frustum[i];
+		cplane_t& frust = tr.viewParms.frustum[i];
 
 		front = back = 0;
 		for (j = 0; j < 8; j++)
 		{
-			dists[j] = DotProduct(transformed[j], frust->normal);
-			if (dists[j] > frust->dist)
+			dists[j] = DotProduct(transformed[j], frust.normal);
+			if (dists[j] > frust.dist)
 			{
 				front = 1;
 				if (back)
@@ -150,15 +149,14 @@ int R_CullPointAndRadius(const vec3_t &pt, const float radius)
 
 	int i;
 	float dist;
-	const cplane_t *frust;
 	bool mightBeClipped = false;
 
 	// check against frustum planes
 	for (i = 0; i < 4; i++)
 	{
-		frust = &tr.viewParms.frustum[i];
+		const cplane_t& frust = tr.viewParms.frustum[i];
 
-		dist = DotProduct(pt, frust->normal) - frust->dist;
+		dist = DotProduct(pt, frust.normal) - frust.dist;
 		if (dist < -radius)
 		{
 			return CULL_OUT;
@@ -920,7 +918,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 	return false;
 }
 
-static bool IsMirror(const drawSurf_t &drawSurf, int entityNum)
+static bool IsMirror(const drawSurf_t &drawSurf, const int entityNum)
 {
 	int i;
 	cplane_t originalPlane, plane{};
@@ -1103,6 +1101,8 @@ static void R_GetModelViewBounds(std::array<int, 2>& mins, std::array<int, 2>& m
 
 	// premultiply
 	myGlMultMatrix(tr.ort.modelMatrix, tr.viewParms.projectionMatrix, mvp);
+
+	ri.Printf(PRINT_ALL, "aaaaa %d\n", tess.numVertexes);
 
 	for (i = 0; i < tess.numVertexes; i++)
 	{

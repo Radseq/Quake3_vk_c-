@@ -1500,6 +1500,8 @@ constexpr int CLS_COLOR_ARRAY = 0x00000001;
 constexpr int CLS_TEXCOORD_ARRAY = 0x00000002;
 constexpr int CLS_NORMAL_ARRAY = 0x00000004;
 
+constexpr vec4_t colorBlackCxpr = { 0, 0, 0, 1 };
+
 void R_Init(void);
 
 const void *RB_TakeVideoFrameCmd(const void *data);

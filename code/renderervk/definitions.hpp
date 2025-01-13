@@ -14,11 +14,6 @@
 // #define VULKAN_HPP_HAS_NOEXCEPT
 #endif
 
-#define USE_PARALLEL
-#ifdef USE_PARALLEL
-#define PARALLEL_RENDER_DRAW_SURF_LIST
-#endif
-
 #include "vulkan/vulkan.hpp"
 
 constexpr int VK_NUM_BLOOM_PASSES = 4;
