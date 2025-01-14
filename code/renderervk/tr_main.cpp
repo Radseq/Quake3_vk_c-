@@ -90,7 +90,7 @@ int R_CullLocalBox(const vec3_t bounds[2])
 	anyBack = 0;
 	for (i = 0; i < 4; i++)
 	{
-		cplane_t& frust = tr.viewParms.frustum[i];
+		cplane_t &frust = tr.viewParms.frustum[i];
 
 		front = back = 0;
 		for (j = 0; j < 8; j++)
@@ -154,7 +154,7 @@ int R_CullPointAndRadius(const vec3_t &pt, const float radius)
 	// check against frustum planes
 	for (i = 0; i < 4; i++)
 	{
-		const cplane_t& frust = tr.viewParms.frustum[i];
+		const cplane_t &frust = tr.viewParms.frustum[i];
 
 		dist = DotProduct(pt, frust.normal) - frust.dist;
 		if (dist < -radius)
@@ -201,7 +201,7 @@ int R_CullDlight(const dlight_t &dl)
 		// check against frustum planes
 		for (i = 0; i < 4; i++)
 		{
-			cplane_t& frust = tr.viewParms.frustum[i];
+			cplane_t &frust = tr.viewParms.frustum[i];
 			dist = DotProduct(dl.transformed, frust.normal) - frust.dist;
 			if (dist < -dl.radius)
 				return CULL_OUT;
@@ -348,7 +348,7 @@ Called by both the front end and the back end
 */
 void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
 					   orientationr_t &ort)
-{	
+{
 	if (ent.e.reType != RT_MODEL)
 	{
 		ort = viewParms.world;
@@ -475,13 +475,13 @@ static void R_SetFarClip(void)
 		return;
 	}
 
-	float farthestCornerDistance;
 	int i;
 
 	//
 	// set far clipping planes dynamically
 	//
-	farthestCornerDistance = 0;
+	float farthestCornerDistance = 0;
+
 	for (i = 0; i < 8; i++)
 	{
 		vec3_t vecTo{};
@@ -1090,10 +1090,10 @@ static bool SurfIsOffscreen(const drawSurf_t &drawSurf, bool &isMirror)
 R_GetModelViewBounds
 ================
 */
-static void R_GetModelViewBounds(std::array<int, 2>& mins, std::array<int, 2>& maxs)
+static void R_GetModelViewBounds(std::array<int, 2> &mins, std::array<int, 2> &maxs)
 {
-	float minn[2]{ 1.0 , 1.0 };
-	float maxn[2]{ -1.0 , -1.0 };
+	float minn[2]{1.0, 1.0};
+	float maxn[2]{-1.0, -1.0};
 	float norm[2]{};
 	float mvp[16];
 	vec4_t clip;
@@ -1101,8 +1101,6 @@ static void R_GetModelViewBounds(std::array<int, 2>& mins, std::array<int, 2>& m
 
 	// premultiply
 	myGlMultMatrix(tr.ort.modelMatrix, tr.viewParms.projectionMatrix, mvp);
-
-	ri.Printf(PRINT_ALL, "aaaaa %d\n", tess.numVertexes);
 
 	for (i = 0; i < tess.numVertexes; i++)
 	{
@@ -1481,24 +1479,22 @@ R_AddLitSurf
 */
 void R_AddLitSurf(surfaceType_t &surface, shader_t &shader, const int fogIndex)
 {
-	struct litSurf_s *litsurf;
-
 	if (tr.refdef.numLitSurfs >= static_cast<int>(arrayLen(backEndData->litSurfs)))
 		return;
 
 	tr.pc.c_lit_surfs++;
 
-	litsurf = &tr.refdef.litSurfs[tr.refdef.numLitSurfs++];
+	struct litSurf_s &litsurf = tr.refdef.litSurfs[tr.refdef.numLitSurfs++];
 
-	litsurf->sort = (shader.sortedIndex << QSORT_SHADERNUM_SHIFT) | tr.shiftedEntityNum | (fogIndex << QSORT_FOGNUM_SHIFT);
-	litsurf->surface = &surface;
+	litsurf.sort = (shader.sortedIndex << QSORT_SHADERNUM_SHIFT) | tr.shiftedEntityNum | (fogIndex << QSORT_FOGNUM_SHIFT);
+	litsurf.surface = &surface;
 
 	if (!tr.light->head)
-		tr.light->head = litsurf;
+		tr.light->head = &litsurf;
 	if (tr.light->tail)
-		tr.light->tail->next = litsurf;
+		tr.light->tail->next = &litsurf;
 
-	tr.light->tail = litsurf;
+	tr.light->tail = &litsurf;
 	tr.light->tail->next = NULL;
 }
 
@@ -1557,7 +1553,7 @@ void R_DecomposeSort(unsigned sort, int &entityNum, shader_t **shader,
 R_SortDrawSurfs
 =================
 */
-static void R_SortDrawSurfs(drawSurf_t &drawSurfs, int numDrawSurfs)
+static void R_SortDrawSurfs(drawSurf_t &drawSurfs, const int numDrawSurfs)
 {
 	// it is possible for some views to not have any surfaces
 	if (numDrawSurfs < 1)
@@ -1614,6 +1610,7 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, int numDrawSurfs)
 	{
 		// all the lit surfaces are in a single queue
 		// but each light's surfaces are sorted within its subsection
+		// ri.Printf(PRINT_ALL, "@@@@@@@@@@@@@@@@@@@ %u \n", tr.refdef.num_dlights);
 		for (uint32_t i = 0; i < tr.refdef.num_dlights; ++i)
 		{
 			dlight_t &dl = tr.refdef.dlights[i];

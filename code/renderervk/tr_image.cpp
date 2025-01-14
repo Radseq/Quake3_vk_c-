@@ -976,13 +976,13 @@ image_t *R_CreateImage(std::string_view name, std::string_view name2, byte *pic,
 
 	image = static_cast<image_t *>(ri.Hunk_Alloc(sizeof(*image) + namelen + namelen2, h_low));
 	image->imgName = (char *)(image + 1);
-	// strcpy(image->imgName, name);
-	std::memcpy(image->imgName, name.data(), name.size());
+	strcpy(image->imgName, name.data());
+	//std::memcpy(image->imgName, name.data(), name.size());
 	if (namelen2)
 	{
 		image->imgName2 = image->imgName + namelen;
-		// strcpy(image->imgName2, name2);
-		std::memcpy(image->imgName2, name2.data(), name2.size());
+		strcpy(image->imgName2, name2.data());
+		//std::memcpy(image->imgName2, name2.data(), name2.size());
 	}
 	else
 	{

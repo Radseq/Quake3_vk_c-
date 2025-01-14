@@ -1356,6 +1356,9 @@ static const char *renderer_name(const vk::PhysicalDeviceProperties &props)
 		break;
 	}
 
+	// Com_sprintf(buf, sizeof(buf), "%s %s, 0x%04x",
+	// 			device_type, props.deviceName, props.deviceID);
+
 	char charArray[256];
 	std::memcpy(charArray, props.deviceName.data(), 256);
 
@@ -2722,7 +2725,7 @@ static void vk_alloc_persistent_pipelines(void)
 	}
 }
 
-static void set_shader_stage_desc(vk::PipelineShaderStageCreateInfo& desc, const vk::ShaderStageFlagBits stage, const vk::ShaderModule& shader_module, const char* entry)
+static void set_shader_stage_desc(vk::PipelineShaderStageCreateInfo &desc, const vk::ShaderStageFlagBits stage, const vk::ShaderModule &shader_module, const char *entry)
 {
 	desc.pNext = nullptr;
 	desc.flags = {};
@@ -2734,7 +2737,7 @@ static void set_shader_stage_desc(vk::PipelineShaderStageCreateInfo& desc, const
 
 void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const uint32_t height, const bool horizontal_pass)
 {
-	vk::Pipeline* pipeline = &vk_inst.blur_pipeline[index];
+	vk::Pipeline *pipeline = &vk_inst.blur_pipeline[index];
 
 	if (*pipeline)
 	{
@@ -2750,7 +2753,7 @@ void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const u
 	set_shader_stage_desc(shader_stages[0], vk::ShaderStageFlagBits::eVertex, vk_inst.modules.gamma_vs, "main");
 	set_shader_stage_desc(shader_stages[1], vk::ShaderStageFlagBits::eFragment, vk_inst.modules.blur_fs, "main");
 
-	std::array<float, 3> frag_spec_data{ {1.2f / (float)width, 1.2f / (float)height, 1.0} }; // x-offset, y-offset, correction
+	std::array<float, 3> frag_spec_data{{1.2f / (float)width, 1.2f / (float)height, 1.0}}; // x-offset, y-offset, correction
 
 	if (horizontal_pass)
 	{
@@ -2761,33 +2764,33 @@ void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const u
 		frag_spec_data[0] = 0.0;
 	}
 
-	std::array<vk::SpecializationMapEntry, 3> spec_entries = { {
+	std::array<vk::SpecializationMapEntry, 3> spec_entries = {{
 		{0, 0 * sizeof(frag_spec_data[0]), sizeof(frag_spec_data[0])},
 		{1, 1 * sizeof(frag_spec_data[1]), sizeof(frag_spec_data[1])},
 		{2, 2 * sizeof(frag_spec_data[2]), sizeof(frag_spec_data[2])},
-	} };
+	}};
 
 	vk::SpecializationInfo frag_spec_info{
 		static_cast<uint32_t>(spec_entries.size()), spec_entries.data(), sizeof(frag_spec_data),
-		&frag_spec_data[0] };
+		&frag_spec_data[0]};
 
 	shader_stages[1].pSpecializationInfo = &frag_spec_info;
 
 	//
 	// Primitive assembly.
 	//
-	vk::PipelineInputAssemblyStateCreateInfo input_assembly_state{ {},
+	vk::PipelineInputAssemblyStateCreateInfo input_assembly_state{{},
 																  vk::PrimitiveTopology::eTriangleStrip,
 																  vk::False,
-																  nullptr };
+																  nullptr};
 
 	//
 	// Viewport.
 	//
-	vk::Viewport viewport{ 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f };
-	vk::Rect2D scissor{ {(int32_t)viewport.x, (int32_t)viewport.y}, {(uint32_t)viewport.width, (uint32_t)viewport.height} };
+	vk::Viewport viewport{0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f};
+	vk::Rect2D scissor{{(int32_t)viewport.x, (int32_t)viewport.y}, {(uint32_t)viewport.width, (uint32_t)viewport.height}};
 
-	vk::PipelineViewportStateCreateInfo viewport_state{ {}, 1, &viewport, 1, &scissor };
+	vk::PipelineViewportStateCreateInfo viewport_state{{}, 1, &viewport, 1, &scissor};
 
 	//
 	// Rasterization.
@@ -2804,16 +2807,16 @@ void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const u
 		0.0f,
 		0.0f,
 		1.0f,
-		nullptr };
+		nullptr};
 
-	vk::PipelineMultisampleStateCreateInfo multisample_state{ {},
+	vk::PipelineMultisampleStateCreateInfo multisample_state{{},
 															 vk::SampleCountFlagBits::e1,
 															 vk::False,
 															 1.0f,
 															 nullptr,
 															 vk::False,
 															 vk::False,
-															 nullptr };
+															 nullptr};
 
 	vk::PipelineColorBlendAttachmentState attachment_blend_state{
 		vk::False,
@@ -2824,7 +2827,7 @@ void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const u
 		{},
 		{},
 		vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-			vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
+			vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
 
 	vk::PipelineColorBlendStateCreateInfo blend_state{
 		{},
@@ -2833,7 +2836,7 @@ void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const u
 		1,
 		&attachment_blend_state,
 		{0.0f, 0.0f, 0.0f, 0.0f},
-		nullptr };
+		nullptr};
 
 	vk::GraphicsPipelineCreateInfo create_info{
 		{},
@@ -2853,7 +2856,7 @@ void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const u
 		0,
 		nullptr,
 		-1,
-		nullptr };
+		nullptr};
 
 #ifdef USE_VK_VALIDATION
 	try
@@ -2869,7 +2872,7 @@ void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const u
 			SET_OBJECT_NAME(VkPipeline(&pipeline), va("%s blur pipeline %i", horizontal_pass ? "horizontal" : "vertical", index / 2 + 1), VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
 		}
 	}
-	catch (vk::SystemError& err)
+	catch (vk::SystemError &err)
 	{
 		ri.Error(ERR_FATAL, "Vulkan error in function: %s, what: %s", "vk_create_blur_pipeline -> createGraphicsPipeline", err.what());
 	}
@@ -2915,7 +2918,7 @@ void vk_update_post_process_pipelines(void)
 typedef struct vk_attach_desc_s
 {
 	vk::Image descriptor = {};
-	vk::ImageView* image_view = nullptr;
+	vk::ImageView *image_view = nullptr;
 	vk::ImageUsageFlags usage = {};
 	vk::MemoryRequirements reqs = {};
 	uint32_t memoryTypeIndex = 0;
@@ -6774,7 +6777,7 @@ static void vk_begin_screenmap_render_pass(void)
 	vk_begin_render_pass(vk_inst.render_pass.screenmap, frameBuffer, true, vk_inst.renderWidth, vk_inst.renderHeight);
 }
 
-inline void vk_end_render_pass(void)
+void vk_end_render_pass(void)
 {
 	vk_inst.cmd->command_buffer.endRenderPass();
 

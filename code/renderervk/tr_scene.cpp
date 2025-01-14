@@ -422,8 +422,10 @@ void RE_RenderScene(const refdef_t *fd)
 	tr.refdef.fov_x = fd->fov_x;
 	tr.refdef.fov_y = fd->fov_y;
 
-	std::memcpy(tr.refdef.vieworg, fd->vieworg, sizeof(tr.refdef.vieworg));
-	std::memcpy(tr.refdef.viewaxis, fd->viewaxis, sizeof(tr.refdef.viewaxis));
+	VectorCopy(fd->vieworg, tr.refdef.vieworg);
+	VectorCopy(fd->viewaxis[0], tr.refdef.viewaxis[0]);
+	VectorCopy(fd->viewaxis[1], tr.refdef.viewaxis[1]);
+	VectorCopy(fd->viewaxis[2], tr.refdef.viewaxis[2]);
 
 	tr.refdef.time = fd->time;
 	tr.refdef.rdflags = fd->rdflags;
@@ -433,10 +435,9 @@ void RE_RenderScene(const refdef_t *fd)
 	tr.refdef.areamaskModified = false;
 	if (!(tr.refdef.rdflags & RDF_NOWORLDMODEL))
 	{
-		int areaDiff;
-
 		// compare the area bits
-		areaDiff = 0;
+		int areaDiff = 0;
+
 		for (uint32_t i = 0; i < MAX_MAP_AREA_BYTES / sizeof(int); i++)
 		{
 			areaDiff |= ((int *)tr.refdef.areamask)[i] ^ ((int *)fd->areamask)[i];
@@ -514,11 +515,12 @@ void RE_RenderScene(const refdef_t *fd)
 
 	parms.stereoFrame = tr.refdef.stereoFrame;
 
-	std::memcpy(parms.ort.origin, fd->vieworg, sizeof(parms.ort.origin));
-	std::memcpy(parms.ort.axis, fd->viewaxis, sizeof(parms.ort.axis));
-	std::memcpy(parms.pvsOrigin, fd->vieworg, sizeof(parms.pvsOrigin));
+	VectorCopy(fd->vieworg, parms.ort.origin);
+	VectorCopy(fd->viewaxis[0], parms.ort.axis[0]);
+	VectorCopy(fd->viewaxis[1], parms.ort.axis[1]);
+	VectorCopy(fd->viewaxis[2], parms.ort.axis[2]);
 
-	// VectorCopy(fd->vieworg, parms.pvsOrigin);
+	VectorCopy(fd->vieworg, parms.pvsOrigin);
 
 	lastRenderCommand = static_cast<renderCommand_t>(tr.lastRenderCommand);
 	tr.drawSurfCmd = NULL;
