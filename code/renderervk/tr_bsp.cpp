@@ -2365,25 +2365,25 @@ R_LoadEntities
 */
 static void R_LoadEntities(const lump_t *l)
 {
-	const char *p, *token, *s;
-	char keyname[MAX_TOKEN_CHARS];
+	const char *p;
+	std::string_view token, s;
+	std::array<char, MAX_TOKEN_CHARS> keyname;
 	char value[MAX_TOKEN_CHARS], *v[3];
-	world_t *w;
 
-	w = &s_worldData;
-	w->lightGridSize[0] = 64;
-	w->lightGridSize[1] = 64;
-	w->lightGridSize[2] = 128;
+	world_t &w = s_worldData;
+	w.lightGridSize[0] = 64;
+	w.lightGridSize[1] = 64;
+	w.lightGridSize[2] = 128;
 
 	p = (const char *)(fileBase + l->fileofs);
 
 	// store for reference by the cgame
-	w->entityString = static_cast<char *>(ri.Hunk_Alloc(l->filelen + 1, h_low));
-	strcpy(w->entityString, p);
-	w->entityParsePoint = w->entityString;
+	w.entityString = static_cast<char *>(ri.Hunk_Alloc(l->filelen + 1, h_low));
+	strcpy(w.entityString, p);
+	w.entityParsePoint = w.entityString;
 
-	token = COM_ParseExt(&p, true);
-	if (*token != '{')
+	token = COM_ParseExt_cpp(&p, true);
+	if (!token.empty() && token.front() != '{')
 	{
 		return;
 	}
@@ -2392,26 +2392,26 @@ static void R_LoadEntities(const lump_t *l)
 	while (1)
 	{
 		// parse key
-		token = COM_ParseExt(&p, true);
+		token = COM_ParseExt_cpp(&p, true);
 
-		if (!*token || *token == '}')
+		if (token.empty() || token.front() == '}')
 		{
 			break;
 		}
-		Q_strncpyz(keyname, token, sizeof(keyname));
+		Q_strncpyz_cpp(keyname, token, sizeof(keyname));
 
 		// parse value
-		token = COM_ParseExt(&p, true);
+		token = COM_ParseExt_cpp(&p, true);
 
-		if (!*token || *token == '}')
+		if (token.empty() || token.front() == '}')
 		{
 			break;
 		}
-		Q_strncpyz(value, token, sizeof(value));
+		Q_strncpyz(value, token.data(), sizeof(value));
 
 		// check for remapping of shaders for vertex lighting
 		s = "vertexremapshader";
-		if (!Q_strncmp(keyname, s, strlen(s)))
+		if (!Q_strncmp_cpp(keyname.data(), s, s.size()))
 		{
 			char *vs = strchr(value, ';');
 			if (!vs)
@@ -2422,13 +2422,13 @@ static void R_LoadEntities(const lump_t *l)
 			*vs++ = '\0';
 			if (r_vertexLight->integer && tr.vertexLightingAllowed)
 			{
-				RE_RemapShader(value, s, "0");
+				RE_RemapShader(value, s.data(), "0");
 			}
 			continue;
 		}
 		// check for remapping of shaders
 		s = "remapshader";
-		if (!Q_strncmp(keyname, s, (int)strlen(s)))
+		if (!Q_strncmp_cpp(keyname.data(), s, s.size()))
 		{
 			char *vs = strchr(value, ';');
 			if (!vs)
@@ -2437,17 +2437,17 @@ static void R_LoadEntities(const lump_t *l)
 				break;
 			}
 			*vs++ = '\0';
-			RE_RemapShader(value, s, "0");
+			RE_RemapShader(value, s.data(), "0");
 			continue;
 		}
 		// check for a different grid size
-		if (!Q_stricmp_cpp(keyname, "gridsize"))
+		if (!Q_stricmp_cpp(ArrToStringView(keyname), "gridsize"))
 		{
 			// sscanf(value, "%f %f %f", &w->lightGridSize[0], &w->lightGridSize[1], &w->lightGridSize[2] );
 			Com_Split(value, v, 3, ' ');
-			w->lightGridSize[0] = Q_atof(v[0]);
-			w->lightGridSize[1] = Q_atof(v[1]);
-			w->lightGridSize[2] = Q_atof(v[2]);
+			w.lightGridSize[0] = Q_atof_cpp(v[0]);
+			w.lightGridSize[1] = Q_atof_cpp(v[1]);
+			w.lightGridSize[2] = Q_atof_cpp(v[2]);
 			continue;
 		}
 	}

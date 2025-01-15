@@ -1038,7 +1038,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			else if (!Q_stricmp_cpp(token, "portal"))
 			{
 				stage.bundle[0].alphaGen = AGEN_PORTAL;
-				token = COM_ParseExt(text, false);
+				token = COM_ParseExt_cpp(text, false);
 				if (token[0] == 0)
 				{
 					shader.portalRange = 256;
@@ -1253,9 +1253,7 @@ deformVertexes text[0-7]
 */
 static void ParseDeform(const char **text)
 {
-	std::string_view token;
-
-	token = COM_ParseExt_cpp(text, false);
+	std::string_view token = COM_ParseExt_cpp(text, false);
 	if (token[0] == 0)
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: missing deform parm in shader '%s'\n", shader.name);
@@ -1320,7 +1318,7 @@ static void ParseDeform(const char **text)
 		}
 		ds.bulgeHeight = Q_atof_cpp(token);
 
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes bulge parm in shader '%s'\n", shader.name);
@@ -1335,7 +1333,7 @@ static void ParseDeform(const char **text)
 	if (!Q_stricmp_cpp(token, "wave"))
 	{
 		float f;
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
@@ -1360,7 +1358,7 @@ static void ParseDeform(const char **text)
 
 	if (!Q_stricmp_cpp(token, "normal"))
 	{
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
@@ -1368,7 +1366,7 @@ static void ParseDeform(const char **text)
 		}
 		ds.deformationWave.amplitude = Q_atof_cpp(token);
 
-		token = COM_ParseExt(text, false);
+		token = COM_ParseExt_cpp(text, false);
 		if (token[0] == 0)
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
@@ -1386,7 +1384,7 @@ static void ParseDeform(const char **text)
 
 		for (i = 0; i < 3; i++)
 		{
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (token[0] == 0)
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
@@ -1400,7 +1398,7 @@ static void ParseDeform(const char **text)
 		return;
 	}
 
-	ri.Printf(PRINT_WARNING, "WARNING: unknown deformVertexes subtype '%s' found in shader '%s'\n", token, shader.name);
+	ri.Printf(PRINT_WARNING, "WARNING: unknown deformVertexes subtype '%s' found in shader '%s'\n", token.data(), shader.name);
 }
 
 /*
@@ -1412,7 +1410,7 @@ skyParms <outerbox> <cloudheight> <innerbox>
 */
 static void ParseSkyParms(const char **text)
 {
-	const char *token;
+	std::string_view token;
 	static const char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
 	char pathname[MAX_QPATH];
 	int i;
@@ -1424,17 +1422,17 @@ static void ParseSkyParms(const char **text)
 	}
 
 	// outerbox
-	token = COM_ParseExt(text, false);
-	if (token[0] == 0)
+	token = COM_ParseExt_cpp(text, false);
+	if (token.empty())
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: 'skyParms' missing parameter in shader '%s'\n", shader.name);
 		return;
 	}
-	if (strcmp(token, "-"))
+	if (strcmp(token.data(), "-"))
 	{
 		for (i = 0; i < 6; i++)
 		{
-			Com_sprintf(pathname, sizeof(pathname), "%s_%s.tga", token, suf[i]);
+			Com_sprintf(pathname, sizeof(pathname), "%s_%s.tga", token.data(), suf[i]);
 			shader.sky.outerbox[i] = R_FindImageFile(pathname, static_cast<imgFlags_t>(imgFlags | IMGFLAG_CLAMPTOEDGE));
 
 			if (!shader.sky.outerbox[i])
@@ -1445,13 +1443,13 @@ static void ParseSkyParms(const char **text)
 	}
 
 	// cloudheight
-	token = COM_ParseExt(text, false);
-	if (token[0] == 0)
+	token = COM_ParseExt_cpp(text, false);
+	if (token.empty())
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: 'skyParms' missing parameter in shader '%s'\n", shader.name);
 		return;
 	}
-	shader.sky.cloudHeight = Q_atof(token);
+	shader.sky.cloudHeight = Q_atof_cpp(token);
 	if (shader.sky.cloudHeight == 0.0)
 	{
 		shader.sky.cloudHeight = 512.0;
@@ -1459,17 +1457,17 @@ static void ParseSkyParms(const char **text)
 	R_InitSkyTexCoords(shader.sky.cloudHeight);
 
 	// innerbox
-	token = COM_ParseExt(text, false);
+	token = COM_ParseExt_cpp(text, false);
 	if (token[0] == 0)
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: 'skyParms' missing parameter in shader '%s'\n", shader.name);
 		return;
 	}
-	if (strcmp(token, "-"))
+	if (strcmp(token.data(), "-"))
 	{
 		for (i = 0; i < 6; i++)
 		{
-			Com_sprintf(pathname, sizeof(pathname), "%s_%s.tga", token, suf[i]);
+			Com_sprintf(pathname, sizeof(pathname), "%s_%s.tga", token.data(), suf[i]);
 			shader.sky.innerbox[i] = R_FindImageFile(pathname, imgFlags);
 			if (!shader.sky.innerbox[i])
 			{
@@ -1636,7 +1634,7 @@ typedef enum
 	maskAND
 } resultMask;
 
-static void derefVariable(std::string_view name, char *buf, int size)
+static void derefVariable(std::string_view name, char *buf, const int size)
 {
 	if (!Q_stricmp_cpp(name, "vid_width"))
 	{
@@ -1850,13 +1848,13 @@ FinishStage
 */
 static void FinishStage(shaderStage_t &stage)
 {
-	int n;
-	std::size_t i;
-
 	if (!tr.mergeLightmaps)
 	{
 		return;
 	}
+
+	int n;
+	std::size_t i;
 
 	for (i = 0; i < arrayLen(stage.bundle); i++)
 	{
@@ -1866,13 +1864,13 @@ static void FinishStage(shaderStage_t &stage)
 		{
 			if (bundle.tcGen == TCGEN_LIGHTMAP)
 			{
-				texModInfo_t *tmi = &bundle.texMods[bundle.numTexMods];
+				texModInfo_t &tmi = bundle.texMods[bundle.numTexMods];
 				float x, y;
 				const int lightmapIndex = R_GetLightmapCoords(bundle.lightmap - LIGHTMAP_INDEX_OFFSET, x, y);
 				bundle.image[0] = tr.lightmaps[lightmapIndex];
-				tmi->type = TMOD_OFFSET;
-				tmi->offset[0] = x - tr.lightmapOffset[0];
-				tmi->offset[1] = y - tr.lightmapOffset[1];
+				tmi.type = TMOD_OFFSET;
+				tmi.offset[0] = x - tr.lightmapOffset[0];
+				tmi.offset[1] = y - tr.lightmapOffset[1];
 				bundle.numTexMods++;
 			}
 			continue;
@@ -1882,23 +1880,23 @@ static void FinishStage(shaderStage_t &stage)
 		{
 			if (bundle.tcGen != TCGEN_LIGHTMAP)
 			{
-				texModInfo_t *tmi = &bundle.texMods[bundle.numTexMods];
-				tmi->type = TMOD_SCALE_OFFSET;
-				tmi->scale[0] = tr.lightmapScale[0];
-				tmi->scale[1] = tr.lightmapScale[1];
-				tmi->offset[0] = tr.lightmapOffset[0];
-				tmi->offset[1] = tr.lightmapOffset[1];
+				texModInfo_t &tmi = bundle.texMods[bundle.numTexMods];
+				tmi.type = TMOD_SCALE_OFFSET;
+				tmi.scale[0] = tr.lightmapScale[0];
+				tmi.scale[1] = tr.lightmapScale[1];
+				tmi.offset[0] = tr.lightmapOffset[0];
+				tmi.offset[1] = tr.lightmapOffset[1];
 				bundle.numTexMods++;
 			}
 			else
 			{
 				for (n = 0; n < bundle.numTexMods; n++)
 				{
-					texModInfo_t *tmi = &bundle.texMods[n];
-					if (tmi->type == TMOD_TRANSFORM)
+					texModInfo_t &tmi = bundle.texMods[n];
+					if (tmi.type == TMOD_TRANSFORM)
 					{
-						tmi->translate[0] *= tr.lightmapScale[0];
-						tmi->translate[1] *= tr.lightmapScale[1];
+						tmi.translate[0] *= tr.lightmapScale[0];
+						tmi.translate[1] *= tr.lightmapScale[1];
 					}
 					else
 					{
@@ -1913,17 +1911,16 @@ static void FinishStage(shaderStage_t &stage)
 		{
 			if (bundle.tcGen == TCGEN_LIGHTMAP && shader.lightmapIndex >= 0)
 			{
-				texModInfo_t *tmi;
 				for (n = bundle.numTexMods; n > 0; --n)
 				{
 					bundle.texMods[n] = bundle.texMods[n - 1];
 				}
-				tmi = &bundle.texMods[0];
-				tmi->type = TMOD_OFFSET_SCALE;
-				tmi->offset[0] = -tr.lightmapOffset[0];
-				tmi->offset[1] = -tr.lightmapOffset[1];
-				tmi->scale[0] = 1.0f / tr.lightmapScale[0];
-				tmi->scale[1] = 1.0f / tr.lightmapScale[1];
+				texModInfo_t &tmi = bundle.texMods[0];
+				tmi.type = TMOD_OFFSET_SCALE;
+				tmi.offset[0] = -tr.lightmapOffset[0];
+				tmi.offset[1] = -tr.lightmapOffset[1];
+				tmi.scale[0] = 1.0f / tr.lightmapScale[0];
+				tmi.scale[1] = 1.0f / tr.lightmapScale[1];
 				bundle.numTexMods++;
 			}
 		}
@@ -4015,16 +4012,16 @@ most world construction surfaces.
 */
 shader_t *R_FindShader(std::string name, int lightmapIndex, const bool mipRawImage)
 {
+	if (name.empty())
+	{
+		return tr.defaultShader;
+	}
+
 	std::array<char, MAX_QPATH> strippedName;
 	unsigned long hash;
 	const char *shaderText;
 	image_t *image;
 	shader_t *sh;
-
-	if (name[0] == '\0')
-	{
-		return tr.defaultShader;
-	}
 
 	// use (fullbright) vertex lighting if the bsp file doesn't have
 	// lightmaps
@@ -4222,8 +4219,6 @@ way to ask for different implicit lighting modes (vertex, lightmap, etc)
 */
 qhandle_t RE_RegisterShader(const char *name)
 {
-	shader_t *sh;
-
 	if (!name)
 	{
 		ri.Printf(PRINT_ALL, "NULL shader\n");
@@ -4236,7 +4231,7 @@ qhandle_t RE_RegisterShader(const char *name)
 		return 0;
 	}
 
-	sh = R_FindShader(std::string(name), LIGHTMAP_2D, true);
+	shader_t *sh = R_FindShader(std::string(name), LIGHTMAP_2D, true);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should
@@ -4393,8 +4388,9 @@ constexpr int MAX_SHADER_FILES = 16384;
 static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char **buffers)
 {
 	char filename[MAX_QPATH + 8];
-	char shaderName[MAX_QPATH];
-	const char *p, *token;
+	std::array<char, MAX_QPATH> shaderName;
+	const char *p;
+	std::string_view token;
 	long summand, sum = 0;
 	int shaderLine;
 	int i;
@@ -4440,22 +4436,22 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 
 		while (1)
 		{
-			token = COM_ParseExt(&p, true);
+			token = COM_ParseExt_cpp(&p, true);
 
-			if (!*token)
+			if (token.empty())
 				break;
 
-			Q_strncpyz(shaderName, token, sizeof(shaderName));
+			Q_strncpyz_cpp(shaderName, token, sizeof(shaderName));
 			shaderLine = COM_GetCurrentParseLine();
 
-			token = COM_ParseExt(&p, true);
+			token = COM_ParseExt_cpp(&p, true);
 			if (token[0] != '{' || token[1] != '\0')
 			{
 				ri.Printf(PRINT_DEVELOPER, "File %s: shader \"%s\" "
 										   "on line %d missing opening brace",
-						  filename, shaderName, shaderLine);
-				if (token[0])
-					ri.Printf(PRINT_DEVELOPER, " (found \"%s\" on line %d)\n", token, COM_GetCurrentParseLine());
+						  filename, shaderName.data(), shaderLine);
+				if (token.empty())
+					ri.Printf(PRINT_DEVELOPER, " (found \"%s\" on line %d)\n", token.data(), COM_GetCurrentParseLine());
 				else
 					ri.Printf(PRINT_DEVELOPER, "\n");
 
@@ -4476,7 +4472,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: Ignoring shader file %s. Shader \"%s\" "
 										 "on line %d missing closing brace.\n",
-						  filename, shaderName, shaderLine);
+						  filename, shaderName.data(), shaderLine);
 				ri.FS_FreeFile(buffers[i]);
 				buffers[i] = NULL;
 				break;
@@ -4518,7 +4514,8 @@ static void ScanAndLoadShaderFiles(void)
 	char *xbuffers[MAX_SHADER_FILES];
 	int numShaderFiles, numShaderxFiles;
 	int i;
-	const char *token, *hashMem;
+	const char *hashMem;
+	std::string_view token;
 	char *textEnd;
 	const char *p, *oldp;
 	int shaderTextHashTableSizes[MAX_SHADERTEXT_HASH], hash, size;
@@ -4605,12 +4602,12 @@ static void ScanAndLoadShaderFiles(void)
 	// look for shader names
 	while (1)
 	{
-		token = COM_ParseExt(&p, true);
+		token = COM_ParseExt_cpp(&p, true);
 		if (token[0] == 0)
 		{
 			break;
 		}
-		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
+		hash = generateHashValue(token.data(), MAX_SHADERTEXT_HASH);
 		shaderTextHashTableSizes[hash]++;
 		size++;
 		SkipBracedSection(&p, 0);
@@ -4631,13 +4628,13 @@ static void ScanAndLoadShaderFiles(void)
 	while (1)
 	{
 		oldp = p;
-		token = COM_ParseExt(&p, true);
+		token = COM_ParseExt_cpp(&p, true);
 		if (token[0] == 0)
 		{
 			break;
 		}
 
-		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
+		hash = generateHashValue(token.data(), MAX_SHADERTEXT_HASH);
 		shaderTextHashTable[hash][--shaderTextHashTableSizes[hash]] = (char *)oldp;
 
 		SkipBracedSection(&p, 0);

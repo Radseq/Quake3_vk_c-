@@ -10,22 +10,12 @@
 #include <algorithm> // For std::min
 
 template <std::size_t Size>
-void Q_strncpyz_cpp(std::array<char, Size> &dest, std::string_view src)
+constexpr std::string_view ArrToStringView(std::array<char, Size> &src)
 {
-    if (Size < 1)
-    {
-        throw std::invalid_argument("Q_strncpyz_cpp: dest size < 1");
-    }
-
-    // Determine the number of characters to copy
-    std::size_t length = std::min<std::size_t>(Size - 1, src.size()); // Leave room for null-terminator
-
-    // Copy the characters
-    std::copy_n(src.begin(), length, dest.begin());
-
-    // Null-terminate the destination array
-    dest[length] = '\0';
+    return std::string_view(src.data(), Size);
 }
+
+int Q_strncmp_cpp(std::string_view s1, std::string_view s2, size_t n);
 
 template <std::size_t Size>
 void Q_strncpyz_cpp(std::array<char, Size> &dest, std::string_view src, std::size_t max_cpy_size)
@@ -150,7 +140,7 @@ void COM_StripExtension_cpp(std::string_view in, std::array<char, Size> &dest)
     std::string_view substring = in.substr(0, copyLength);
 
     // Use Q_strncpyz_cpp to copy the substring to the destination array
-    Q_strncpyz_cpp(dest, substring);
+    Q_strncpyz_cpp(dest, substring, dest.size());
 }
 
 std::string_view COM_ParseExt_cpp(const char **text, bool allowLineBreaks);

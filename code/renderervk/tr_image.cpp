@@ -510,7 +510,7 @@ static void R_BlendOverTexture(byte *data, int pixelCount, int mipLevel)
 		{255, 0, 255, 128}};
 
 	const byte *blend = blendColors[(mipLevel - 1) % arrayLen(blendColors)];
-	
+
 	int i;
 	int inverseAlpha = 255 - blend[3];
 	int premult[3]{
@@ -977,12 +977,12 @@ image_t *R_CreateImage(std::string_view name, std::string_view name2, byte *pic,
 	image = static_cast<image_t *>(ri.Hunk_Alloc(sizeof(*image) + namelen + namelen2, h_low));
 	image->imgName = (char *)(image + 1);
 	strcpy(image->imgName, name.data());
-	//std::memcpy(image->imgName, name.data(), name.size());
+	// std::memcpy(image->imgName, name.data(), name.size());
 	if (namelen2)
 	{
 		image->imgName2 = image->imgName + namelen;
 		strcpy(image->imgName2, name2.data());
-		//std::memcpy(image->imgName2, name2.data(), name2.size());
+		// std::memcpy(image->imgName2, name2.data(), name2.size());
 	}
 	else
 	{
@@ -1038,7 +1038,7 @@ static std::array<char, MAX_QPATH> R_LoadImage(std::string_view name, byte **pic
 	*width = 0;
 	*height = 0;
 
-	Q_strncpyz_cpp(localName, name);
+	Q_strncpyz_cpp(localName, name, localName.size());
 
 	ext = COM_GetExtension_cpp(localName);
 	if (!ext.empty())
@@ -1095,7 +1095,7 @@ static std::array<char, MAX_QPATH> R_LoadImage(std::string_view name, byte **pic
 					name, altName);
 			}
 #endif
-			Q_strncpyz_cpp(localName, altName.data());
+			Q_strncpyz_cpp(localName, altName, localName.size());
 			break;
 		}
 	}

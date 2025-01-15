@@ -329,7 +329,7 @@ static void JointToMatrix(const quat_t rot, const vec3_t &scale, const vec3_t &t
 }
 
 static void ComputePoseMats(iqmData_t &data, const int frame, const int oldframe,
-	const float backlerp, float *poseMats)
+							const float backlerp, float *poseMats)
 {
 	iqmTransform_t relativeJoints[IQM_MAX_JOINTS]{};
 	iqmTransform_t *relativeJoint;
@@ -397,7 +397,7 @@ static void ComputePoseMats(iqmData_t &data, const int frame, const int oldframe
 }
 
 static void ComputeJointMats(iqmData_t &data, const int frame, const int oldframe,
-	const float backlerp, float *mat)
+							 const float backlerp, float *mat)
 {
 	float *mat1;
 	int i;
@@ -422,8 +422,8 @@ static void ComputeJointMats(iqmData_t &data, const int frame, const int oldfram
 }
 
 int R_IQMLerpTag(orientation_t &tag, iqmData_t &data,
-	const int startFrame, const int endFrame,
-	const float frac, const char *tagName)
+				 const int startFrame, const int endFrame,
+				 const float frac, const char *tagName)
 {
 	float jointMats[IQM_MAX_JOINTS * 12];
 	int joint;
@@ -698,7 +698,7 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 }
 
 static bool IQM_CheckRange(iqmHeader_t *header, const int offset,
-	const int count, const int size)
+						   const int count, const int size)
 {
 	// return true if the range specified by offset, count and size
 	// doesn't fit into the file
@@ -799,7 +799,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, const int filesize, std::string_view 
 
 	iqmHeader_t *header = static_cast<iqmHeader_t *>(buffer);
 
-	if (Q_strncmp(header->magic, IQM_MAGIC, sizeof(header->magic)))
+	if (Q_strncmp_cpp(header->magic, IQM_MAGIC, sizeof(header->magic)))
 	{
 		return false;
 	}
@@ -1042,8 +1042,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, const int filesize, std::string_view 
 
 			if (mesh->name < header->num_text)
 			{
-				std::string_view text_str((char*)buffer + header->ofs_text + mesh->name);
-				Q_strncpyz_cpp(meshName, text_str);
+				std::string_view text_str((char *)buffer + header->ofs_text + mesh->name);
+				Q_strncpyz_cpp(meshName, text_str, meshName.size());
 			}
 			else
 			{

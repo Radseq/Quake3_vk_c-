@@ -4,6 +4,22 @@
 #include <charconv>
 #include "tr_local.hpp"
 
+int Q_strncmp_cpp(std::string_view s1, std::string_view s2, size_t n)
+{
+    size_t min_length = std::min(n, std::min(s1.size(), s2.size()));
+
+    for (size_t i = 0; i < min_length; ++i)
+    {
+        if (s1[i] != s2[i])
+        {
+            return s1[i] < s2[i] ? -1 : 1;
+        }
+    }
+
+    // If we compared `n` characters or reached the end of either string, they're equal up to this point
+    return 0;
+}
+
 std::string_view COM_GetExtension_cpp(std::string_view name)
 {
     auto dot = name.find_last_of('.');

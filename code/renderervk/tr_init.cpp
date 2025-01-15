@@ -901,7 +901,7 @@ static void R_PrintLongString(const char *string)
 	p = string;
 	while (size > 0)
 	{
-		Q_strncpyz_cpp(buffer, p);
+		Q_strncpyz_cpp(buffer, p, buffer.size());
 		ri.Printf(PRINT_DEVELOPER, "%s", buffer.data());
 		p += 1023;
 		size -= 1023;
