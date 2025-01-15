@@ -357,13 +357,13 @@ R_LoadMergedLightmaps
 */
 static void R_LoadMergedLightmaps(const lump_t &l, byte *image)
 {
+	if (l.filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
+		return;
+		
 	const byte *buf;
 	int offs;
 	int i, x, y;
 	float maxIntensity = 0;
-
-	if (l.filelen < LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3)
-		return;
 
 	buf = fileBase + l.fileofs;
 
@@ -534,15 +534,14 @@ ShaderForShaderNum
 */
 static shader_t *ShaderForShaderNum(const int shaderNum, int lightmapNum)
 {
-	shader_t *shader;
-	const dshader_t *dsh;
-
 	if (shaderNum < 0 || shaderNum >= s_worldData.numShaders)
 	{
 		ri.Error(ERR_DROP, "ShaderForShaderNum: bad num %i", shaderNum);
 	}
 
-	dsh = &s_worldData.shaders[shaderNum];
+	shader_t *shader;
+
+	const dshader_t &dsh = s_worldData.shaders[shaderNum];
 
 	if ((r_vertexLight->integer && tr.vertexLightingAllowed) || glConfig.hardwareType == GLHW_PERMEDIA2)
 	{
@@ -554,7 +553,7 @@ static shader_t *ShaderForShaderNum(const int shaderNum, int lightmapNum)
 		lightmapNum = LIGHTMAP_WHITEIMAGE;
 	}
 
-	shader = R_FindShader(dsh->shader, lightmapNum, true);
+	shader = R_FindShader(dsh.shader, lightmapNum, true);
 
 	// if the shader had errors, just use default shader
 	if (shader->defaultShader)
@@ -982,7 +981,7 @@ R_MergedWidthPoints
 returns true if there are grid points merged on a width edge
 =================
 */
-static bool R_MergedWidthPoints(const srfGridMesh_t &grid, int offset)
+static bool R_MergedWidthPoints(const srfGridMesh_t &grid, const int offset)
 {
 	int i, j;
 
@@ -2319,42 +2318,41 @@ static void R_LoadLightGrid(const lump_t *l)
 	int i;
 	vec3_t maxs{};
 	int numGridPoints;
-	world_t *w;
 	float *wMins, *wMaxs;
 
-	w = &s_worldData;
+	world_t &w = s_worldData;
 
-	w->lightGridInverseSize[0] = 1.0f / w->lightGridSize[0];
-	w->lightGridInverseSize[1] = 1.0f / w->lightGridSize[1];
-	w->lightGridInverseSize[2] = 1.0f / w->lightGridSize[2];
+	w.lightGridInverseSize[0] = 1.0f / w.lightGridSize[0];
+	w.lightGridInverseSize[1] = 1.0f / w.lightGridSize[1];
+	w.lightGridInverseSize[2] = 1.0f / w.lightGridSize[2];
 
-	wMins = w->bmodels[0].bounds[0];
-	wMaxs = w->bmodels[0].bounds[1];
+	wMins = w.bmodels[0].bounds[0];
+	wMaxs = w.bmodels[0].bounds[1];
 
 	for (i = 0; i < 3; i++)
 	{
-		w->lightGridOrigin[i] = w->lightGridSize[i] * ceil(wMins[i] / w->lightGridSize[i]);
-		maxs[i] = w->lightGridSize[i] * floor(wMaxs[i] / w->lightGridSize[i]);
-		w->lightGridBounds[i] = (maxs[i] - w->lightGridOrigin[i]) / w->lightGridSize[i] + 1;
+		w.lightGridOrigin[i] = w.lightGridSize[i] * ceil(wMins[i] / w.lightGridSize[i]);
+		maxs[i] = w.lightGridSize[i] * floor(wMaxs[i] / w.lightGridSize[i]);
+		w.lightGridBounds[i] = (maxs[i] - w.lightGridOrigin[i]) / w.lightGridSize[i] + 1;
 	}
 
-	numGridPoints = w->lightGridBounds[0] * w->lightGridBounds[1] * w->lightGridBounds[2];
+	numGridPoints = w.lightGridBounds[0] * w.lightGridBounds[1] * w.lightGridBounds[2];
 
 	if (l->filelen != numGridPoints * 8)
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: light grid mismatch\n");
-		w->lightGridData = NULL;
+		w.lightGridData = NULL;
 		return;
 	}
 
-	w->lightGridData = static_cast<byte *>(ri.Hunk_Alloc(l->filelen, h_low));
-	Com_Memcpy(w->lightGridData, (void *)(fileBase + l->fileofs), l->filelen);
+	w.lightGridData = static_cast<byte *>(ri.Hunk_Alloc(l->filelen, h_low));
+	Com_Memcpy(w.lightGridData, (void *)(fileBase + l->fileofs), l->filelen);
 
 	// deal with overbright bits
 	for (i = 0; i < numGridPoints; i++)
 	{
-		R_ColorShiftLightingBytes(&w->lightGridData[i * 8], &w->lightGridData[i * 8], false);
-		R_ColorShiftLightingBytes(&w->lightGridData[i * 8 + 3], &w->lightGridData[i * 8 + 3], false);
+		R_ColorShiftLightingBytes(&w.lightGridData[i * 8], &w.lightGridData[i * 8], false);
+		R_ColorShiftLightingBytes(&w.lightGridData[i * 8 + 3], &w.lightGridData[i * 8 + 3], false);
 	}
 }
 

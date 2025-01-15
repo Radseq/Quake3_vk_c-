@@ -158,7 +158,7 @@ void R_SkinList_f()
 	ri.Printf(PRINT_ALL, "------------------\n");
 }
 
-void R_GammaCorrect(byte *buffer, int bufSize)
+void R_GammaCorrect(byte *buffer, const int bufSize)
 {
 	int i;
 	if (vk_inst.capture.image)

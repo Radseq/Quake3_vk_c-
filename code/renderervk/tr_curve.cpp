@@ -66,7 +66,7 @@ static void LerpDrawVert(const drawVert_t &a, const drawVert_t &b, drawVert_t &o
 Transpose
 ============
 */
-static void Transpose(int width, int height, drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE])
+static void Transpose(const int width, const int height, drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE])
 {
 	int i, j;
 	drawVert_t temp;

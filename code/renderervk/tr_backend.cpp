@@ -608,9 +608,7 @@ RB_SetColor
 */
 static const void *RB_SetColor(const void *data)
 {
-	const setColorCommand_t *cmd;
-
-	cmd = (const setColorCommand_t *)data;
+	const setColorCommand_t *cmd = (const setColorCommand_t *)data;
 
 	backEnd.color2D.rgba[0] = cmd->color[0] * 255;
 	backEnd.color2D.rgba[1] = cmd->color[1] * 255;
@@ -704,19 +702,19 @@ static void transform_to_eye_space(const vec3_t v, vec3_t &v_eye)
 RB_DebugPolygon
 ================
 */
-static void RB_DebugPolygon(int color, int numPoints, float *points)
+static void RB_DebugPolygon(const int color, const int numPoints, float *points)
 {
+	if (numPoints < 3)
+	{
+		return;
+	}
+
 	vec3_t pa;
 	vec3_t pb;
 	vec3_t p{};
 	vec3_t q{};
 	vec3_t n;
 	int i;
-
-	if (numPoints < 3)
-	{
-		return;
-	}
 
 	transform_to_eye_space(&points[0], pa);
 	transform_to_eye_space(&points[3], pb);
@@ -790,7 +788,6 @@ Visualization aid for movement clipping debugging
 */
 static void RB_DebugGraphics(void)
 {
-
 	if (!r_debugSurface->integer)
 	{
 		return;
