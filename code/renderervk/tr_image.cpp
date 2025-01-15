@@ -448,7 +448,7 @@ void R_ImageList_f(void)
 			sizeSuffix = "Gb";
 		}
 
-		if (Q_stricmp(image->imgName, image->imgName2) == 0)
+		if (Q_stricmp_cpp(image->imgName, image->imgName2) == 0)
 		{
 			name = image->imgName;
 		}
@@ -1622,7 +1622,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 	for (hSkin = 1; hSkin < tr.numSkins; hSkin++)
 	{
 		skin = tr.skins[hSkin];
-		if (!Q_stricmp(skin->name, name))
+		if (!Q_stricmp_cpp(skin->name, name))
 		{
 			if (skin->numSurfaces == 0)
 			{

@@ -36,7 +36,7 @@ void Q_strncpyz_cpp(std::array<char, Size> &dest, std::string_view src, std::siz
     }
 
     // Determine the number of characters to copy
-    std::size_t length = std::min<std::size_t>({ Size - 1, max_cpy_size, src.size() }); // Leave room for null-terminator
+    std::size_t length = std::min<std::size_t>({Size - 1, max_cpy_size, src.size()}); // Leave room for null-terminator
 
     // Copy the characters
     std::copy_n(src.begin(), length, dest.begin());
@@ -59,29 +59,47 @@ inline constexpr bool strrchr_sv(std::string_view sv, char character)
     return false;
 }
 
+// portable case insensitive compare
 inline constexpr int Q_stricmp_cpp(std::string_view s1, std::string_view s2)
 {
-    // Compare lengths first for a quick check
-    if (s1.size() != s2.size())
-        return s1.size() < s2.size() ? -1 : 1;
+    // // Compare lengths first for a quick check
+    // if (s1.size() != s2.size())
+    //     return s1.size() < s2.size() ? -1 : 1;
 
-    // Compare characters one by one
-    for (size_t i = 0; i < s1.size(); ++i)
+    // // Compare characters one by one
+    // for (size_t i = 0; i < s1.size(); ++i)
+    // {
+    //     char c1 = s1[i];
+    //     char c2 = s2[i];
+
+    //     // Convert to lowercase if uppercase
+    //     if (c1 >= 'A' && c1 <= 'Z')
+    //         c1 += 'a' - 'A';
+    //     if (c2 >= 'A' && c2 <= 'Z')
+    //         c2 += 'a' - 'A';
+
+    //     // Compare characters
+    //     if (c1 != c2)
+    //         return c1 < c2 ? -1 : 1;
+    // }
+    // return 0; // Strings are equal
+
+    auto to_lower = [](char c)
+    { return std::tolower(static_cast<unsigned char>(c)); };
+
+    auto it1 = s1.begin(), it2 = s2.begin();
+    while (it1 != s1.end() && it2 != s2.end())
     {
-        char c1 = s1[i];
-        char c2 = s2[i];
-
-        // Convert to lowercase if uppercase
-        if (c1 >= 'A' && c1 <= 'Z')
-            c1 += 'a' - 'A';
-        if (c2 >= 'A' && c2 <= 'Z')
-            c2 += 'a' - 'A';
-
-        // Compare characters
+        char c1 = to_lower(*it1++);
+        char c2 = to_lower(*it2++);
         if (c1 != c2)
+        {
             return c1 < c2 ? -1 : 1;
+        }
     }
-    return 0; // Strings are equal
+    if (it1 == s1.end() && it2 == s2.end())
+        return 0;
+    return it1 == s1.end() ? -1 : 1;
 }
 
 std::string_view COM_GetExtension_cpp(std::string_view name);
@@ -216,6 +234,5 @@ std::string_view va_cpp(const char *format, Args &&...args)
     // Return a string_view pointing to the formatted buffer
     return std::string_view(buf);
 }
-
 
 #endif // STRING_OPERATIONS_HPP

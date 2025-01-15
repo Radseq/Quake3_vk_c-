@@ -725,12 +725,12 @@ static void R_ScreenShot_f(void)
 		return;
 	}
 
-	if (Q_stricmp(ri.Cmd_Argv(0), "screenshotJPEG") == 0)
+	if (Q_stricmp_cpp(ri.Cmd_Argv(0), "screenshotJPEG") == 0)
 	{
 		typeMask = SCREENSHOT_JPG;
 		ext = "jpg";
 	}
-	else if (Q_stricmp(ri.Cmd_Argv(0), "screenshotBMP") == 0)
+	else if (Q_stricmp_cpp(ri.Cmd_Argv(0), "screenshotBMP") == 0)
 	{
 		typeMask = SCREENSHOT_BMP;
 		ext = "bmp";

@@ -386,7 +386,7 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 		return;
 	}
 
-	texModInfo_t& tmi = stage.bundle[0].texMods[stage.bundle[0].numTexMods];
+	texModInfo_t &tmi = stage.bundle[0].texMods[stage.bundle[0].numTexMods];
 	stage.bundle[0].numTexMods++;
 
 	std::string_view token = COM_ParseExt_cpp(text, false);
@@ -684,7 +684,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 				if (shader.noLightScale)
 					flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
-				stage.bundle[0].image[0] = R_FindImageFile(token.data(), flags);
+				stage.bundle[0].image[0] = R_FindImageFile(token, flags);
 
 				if (!stage.bundle[0].image[0])
 				{
@@ -731,7 +731,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			if (shader.noLightScale)
 				flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
 
-			stage.bundle[0].image[0] = R_FindImageFile(token.data(), flags);
+			stage.bundle[0].image[0] = R_FindImageFile(token, flags);
 
 			if (!stage.bundle[0].image[0])
 			{
@@ -779,7 +779,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 				num = stage.bundle[0].numImageAnimations;
 				if (num < maxAnimations)
 				{
-					stage.bundle[0].image[num] = R_FindImageFile(token.data(), flags);
+					stage.bundle[0].image[num] = R_FindImageFile(token, flags);
 					if (!stage.bundle[0].image[num])
 					{
 						ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n", token.data(), shader.name);
@@ -1271,25 +1271,25 @@ static void ParseDeform(const char **text)
 	deformStage_t &ds = shader.deforms[shader.numDeforms];
 	shader.numDeforms++;
 
-	if (!Q_stricmp(token, "projectionShadow"))
+	if (!Q_stricmp_cpp(token, "projectionShadow"))
 	{
 		ds.deformation = DEFORM_PROJECTION_SHADOW;
 		return;
 	}
 
-	if (!Q_stricmp(token, "autosprite"))
+	if (!Q_stricmp_cpp(token, "autosprite"))
 	{
 		ds.deformation = DEFORM_AUTOSPRITE;
 		return;
 	}
 
-	if (!Q_stricmp(token, "autosprite2"))
+	if (!Q_stricmp_cpp(token, "autosprite2"))
 	{
 		ds.deformation = DEFORM_AUTOSPRITE2;
 		return;
 	}
 
-	if (!Q_stricmpn(token, "text", 4))
+	if (!Q_stricmpn_cpp(token, "text", 4))
 	{
 		int n;
 
@@ -1302,7 +1302,7 @@ static void ParseDeform(const char **text)
 		return;
 	}
 
-	if (!Q_stricmp(token, "bulge"))
+	if (!Q_stricmp_cpp(token, "bulge"))
 	{
 		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
@@ -1310,7 +1310,7 @@ static void ParseDeform(const char **text)
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes bulge parm in shader '%s'\n", shader.name);
 			return;
 		}
-		ds.bulgeWidth = Q_atof(token);
+		ds.bulgeWidth = Q_atof_cpp(token);
 
 		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
@@ -1318,7 +1318,7 @@ static void ParseDeform(const char **text)
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes bulge parm in shader '%s'\n", shader.name);
 			return;
 		}
-		ds.bulgeHeight = Q_atof(token);
+		ds.bulgeHeight = Q_atof_cpp(token);
 
 		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
@@ -1326,13 +1326,13 @@ static void ParseDeform(const char **text)
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes bulge parm in shader '%s'\n", shader.name);
 			return;
 		}
-		ds.bulgeSpeed = Q_atof(token);
+		ds.bulgeSpeed = Q_atof_cpp(token);
 
 		ds.deformation = DEFORM_BULGE;
 		return;
 	}
 
-	if (!Q_stricmp(token, "wave"))
+	if (!Q_stricmp_cpp(token, "wave"))
 	{
 		float f;
 		token = COM_ParseExt(text, false);
@@ -1342,7 +1342,7 @@ static void ParseDeform(const char **text)
 			return;
 		}
 
-		f = Q_atof(token);
+		f = Q_atof_cpp(token);
 		if (f != 0.0f)
 		{
 			ds.deformationSpread = 1.0f / f;
@@ -1358,7 +1358,7 @@ static void ParseDeform(const char **text)
 		return;
 	}
 
-	if (!Q_stricmp(token, "normal"))
+	if (!Q_stricmp_cpp(token, "normal"))
 	{
 		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
@@ -1366,7 +1366,7 @@ static void ParseDeform(const char **text)
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
 			return;
 		}
-		ds.deformationWave.amplitude = Q_atof(token);
+		ds.deformationWave.amplitude = Q_atof_cpp(token);
 
 		token = COM_ParseExt(text, false);
 		if (token[0] == 0)
@@ -1374,13 +1374,13 @@ static void ParseDeform(const char **text)
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
 			return;
 		}
-		ds.deformationWave.frequency = Q_atof(token);
+		ds.deformationWave.frequency = Q_atof_cpp(token);
 
 		ds.deformation = DEFORM_NORMALS;
 		return;
 	}
 
-	if (!Q_stricmp(token, "move"))
+	if (!Q_stricmp_cpp(token, "move"))
 	{
 		int i;
 
@@ -1392,7 +1392,7 @@ static void ParseDeform(const char **text)
 				ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
 				return;
 			}
-			ds.moveVector[i] = Q_atof(token);
+			ds.moveVector[i] = Q_atof_cpp(token);
 		}
 
 		ParseWaveForm(text, ds.deformationWave);
@@ -1488,54 +1488,52 @@ ParseSort
 */
 static void ParseSort(const char **text)
 {
-	const char *token;
-
-	token = COM_ParseExt(text, false);
-	if (token[0] == 0)
+	std::string_view token = COM_ParseExt_cpp(text, false);
+	if (token.empty())
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: missing sort parameter in shader '%s'\n", shader.name);
 		return;
 	}
 
-	if (!Q_stricmp(token, "portal"))
+	if (!Q_stricmp_cpp(token, "portal"))
 	{
 		shader.sort = SS_PORTAL;
 	}
-	else if (!Q_stricmp(token, "sky"))
+	else if (!Q_stricmp_cpp(token, "sky"))
 	{
 		shader.sort = SS_ENVIRONMENT;
 	}
-	else if (!Q_stricmp(token, "opaque"))
+	else if (!Q_stricmp_cpp(token, "opaque"))
 	{
 		shader.sort = SS_OPAQUE;
 	}
-	else if (!Q_stricmp(token, "decal"))
+	else if (!Q_stricmp_cpp(token, "decal"))
 	{
 		shader.sort = SS_DECAL;
 	}
-	else if (!Q_stricmp(token, "seeThrough"))
+	else if (!Q_stricmp_cpp(token, "seeThrough"))
 	{
 		shader.sort = SS_SEE_THROUGH;
 	}
-	else if (!Q_stricmp(token, "banner"))
+	else if (!Q_stricmp_cpp(token, "banner"))
 	{
 		shader.sort = SS_BANNER;
 	}
-	else if (!Q_stricmp(token, "additive"))
+	else if (!Q_stricmp_cpp(token, "additive"))
 	{
 		shader.sort = SS_BLEND1;
 	}
-	else if (!Q_stricmp(token, "nearest"))
+	else if (!Q_stricmp_cpp(token, "nearest"))
 	{
 		shader.sort = SS_NEAREST;
 	}
-	else if (!Q_stricmp(token, "underwater"))
+	else if (!Q_stricmp_cpp(token, "underwater"))
 	{
 		shader.sort = SS_UNDERWATER;
 	}
 	else
 	{
-		shader.sort = Q_atof(token);
+		shader.sort = Q_atof_cpp(token);
 	}
 }
 

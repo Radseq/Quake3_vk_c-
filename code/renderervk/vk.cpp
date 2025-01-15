@@ -1079,7 +1079,7 @@ static void create_instance(void)
 		// search for duplicates
 		for (n = 0; n < extension_count; n++)
 		{
-			if (Q_stricmp(ext, extension_names[n]) == 0)
+			if (Q_stricmp_cpp(ext, extension_names[n]) == 0)
 			{
 				break;
 			}
@@ -1091,7 +1091,7 @@ static void create_instance(void)
 
 		extension_names[extension_count++] = ext;
 
-		if (Q_stricmp(ext, vk::KHRPortabilityEnumerationExtensionName) == 0)
+		if (Q_stricmp_cpp(ext, vk::KHRPortabilityEnumerationExtensionName) == 0)
 		{
 			flags |= vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
 		}

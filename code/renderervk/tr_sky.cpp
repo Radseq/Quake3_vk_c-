@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_vbo.hpp"
 #include "vk.hpp"
 #include "math.hpp"
+#include "string_operations.hpp"
 
 constexpr int SKY_SUBDIVISIONS = 8;
 constexpr int HALF_SKY_SUBDIVISIONS = (SKY_SUBDIVISIONS / 2);
@@ -702,7 +703,7 @@ void R_InitSkyTexCoords(float heightCloud)
 	vec3_t skyVec;
 	vec3_t v;
 
-	if (!Q_stricmp(glConfig.renderer_string, "GDI Generic") && !Q_stricmp(glConfig.version_string, "1.1.0"))
+	if (!Q_stricmp_cpp(glConfig.renderer_string, "GDI Generic") && !Q_stricmp_cpp(glConfig.version_string, "1.1.0"))
 	{
 		// fix skybox rendering on MS software GL implementation
 		sky_min_depth = 0.999f;
