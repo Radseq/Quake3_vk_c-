@@ -48,7 +48,7 @@ static edgeDef_t edgeDefs[SHADER_MAX_VERTEXES][MAX_EDGE_DEFS];
 static int numEdgeDefs[SHADER_MAX_VERTEXES];
 static int facing[SHADER_MAX_INDEXES / 3];
 
-static void R_AddEdgeDef(int i1, int i2, int f)
+static void R_AddEdgeDef(const int i1, const int i2, const int f)
 {
 	int c;
 
@@ -70,7 +70,6 @@ static void R_CalcShadowEdges(void)
 	int c, c2;
 	int j, k;
 	int i2;
-	color4ub_t *colors;
 
 	tess.numIndexes = 0;
 
@@ -122,7 +121,7 @@ static void R_CalcShadowEdges(void)
 
 	tess.numVertexes *= 2;
 
-	colors = &tess.svars.colors[0][0]; // we need at least 2x SHADER_MAX_VERTEXES there
+	color4ub_t *colors = &tess.svars.colors[0][0]; // we need at least 2x SHADER_MAX_VERTEXES there
 
 	for (i = 0; i < tess.numVertexes; i++)
 	{
@@ -144,15 +143,15 @@ triangleFromEdge[ v1 ][ v2 ]
 */
 void RB_ShadowTessEnd(void)
 {
-	int i;
-	int numTris;
-	vec3_t lightDir{};
-	uint32_t pipeline[2]{};
-
 	if (glConfig.stencilBits < 4)
 	{
 		return;
 	}
+
+	int i;
+	int numTris;
+	vec3_t lightDir{};
+	uint32_t pipeline[2]{};
 
 #ifdef USE_PMLIGHT
 	if (r_dlightMode->integer == 2 && r_shadows->integer == 2)
@@ -255,14 +254,6 @@ overlap and double darken.
 */
 void RB_ShadowFinish(void)
 {
-	float tmp[16];
-	int i;
-	static constexpr vec3_t verts[4] = {
-		{-100, 100, -10},
-		{100, 100, -10},
-		{-100, -100, -10},
-		{100, -100, -10}};
-
 	if (!backEnd.doneShadows)
 	{
 		return;
@@ -278,6 +269,14 @@ void RB_ShadowFinish(void)
 	{
 		return;
 	}
+
+	float tmp[16];
+	int i;
+	static constexpr vec3_t verts[4] = {
+		{-100, 100, -10},
+		{100, 100, -10},
+		{-100, -100, -10},
+		{100, -100, -10} };
 
 	Bind(tr.whiteImage);
 

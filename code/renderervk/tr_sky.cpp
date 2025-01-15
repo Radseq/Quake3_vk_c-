@@ -64,7 +64,7 @@ static float s_skyTexCoords[SKY_SUBDIVISIONS + 1][SKY_SUBDIVISIONS + 1][2];
 AddSkyPolygon
 ================
 */
-static void AddSkyPolygon(int nump, vec3_t vecs)
+static void AddSkyPolygon(const int nump, vec3_t vecs)
 {
 	int i, j;
 	vec3_t v{};
@@ -157,7 +157,7 @@ static void AddSkyPolygon(int nump, vec3_t vecs)
 ClipSkyPolygon
 ================
 */
-static void ClipSkyPolygon(int nump, vec3_t vecs, int stage)
+static void ClipSkyPolygon(const int nump, vec3_t vecs, const int stage)
 {
 	const float *norm;
 	float *v;
@@ -254,9 +254,7 @@ ClearSkyBox
 */
 static void ClearSkyBox(void)
 {
-	int i;
-
-	for (i = 0; i < 6; i++)
+	for (int i = 0; i < 6; i++)
 	{
 		sky_mins[0][i] = sky_mins[1][i] = 9999;
 		sky_maxs[0][i] = sky_maxs[1][i] = -9999;
@@ -315,14 +313,14 @@ static void MakeSkyVec(float s, float t, int axis, vec3_t &outXYZ)
 			{2, -1, -3}	 // look straight down
 		};
 
-	vec3_t b;
 	int j, k;
-	float boxSize;
 
-	boxSize = backEnd.viewParms.zFar / 1.75; // div sqrt(3)
-	b[0] = s * boxSize;
-	b[1] = t * boxSize;
-	b[2] = boxSize;
+	float boxSize = backEnd.viewParms.zFar / 1.75; // div sqrt(3)
+	vec3_t b{
+		s * boxSize,
+		t * boxSize,
+		boxSize
+	};
 
 	for (j = 0; j < 3; j++)
 	{
@@ -765,11 +763,11 @@ void R_InitSkyTexCoords(float heightCloud)
 /*
 ** RB_DrawSun
 */
-void RB_DrawSun(float scale, shader_t &shader)
+void RB_DrawSun(const float scale, shader_t &shader)
 {
 	float size;
 	float dist;
-	vec3_t origin, vec1, vec2;
+	vec3_t origin{}, vec1, vec2;
 	color4ub_t sunColor{};
 
 	if (!backEnd.skyRenderedThisView)

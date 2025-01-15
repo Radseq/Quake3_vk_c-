@@ -129,10 +129,9 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 		return;
 	}
 
-	srfPoly_t *poly;
 	int i, j;
 	int fogIndex;
-	const fog_t *fog;
+	
 	vec3_t bounds[2]{};
 
 #if 0
@@ -155,13 +154,13 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 			return;
 		}
 
-		poly = &backEndData->polys[r_numpolys];
-		poly->surfaceType = SF_POLY;
-		poly->hShader = hShader;
-		poly->numVerts = numVerts;
-		poly->verts = &backEndData->polyVerts[r_numpolyverts];
+		srfPoly_t& poly = backEndData->polys[r_numpolys];
+		poly.surfaceType = SF_POLY;
+		poly.hShader = hShader;
+		poly.numVerts = numVerts;
+		poly.verts = &backEndData->polyVerts[r_numpolyverts];
 
-		Com_Memcpy(poly->verts, &verts[numVerts * j], numVerts * sizeof(*verts));
+		Com_Memcpy(poly.verts, &verts[numVerts * j], numVerts * sizeof(*verts));
 #if 0
 		if ( glConfig.hardwareType == GLHW_RAGEPRO ) {
 			poly->verts->modulate[0] = 255;
@@ -187,16 +186,19 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 		else
 		{
 			// find which fog volume the poly is in
-			VectorCopy(poly->verts[0].xyz, bounds[0]);
-			VectorCopy(poly->verts[0].xyz, bounds[1]);
-			for (i = 1; i < poly->numVerts; i++)
+			VectorCopy(poly.verts[0].xyz, bounds[0]);
+			VectorCopy(poly.verts[0].xyz, bounds[1]);
+			for (i = 1; i < poly.numVerts; i++)
 			{
-				AddPointToBounds(poly->verts[i].xyz, bounds[0], bounds[1]);
+				AddPointToBounds(poly.verts[i].xyz, bounds[0], bounds[1]);
 			}
 			for (fogIndex = 1; fogIndex < tr.world->numfogs; fogIndex++)
 			{
-				fog = &tr.world->fogs[fogIndex];
-				if (bounds[1][0] >= fog->bounds[0][0] && bounds[1][1] >= fog->bounds[0][1] && bounds[1][2] >= fog->bounds[0][2] && bounds[0][0] <= fog->bounds[1][0] && bounds[0][1] <= fog->bounds[1][1] && bounds[0][2] <= fog->bounds[1][2])
+				const fog_t& fog = tr.world->fogs[fogIndex];
+				if (bounds[1][0] >= fog.bounds[0][0] && bounds[1][1] >= 
+					fog.bounds[0][1] && bounds[1][2] >= fog.bounds[0][2] &&
+					bounds[0][0] <= fog.bounds[1][0] && bounds[0][1] <= fog.bounds[1][1] && 
+					bounds[0][2] <= fog.bounds[1][2])
 				{
 					break;
 				}
@@ -206,7 +208,7 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 				fogIndex = 0;
 			}
 		}
-		poly->fogIndex = fogIndex;
+		poly.fogIndex = fogIndex;
 	}
 }
 
@@ -314,7 +316,6 @@ RE_AddLinearLightToScene
 */
 void RE_AddLinearLightToScene(const vec3_t start, const vec3_t end, float intensity, float r, float g, float b)
 {
-	dlight_t *dl;
 	if (VectorCompare(start, end))
 	{
 		RE_AddDynamicLightToScene(start, intensity, r, g, b, 0);
@@ -352,15 +353,15 @@ void RE_AddLinearLightToScene(const vec3_t start, const vec3_t end, float intens
 		b = LERP(luminance, b, r_dlightSaturation->value);
 	}
 
-	dl = &backEndData->dlights[r_numdlights++];
-	VectorCopy(start, dl->origin);
-	VectorCopy(end, dl->origin2);
-	dl->radius = intensity;
-	dl->color[0] = r;
-	dl->color[1] = g;
-	dl->color[2] = b;
-	dl->additive = 0;
-	dl->linear = true;
+	dlight_t &dl = backEndData->dlights[r_numdlights++];
+	VectorCopy(start, dl.origin);
+	VectorCopy(end, dl.origin2);
+	dl.radius = intensity;
+	dl.color[0] = r;
+	dl.color[1] = g;
+	dl.color[2] = b;
+	dl.additive = 0;
+	dl.linear = true;
 }
 
 /*
@@ -411,7 +412,6 @@ void RE_RenderScene(const refdef_t *fd)
 	}
 
 	renderCommand_t lastRenderCommand;
-	viewParms_t parms;
 
 	std::memcpy(tr.refdef.text, fd->text, sizeof(tr.refdef.text));
 
@@ -492,6 +492,7 @@ void RE_RenderScene(const refdef_t *fd)
 	// The refdef takes 0-at-the-top y coordinates, so
 	// convert to GL's 0-at-the-bottom space
 	//
+	viewParms_t parms;
 	std::memset(&parms, 0, sizeof(parms));
 	parms.viewportX = tr.refdef.x;
 	parms.viewportY = glConfig.vidHeight - (tr.refdef.y + tr.refdef.height);

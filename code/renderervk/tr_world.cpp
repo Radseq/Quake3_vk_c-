@@ -724,19 +724,16 @@ static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, un
 
 				for (i = 0; i < static_cast<int>(tr.refdef.num_dlights); i++)
 				{
-					const dlight_t *dl;
-					float dist;
-
 					if (dlightBits & (1 << i))
 					{
-						dl = &tr.refdef.dlights[i];
-						dist = DotProduct(dl->origin, node->plane->normal) - node->plane->dist;
+						const dlight_t& dl = tr.refdef.dlights[i];
+						float dist = DotProduct(dl.origin, node->plane->normal) - node->plane->dist;
 
-						if (dist > -dl->radius)
+						if (dist > -dl.radius)
 						{
 							newDlights[0] |= (1 << i);
 						}
-						if (dist < dl->radius)
+						if (dist < dl.radius)
 						{
 							newDlights[1] |= (1 << i);
 						}

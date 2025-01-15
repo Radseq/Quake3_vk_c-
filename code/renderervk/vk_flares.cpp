@@ -97,8 +97,6 @@ R_ClearFlares
 */
 void R_ClearFlares(void)
 {
-	int i;
-
 	if (!vk_inst.fragmentStores)
 		return;
 
@@ -106,7 +104,7 @@ void R_ClearFlares(void)
 	r_activeFlares = nullptr;
 	r_inactiveFlares = nullptr;
 
-	for (i = 0; i < MAX_FLARES; i++)
+	for (int i = 0; i < MAX_FLARES; i++)
 	{
 		r_flareStructs[i].next = r_inactiveFlares;
 		r_inactiveFlares = &r_flareStructs[i];
@@ -235,14 +233,14 @@ RB_AddDlightFlares
 */
 void RB_AddDlightFlares(void)
 {
-	dlight_t *l;
-	int j, k;
-	fog_t *fog = nullptr;
-
 	if (!r_flares->integer)
 	{
 		return;
 	}
+
+	dlight_t *l;
+	int j, k;
+	fog_t *fog = nullptr;
 
 	l = backEnd.refdef.dlights;
 
@@ -510,11 +508,6 @@ extend past the portal edge will be overwritten.
 */
 void RB_RenderFlares(void)
 {
-	flare_t *f;
-	flare_t **prev;
-	bool draw;
-	float *m;
-
 	if (!r_flares->integer)
 	{
 		return;
@@ -529,6 +522,11 @@ void RB_RenderFlares(void)
 	{
 		return;
 	}
+
+	flare_t *f;
+	flare_t **prev;
+	bool draw;
+	float *m;
 
 	// Reset currentEntity to world so that any previously referenced entities
 	// don't have influence on the rendering of these flares (i.e. RF_ renderer flags).

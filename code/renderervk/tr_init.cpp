@@ -363,7 +363,7 @@ Stores the length of padding after a line of pixels to address padlen
 Return value must be freed with ri.Hunk_FreeTempMemory()
 ==================
 */
-static byte *RB_ReadPixels(const int width, const int height, size_t *offset, int *padlen)
+static byte *RB_ReadPixels(const int width, const int height, size_t *offset, int &padlen)
 {
 	byte *buffer, *bufstart;
 	int linelen;
@@ -382,7 +382,7 @@ static byte *RB_ReadPixels(const int width, const int height, size_t *offset, in
 	vk_read_pixels(bufstart, width, height);
 
 	*offset = bufstart - buffer;
-	*padlen = PAD(linelen, packAlign) - linelen;
+	padlen = PAD(linelen, packAlign) - linelen;
 
 	return buffer;
 }
@@ -403,7 +403,7 @@ void RB_TakeScreenshot(const int x, const int y, const int width, const int heig
 	size_t offset, memcount;
 
 	offset = header_size;
-	allbuf = RB_ReadPixels(width, height, &offset, &padlen);
+	allbuf = RB_ReadPixels(width, height, &offset, padlen);
 	buffer = allbuf + offset - header_size;
 
 	Com_Memset(buffer, 0, header_size);
@@ -459,7 +459,7 @@ void RB_TakeScreenshotJPEG(const int x, const int y, const int width, const int 
 	size_t offset = 0, memcount;
 	int padlen;
 
-	buffer = RB_ReadPixels(width, height, &offset, &padlen);
+	buffer = RB_ReadPixels(width, height, &offset, padlen);
 	memcount = (width * 3 + padlen) * height;
 
 	// gamma correction
@@ -528,7 +528,7 @@ void RB_TakeScreenshotBMP(const int x, const int y, const int width, const int h
 
 	offset = header_size;
 
-	allbuf = RB_ReadPixels(width, height, &offset, &padlen);
+	allbuf = RB_ReadPixels(width, height, &offset, padlen);
 	buffer = allbuf + offset;
 
 	// scanline length
@@ -647,7 +647,7 @@ static void R_LevelShot(void)
 
 	Com_sprintf(checkname, sizeof(checkname), "levelshots/%s.tga", tr.world->baseName);
 
-	allsource = RB_ReadPixels(gls.captureWidth, gls.captureHeight, &offset, &padlen);
+	allsource = RB_ReadPixels(gls.captureWidth, gls.captureHeight, &offset, padlen);
 	source = allsource + offset;
 
 	buffer = reinterpret_cast<byte *>(ri.Hunk_AllocateTempMemory(128 * 128 * 3 + 18));
@@ -1443,7 +1443,7 @@ void R_Init(void)
 				}
 				else
 				{
-					tr.triangleTable[i] = (float)i / (FUNCTABLE_SIZE / 4);
+					tr.triangleTable[i] = static_cast<float>(i / (FUNCTABLE_SIZE / 4));
 				}
 			}
 			else

@@ -51,7 +51,7 @@ use the shader system.
 RB_CheckOverflow
 ==============
 */
-void RB_CheckOverflow(int verts, int indexes)
+void RB_CheckOverflow(const int verts, const int indexes)
 {
 	if (tess.numVertexes + verts < SHADER_MAX_VERTEXES && tess.numIndexes + indexes < SHADER_MAX_INDEXES)
 	{
@@ -78,7 +78,8 @@ void RB_CheckOverflow(int verts, int indexes)
 RB_AddQuadStampExt
 ==============
 */
-void RB_AddQuadStampExt(const vec3_t &origin, const vec3_t &left, const vec3_t &up, const color4ub_t &color, float s1, float t1, float s2, float t2)
+void RB_AddQuadStampExt(const vec3_t &origin, const vec3_t &left, const vec3_t &up, const color4ub_t &color, 
+	const float s1, const float t1, const float s2, const float t2)
 {
 	vec3_t normal{};
 	int ndx;
@@ -239,12 +240,9 @@ static void RB_SurfaceSprite(void)
 	}
 	else
 	{
-		float s, c;
-		float ang;
-
-		ang = M_PI * backEnd.currentEntity->e.rotation / 180.0;
-		s = sin(ang);
-		c = cos(ang);
+		float ang = M_PI * backEnd.currentEntity->e.rotation / 180.0;
+		float s = sin(ang);
+		float c = cos(ang);
 
 		VectorScale(backEnd.viewParms.ort.axis[1], c * radius, left);
 		VectorMA(left, -s * radius, backEnd.viewParms.ort.axis[2], left);
@@ -421,23 +419,22 @@ RB_SurfaceBeam
 static void RB_SurfaceBeam(void)
 {
 	constexpr int NUM_BEAM_SEGS = 6;
-	const refEntity_t *e;
 	int i;
 	vec3_t perpvec;
 	vec3_t direction{}, normalized_direction{};
 	vec3_t points[NUM_BEAM_SEGS + 1][2]{};
 
-	e = &backEnd.currentEntity->e;
+	const refEntity_t& e = backEnd.currentEntity->e;
 
 	vec3_t oldorigin{
-		e->oldorigin[0],
-		e->oldorigin[1],
-		e->oldorigin[2]};
+		e.oldorigin[0],
+		e.oldorigin[1],
+		e.oldorigin[2]};
 
 	vec3_t origin{
-		e->origin[0],
-		e->origin[1],
-		e->origin[2]};
+		e.origin[0],
+		e.origin[1],
+		e.origin[2]};
 
 	normalized_direction[0] = direction[0] = oldorigin[0] - origin[0];
 	normalized_direction[1] = direction[1] = oldorigin[1] - origin[1];
@@ -538,7 +535,7 @@ static void DoRailCore(const vec3_t &start, const vec3_t &end, const vec3_t &up,
 	tess.indexes[tess.numIndexes++] = vbase + 3;
 }
 
-static void DoRailDiscs(int numSegs, const vec3_t start, const vec3_t dir, const vec3_t right, const vec3_t up)
+static void DoRailDiscs(int numSegs, const vec3_t& start, const vec3_t& dir, const vec3_t& right, const vec3_t& up)
 {
 	if (numSegs > 1)
 		numSegs--;
@@ -604,17 +601,14 @@ static void DoRailDiscs(int numSegs, const vec3_t start, const vec3_t dir, const
 */
 static void RB_SurfaceRailRings(void)
 {
-	const refEntity_t *e;
 	int numSegs;
 	int len;
 	vec3_t vec{};
 	vec3_t right, up;
 	vec3_t start{}, end{};
 
-	e = &backEnd.currentEntity->e;
-
-	VectorCopy(e->oldorigin, start);
-	VectorCopy(e->origin, end);
+	VectorCopy(backEnd.currentEntity->e.oldorigin, start);
+	VectorCopy(backEnd.currentEntity->e.origin, end);
 
 	// compute variables
 	VectorSubtract(end, start, vec);
@@ -636,17 +630,14 @@ static void RB_SurfaceRailRings(void)
 */
 static void RB_SurfaceRailCore(void)
 {
-	const refEntity_t *e;
 	int len;
 	vec3_t right;
 	vec3_t vec{};
 	vec3_t start{}, end{};
 	vec3_t v1{}, v2{};
 
-	e = &backEnd.currentEntity->e;
-
-	VectorCopy(e->oldorigin, start);
-	VectorCopy(e->origin, end);
+	VectorCopy(backEnd.currentEntity->e.oldorigin, start);
+	VectorCopy(backEnd.currentEntity->e.origin, end);
 
 	VectorSubtract(end, start, vec);
 	len = VectorNormalize(vec);
@@ -993,7 +984,7 @@ static void RB_SurfaceFace(const srfSurfaceFace_t *surf)
 	tess.numVertexes += surf->numPoints;
 }
 
-static float LodErrorForVolume(vec3_t local, float radius)
+static float LodErrorForVolume(const vec3_t& local, const float radius)
 {
 	// never let it go negative
 	if (r_lodCurveError->value < 0)
