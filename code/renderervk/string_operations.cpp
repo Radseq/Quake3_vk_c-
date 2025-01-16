@@ -4,6 +4,66 @@
 #include <charconv>
 #include "tr_local.hpp"
 
+char *Q_stradd_large_cpp(char *dst, std::string_view src)
+{
+    // Move to the end of the destination string
+    char *end = dst + std::strlen(dst);
+
+    // Copy the source string to the end
+    std::memcpy(end, src.data(), src.size());
+
+    // Null-terminate the destination
+    end += src.size();
+    *end = '\0';
+
+    return end;
+}
+
+char *Q_stradd_small(char *dst, std::string_view src)
+{
+    for (char c : src)
+    {
+        *dst++ = c;
+    }
+
+    // Null-terminate the destination string
+    *dst = '\0';
+
+    return dst;
+}
+
+/*
+=================
+SkipBracedSection
+
+The next token should be an open brace or set depth to 1 if already parsed it.
+Skips until a matching close brace is found.
+Internal brace depths are properly skipped.
+=================
+*/
+bool SkipBracedSection_cpp(const char **program, int depth)
+{
+    std::string_view token;
+
+    do
+    {
+        token = COM_ParseExt_cpp(program, true);
+        if (token[1] == 0)
+        {
+            if (token[0] == '{')
+            {
+                depth++;
+            }
+            else if (token[0] == '}')
+            {
+                depth--;
+            }
+        }
+    } while (depth && *program);
+
+    return (depth == 0);
+}
+
 /*
 ==================
 COM_GenerateHashValue

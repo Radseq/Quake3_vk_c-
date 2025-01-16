@@ -2201,7 +2201,7 @@ static bool ParseShader(const char **text)
 				// skip next stage or keyword until newline
 				token = COM_ParseExt_cpp(text, true);
 				if (token[0] == '{')
-					SkipBracedSection(text, 1 /* depth */);
+					SkipBracedSection_cpp(text, 1 /* depth */);
 				else
 					SkipRestOfLine(text);
 			}
@@ -4467,7 +4467,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 				continue;
 			}
 
-			if (!SkipBracedSection(&p, 1))
+			if (!SkipBracedSection_cpp(&p, 1))
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: Ignoring shader file %s. Shader \"%s\" "
 										 "on line %d missing closing brace.\n",
@@ -4566,8 +4566,8 @@ static void ScanAndLoadShaderFiles(void)
 	{
 		if (buffers[i])
 		{
-			textEnd = Q_stradd(textEnd, buffers[i]);
-			textEnd = Q_stradd(textEnd, "\n");
+			textEnd = Q_stradd_large_cpp(textEnd, buffers[i]);
+			textEnd = Q_stradd_small(textEnd, "\n");
 			ri.FS_FreeFile(buffers[i]);
 		}
 	}
@@ -4581,8 +4581,8 @@ static void ScanAndLoadShaderFiles(void)
 	{
 		if (xbuffers[i])
 		{
-			textEnd = Q_stradd(textEnd, xbuffers[i]);
-			textEnd = Q_stradd(textEnd, "\n");
+			textEnd = Q_stradd_large_cpp(textEnd, xbuffers[i]);
+			textEnd = Q_stradd_small(textEnd, "\n");
 			ri.FS_FreeFile(xbuffers[i]);
 		}
 	}
@@ -4609,7 +4609,7 @@ static void ScanAndLoadShaderFiles(void)
 		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
 		shaderTextHashTableSizes[hash]++;
 		size++;
-		SkipBracedSection(&p, 0);
+		SkipBracedSection_cpp(&p, 0);
 	}
 
 	size += MAX_SHADERTEXT_HASH;
@@ -4636,7 +4636,7 @@ static void ScanAndLoadShaderFiles(void)
 		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
 		shaderTextHashTable[hash][--shaderTextHashTableSizes[hash]] = (char *)oldp;
 
-		SkipBracedSection(&p, 0);
+		SkipBracedSection_cpp(&p, 0);
 	}
 }
 

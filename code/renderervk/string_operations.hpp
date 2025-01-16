@@ -9,6 +9,11 @@
 #include <cstdarg>
 #include <algorithm> // For std::min
 
+char *Q_stradd_large_cpp(char *dst, std::string_view src);
+char *Q_stradd_small(char *dst, std::string_view src);
+
+bool SkipBracedSection_cpp(const char **program, int depth);
+
 unsigned long Com_GenerateHashValue_cpp(std::string_view fname, const unsigned int size);
 
 template <std::size_t Size>
