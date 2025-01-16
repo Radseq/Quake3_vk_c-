@@ -30,7 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "math.hpp"
 #include "utils.hpp"
 
-#define generateHashValue Com_GenerateHashValue
+#define generateHashValue Com_GenerateHashValue_cpp
 
 static char *s_shaderText;
 
@@ -48,8 +48,6 @@ static shader_t *shaderHashTable[FILE_HASH_SIZE];
 
 constexpr int MAX_SHADERTEXT_HASH = 2048;
 static const char **shaderTextHashTable[MAX_SHADERTEXT_HASH];
-
-#define generateHashValue Com_GenerateHashValue
 
 // tr_shader.c -- this file deals with the parsing and definition of shaders
 
@@ -107,7 +105,7 @@ void RE_RemapShader(const char *shaderName, const char *newShaderName, const cha
 	// remap all the shaders with the given name
 	// even tho they might have different lightmaps
 	COM_StripExtension_cpp(shaderName, strippedName);
-	hash = generateHashValue(strippedName.data(), FILE_HASH_SIZE);
+	hash = generateHashValue(std::string_view(strippedName.data(), strippedName.size()), FILE_HASH_SIZE);
 	for (sh = shaderHashTable[hash]; sh; sh = sh->next)
 	{
 		if (Q_stricmp_cpp(sh->name, strippedName.data()) == 0)
@@ -3859,7 +3857,7 @@ static const char *FindShaderInShaderText(std::string_view shadername)
 	const char *p;
 	int i, hash;
 
-	hash = generateHashValue(shadername.data(), MAX_SHADERTEXT_HASH);
+	hash = generateHashValue(shadername, MAX_SHADERTEXT_HASH);
 
 	if (shaderTextHashTable[hash])
 	{
@@ -3896,7 +3894,7 @@ shader_t *R_FindShaderByName(std::string_view name)
 
 	COM_StripExtension_cpp(name, strippedName);
 
-	hash = generateHashValue(strippedName.data(), FILE_HASH_SIZE);
+	hash = generateHashValue(std::string_view(strippedName.data(), strippedName.size()), FILE_HASH_SIZE);
 
 	//
 	// see if the shader is already loaded
@@ -4039,7 +4037,7 @@ shader_t *R_FindShader(std::string_view name, int lightmapIndex, const bool mipR
 
 	COM_StripExtension_cpp(name, strippedName);
 
-	hash = generateHashValue(strippedName.data(), FILE_HASH_SIZE);
+	hash = generateHashValue(std::string_view(strippedName.data(), strippedName.size()), FILE_HASH_SIZE);
 
 	//
 	// see if the shader is already loaded
@@ -4127,7 +4125,7 @@ qhandle_t RE_RegisterShaderFromImage(std::string_view name, int lightmapIndex, i
 	unsigned long hash;
 	shader_t *sh;
 
-	hash = generateHashValue(name.data(), FILE_HASH_SIZE);
+	hash = generateHashValue(name, FILE_HASH_SIZE);
 
 	// probably not necessary since this function
 	// only gets called from tr_font.c with lightmapIndex == LIGHTMAP_2D
@@ -4608,7 +4606,7 @@ static void ScanAndLoadShaderFiles(void)
 		{
 			break;
 		}
-		hash = generateHashValue(token.data(), MAX_SHADERTEXT_HASH);
+		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
 		shaderTextHashTableSizes[hash]++;
 		size++;
 		SkipBracedSection(&p, 0);
@@ -4635,7 +4633,7 @@ static void ScanAndLoadShaderFiles(void)
 			break;
 		}
 
-		hash = generateHashValue(token.data(), MAX_SHADERTEXT_HASH);
+		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
 		shaderTextHashTable[hash][--shaderTextHashTableSizes[hash]] = (char *)oldp;
 
 		SkipBracedSection(&p, 0);

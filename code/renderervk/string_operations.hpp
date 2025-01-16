@@ -9,6 +9,8 @@
 #include <cstdarg>
 #include <algorithm> // For std::min
 
+unsigned long Com_GenerateHashValue_cpp(std::string_view fname, const unsigned int size);
+
 template <std::size_t Size>
 constexpr std::string_view ArrToStringView(std::array<char, Size> &src)
 {

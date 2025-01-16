@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shader.hpp"
 #include "utils.hpp"
 
-#define generateHashValue(fname) Com_GenerateHashValue((fname), FILE_HASH_SIZE)
+#define generateHashValue(fname) Com_GenerateHashValue_cpp((fname), FILE_HASH_SIZE)
 
 #include <algorithm> // for std::clamp
 #include <cstdint>	 // for std::uint32_t
@@ -989,7 +989,7 @@ image_t *R_CreateImage(std::string_view name, std::string_view name2, byte *pic,
 		image->imgName2 = image->imgName;
 	}
 
-	hash = generateHashValue(name.data());
+	hash = generateHashValue(name);
 	image->next = hashTable[hash];
 	hashTable[hash] = image;
 
@@ -1126,7 +1126,7 @@ image_t *R_FindImageFile(std::string_view name, imgFlags_t flags)
 		return NULL;
 	}
 
-	hash = generateHashValue(name.data());
+	hash = generateHashValue(name);
 
 	//
 	// see if the image is already loaded
