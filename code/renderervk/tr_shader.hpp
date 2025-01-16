@@ -23,7 +23,7 @@ typedef struct
 
 shader_t *R_GetShaderByHandle(qhandle_t hShader);
 shader_t *R_FindShaderByName(std::string_view name);
-shader_t *R_FindShader(std::string name, int lightmapIndex, const bool mipRawImage);
+shader_t *R_FindShader(std::string_view name, int lightmapIndex, const bool mipRawImage);
 
 qhandle_t RE_RegisterShaderFromImage(std::string_view name, int lightmapIndex, image_t &image, bool mipRawImage);
 qhandle_t RE_RegisterShaderLightMap(std::string_view name, int lightmapIndex);

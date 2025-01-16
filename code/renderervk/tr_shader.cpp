@@ -32,9 +32,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define generateHashValue Com_GenerateHashValue
 
-static char *s_shaderText;
+static char* s_shaderText;
 
-static const char *s_extensionOffset;
+static const char* s_extensionOffset;
 static int s_extendedShader;
 
 // the shader is parsed into these global variables, then copied into
@@ -44,10 +44,10 @@ static shader_t shader;
 static texModInfo_t texMods[MAX_SHADER_STAGES][TR_MAX_TEXMODS + 1]; // reserve one additional texmod for lightmap atlas correction
 
 constexpr int FILE_HASH_SIZE = 1024;
-static shader_t *shaderHashTable[FILE_HASH_SIZE];
+static shader_t* shaderHashTable[FILE_HASH_SIZE];
 
 constexpr int MAX_SHADERTEXT_HASH = 2048;
-static const char **shaderTextHashTable[MAX_SHADERTEXT_HASH];
+static const char** shaderTextHashTable[MAX_SHADERTEXT_HASH];
 
 #define generateHashValue Com_GenerateHashValue
 
@@ -68,15 +68,15 @@ constexpr collapse_t collapse[] = {
 	{0, GLS_DSTBLEND_SRC_ALPHA | GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA, GL_BLEND_MIX_ONE_MINUS_ALPHA, 0},
 	{0, GLS_DSTBLEND_SRC_ALPHA | GLS_SRCBLEND_DST_COLOR, GL_BLEND_DST_COLOR_SRC_ALPHA, 0},
 #if 0
-    { 0, GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_SRCBLEND_SRC_ALPHA, GL_DECAL, 0 },
+	{ 0, GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_SRCBLEND_SRC_ALPHA, GL_DECAL, 0 },
 #endif
-	{-1}};
+	{-1} };
 
-void RE_RemapShader(const char *shaderName, const char *newShaderName, const char *timeOffset)
+void RE_RemapShader(const char* shaderName, const char* newShaderName, const char* timeOffset)
 {
 	std::array<char, MAX_QPATH> strippedName;
 	int hash;
-	shader_t *sh, *sh2;
+	shader_t* sh, * sh2;
 	qhandle_t h;
 
 	sh = R_FindShaderByName(shaderName);
@@ -134,7 +134,7 @@ void RE_RemapShader(const char *shaderName, const char *newShaderName, const cha
 ParseVector
 ===============
 */
-static bool ParseVector(const char **text, const int count, float *v)
+static bool ParseVector(const char** text, const int count, float* v)
 {
 	std::string_view token;
 	int i;
@@ -325,7 +325,7 @@ static genFunc_t NameToGenFunc(std::string_view funcname)
 ParseWaveForm
 ===================
 */
-static void ParseWaveForm(const char **text, waveForm_t &wave)
+static void ParseWaveForm(const char** text, waveForm_t& wave)
 {
 	std::string_view token;
 
@@ -339,7 +339,7 @@ static void ParseWaveForm(const char **text, waveForm_t &wave)
 
 	// BASE, AMP, PHASE, FREQ
 	token = COM_ParseExt_cpp(text, false);
-	if (token[0] == 0)
+	if (token.empty())
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
@@ -347,7 +347,7 @@ static void ParseWaveForm(const char **text, waveForm_t &wave)
 	wave.base = Q_atof_cpp(token);
 
 	token = COM_ParseExt_cpp(text, false);
-	if (token[0] == 0)
+	if (token.empty())
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
@@ -355,7 +355,7 @@ static void ParseWaveForm(const char **text, waveForm_t &wave)
 	wave.amplitude = Q_atof_cpp(token);
 
 	token = COM_ParseExt_cpp(text, false);
-	if (token[0] == 0)
+	if (token.empty())
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
@@ -363,7 +363,7 @@ static void ParseWaveForm(const char **text, waveForm_t &wave)
 	wave.phase = Q_atof_cpp(token);
 
 	token = COM_ParseExt_cpp(text, false);
-	if (token[0] == 0)
+	if (token.empty())
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: missing waveform parm in shader '%s'\n", shader.name);
 		return;
@@ -376,9 +376,9 @@ static void ParseWaveForm(const char **text, waveForm_t &wave)
 ParseTexMod
 ===================
 */
-static void ParseTexMod(const char *_text, shaderStage_t &stage)
+static void ParseTexMod(const char* _text, shaderStage_t& stage)
 {
-	const char **text = &_text;
+	const char** text = &_text;
 
 	if (stage.bundle[0].numTexMods == TR_MAX_TEXMODS)
 	{
@@ -386,7 +386,7 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 		return;
 	}
 
-	texModInfo_t &tmi = stage.bundle[0].texMods[stage.bundle[0].numTexMods];
+	texModInfo_t& tmi = stage.bundle[0].texMods[stage.bundle[0].numTexMods];
 	stage.bundle[0].numTexMods++;
 
 	std::string_view token = COM_ParseExt_cpp(text, false);
@@ -604,7 +604,7 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 ParseStage
 ===================
 */
-static bool ParseStage(shaderStage_t &stage, const char **text)
+static bool ParseStage(shaderStage_t& stage, const char** text)
 {
 	std::string_view token;
 	int i, depthMaskBits = GLS_DEPTHMASK_TRUE, blendSrcBits = 0, blendDstBits = 0, atestBits = 0, depthFuncBits = 0;
@@ -718,7 +718,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			if (token.empty())
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing parameter for '%s' keyword in shader '%s'\n",
-						  stage.bundle[0].isScreenMap ? "screenMap" : "clampMap", shader.name);
+					stage.bundle[0].isScreenMap ? "screenMap" : "clampMap", shader.name);
 				return false;
 			}
 
@@ -793,7 +793,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			if (totalImages > maxAnimations)
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: ignoring excess images for 'animMap' (found %d, max is %d) in shader '%s'\n",
-						  totalImages, maxAnimations, shader.name);
+					totalImages, maxAnimations, shader.name);
 			}
 		}
 		else if (!Q_stricmp_cpp(token, "videoMap"))
@@ -1039,7 +1039,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			{
 				stage.bundle[0].alphaGen = AGEN_PORTAL;
 				token = COM_ParseExt_cpp(text, false);
-				if (token[0] == 0)
+				if (token.empty())
 				{
 					shader.portalRange = 256;
 					ri.Printf(PRINT_WARNING, "WARNING: missing range parameter for alphaGen portal in shader '%s', defaulting to 256\n", shader.name);
@@ -1074,7 +1074,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 
 			if (!Q_stricmp_cpp(token, "environment"))
 			{
-				const char *t = *text;
+				const char* t = *text;
 				stage.bundle[0].tcGen = TCGEN_ENVIRONMENT_MAPPED;
 				token = COM_ParseExt_cpp(text, false);
 				if (Q_stricmp_cpp(token, "firstPerson") == 0)
@@ -1228,9 +1228,9 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 	// compute state bits
 	//
 	stage.stateBits = depthMaskBits |
-					  blendSrcBits | blendDstBits |
-					  atestBits |
-					  depthFuncBits;
+		blendSrcBits | blendDstBits |
+		atestBits |
+		depthFuncBits;
 
 	stage.active = true;
 
@@ -1251,10 +1251,11 @@ deformVertexes autoSprite2
 deformVertexes text[0-7]
 ===============
 */
-static void ParseDeform(const char **text)
+static void ParseDeform(const char** text)
 {
 	std::string_view token = COM_ParseExt_cpp(text, false);
-	if (token[0] == 0)
+
+	if (token.empty())
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: missing deform parm in shader '%s'\n", shader.name);
 		return;
@@ -1266,7 +1267,7 @@ static void ParseDeform(const char **text)
 		return;
 	}
 
-	deformStage_t &ds = shader.deforms[shader.numDeforms];
+	deformStage_t& ds = shader.deforms[shader.numDeforms];
 	shader.numDeforms++;
 
 	if (!Q_stricmp_cpp(token, "projectionShadow"))
@@ -1302,16 +1303,16 @@ static void ParseDeform(const char **text)
 
 	if (!Q_stricmp_cpp(token, "bulge"))
 	{
-		token = COM_ParseExt(text, false);
-		if (token[0] == 0)
+		token = COM_ParseExt_cpp(text, false);
+		if (token.empty())
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes bulge parm in shader '%s'\n", shader.name);
 			return;
 		}
 		ds.bulgeWidth = Q_atof_cpp(token);
 
-		token = COM_ParseExt(text, false);
-		if (token[0] == 0)
+		token = COM_ParseExt_cpp(text, false);
+		if (token.empty())
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes bulge parm in shader '%s'\n", shader.name);
 			return;
@@ -1319,7 +1320,7 @@ static void ParseDeform(const char **text)
 		ds.bulgeHeight = Q_atof_cpp(token);
 
 		token = COM_ParseExt_cpp(text, false);
-		if (token[0] == 0)
+		if (token.empty())
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes bulge parm in shader '%s'\n", shader.name);
 			return;
@@ -1334,7 +1335,7 @@ static void ParseDeform(const char **text)
 	{
 		float f;
 		token = COM_ParseExt_cpp(text, false);
-		if (token[0] == 0)
+		if (token.empty())
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
 			return;
@@ -1359,7 +1360,7 @@ static void ParseDeform(const char **text)
 	if (!Q_stricmp_cpp(token, "normal"))
 	{
 		token = COM_ParseExt_cpp(text, false);
-		if (token[0] == 0)
+		if (token.empty())
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
 			return;
@@ -1367,7 +1368,7 @@ static void ParseDeform(const char **text)
 		ds.deformationWave.amplitude = Q_atof_cpp(token);
 
 		token = COM_ParseExt_cpp(text, false);
-		if (token[0] == 0)
+		if (token.empty())
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
 			return;
@@ -1385,7 +1386,7 @@ static void ParseDeform(const char **text)
 		for (i = 0; i < 3; i++)
 		{
 			token = COM_ParseExt_cpp(text, false);
-			if (token[0] == 0)
+			if (token.empty())
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
 				return;
@@ -1398,7 +1399,7 @@ static void ParseDeform(const char **text)
 		return;
 	}
 
-	ri.Printf(PRINT_WARNING, "WARNING: unknown deformVertexes subtype '%s' found in shader '%s'\n", token.data(), shader.name);
+	ri.Printf(PRINT_WARNING, "WARNING: unknown deformVertexes subtype '%s' found in shader '%s'\n", token, shader.name);
 }
 
 /*
@@ -1408,10 +1409,10 @@ ParseSkyParms
 skyParms <outerbox> <cloudheight> <innerbox>
 ===============
 */
-static void ParseSkyParms(const char **text)
+static void ParseSkyParms(const char** text)
 {
 	std::string_view token;
-	static const char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
+	static const char* suf[6] = { "rt", "bk", "lf", "ft", "up", "dn" };
 	char pathname[MAX_QPATH];
 	int i;
 	imgFlags_t imgFlags = static_cast<imgFlags_t>(IMGFLAG_MIPMAP | IMGFLAG_PICMIP);
@@ -1458,7 +1459,7 @@ static void ParseSkyParms(const char **text)
 
 	// innerbox
 	token = COM_ParseExt_cpp(text, false);
-	if (token[0] == 0)
+	if (token.empty())
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: 'skyParms' missing parameter in shader '%s'\n", shader.name);
 		return;
@@ -1484,7 +1485,7 @@ static void ParseSkyParms(const char **text)
 ParseSort
 =================
 */
-static void ParseSort(const char **text)
+static void ParseSort(const char** text)
 {
 	std::string_view token = COM_ParseExt_cpp(text, false);
 	if (token.empty())
@@ -1592,7 +1593,7 @@ ParseSurfaceParm
 surfaceparm <name>
 ===============
 */
-static void ParseSurfaceParm(const char **text)
+static void ParseSurfaceParm(const char** text)
 {
 	int numInfoParms = arrayLen(infoParms);
 	int i;
@@ -1605,7 +1606,7 @@ static void ParseSurfaceParm(const char **text)
 			shader.surfaceFlags |= infoParms[i].surfaceFlags;
 			shader.contentFlags |= infoParms[i].contents;
 #if 0
-			if ( infoParms[i].clearSolid ) {
+			if (infoParms[i].clearSolid) {
 				si->contents &= ~CONTENTS_SOLID;
 			}
 #endif
@@ -1634,7 +1635,7 @@ typedef enum
 	maskAND
 } resultMask;
 
-static void derefVariable(std::string_view name, char *buf, const int size)
+static void derefVariable(std::string_view name, char* buf, const int size)
 {
 	if (!Q_stricmp_cpp(name, "vid_width"))
 	{
@@ -1659,13 +1660,13 @@ if ( $cvar|<integer value> [<condition> $cvar|<integer value> [ [ || .. ] && .. 
 { shader stage } ]
 ===============
 */
-static bool ParseCondition(const char **text, resultType *res)
+static bool ParseCondition(const char** text, resultType* res)
 {
 	char lval_str[MAX_CVAR_VALUE_STRING];
 	char rval_str[MAX_CVAR_VALUE_STRING]{};
 	tokenType_t lval_type;
 	tokenType_t rval_type;
-	const char *token;
+	const char* token;
 	tokenType_t op;
 	resultMask rm;
 	bool str;
@@ -1846,7 +1847,7 @@ static bool ParseCondition(const char **text, resultType *res)
 FinishStage
 =================
 */
-static void FinishStage(shaderStage_t &stage)
+static void FinishStage(shaderStage_t& stage)
 {
 	if (!tr.mergeLightmaps)
 	{
@@ -1858,13 +1859,13 @@ static void FinishStage(shaderStage_t &stage)
 
 	for (i = 0; i < arrayLen(stage.bundle); i++)
 	{
-		textureBundle_t &bundle = stage.bundle[i];
+		textureBundle_t& bundle = stage.bundle[i];
 		// offset lightmap coordinates
 		if (bundle.lightmap >= LIGHTMAP_INDEX_OFFSET)
 		{
 			if (bundle.tcGen == TCGEN_LIGHTMAP)
 			{
-				texModInfo_t &tmi = bundle.texMods[bundle.numTexMods];
+				texModInfo_t& tmi = bundle.texMods[bundle.numTexMods];
 				float x, y;
 				const int lightmapIndex = R_GetLightmapCoords(bundle.lightmap - LIGHTMAP_INDEX_OFFSET, x, y);
 				bundle.image[0] = tr.lightmaps[lightmapIndex];
@@ -1880,7 +1881,7 @@ static void FinishStage(shaderStage_t &stage)
 		{
 			if (bundle.tcGen != TCGEN_LIGHTMAP)
 			{
-				texModInfo_t &tmi = bundle.texMods[bundle.numTexMods];
+				texModInfo_t& tmi = bundle.texMods[bundle.numTexMods];
 				tmi.type = TMOD_SCALE_OFFSET;
 				tmi.scale[0] = tr.lightmapScale[0];
 				tmi.scale[1] = tr.lightmapScale[1];
@@ -1892,7 +1893,7 @@ static void FinishStage(shaderStage_t &stage)
 			{
 				for (n = 0; n < bundle.numTexMods; n++)
 				{
-					texModInfo_t &tmi = bundle.texMods[n];
+					texModInfo_t& tmi = bundle.texMods[n];
 					if (tmi.type == TMOD_TRANSFORM)
 					{
 						tmi.translate[0] *= tr.lightmapScale[0];
@@ -1915,7 +1916,7 @@ static void FinishStage(shaderStage_t &stage)
 				{
 					bundle.texMods[n] = bundle.texMods[n - 1];
 				}
-				texModInfo_t &tmi = bundle.texMods[0];
+				texModInfo_t& tmi = bundle.texMods[0];
 				tmi.type = TMOD_OFFSET_SCALE;
 				tmi.offset[0] = -tr.lightmapOffset[0];
 				tmi.offset[1] = -tr.lightmapOffset[1];
@@ -1936,7 +1937,7 @@ shader.  Parse it into the global shader variable.  Later functions
 will optimize it.
 =================
 */
-static bool ParseShader(const char **text)
+static bool ParseShader(const char** text)
 {
 	resultType res;
 	branchType branch;
@@ -2135,7 +2136,7 @@ static bool ParseShader(const char **text)
 		else if (!Q_stricmp_cpp(token, "cull"))
 		{
 			token = COM_ParseExt_cpp(text, false);
-			if (token[0] == 0)
+			if (token.empty())
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing cull parms in shader '%s'\n", shader.name);
 				continue;
@@ -2277,7 +2278,7 @@ Attempt to combine two stages into a single multitexture stage
 FIXME: I think modulated add + modulated add collapses incorrectly
 =================
 */
-static int CollapseMultitexture(unsigned int st0bits, shaderStage_t &st0, shaderStage_t &st1, const int num_stages)
+static int CollapseMultitexture(unsigned int st0bits, shaderStage_t& st0, shaderStage_t& st1, const int num_stages)
 {
 	// make sure both stages are active
 	if (!st0.active || !st1.active)
@@ -2444,7 +2445,7 @@ static int CollapseMultitexture(unsigned int st0bits, shaderStage_t &st0, shader
 
 #ifdef USE_PMLIGHT
 
-static int tcmodWeight(const textureBundle_t *bundle)
+static int tcmodWeight(const textureBundle_t* bundle)
 {
 	if (bundle->numTexMods == 0)
 		return 1;
@@ -2453,27 +2454,27 @@ static int tcmodWeight(const textureBundle_t *bundle)
 }
 
 #if 0
-static int rgbWeight( const textureBundle_t *bundle ) {
+static int rgbWeight(const textureBundle_t* bundle) {
 
-	switch ( bundle->rgbGen ) {
-		case CGEN_EXACT_VERTEX: return 3;
-		case CGEN_VERTEX: return 3;
-		case CGEN_ENTITY: return 2;
-		case CGEN_ONE_MINUS_ENTITY: return 2;
-		case CGEN_CONST: return 1;
-		default: return 0;
+	switch (bundle->rgbGen) {
+	case CGEN_EXACT_VERTEX: return 3;
+	case CGEN_VERTEX: return 3;
+	case CGEN_ENTITY: return 2;
+	case CGEN_ONE_MINUS_ENTITY: return 2;
+	case CGEN_CONST: return 1;
+	default: return 0;
 	}
 }
 #endif
 
-static const textureBundle_t *lightingBundle(const int stageIndex, const textureBundle_t *selected)
+static const textureBundle_t* lightingBundle(const int stageIndex, const textureBundle_t* selected)
 {
-	const shaderStage_t *stage = &stages[stageIndex];
+	const shaderStage_t* stage = &stages[stageIndex];
 	int i;
 
 	for (i = 0; i < static_cast<int>(stage->numTexBundles); i++)
 	{
-		const textureBundle_t *bundle = &stage->bundle[i];
+		const textureBundle_t* bundle = &stage->bundle[i];
 		if (bundle->lightmap != LIGHTMAP_INDEX_NONE)
 		{
 			continue;
@@ -2519,7 +2520,7 @@ Find proper stage for dlight pass
 */
 static void FindLightingStages(void)
 {
-	const textureBundle_t *bundle;
+	const textureBundle_t* bundle;
 	int i;
 
 	shader.lightingStage = -1;
@@ -2531,7 +2532,7 @@ static void FindLightingStages(void)
 	bundle = NULL;
 	for (i = 0; i < shader.numUnfoggedPasses; i++)
 	{
-		const shaderStage_t &st = stages[i];
+		const shaderStage_t& st = stages[i];
 		if (!st.active)
 			break;
 		if (st.isDetail && shader.lightingStage >= 0)
@@ -2566,42 +2567,42 @@ sortedIndex.
 */
 static void FixRenderCommandList(const int newShader)
 {
-	renderCommandList_t *cmdList = &backEndData->commands;
+	renderCommandList_t* cmdList = &backEndData->commands;
 
 	if (cmdList)
 	{
-		const void *curCmd = cmdList->cmds;
+		const void* curCmd = cmdList->cmds;
 
-		*((int *)(cmdList->cmds + cmdList->used)) = RC_END_OF_LIST;
+		*((int*)(cmdList->cmds + cmdList->used)) = RC_END_OF_LIST;
 
 		while (1)
 		{
-			curCmd = PADP(curCmd, sizeof(void *));
+			curCmd = PADP(curCmd, sizeof(void*));
 
-			switch (*(const int *)curCmd)
+			switch (*(const int*)curCmd)
 			{
 			case RC_SET_COLOR:
 			{
-				const setColorCommand_t *sc_cmd = (const setColorCommand_t *)curCmd;
-				curCmd = (const void *)(sc_cmd + 1);
+				const setColorCommand_t* sc_cmd = (const setColorCommand_t*)curCmd;
+				curCmd = (const void*)(sc_cmd + 1);
 				break;
 			}
 			case RC_STRETCH_PIC:
 			{
-				const stretchPicCommand_t *sp_cmd = (const stretchPicCommand_t *)curCmd;
-				curCmd = (const void *)(sp_cmd + 1);
+				const stretchPicCommand_t* sp_cmd = (const stretchPicCommand_t*)curCmd;
+				curCmd = (const void*)(sp_cmd + 1);
 				break;
 			}
 			case RC_DRAW_SURFS:
 			{
 				int i;
-				drawSurf_t *drawSurf;
-				shader_t *sh;
+				drawSurf_t* drawSurf;
+				shader_t* sh;
 				int fogNum;
 				int entityNum;
 				int dlightMap;
 				int sortedIndex;
-				const drawSurfsCommand_t *ds_cmd = (const drawSurfsCommand_t *)curCmd;
+				const drawSurfsCommand_t* ds_cmd = (const drawSurfsCommand_t*)curCmd;
 
 				for (i = 0, drawSurf = ds_cmd->drawSurfs; i < ds_cmd->numDrawSurfs; i++, drawSurf++)
 				{
@@ -2613,43 +2614,43 @@ static void FixRenderCommandList(const int newShader)
 						drawSurf->sort = (sortedIndex << QSORT_SHADERNUM_SHIFT) | (entityNum << QSORT_REFENTITYNUM_SHIFT) | (fogNum << QSORT_FOGNUM_SHIFT) | (int)dlightMap;
 					}
 				}
-				curCmd = (const void *)(ds_cmd + 1);
+				curCmd = (const void*)(ds_cmd + 1);
 				break;
 			}
 			case RC_DRAW_BUFFER:
 			{
-				const drawBufferCommand_t *db_cmd = (const drawBufferCommand_t *)curCmd;
-				curCmd = (const void *)(db_cmd + 1);
+				const drawBufferCommand_t* db_cmd = (const drawBufferCommand_t*)curCmd;
+				curCmd = (const void*)(db_cmd + 1);
 				break;
 			}
 			case RC_SWAP_BUFFERS:
 			{
-				const swapBuffersCommand_t *sb_cmd = (const swapBuffersCommand_t *)curCmd;
-				curCmd = (const void *)(sb_cmd + 1);
+				const swapBuffersCommand_t* sb_cmd = (const swapBuffersCommand_t*)curCmd;
+				curCmd = (const void*)(sb_cmd + 1);
 				break;
 			}
 			case RC_FINISHBLOOM:
 			{
-				const finishBloomCommand_t *fb_cmd = (const finishBloomCommand_t *)curCmd;
-				curCmd = (const void *)(fb_cmd + 1);
+				const finishBloomCommand_t* fb_cmd = (const finishBloomCommand_t*)curCmd;
+				curCmd = (const void*)(fb_cmd + 1);
 				break;
 			}
 			case RC_COLORMASK:
 			{
-				const colorMaskCommand_t *cm_cmd = (const colorMaskCommand_t *)curCmd;
-				curCmd = (const void *)(cm_cmd + 1);
+				const colorMaskCommand_t* cm_cmd = (const colorMaskCommand_t*)curCmd;
+				curCmd = (const void*)(cm_cmd + 1);
 				break;
 			}
 			case RC_CLEARDEPTH:
 			{
-				const clearDepthCommand_t *cd_cmd = (const clearDepthCommand_t *)curCmd;
-				curCmd = (const void *)(cd_cmd + 1);
+				const clearDepthCommand_t* cd_cmd = (const clearDepthCommand_t*)curCmd;
+				curCmd = (const void*)(cd_cmd + 1);
 				break;
 			}
 			case RC_CLEARCOLOR:
 			{
-				const clearColorCommand_t *cc_cmd = (const clearColorCommand_t *)curCmd;
-				curCmd = (const void *)(cc_cmd + 1);
+				const clearColorCommand_t* cc_cmd = (const clearColorCommand_t*)curCmd;
+				curCmd = (const void*)(cc_cmd + 1);
 				break;
 			}
 			case RC_END_OF_LIST:
@@ -2660,7 +2661,7 @@ static void FixRenderCommandList(const int newShader)
 	}
 }
 
-static bool EqualACgen(const shaderStage_t *st1, const shaderStage_t *st2)
+static bool EqualACgen(const shaderStage_t* st1, const shaderStage_t* st2)
 {
 	if (st1 == NULL || st2 == NULL)
 	{
@@ -2675,7 +2676,7 @@ static bool EqualACgen(const shaderStage_t *st1, const shaderStage_t *st2)
 	return true;
 }
 
-static bool EqualRGBgen(const shaderStage_t *st1, const shaderStage_t *st2)
+static bool EqualRGBgen(const shaderStage_t* st1, const shaderStage_t* st2)
 {
 	if (st1 == NULL || st2 == NULL)
 	{
@@ -2730,7 +2731,7 @@ static bool EqualRGBgen(const shaderStage_t *st1, const shaderStage_t *st2)
 	return true;
 }
 
-static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderStage_t *st2)
+static bool EqualTCgen(const int bundle, const shaderStage_t* st1, const shaderStage_t* st2)
 {
 	int tm;
 
@@ -2740,8 +2741,8 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 	if (st1->active != st2->active)
 		return false;
 
-	const textureBundle_t &b1 = st1->bundle[bundle];
-	const textureBundle_t &b2 = st2->bundle[bundle];
+	const textureBundle_t& b1 = st1->bundle[bundle];
+	const textureBundle_t& b2 = st2->bundle[bundle];
 
 	if (b1.tcGen != b2.tcGen)
 	{
@@ -2773,8 +2774,8 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 
 	for (tm = 0; tm < b1.numTexMods; tm++)
 	{
-		const texModInfo_t &tm1 = b1.texMods[tm];
-		const texModInfo_t &tm2 = b2.texMods[tm];
+		const texModInfo_t& tm1 = b1.texMods[tm];
+		const texModInfo_t& tm2 = b2.texMods[tm];
 
 		if (tm1.type != tm2.type)
 		{
@@ -2867,7 +2868,7 @@ static void SortNewShader(void)
 {
 	int i;
 	float sort;
-	shader_t *newShader;
+	shader_t* newShader;
 
 	newShader = tr.shaders[tr.numShaders - 1];
 	sort = newShader->sort;
@@ -2895,9 +2896,9 @@ static void SortNewShader(void)
 GeneratePermanentShader
 ====================
 */
-static shader_t *GeneratePermanentShader(void)
+static shader_t* GeneratePermanentShader(void)
 {
-	shader_t *newShader;
+	shader_t* newShader;
 	int i, b;
 	int size, hash;
 
@@ -2907,7 +2908,7 @@ static shader_t *GeneratePermanentShader(void)
 		return tr.defaultShader;
 	}
 
-	newShader = reinterpret_cast<shader_t *>(ri.Hunk_Alloc(sizeof(shader_t), h_low));
+	newShader = reinterpret_cast<shader_t*>(ri.Hunk_Alloc(sizeof(shader_t), h_low));
 
 	*newShader = shader;
 
@@ -2925,7 +2926,7 @@ static shader_t *GeneratePermanentShader(void)
 		{
 			break;
 		}
-		newShader->stages[i] = reinterpret_cast<shaderStage_t *>(ri.Hunk_Alloc(sizeof(stages[i]), h_low));
+		newShader->stages[i] = reinterpret_cast<shaderStage_t*>(ri.Hunk_Alloc(sizeof(stages[i]), h_low));
 		*newShader->stages[i] = stages[i];
 
 		for (b = 0; b < NUM_TEXTURE_BUNDLES; b++)
@@ -2933,7 +2934,7 @@ static shader_t *GeneratePermanentShader(void)
 			size = newShader->stages[i]->bundle[b].numTexMods * sizeof(texModInfo_t);
 			if (size)
 			{
-				newShader->stages[i]->bundle[b].texMods = reinterpret_cast<texModInfo_t *>(ri.Hunk_Alloc(size, h_low));
+				newShader->stages[i]->bundle[b].texMods = reinterpret_cast<texModInfo_t*>(ri.Hunk_Alloc(size, h_low));
 				Com_Memcpy(newShader->stages[i]->bundle[b].texMods, stages[i].bundle[b].texMods, size);
 			}
 		}
@@ -2969,13 +2970,13 @@ static void VertexLightingCollapse(void)
 	{
 
 		// pick the best texture for the single pass
-		shaderStage_t &bestStage = stages[0];
+		shaderStage_t& bestStage = stages[0];
 		bestImageRank = -999999;
 		vertexColors = false;
 
 		for (stage = 0; stage < MAX_SHADER_STAGES; stage++)
 		{
-			shaderStage_t &pStage = stages[stage];
+			shaderStage_t& pStage = stages[stage];
 
 			if (!pStage.active)
 			{
@@ -3058,7 +3059,7 @@ static void VertexLightingCollapse(void)
 
 	for (stage = 1; stage < MAX_SHADER_STAGES; stage++)
 	{
-		shaderStage_t &pStage = stages[stage];
+		shaderStage_t& pStage = stages[stage];
 
 		if (!pStage.active)
 		{
@@ -3125,19 +3126,19 @@ static void DetectNeeds(void)
 		t1 = stages[i].bundle[0].tcGen;
 		t2 = stages[i].bundle[1].tcGen;
 
-		if ( t1 == TCGEN_LIGHTMAP || t2 == TCGEN_LIGHTMAP )
+		if (t1 == TCGEN_LIGHTMAP || t2 == TCGEN_LIGHTMAP)
 		{
 			shader.needsST2 = true;
 		}
-		if ( t1 == TCGEN_ENVIRONMENT_MAPPED || t1 == TCGEN_ENVIRONMENT_MAPPED_FP )
+		if (t1 == TCGEN_ENVIRONMENT_MAPPED || t1 == TCGEN_ENVIRONMENT_MAPPED_FP)
 		{
 			shader.needsNormal = true;
 		}
-		if ( t2 == TCGEN_ENVIRONMENT_MAPPED || t2 == TCGEN_ENVIRONMENT_MAPPED_FP )
+		if (t2 == TCGEN_ENVIRONMENT_MAPPED || t2 == TCGEN_ENVIRONMENT_MAPPED_FP)
 		{
 			shader.needsNormal = true;
 		}
-		if ( stages[i].bundle[0].alphaGen == AGEN_LIGHTING_SPECULAR || stages[i].bundle[0].rgbGen == CGEN_LIGHTING_DIFFUSE )
+		if (stages[i].bundle[0].alphaGen == AGEN_LIGHTING_SPECULAR || stages[i].bundle[0].rgbGen == CGEN_LIGHTING_DIFFUSE)
 		{
 			shader.needsNormal = true;
 		}
@@ -3164,7 +3165,7 @@ Returns a freshly allocated shader with all the needed info
 from the current global working shader
 =========================
 */
-static shader_t *FinishShader(void)
+static shader_t* FinishShader(void)
 {
 	int stage, i, m;
 	uint32_t n;
@@ -3173,7 +3174,7 @@ static shader_t *FinishShader(void)
 	bool colorBlend;
 	bool depthMask;
 	bool fogCollapse;
-	shaderStage_t *lastStage[NUM_TEXTURE_BUNDLES];
+	shaderStage_t* lastStage[NUM_TEXTURE_BUNDLES];
 
 	hasLightmapStage = false;
 	vertexLightmap = false;
@@ -3202,7 +3203,7 @@ static shader_t *FinishShader(void)
 	//
 	for (stage = 0; stage < MAX_SHADER_STAGES;)
 	{
-		shaderStage_t *pStage = &stages[stage];
+		shaderStage_t* pStage = &stages[stage];
 
 		if (!pStage->active)
 		{
@@ -3343,7 +3344,7 @@ static shader_t *FinishShader(void)
 	// fix alphaGen flags to avoid redundant comparisons in R_ComputeColors()
 	for (i = 0; i < MAX_SHADER_STAGES; i++)
 	{
-		shaderStage_t &pStage = stages[i];
+		shaderStage_t& pStage = stages[i];
 		if (!pStage.active)
 			break;
 		if (pStage.bundle[0].rgbGen == CGEN_IDENTITY && pStage.bundle[0].alphaGen == AGEN_IDENTITY)
@@ -3510,7 +3511,7 @@ static shader_t *FinishShader(void)
 		for (i = 0; i < stage; i++)
 		{
 			int env_mask;
-			shaderStage_t &pStage = stages[i];
+			shaderStage_t& pStage = stages[i];
 			def.state_bits = pStage.stateBits;
 
 			if (pStage.mtEnv3)
@@ -3642,7 +3643,7 @@ static shader_t *FinishShader(void)
 						}
 					}
 					break;
-				// extended blending modes
+					// extended blending modes
 				case GL_BLEND_MODULATE:
 					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = TYPE_BLEND2_MUL;
@@ -3851,11 +3852,11 @@ return NULL if not found
 If found, it will return a valid shader
 =====================
 */
-static const char *FindShaderInShaderText(std::string_view shadername)
+static const char* FindShaderInShaderText(std::string_view shadername)
 {
 
 	std::string_view token;
-	const char *p;
+	const char* p;
 	int i, hash;
 
 	hash = generateHashValue(shadername.data(), MAX_SHADERTEXT_HASH);
@@ -3882,11 +3883,11 @@ Will always return a valid shader, but it might be the
 default shader if the real one can't be found.
 ==================
 */
-shader_t *R_FindShaderByName(std::string_view name)
+shader_t* R_FindShaderByName(std::string_view name)
 {
 	std::array<char, MAX_QPATH> strippedName;
 	int hash;
-	shader_t *sh;
+	shader_t* sh;
 
 	if (name.empty())
 	{
@@ -3921,7 +3922,7 @@ shader_t *R_FindShaderByName(std::string_view name)
 R_CreateDefaultShading
 ===============
 */
-static void R_CreateDefaultShading(image_t &image)
+static void R_CreateDefaultShading(image_t& image)
 {
 	if (shader.lightmapIndex == LIGHTMAP_NONE)
 	{
@@ -3951,8 +3952,8 @@ static void R_CreateDefaultShading(image_t &image)
 		stages[0].bundle[0].rgbGen = CGEN_VERTEX;
 		stages[0].bundle[0].alphaGen = AGEN_VERTEX;
 		stages[0].stateBits = GLS_DEPTHTEST_DISABLE |
-							  GLS_SRCBLEND_SRC_ALPHA |
-							  GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
+			GLS_SRCBLEND_SRC_ALPHA |
+			GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
 	}
 	else if (shader.lightmapIndex == LIGHTMAP_WHITEIMAGE)
 	{
@@ -3971,7 +3972,7 @@ static void R_CreateDefaultShading(image_t &image)
 		stages[0].active = true;
 		stages[0].bundle[0].tcGen = TCGEN_LIGHTMAP;
 		stages[0].bundle[0].rgbGen = CGEN_IDENTITY; // lightmaps are scaled on creation
-													// for identitylight
+		// for identitylight
 		stages[0].stateBits = GLS_DEFAULT;
 
 		stages[1].bundle[0].image[0] = &image;
@@ -4010,18 +4011,18 @@ most world construction surfaces.
 
 ===============
 */
-shader_t *R_FindShader(std::string name, int lightmapIndex, const bool mipRawImage)
+shader_t* R_FindShader(std::string_view name, int lightmapIndex, const bool mipRawImage)
 {
+	std::array<char, MAX_QPATH> strippedName;
+	unsigned long hash;
+	const char* shaderText;
+	image_t* image;
+	shader_t* sh;
+
 	if (name.empty())
 	{
 		return tr.defaultShader;
 	}
-
-	std::array<char, MAX_QPATH> strippedName;
-	unsigned long hash;
-	const char *shaderText;
-	image_t *image;
-	shader_t *sh;
 
 	// use (fullbright) vertex lighting if the bsp file doesn't have
 	// lightmaps
@@ -4121,10 +4122,10 @@ shader_t *R_FindShader(std::string name, int lightmapIndex, const bool mipRawIma
 	return FinishShader();
 }
 
-qhandle_t RE_RegisterShaderFromImage(std::string_view name, int lightmapIndex, image_t &image, bool mipRawImage)
+qhandle_t RE_RegisterShaderFromImage(std::string_view name, int lightmapIndex, image_t& image, bool mipRawImage)
 {
 	unsigned long hash;
-	shader_t *sh;
+	shader_t* sh;
 
 	hash = generateHashValue(name.data(), FILE_HASH_SIZE);
 
@@ -4183,7 +4184,7 @@ way to ask for different implicit lighting modes (vertex, lightmap, etc)
 */
 qhandle_t RE_RegisterShaderLightMap(std::string_view name, int lightmapIndex)
 {
-	shader_t *sh;
+	shader_t* sh;
 
 	if (name.length() >= MAX_QPATH)
 	{
@@ -4191,7 +4192,7 @@ qhandle_t RE_RegisterShaderLightMap(std::string_view name, int lightmapIndex)
 		return 0;
 	}
 
-	sh = R_FindShader(std::string(name), lightmapIndex, true);
+	sh = R_FindShader(name, lightmapIndex, true);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should
@@ -4217,7 +4218,7 @@ This should really only be used for explicit shaders, because there is no
 way to ask for different implicit lighting modes (vertex, lightmap, etc)
 ====================
 */
-qhandle_t RE_RegisterShader(const char *name)
+qhandle_t RE_RegisterShader(const char* name)
 {
 	if (!name)
 	{
@@ -4231,7 +4232,7 @@ qhandle_t RE_RegisterShader(const char *name)
 		return 0;
 	}
 
-	shader_t *sh = R_FindShader(std::string(name), LIGHTMAP_2D, true);
+	shader_t* sh = R_FindShader(name, LIGHTMAP_2D, true);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should
@@ -4253,9 +4254,9 @@ RE_RegisterShaderNoMip
 For menu graphics that should never be picmiped
 ====================
 */
-qhandle_t RE_RegisterShaderNoMip(const char *name)
+qhandle_t RE_RegisterShaderNoMip(const char* name)
 {
-	shader_t *sh;
+	shader_t* sh;
 
 	if (strlen(name) >= MAX_QPATH)
 	{
@@ -4263,7 +4264,7 @@ qhandle_t RE_RegisterShaderNoMip(const char *name)
 		return 0;
 	}
 
-	sh = R_FindShader(std::string(name), LIGHTMAP_2D, false);
+	sh = R_FindShader(name, LIGHTMAP_2D, false);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should
@@ -4286,7 +4287,7 @@ When a handle is passed in by another module, this range checks
 it and returns a valid (possibly default) shader_t to be used internally.
 ====================
 */
-shader_t *R_GetShaderByHandle(qhandle_t hShader)
+shader_t* R_GetShaderByHandle(qhandle_t hShader)
 {
 	if (hShader < 0)
 	{
@@ -4313,7 +4314,7 @@ void R_ShaderList_f(void)
 {
 	int i;
 	int count;
-	const shader_t *sh;
+	const shader_t* sh;
 
 	ri.Printf(PRINT_ALL, "-----------------------\n");
 
@@ -4385,16 +4386,16 @@ void R_ShaderList_f(void)
 
 constexpr int MAX_SHADER_FILES = 16384;
 
-static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char **buffers)
+static int loadShaderBuffers(char** shaderFiles, const int numShaderFiles, char** buffers)
 {
 	char filename[MAX_QPATH + 8];
 	std::array<char, MAX_QPATH> shaderName;
-	const char *p;
+	const char* p;
 	std::string_view token;
 	long summand, sum = 0;
 	int shaderLine;
 	int i;
-	const char *shaderStart;
+	const char* shaderStart;
 	bool denyErrors;
 
 	// load and parse shader files
@@ -4402,7 +4403,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 	{
 		Com_sprintf(filename, sizeof(filename), "scripts/%s", shaderFiles[i]);
 		// ri.Printf( PRINT_DEVELOPER, "...loading '%s'\n", filename );
-		summand = ri.FS_ReadFile(filename, (void **)&buffers[i]);
+		summand = ri.FS_ReadFile(filename, (void**)&buffers[i]);
 
 		if (!buffers[i])
 			ri.Error(ERR_DROP, "Couldn't load %s", filename);
@@ -4445,11 +4446,11 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 			shaderLine = COM_GetCurrentParseLine();
 
 			token = COM_ParseExt_cpp(&p, true);
-			if (token[0] != '{' || token[1] != '\0')
+			if (token[0] != '{' || (token.size() > 1 && token[1] != '\0'))
 			{
 				ri.Printf(PRINT_DEVELOPER, "File %s: shader \"%s\" "
-										   "on line %d missing opening brace",
-						  filename, shaderName.data(), shaderLine);
+					"on line %d missing opening brace",
+					filename, shaderName.data(), shaderLine);
 				if (token.empty())
 					ri.Printf(PRINT_DEVELOPER, " (found \"%s\" on line %d)\n", token.data(), COM_GetCurrentParseLine());
 				else
@@ -4471,8 +4472,8 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 			if (!SkipBracedSection(&p, 1))
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: Ignoring shader file %s. Shader \"%s\" "
-										 "on line %d missing closing brace.\n",
-						  filename, shaderName.data(), shaderLine);
+					"on line %d missing closing brace.\n",
+					filename, shaderName.data(), shaderLine);
 				ri.FS_FreeFile(buffers[i]);
 				buffers[i] = NULL;
 				break;
@@ -4509,15 +4510,15 @@ a single large text block that can be scanned for shader names
 */
 static void ScanAndLoadShaderFiles(void)
 {
-	char **shaderFiles, **shaderxFiles;
-	char *buffers[MAX_SHADER_FILES];
-	char *xbuffers[MAX_SHADER_FILES];
+	char** shaderFiles, ** shaderxFiles;
+	char* buffers[MAX_SHADER_FILES];
+	char* xbuffers[MAX_SHADER_FILES];
 	int numShaderFiles, numShaderxFiles;
 	int i;
-	const char *hashMem;
+	const char* hashMem;
 	std::string_view token;
-	char *textEnd;
-	const char *p, *oldp;
+	char* textEnd;
+	const char* p, * oldp;
 	int shaderTextHashTableSizes[MAX_SHADERTEXT_HASH], hash, size;
 
 	long sum = 0;
@@ -4556,7 +4557,7 @@ static void ScanAndLoadShaderFiles(void)
 	sum += loadShaderBuffers(shaderFiles, numShaderFiles, buffers);
 
 	// build single large buffer
-	s_shaderText = reinterpret_cast<char *>(ri.Hunk_Alloc(sum + numShaderxFiles * 2 + numShaderFiles * 2 + 1, h_low));
+	s_shaderText = reinterpret_cast<char*>(ri.Hunk_Alloc(sum + numShaderxFiles * 2 + numShaderFiles * 2 + 1, h_low));
 	s_shaderText[0] = s_shaderText[sum + numShaderxFiles * 2 + numShaderFiles * 2] = '\0';
 
 	textEnd = s_shaderText;
@@ -4603,7 +4604,7 @@ static void ScanAndLoadShaderFiles(void)
 	while (1)
 	{
 		token = COM_ParseExt_cpp(&p, true);
-		if (token[0] == 0)
+		if (token.empty())
 		{
 			break;
 		}
@@ -4615,12 +4616,12 @@ static void ScanAndLoadShaderFiles(void)
 
 	size += MAX_SHADERTEXT_HASH;
 
-	hashMem = reinterpret_cast<char *>(ri.Hunk_Alloc(size * sizeof(char *), h_low));
+	hashMem = reinterpret_cast<char*>(ri.Hunk_Alloc(size * sizeof(char*), h_low));
 
 	for (i = 0; i < MAX_SHADERTEXT_HASH; i++)
 	{
-		shaderTextHashTable[i] = (const char **)hashMem;
-		hashMem = ((char *)hashMem) + ((shaderTextHashTableSizes[i] + 1) * sizeof(char *));
+		shaderTextHashTable[i] = (const char**)hashMem;
+		hashMem = ((char*)hashMem) + ((shaderTextHashTableSizes[i] + 1) * sizeof(char*));
 	}
 
 	p = s_shaderText;
@@ -4629,13 +4630,13 @@ static void ScanAndLoadShaderFiles(void)
 	{
 		oldp = p;
 		token = COM_ParseExt_cpp(&p, true);
-		if (token[0] == 0)
+		if (token.empty())
 		{
 			break;
 		}
 
 		hash = generateHashValue(token.data(), MAX_SHADERTEXT_HASH);
-		shaderTextHashTable[hash][--shaderTextHashTableSizes[hash]] = (char *)oldp;
+		shaderTextHashTable[hash][--shaderTextHashTableSizes[hash]] = (char*)oldp;
 
 		SkipBracedSection(&p, 0);
 	}
@@ -4691,8 +4692,8 @@ CreateExternalShaders
 */
 static void CreateExternalShaders(void)
 {
-	tr.projectionShadowShader = R_FindShader(std::string("projectionShadow"), LIGHTMAP_NONE, true);
-	tr.flareShader = R_FindShader(std::string("flareShader"), LIGHTMAP_NONE, true);
+	tr.projectionShadowShader = R_FindShader("projectionShadow", LIGHTMAP_NONE, true);
+	tr.flareShader = R_FindShader("flareShader", LIGHTMAP_NONE, true);
 
 	// Hack to make fogging work correctly on flares. Fog colors are calculated
 	// in tr_flare.c already.
@@ -4707,7 +4708,7 @@ static void CreateExternalShaders(void)
 		}
 	}
 
-	tr.sunShader = R_FindShader(std::string("sun"), LIGHTMAP_NONE, true);
+	tr.sunShader = R_FindShader("sun", LIGHTMAP_NONE, true);
 }
 
 /*
