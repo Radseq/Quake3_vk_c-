@@ -37,12 +37,16 @@ static int com_tokenline;
 static int com_lines;
 static char com_token[MAX_TOKEN_CHARS_CPP];
 
-static const char* SkipWhitespace(const char* data, bool& hasNewLines) {
-    while (char c = *data) {
-        if (c > ' ') {
+static const char *SkipWhitespace(const char *data, bool &hasNewLines)
+{
+    while (char c = *data)
+    {
+        if (c > ' ')
+        {
             return data;
         }
-        if (c == '\n') {
+        if (c == '\n')
+        {
             ++com_lines;
             hasNewLines = true;
         }
@@ -53,83 +57,103 @@ static const char* SkipWhitespace(const char* data, bool& hasNewLines) {
 
 std::string_view COM_ParseExt_cpp(const char **text, bool allowLineBreaks)
 {
-    const char* data = *text;
+    const char *data = *text;
     bool hasNewLines = false;
     int len = 0;
 
     com_token[0] = '\0';
     com_tokenline = 0;
 
-    if (!data) {
+    if (!data)
+    {
         *text = nullptr;
         return std::string_view(com_token);
     }
 
-    while (true) {
+    while (true)
+    {
         data = SkipWhitespace(data, hasNewLines);
-        if (!data) {
+        if (!data)
+        {
             *text = nullptr;
             return std::string_view(com_token);
         }
 
-        if (hasNewLines && !allowLineBreaks) {
+        if (hasNewLines && !allowLineBreaks)
+        {
             *text = data;
             return std::string_view(com_token);
         }
 
         char c = *data;
 
-        if (c == '/' && data[1] == '/') {
+        if (c == '/' && data[1] == '/')
+        {
             data += 2;
-            while (*data && *data != '\n') {
+            while (*data && *data != '\n')
+            {
                 ++data;
             }
         }
-        else if (c == '/' && data[1] == '*') {
+        else if (c == '/' && data[1] == '*')
+        {
             data += 2;
-            while (*data && (*data != '*' || data[1] != '/')) {
-                if (*data == '\n') {
+            while (*data && (*data != '*' || data[1] != '/'))
+            {
+                if (*data == '\n')
+                {
                     ++com_lines;
                 }
                 ++data;
             }
-            if (*data) {
+            if (*data)
+            {
                 data += 2;
             }
         }
-        else {
+        else
+        {
             break;
         }
     }
 
     com_tokenline = com_lines;
 
-    if (*data == '"') {
+    if (*data == '"')
+    {
         ++data;
-        while (char c = *data) {
-            if (c == '"' || c == '\0') {
-                if (c == '"') {
+        while (char c = *data)
+        {
+            if (c == '"' || c == '\0')
+            {
+                if (c == '"')
+                {
                     ++data;
                 }
                 com_token[len] = '\0';
                 *text = data;
                 return std::string_view(com_token, len);
             }
-            if (c == '\n') {
+            if (c == '\n')
+            {
                 ++com_lines;
             }
-            if (len < MAX_TOKEN_CHARS - 1) {
+            if (len < MAX_TOKEN_CHARS - 1)
+            {
                 com_token[len++] = c;
             }
             ++data;
         }
     }
 
-    while (char c = *data) {
-        if (c <= ' ') {
+    while (char c = *data)
+    {
+        if (c <= ' ')
+        {
             break;
         }
-        if (len < MAX_TOKEN_CHARS - 1) {
+        if (len < MAX_TOKEN_CHARS - 1)
+        {
             com_token[len++] = c;
         }
         ++data;
