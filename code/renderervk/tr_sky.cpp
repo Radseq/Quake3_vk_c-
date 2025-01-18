@@ -741,7 +741,7 @@ void R_InitSkyTexCoords(float heightCloud)
 							  Square(skyVec[2]) * Square(heightCloud)));
 
 				// compute intersection point based on p
-				VectorScale(skyVec, p, v);
+				VectorScale_SIMD(skyVec, p, v);
 				v[2] += radiusWorld;
 
 				// compute vector from world origin to intersection point 'v'
@@ -780,12 +780,12 @@ void RB_DrawSun(const float scale, shader_t &shader)
 	dist = backEnd.viewParms.zFar / 1.75; // div sqrt(3)
 	size = dist * scale;
 
-	VectorMA(backEnd.viewParms.ort.origin, dist, tr.sunDirection, origin);
+	VectorMA_SIMD(backEnd.viewParms.ort.origin, dist, tr.sunDirection, origin);
 	PerpendicularVector(vec1, tr.sunDirection);
 	CrossProduct(tr.sunDirection, vec1, vec2);
 
-	VectorScale(vec1, size, vec1);
-	VectorScale(vec2, size, vec2);
+	VectorScale_SIMD(vec1, size, vec1);
+	VectorScale_SIMD(vec2, size, vec2);
 
 	// farthest depth range
 	tess.depthRange = DEPTH_RANGE_ONE;

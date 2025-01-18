@@ -553,10 +553,10 @@ static void R_RotateForViewer(void)
 	tr.ort.axis[0][0] = 1;
 	tr.ort.axis[1][1] = 1;
 	tr.ort.axis[2][2] = 1;
-	VectorCopy_SIMD(tr.viewParms.ort.origin, tr.ort.viewOrigin);
+	VectorCopy(tr.viewParms.ort.origin, tr.ort.viewOrigin);
 
 	// transform by the camera placement
-	VectorCopy_SIMD(tr.viewParms.ort.origin, origin);
+	VectorCopy(tr.viewParms.ort.origin, origin);
 
 	viewerMatrix[0] = tr.viewParms.ort.axis[0][0];
 	viewerMatrix[4] = tr.viewParms.ort.axis[0][1];
@@ -650,10 +650,10 @@ static void R_SetupFrustum(viewParms_t &dest, const float xmin, const float xmax
 		oppleg = xmax / length;
 		adjleg = zProj / length;
 
-		VectorScale(dest.ort.axis[0], oppleg, dest.frustum[0].normal);
+		VectorScale_SIMD(dest.ort.axis[0], oppleg, dest.frustum[0].normal);
 		VectorMA(dest.frustum[0].normal, adjleg, dest.ort.axis[1], dest.frustum[0].normal);
 
-		VectorScale(dest.ort.axis[0], oppleg, dest.frustum[1].normal);
+		VectorScale_SIMD(dest.ort.axis[0], oppleg, dest.frustum[1].normal);
 		VectorMA(dest.frustum[1].normal, -adjleg, dest.ort.axis[1], dest.frustum[1].normal);
 	}
 	else
@@ -664,12 +664,12 @@ static void R_SetupFrustum(viewParms_t &dest, const float xmin, const float xmax
 
 		oppleg = xmax + stereoSep;
 		length = sqrt(oppleg * oppleg + zProj * zProj);
-		VectorScale(dest.ort.axis[0], oppleg / length, dest.frustum[0].normal);
+		VectorScale_SIMD(dest.ort.axis[0], oppleg / length, dest.frustum[0].normal);
 		VectorMA(dest.frustum[0].normal, zProj / length, dest.ort.axis[1], dest.frustum[0].normal);
 
 		oppleg = xmin + stereoSep;
 		length = sqrt(oppleg * oppleg + zProj * zProj);
-		VectorScale(dest.ort.axis[0], -oppleg / length, dest.frustum[1].normal);
+		VectorScale_SIMD(dest.ort.axis[0], -oppleg / length, dest.frustum[1].normal);
 		VectorMA(dest.frustum[1].normal, -zProj / length, dest.ort.axis[1], dest.frustum[1].normal);
 	}
 
@@ -677,10 +677,10 @@ static void R_SetupFrustum(viewParms_t &dest, const float xmin, const float xmax
 	oppleg = ymax / length;
 	adjleg = zProj / length;
 
-	VectorScale(dest.ort.axis[0], oppleg, dest.frustum[2].normal);
+	VectorScale_SIMD(dest.ort.axis[0], oppleg, dest.frustum[2].normal);
 	VectorMA(dest.frustum[2].normal, adjleg, dest.ort.axis[2], dest.frustum[2].normal);
 
-	VectorScale(dest.ort.axis[0], oppleg, dest.frustum[3].normal);
+	VectorScale_SIMD(dest.ort.axis[0], oppleg, dest.frustum[3].normal);
 	VectorMA(dest.frustum[3].normal, -adjleg, dest.ort.axis[2], dest.frustum[3].normal);
 
 	for (i = 0; i < 4; i++)
@@ -838,7 +838,7 @@ static void R_MirrorPoint(const vec3_t &in, const orientation_t &surface, const 
 		VectorMA(transformed, d, camera.axis[i], transformed);
 	}
 
-	VectorAdd(transformed, camera.origin, out);
+	VectorAdd_SIMD(transformed, camera.origin, out);
 }
 
 static void R_MirrorVector(const vec3_t &in, const orientation_t &surface, const orientation_t &camera, vec3_t &out)
@@ -972,7 +972,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 			tre.e.oldorigin[1] == tre.e.origin[1] &&
 			tre.e.oldorigin[2] == tre.e.origin[2])
 		{
-			VectorScale(plane.normal, plane.dist, surface.origin);
+			VectorScale_SIMD(plane.normal, plane.dist, surface.origin);
 			VectorCopy_SIMD(surface.origin, camera.origin);
 			VectorSubtract_SIMD(vec3_origin, surface.axis[0], camera.axis[0]);
 			VectorCopy_SIMD(surface.axis[1], camera.axis[1]);

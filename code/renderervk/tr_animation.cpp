@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_vbo.hpp"
 #include "tr_light.hpp"
 #include "tr_main.hpp"
+#include "math.hpp"
 
 /*
 
@@ -165,7 +166,7 @@ static int R_MDRComputeFogNum(mdrHeader_t &header, const trRefEntity_t &ent)
 		reinterpret_cast<uintptr_t>(&header) + header.ofsFrames + frameSize * ent.e.frame
 	);
 
-	VectorAdd(ent.e.origin, mdrFrame->localOrigin, localOrigin);
+	VectorAdd_SIMD(ent.e.origin, mdrFrame->localOrigin, localOrigin);
 	for (i = 1; i < tr.world->numfogs; i++)
 	{
 		const fog_t& fog = tr.world->fogs[i];

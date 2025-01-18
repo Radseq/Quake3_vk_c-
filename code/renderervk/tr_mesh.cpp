@@ -263,7 +263,7 @@ static int R_ComputeFogNum(md3Header_t *header, const trRefEntity_t &ent)
 
 	// FIXME: non-normalized axis issues
 	md3Frame = (md3Frame_t *)((byte *)header + header->ofsFrames) + ent.e.frame;
-	VectorAdd(ent.e.origin, md3Frame->localOrigin, localOrigin);
+	VectorAdd_SIMD(ent.e.origin, md3Frame->localOrigin, localOrigin);
 	for (i = 1; i < tr.world->numfogs; i++)
 	{
 		fog = &tr.world->fogs[i];

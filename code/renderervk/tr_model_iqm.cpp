@@ -102,8 +102,8 @@ static int R_ComputeIQMFogNum(const iqmData_t &data, const trRefEntity_t &ent)
 		bounds = defaultBounds;
 	}
 	VectorSubtract(bounds + 3, bounds, diag);
-	VectorMA(bounds, 0.5f, diag, center);
-	VectorAdd(ent.e.origin, center, localOrigin);
+	VectorMA_SIMD(bounds, 0.5f, diag, center);
+	VectorAdd_SIMD(ent.e.origin, center, localOrigin);
 	radius = 0.5f * VectorLength(diag);
 
 	for (i = 1; i < tr.world->numfogs; i++)

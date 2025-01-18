@@ -235,8 +235,8 @@ static void RB_SurfaceSprite(void)
 	radius = backEnd.currentEntity->e.radius;
 	if (backEnd.currentEntity->e.rotation == 0.0)
 	{
-		VectorScale(backEnd.viewParms.ort.axis[1], radius, left);
-		VectorScale(backEnd.viewParms.ort.axis[2], radius, up);
+		VectorScale_SIMD(backEnd.viewParms.ort.axis[1], radius, left);
+		VectorScale_SIMD(backEnd.viewParms.ort.axis[2], radius, up);
 	}
 	else
 	{
@@ -244,11 +244,11 @@ static void RB_SurfaceSprite(void)
 		float s = sin(ang);
 		float c = cos(ang);
 
-		VectorScale(backEnd.viewParms.ort.axis[1], c * radius, left);
-		VectorMA(left, -s * radius, backEnd.viewParms.ort.axis[2], left);
+		VectorScale_SIMD(backEnd.viewParms.ort.axis[1], c * radius, left);
+		VectorMA_SIMD(left, -s * radius, backEnd.viewParms.ort.axis[2], left);
 
-		VectorScale(backEnd.viewParms.ort.axis[2], c * radius, up);
-		VectorMA(up, s * radius, backEnd.viewParms.ort.axis[1], up);
+		VectorScale_SIMD(backEnd.viewParms.ort.axis[2], c * radius, up);
+		VectorMA_SIMD(up, s * radius, backEnd.viewParms.ort.axis[1], up);
 	}
 
 	if (backEnd.viewParms.portalView == PV_MIRROR)
@@ -445,12 +445,12 @@ static void RB_SurfaceBeam(void)
 
 	PerpendicularVector(perpvec, normalized_direction);
 
-	VectorScale(perpvec, 4, perpvec);
+	VectorScale_SIMD(perpvec, 4, perpvec);
 
 	for (i = 0; i <= NUM_BEAM_SEGS; i++)
 	{
 		RotatePointAroundVector(points[i][0], normalized_direction, perpvec, (360.0 / NUM_BEAM_SEGS) * i);
-		VectorAdd(points[i][0], direction, points[i][1]);
+		VectorAdd_SIMD(points[i][0], direction, points[i][1]);
 	}
 
 	tess.numIndexes = 0;
@@ -559,12 +559,12 @@ static void DoRailDiscs(int numSegs, const vec3_t& start, const vec3_t& dir, con
 			(right[1] * c + up[1] * s) * scale * spanWidth,
 			(right[2] * c + up[2] * s) * scale * spanWidth};
 
-		VectorAdd(start, v, pos[i]);
+		VectorAdd_SIMD(start, v, pos[i]);
 
 		if (numSegs > 1)
 		{
 			// offset by 1 segment if we're doing a long distance shot
-			VectorAdd(pos[i], dir, pos[i]);
+			VectorAdd_SIMD(pos[i], dir, pos[i]);
 		}
 	}
 
@@ -584,7 +584,7 @@ static void DoRailDiscs(int numSegs, const vec3_t& start, const vec3_t& dir, con
 			tess.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shader.rgba[2];
 			tess.numVertexes++;
 
-			VectorAdd(pos[j], dir, pos[j]);
+			VectorAdd_SIMD(pos[j], dir, pos[j]);
 		}
 
 		tess.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 0;
@@ -620,7 +620,7 @@ static void RB_SurfaceRailRings(void)
 		numSegs = 1;
 	}
 
-	VectorScale(vec, r_railSegmentLength->value, vec);
+	VectorScale_SIMD(vec, r_railSegmentLength->value, vec);
 
 	DoRailDiscs(numSegs, start, vec, right, up);
 }

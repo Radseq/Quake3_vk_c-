@@ -319,7 +319,7 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 		vec3_t temp{};
 
 		AddPointToBounds(points[i], mins, maxs);
-		VectorAdd(points[i], projection, temp);
+		VectorAdd_SIMD(points[i], projection, temp);
 		AddPointToBounds(temp, mins, maxs);
 		// make sure we get all the leafs (also the one(s) in front of the hit surface)
 		VectorMA(points[i], -20, projectionDir, temp);
@@ -332,7 +332,7 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 	for (i = 0; i < numPoints; i++)
 	{
 		VectorSubtract(points[(i + 1) % numPoints], points[i], v1);
-		VectorAdd(points[i], projection, v2);
+		VectorAdd_SIMD(points[i], projection, v2);
 		VectorSubtract_SIMD(points[i], v2, v2);
 		CrossProduct(v1, v2, normals[i]);
 		VectorNormalizeFast(normals[i]);
@@ -389,11 +389,11 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 					dv = cv->verts + m * cv->width + n;
 
 					VectorCopy_SIMD(dv[0].xyz, clipPoints[0][0]);
-					VectorMA(clipPoints[0][0], MARKER_OFFSET, dv[0].normal, clipPoints[0][0]);
+					VectorMA_SIMD(clipPoints[0][0], MARKER_OFFSET, dv[0].normal, clipPoints[0][0]);
 					VectorCopy_SIMD(dv[cv->width].xyz, clipPoints[0][1]);
-					VectorMA(clipPoints[0][1], MARKER_OFFSET, dv[cv->width].normal, clipPoints[0][1]);
+					VectorMA_SIMD(clipPoints[0][1], MARKER_OFFSET, dv[cv->width].normal, clipPoints[0][1]);
 					VectorCopy_SIMD(dv[1].xyz, clipPoints[0][2]);
-					VectorMA(clipPoints[0][2], MARKER_OFFSET, dv[1].normal, clipPoints[0][2]);
+					VectorMA_SIMD(clipPoints[0][2], MARKER_OFFSET, dv[1].normal, clipPoints[0][2]);
 					// check the normal of this triangle
 					VectorSubtract_SIMD(clipPoints[0][0], clipPoints[0][1], v1);
 					VectorSubtract_SIMD(clipPoints[0][2], clipPoints[0][1], v2);
@@ -415,11 +415,11 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 					}
 
 					VectorCopy_SIMD(dv[1].xyz, clipPoints[0][0]);
-					VectorMA(clipPoints[0][0], MARKER_OFFSET, dv[1].normal, clipPoints[0][0]);
+					VectorMA_SIMD(clipPoints[0][0], MARKER_OFFSET, dv[1].normal, clipPoints[0][0]);
 					VectorCopy_SIMD(dv[cv->width].xyz, clipPoints[0][1]);
-					VectorMA(clipPoints[0][1], MARKER_OFFSET, dv[cv->width].normal, clipPoints[0][1]);
+					VectorMA_SIMD(clipPoints[0][1], MARKER_OFFSET, dv[cv->width].normal, clipPoints[0][1]);
 					VectorCopy_SIMD(dv[cv->width + 1].xyz, clipPoints[0][2]);
-					VectorMA(clipPoints[0][2], MARKER_OFFSET, dv[cv->width + 1].normal, clipPoints[0][2]);
+					VectorMA_SIMD(clipPoints[0][2], MARKER_OFFSET, dv[cv->width + 1].normal, clipPoints[0][2]);
 					// check the normal of this triangle
 					VectorSubtract_SIMD(clipPoints[0][0], clipPoints[0][1], v1);
 					VectorSubtract_SIMD(clipPoints[0][2], clipPoints[0][1], v2);

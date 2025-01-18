@@ -2007,7 +2007,7 @@ static bool ParseShader(const char **text)
 
 			token = COM_ParseExt_cpp(text, false);
 			a = Q_atof_cpp(token);
-			VectorScale(tr.sunLight, a, tr.sunLight);
+			VectorScale_SIMD(tr.sunLight, a, tr.sunLight);
 
 			token = COM_ParseExt_cpp(text, false);
 			a = Q_atof_cpp(token);

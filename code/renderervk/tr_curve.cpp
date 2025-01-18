@@ -234,7 +234,7 @@ static void MakeMeshNormals(const int width, const int height, drawVert_t ctrl[M
 				{
 					continue;
 				}
-				VectorAdd(normal, sum, sum);
+				VectorAdd_SIMD(normal, sum, sum);
 			}
 
 			VectorNormalize2(sum, dv.normal);
@@ -369,8 +369,8 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh(const int width, const int height,
 	}
 
 	// compute local origin and bounds
-	VectorAdd(grid->meshBounds[0], grid->meshBounds[1], grid->localOrigin);
-	VectorScale(grid->localOrigin, 0.5f, grid->localOrigin);
+	VectorAdd_SIMD(grid->meshBounds[0], grid->meshBounds[1], grid->localOrigin);
+	VectorScale_SIMD(grid->localOrigin, 0.5f, grid->localOrigin);
 	VectorSubtract_SIMD(grid->meshBounds[0], grid->localOrigin, tmpVec);
 	grid->meshRadius = VectorLength(tmpVec);
 
@@ -457,7 +457,7 @@ srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
 				VectorNormalize(dir);
 
 				d = DotProduct(midxyz, dir);
-				VectorScale(dir, d, projected);
+				VectorScale_SIMD(dir, d, projected);
 				VectorSubtract_SIMD(midxyz, projected, midxyz2);
 				len = VectorLengthSquared(midxyz2); // we will do the sqrt later
 				if (len > maxLen)

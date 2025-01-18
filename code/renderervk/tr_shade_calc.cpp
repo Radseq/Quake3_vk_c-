@@ -250,7 +250,7 @@ static void RB_CalcMoveVertexes(deformStage_t &ds)
 					  ds.deformationWave.phase,
 					  ds.deformationWave.frequency);
 
-	VectorScale(ds.moveVector, scale, offset);
+	VectorScale_SIMD(ds.moveVector, scale, offset);
 
 	xyz = (float *)tess.xyz;
 	for (i = 0; i < tess.numVertexes; i++, xyz += 4)
@@ -292,18 +292,18 @@ static void DeformText(std::string_view text)
 			top = tess.xyz[i][2];
 		}
 	}
-	VectorScale(mid, 0.25f, origin);
+	VectorScale_SIMD(mid, 0.25f, origin);
 
 	// determine the individual character size
 	height[0] = 0;
 	height[1] = 0;
 	height[2] = (top - bottom) * 0.5f;
 
-	VectorScale(width, height[2] * -0.75f, width);
+	VectorScale_SIMD(width, height[2] * -0.75f, width);
 
 	// determine the starting position
 	len = text.size();
-	VectorMA(origin, (len - 1), width, origin);
+	VectorMA_SIMD(origin, (len - 1), width, origin);
 
 	// clear the shader indexes
 	tess.numIndexes = 0;
@@ -331,7 +331,7 @@ static void DeformText(std::string_view text)
 
 			RB_AddQuadStampExt(origin, width, height, color, fcol, frow, fcol + size, frow + size);
 		}
-		VectorMA(origin, -2, width, origin);
+		VectorMA_SIMD(origin, -2, width, origin);
 	}
 }
 
@@ -402,8 +402,8 @@ static void AutospriteDeform(void)
 		VectorSubtract(xyz, mid, delta);
 		radius = VectorLength(delta) * 0.707f; // / sqrt(2)
 
-		VectorScale(leftDir, radius, left);
-		VectorScale(upDir, radius, up);
+		VectorScale_SIMD(leftDir, radius, left);
+		VectorScale_SIMD(upDir, radius, up);
 
 		if (backEnd.viewParms.portalView == PV_MIRROR)
 		{
@@ -422,8 +422,8 @@ static void AutospriteDeform(void)
 			{
 				axisLength = 1.0f / axisLength;
 			}
-			VectorScale(left, axisLength, left);
-			VectorScale(up, axisLength, up);
+			VectorScale_SIMD(left, axisLength, left);
+			VectorScale_SIMD(up, axisLength, up);
 		}
 
 		RB_AddQuadStamp(mid, left, up, tess.vertexColors[i]);

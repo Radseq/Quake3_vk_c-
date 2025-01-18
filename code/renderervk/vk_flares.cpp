@@ -211,7 +211,7 @@ void RB_AddFlare(void *surface, const int fogNum, const vec3_t &point, const vec
 
 	// fade the intensity of the flare down as the
 	// light surface turns away from the viewer
-	VectorScale(flare->color, d, flare->color);
+	VectorScale_SIMD(flare->color, d, flare->color);
 
 	// save info needed to test
 	flare->windowX = backEnd.viewParms.viewportX + window[0];
@@ -462,7 +462,7 @@ static void RB_RenderFlare(flare_t &f)
 
 	intensity = r_flareCoeff->value * size * size / (factor * factor);
 
-	VectorScale(f.color, f.drawIntensity * intensity, color);
+	VectorScale_SIMD(f.color, f.drawIntensity * intensity, color);
 
 	// Calculations for fogging
 	if (tr.world && f.fogNum > 0 && f.fogNum < tr.world->numfogs)

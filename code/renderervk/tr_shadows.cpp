@@ -165,7 +165,7 @@ void RB_ShadowTessEnd(void)
 	if (lightDir[2] > 0.1)
 	{
 		float s = 0.1 / lightDir[2];
-		VectorScale(lightDir, s, lightDir);
+		VectorScale_SIMD(lightDir, s, lightDir);
 	}
 
 	// project vertexes away from light direction
@@ -346,7 +346,7 @@ void RB_ProjectionShadowDeform(void)
 	// don't let the shadows get too long ort go negative
 	if (d < 0.5)
 	{
-		VectorMA(lightDir, (0.5 - d), ground, lightDir);
+		VectorMA_SIMD(lightDir, (0.5 - d), ground, lightDir);
 		d = DotProduct(lightDir, ground);
 	}
 	d = 1.0 / d;

@@ -857,8 +857,8 @@ static void ParseMesh(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 		bounds[0][i] = LittleFloat(ds.lightmapVecs[0][i]);
 		bounds[1][i] = LittleFloat(ds.lightmapVecs[1][i]);
 	}
-	VectorAdd(bounds[0], bounds[1], bounds[1]);
-	VectorScale(bounds[1], 0.5f, grid->lodOrigin);
+	VectorAdd_SIMD(bounds[0], bounds[1], bounds[1]);
+	VectorScale_SIMD(bounds[1], 0.5f, grid->lodOrigin);
 	VectorSubtract_SIMD(bounds[0], grid->lodOrigin, tmpVec);
 	grid->lodRadius = VectorLength(tmpVec);
 }
