@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk.hpp"
 #include "tr_cmds.hpp"
 #include "string_operations.hpp"
+#include "math.hpp"
 
 backEndData_t *backEndData;
 backEndState_t backEnd;

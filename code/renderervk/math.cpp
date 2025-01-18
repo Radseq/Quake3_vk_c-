@@ -77,6 +77,26 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 	return sides;
 }
 
+void VectorCopy_SIMD(const vec3_t source, vec3_t dest) {
+    // Load 3 floats from `source` and pad with 0.0f for the 4th element
+    __m128 vec = _mm_set_ps(0.0f, source[2], source[1], source[0]);
+
+    // Store the first 3 floats into `dest`
+    _mm_storeu_ps(dest, vec);
+}
+
+float DotProduct_SIMD(const float* x, const float* y) {
+	__m128 vec1 = _mm_loadu_ps(x); // Load 3 + padding from `x`
+	__m128 vec2 = _mm_loadu_ps(y); // Load 3 + padding from `y`
+
+	__m128 mul = _mm_mul_ps(vec1, vec2);           // Element-wise multiplication
+	__m128 shuf1 = _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 1, 0, 0)); // Shuffle to sum
+	__m128 shuf2 = _mm_add_ps(mul, shuf1);
+	__m128 shuf3 = _mm_movehl_ps(shuf2, shuf2);
+
+	return _mm_cvtss_f32(_mm_add_ss(shuf2, shuf3)); // Horizontal sum and extract result
+}
+
 // int ColorIndexFromChar(char ccode)
 // {
 // 	if (ccode >= '0' && ccode <= '9')

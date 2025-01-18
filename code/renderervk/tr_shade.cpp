@@ -799,7 +799,7 @@ static bool ProjectDlightTexture(void)
 		tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
 		colors = tess.svars.colors[0][0].rgba;
 		const dlight_t &dl = backEnd.refdef.dlights[l];
-		VectorCopy(dl.transformed, origin);
+		VectorCopy_SIMD(dl.transformed, origin);
 		radius = dl.radius;
 		scale = 1.0f / radius;
 

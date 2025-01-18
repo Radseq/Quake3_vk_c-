@@ -186,8 +186,8 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 		else
 		{
 			// find which fog volume the poly is in
-			VectorCopy(poly.verts[0].xyz, bounds[0]);
-			VectorCopy(poly.verts[0].xyz, bounds[1]);
+			VectorCopy_SIMD(poly.verts[0].xyz, bounds[0]);
+			VectorCopy_SIMD(poly.verts[0].xyz, bounds[1]);
 			for (i = 1; i < poly.numVerts; i++)
 			{
 				AddPointToBounds(poly.verts[i].xyz, bounds[0], bounds[1]);
@@ -300,7 +300,7 @@ static void RE_AddDynamicLightToScene(const vec3_t org, float intensity, float r
 	}
 
 	dlight_t &dl = backEndData->dlights[r_numdlights++];
-	VectorCopy(org, dl.origin);
+	VectorCopy_SIMD(org, dl.origin);
 	dl.radius = intensity;
 	dl.color[0] = r;
 	dl.color[1] = g;
@@ -354,8 +354,8 @@ void RE_AddLinearLightToScene(const vec3_t start, const vec3_t end, float intens
 	}
 
 	dlight_t &dl = backEndData->dlights[r_numdlights++];
-	VectorCopy(start, dl.origin);
-	VectorCopy(end, dl.origin2);
+	VectorCopy_SIMD(start, dl.origin);
+	VectorCopy_SIMD(end, dl.origin2);
 	dl.radius = intensity;
 	dl.color[0] = r;
 	dl.color[1] = g;
@@ -422,10 +422,10 @@ void RE_RenderScene(const refdef_t *fd)
 	tr.refdef.fov_x = fd->fov_x;
 	tr.refdef.fov_y = fd->fov_y;
 
-	VectorCopy(fd->vieworg, tr.refdef.vieworg);
-	VectorCopy(fd->viewaxis[0], tr.refdef.viewaxis[0]);
-	VectorCopy(fd->viewaxis[1], tr.refdef.viewaxis[1]);
-	VectorCopy(fd->viewaxis[2], tr.refdef.viewaxis[2]);
+	VectorCopy_SIMD(fd->vieworg, tr.refdef.vieworg);
+	VectorCopy_SIMD(fd->viewaxis[0], tr.refdef.viewaxis[0]);
+	VectorCopy_SIMD(fd->viewaxis[1], tr.refdef.viewaxis[1]);
+	VectorCopy_SIMD(fd->viewaxis[2], tr.refdef.viewaxis[2]);
 
 	tr.refdef.time = fd->time;
 	tr.refdef.rdflags = fd->rdflags;

@@ -89,7 +89,7 @@ static void AddSkyPolygon(const int nump, vec3_t vecs)
 		};
 
 	// decide which face it maps to
-	VectorCopy(vec3_origin, v);
+	VectorCopy_SIMD(vec3_origin, v);
 	for (i = 0, vp = vecs; i < nump; i++, vp += 3)
 	{
 		VectorAdd(vp, v, v);

@@ -385,8 +385,8 @@ static void AutospriteDeform(void)
 	}
 	else
 	{
-		VectorCopy(backEnd.viewParms.ort.axis[1], leftDir);
-		VectorCopy(backEnd.viewParms.ort.axis[2], upDir);
+		VectorCopy_SIMD(backEnd.viewParms.ort.axis[1], leftDir);
+		VectorCopy_SIMD(backEnd.viewParms.ort.axis[2], upDir);
 	}
 
 	for (i = 0; i < oldVerts; i += 4)
@@ -462,7 +462,7 @@ static void Autosprite2Deform(void)
 	}
 	else
 	{
-		VectorCopy(backEnd.viewParms.ort.axis[0], forward);
+		VectorCopy_SIMD(backEnd.viewParms.ort.axis[0], forward);
 	}
 
 	// this is a lot of work for two triangles...
@@ -1287,9 +1287,9 @@ static void RB_CalcDiffuseColor_scalar(unsigned char *colors)
 
 	vec3_t ambientLight{}, lightDir{}, directedLight{};
 
-	VectorCopy(ent->ambientLight, ambientLight);
-	VectorCopy(ent->directedLight, directedLight);
-	VectorCopy(ent->lightDir, lightDir);
+	VectorCopy_SIMD(ent->ambientLight, ambientLight);
+	VectorCopy_SIMD(ent->directedLight, directedLight);
+	VectorCopy_SIMD(ent->lightDir, lightDir);
 
 	v = tess.xyz[0];
 	normal = tess.normal[0];

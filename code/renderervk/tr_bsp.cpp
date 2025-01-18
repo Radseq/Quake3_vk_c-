@@ -2256,7 +2256,7 @@ static void R_LoadFogs(const lump_t *l, const lump_t *brushesLump, const lump_t 
 		// get information from the shader for fog parameters
 		shader = R_FindShader(fogs->shader, LIGHTMAP_NONE, true);
 
-		VectorCopy(shader->fogParms.color, fogColor);
+		VectorCopy_SIMD(shader->fogParms.color, fogColor);
 
 		if (r_mapGreyScale->value > 0)
 		{

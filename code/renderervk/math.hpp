@@ -2,8 +2,14 @@
 #define MATH_HPP
 
 #include "tr_local.hpp"
+#include <immintrin.h> // AVX SIMD headers
 
-int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p);
+
+int BoxOnPlaneSide_cpp(const vec3_t& emins, const vec3_t& emaxs, cplane_s& p);
+
+void VectorCopy_SIMD(const vec3_t source, vec3_t dest);
+
+float DotProduct_SIMD(const float* x, const float* y);
 
 // vec_t VectorNormalize(vec3_t v);
 // void PerpendicularVector(vec3_t dst, const vec3_t src);

@@ -206,8 +206,8 @@ void RB_AddFlare(void *surface, const int fogNum, const vec3_t &point, const vec
 	flare->addedFrame = backEnd.viewParms.frameCount;
 	flare->fogNum = fogNum;
 
-	VectorCopy(point, flare->origin);
-	VectorCopy(color, flare->color);
+	VectorCopy_SIMD(point, flare->origin);
+	VectorCopy_SIMD(color, flare->color);
 
 	// fade the intensity of the flare down as the
 	// light surface turns away from the viewer

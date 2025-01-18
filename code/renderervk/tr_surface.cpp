@@ -607,8 +607,8 @@ static void RB_SurfaceRailRings(void)
 	vec3_t right, up;
 	vec3_t start{}, end{};
 
-	VectorCopy(backEnd.currentEntity->e.oldorigin, start);
-	VectorCopy(backEnd.currentEntity->e.origin, end);
+	VectorCopy_SIMD(backEnd.currentEntity->e.oldorigin, start);
+	VectorCopy_SIMD(backEnd.currentEntity->e.origin, end);
 
 	// compute variables
 	VectorSubtract(end, start, vec);
@@ -636,8 +636,8 @@ static void RB_SurfaceRailCore(void)
 	vec3_t start{}, end{};
 	vec3_t v1{}, v2{};
 
-	VectorCopy(backEnd.currentEntity->e.oldorigin, start);
-	VectorCopy(backEnd.currentEntity->e.origin, end);
+	VectorCopy_SIMD(backEnd.currentEntity->e.oldorigin, start);
+	VectorCopy_SIMD(backEnd.currentEntity->e.origin, end);
 
 	VectorSubtract(end, start, vec);
 	len = VectorNormalize(vec);
@@ -665,8 +665,8 @@ static void RB_SurfaceLightningBolt(void)
 	vec3_t v1{}, v2{};
 	int i;
 
-	VectorCopy(backEnd.currentEntity->e.oldorigin, end);
-	VectorCopy(backEnd.currentEntity->e.origin, start);
+	VectorCopy_SIMD(backEnd.currentEntity->e.oldorigin, end);
+	VectorCopy_SIMD(backEnd.currentEntity->e.origin, start);
 
 	// compute variables
 	VectorSubtract(end, start, vec);
@@ -686,7 +686,7 @@ static void RB_SurfaceLightningBolt(void)
 
 		DoRailCore(start, end, right, len, 8);
 		RotatePointAroundVector(temp, vec, right, 45);
-		VectorCopy(temp, right);
+		VectorCopy_SIMD(temp, right);
 	}
 }
 

@@ -171,7 +171,7 @@ static void MakeMeshNormals(const int width, const int height, drawVert_t ctrl[M
 		for (j = 0; j < height; j++)
 		{
 			drawVert_t &dv = ctrl[j][i];
-			VectorCopy(dv.xyz, base);
+			VectorCopy_SIMD(dv.xyz, base);
 			for (k = 0; k < 8; k++)
 			{
 				VectorClear(around[k]);
@@ -216,7 +216,7 @@ static void MakeMeshNormals(const int width, const int height, drawVert_t ctrl[M
 					else
 					{
 						good[k] = true;
-						VectorCopy(temp, around[k]);
+						VectorCopy_SIMD(temp, around[k]);
 						break; // good edge
 					}
 				}
@@ -374,7 +374,7 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh(const int width, const int height,
 	VectorSubtract(grid->meshBounds[0], grid->localOrigin, tmpVec);
 	grid->meshRadius = VectorLength(tmpVec);
 
-	VectorCopy(grid->localOrigin, grid->lodOrigin);
+	VectorCopy_SIMD(grid->localOrigin, grid->lodOrigin);
 	grid->lodRadius = grid->meshRadius;
 	//
 	return grid;
@@ -604,7 +604,7 @@ srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, const int column, const i
 			{
 				LerpDrawVert(grid.verts[j * grid.width + i - 1], grid.verts[j * grid.width + i], ctrl[j][i]);
 				if (j == row)
-					VectorCopy(point, ctrl[j][i].xyz);
+					VectorCopy_SIMD(point, ctrl[j][i].xyz);
 			}
 			errorTable[0][i] = loderror;
 			continue;
@@ -625,14 +625,14 @@ srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, const int column, const i
 	// calculate normals
 	MakeMeshNormals(width, height, ctrl);
 
-	VectorCopy(grid.lodOrigin, lodOrigin);
+	VectorCopy_SIMD(grid.lodOrigin, lodOrigin);
 	lodRadius = grid.lodRadius;
 	// free the old grid
 	R_FreeSurfaceGridMesh(grid);
 	// create a new grid
 	grid = *R_CreateSurfaceGridMesh(width, height, ctrl, errorTable);
 	grid.lodRadius = lodRadius;
-	VectorCopy(lodOrigin, grid.lodOrigin);
+	VectorCopy_SIMD(lodOrigin, grid.lodOrigin);
 	return &grid;
 }
 
@@ -664,7 +664,7 @@ srfGridMesh_t *R_GridInsertRow(srfGridMesh_t &grid, const int row, const int col
 			{
 				LerpDrawVert(grid.verts[(i - 1) * grid.width + j], grid.verts[i * grid.width + j], ctrl[i][j]);
 				if (j == column)
-					VectorCopy(point, ctrl[i][j].xyz);
+					VectorCopy_SIMD(point, ctrl[i][j].xyz);
 			}
 			errorTable[1][i] = loderror;
 			continue;
@@ -685,13 +685,13 @@ srfGridMesh_t *R_GridInsertRow(srfGridMesh_t &grid, const int row, const int col
 	// calculate normals
 	MakeMeshNormals(width, height, ctrl);
 
-	VectorCopy(grid.lodOrigin, lodOrigin);
+	VectorCopy_SIMD(grid.lodOrigin, lodOrigin);
 	lodRadius = grid.lodRadius;
 	// free the old grid
 	R_FreeSurfaceGridMesh(grid);
 	// create a new grid
 	grid = *R_CreateSurfaceGridMesh(width, height, ctrl, errorTable);
 	grid.lodRadius = lodRadius;
-	VectorCopy(lodOrigin, grid.lodOrigin);
+	VectorCopy_SIMD(lodOrigin, grid.lodOrigin);
 	return &grid;
 }

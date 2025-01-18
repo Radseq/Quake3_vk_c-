@@ -145,11 +145,11 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
         // separate lightOrigins are needed so an object that is
         // sinking into the ground can still be lit, and so
         // multi-part models can be lit identically
-        VectorCopy(ent.e.lightingOrigin, lightOrigin);
+        VectorCopy_SIMD(ent.e.lightingOrigin, lightOrigin);
     }
     else
     {
-        VectorCopy(ent.e.origin, lightOrigin);
+        VectorCopy_SIMD(ent.e.origin, lightOrigin);
     }
 
     VectorSubtract(lightOrigin, tr.world->lightGridOrigin, lightOrigin);
@@ -264,11 +264,11 @@ int R_LightForPoint(vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec
         return false;
 
     Com_Memset(&ent, 0, sizeof(ent));
-    VectorCopy(point, ent.e.origin);
+    VectorCopy_SIMD(point, ent.e.origin);
     R_SetupEntityLightingGrid(ent);
-    VectorCopy(ent.ambientLight, ambientLight);
-    VectorCopy(ent.directedLight, directedLight);
-    VectorCopy(ent.lightDir, lightDir);
+    VectorCopy_SIMD(ent.ambientLight, ambientLight);
+    VectorCopy_SIMD(ent.directedLight, directedLight);
+    VectorCopy_SIMD(ent.lightDir, lightDir);
 
     return true;
 }
@@ -340,11 +340,11 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
         // separate lightOrigins are needed so an object that is
         // sinking into the ground can still be lit, and so
         // multi-part models can be lit identically
-        VectorCopy(ent.e.lightingOrigin, lightOrigin);
+        VectorCopy_SIMD(ent.e.lightingOrigin, lightOrigin);
     }
     else
     {
-        VectorCopy(ent.e.origin, lightOrigin);
+        VectorCopy_SIMD(ent.e.origin, lightOrigin);
     }
 
     // if NOWORLDMODEL, only use dynamic lights (menu system, etc)
@@ -358,7 +358,7 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
             ent.ambientLight[2] = tr.identityLight * 150;
         ent.directedLight[0] = ent.directedLight[1] =
             ent.directedLight[2] = tr.identityLight * 150;
-        VectorCopy(tr.sunDirection, ent.lightDir);
+        VectorCopy_SIMD(tr.sunDirection, ent.lightDir);
     }
 
     // bonus items and view weapons have a fixed minimum add
@@ -380,7 +380,7 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
     {
         // only direct lights
         // but we need to deal with shadow light direction
-        VectorCopy(lightDir, shadowLightDir);
+        VectorCopy_SIMD(lightDir, shadowLightDir);
         if (r_shadows->integer == 2)
         {
             for (i = 0; i < refdef.num_dlights; i++)

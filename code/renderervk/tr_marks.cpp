@@ -339,9 +339,9 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 		dists[i] = DotProduct(normals[i], points[i]);
 	}
 	// add near and far clipping planes for projection
-	VectorCopy(projectionDir, normals[numPoints]);
+	VectorCopy_SIMD(projectionDir, normals[numPoints]);
 	dists[numPoints] = DotProduct(normals[numPoints], points[0]) - 32;
-	VectorCopy(projectionDir, normals[numPoints + 1]);
+	VectorCopy_SIMD(projectionDir, normals[numPoints + 1]);
 	VectorInverse(normals[numPoints + 1]);
 	dists[numPoints + 1] = DotProduct(normals[numPoints + 1], points[0]) - 20;
 	numPlanes = numPoints + 2;
@@ -388,11 +388,11 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 
 					dv = cv->verts + m * cv->width + n;
 
-					VectorCopy(dv[0].xyz, clipPoints[0][0]);
+					VectorCopy_SIMD(dv[0].xyz, clipPoints[0][0]);
 					VectorMA(clipPoints[0][0], MARKER_OFFSET, dv[0].normal, clipPoints[0][0]);
-					VectorCopy(dv[cv->width].xyz, clipPoints[0][1]);
+					VectorCopy_SIMD(dv[cv->width].xyz, clipPoints[0][1]);
 					VectorMA(clipPoints[0][1], MARKER_OFFSET, dv[cv->width].normal, clipPoints[0][1]);
-					VectorCopy(dv[1].xyz, clipPoints[0][2]);
+					VectorCopy_SIMD(dv[1].xyz, clipPoints[0][2]);
 					VectorMA(clipPoints[0][2], MARKER_OFFSET, dv[1].normal, clipPoints[0][2]);
 					// check the normal of this triangle
 					VectorSubtract(clipPoints[0][0], clipPoints[0][1], v1);
@@ -414,11 +414,11 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 						}
 					}
 
-					VectorCopy(dv[1].xyz, clipPoints[0][0]);
+					VectorCopy_SIMD(dv[1].xyz, clipPoints[0][0]);
 					VectorMA(clipPoints[0][0], MARKER_OFFSET, dv[1].normal, clipPoints[0][0]);
-					VectorCopy(dv[cv->width].xyz, clipPoints[0][1]);
+					VectorCopy_SIMD(dv[cv->width].xyz, clipPoints[0][1]);
 					VectorMA(clipPoints[0][1], MARKER_OFFSET, dv[cv->width].normal, clipPoints[0][1]);
-					VectorCopy(dv[cv->width + 1].xyz, clipPoints[0][2]);
+					VectorCopy_SIMD(dv[cv->width + 1].xyz, clipPoints[0][2]);
 					VectorMA(clipPoints[0][2], MARKER_OFFSET, dv[cv->width + 1].normal, clipPoints[0][2]);
 					// check the normal of this triangle
 					VectorSubtract(clipPoints[0][0], clipPoints[0][1], v1);

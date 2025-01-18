@@ -1210,8 +1210,8 @@ void R_ModelBounds(qhandle_t handle, vec3_t mins, vec3_t maxs)
 
 	if (model.type == MOD_BRUSH)
 	{
-		VectorCopy(model.bmodel->bounds[0], mins);
-		VectorCopy(model.bmodel->bounds[1], maxs);
+		VectorCopy_SIMD(model.bmodel->bounds[0], mins);
+		VectorCopy_SIMD(model.bmodel->bounds[1], maxs);
 
 		return;
 	}
@@ -1223,8 +1223,8 @@ void R_ModelBounds(qhandle_t handle, vec3_t mins, vec3_t maxs)
 		header = model.md3[0];
 		frame = (md3Frame_t *)((byte *)header + header->ofsFrames);
 
-		VectorCopy(frame->bounds[0], mins);
-		VectorCopy(frame->bounds[1], maxs);
+		VectorCopy_SIMD(frame->bounds[0], mins);
+		VectorCopy_SIMD(frame->bounds[1], maxs);
 
 		return;
 	}
@@ -1236,8 +1236,8 @@ void R_ModelBounds(qhandle_t handle, vec3_t mins, vec3_t maxs)
 		header = (mdrHeader_t *)model.modelData;
 		frame = (mdrFrame_t *)((byte *)header + header->ofsFrames);
 
-		VectorCopy(frame->bounds[0], mins);
-		VectorCopy(frame->bounds[1], maxs);
+		VectorCopy_SIMD(frame->bounds[0], mins);
+		VectorCopy_SIMD(frame->bounds[1], maxs);
 
 		return;
 	}

@@ -413,10 +413,8 @@ Called by both the front end and the back end
 // 	ort.viewOrigin[2] = DotProduct(delta, ort.axis[2]) * axisLength;
 // }
 
-#include <immintrin.h> // AVX SIMD headers
-
 // SIMD optimized myGlMultMatrix (SSE2-compatible)
-void myGlMultMatrix_SIMD(const float *a, const float *b, float *out) {
+static void myGlMultMatrix_SIMD(const float *a, const float *b, float *out) {
     __m128 rowA;
 
     for (int i = 0; i < 4; ++i) {
@@ -446,24 +444,6 @@ void myGlMultMatrix_SIMD(const float *a, const float *b, float *out) {
     }
 }
 
-inline void VectorCopy_SIMD(const float *a, float *b) {
-    __m128 vec = _mm_loadu_ps(a);  // Load 4 floats (3 + padding) from `a`
-    _mm_storeu_ps(b, vec);         // Store 4 floats into `b`
-}
-
-// SIMD DotProduct
-inline float DotProduct_SIMD(const float *x, const float *y) {
-    __m128 vec1 = _mm_loadu_ps(x); // Load 3 + padding from `x`
-    __m128 vec2 = _mm_loadu_ps(y); // Load 3 + padding from `y`
-
-    __m128 mul = _mm_mul_ps(vec1, vec2);           // Element-wise multiplication
-    __m128 shuf1 = _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 1, 0, 0)); // Shuffle to sum
-    __m128 shuf2 = _mm_add_ps(mul, shuf1);
-    __m128 shuf3 = _mm_movehl_ps(shuf2, shuf2);
-
-    return _mm_cvtss_f32(_mm_add_ss(shuf2, shuf3)); // Horizontal sum and extract result
-}
-
 
 void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
 						   orientationr_t &ort)
@@ -482,11 +462,11 @@ void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
 	// float glMatrix[16]{};
 	// vec3_t delta{};
 	// float axisLength;
-	VectorCopy_SIMD(ent.e.origin, ort.origin);
+	VectorCopy(ent.e.origin, ort.origin);
 
-	VectorCopy_SIMD(ent.e.axis[0], ort.axis[0]);
-	VectorCopy_SIMD(ent.e.axis[1], ort.axis[1]);
-	VectorCopy_SIMD(ent.e.axis[2], ort.axis[2]);
+	VectorCopy(ent.e.axis[0], ort.axis[0]);
+	VectorCopy(ent.e.axis[1], ort.axis[1]);
+	VectorCopy(ent.e.axis[2], ort.axis[2]);
 
 	// Build glMatrix rows using SIMD (float layout: [x, y, z, w])
 	row0 = _mm_set_ps(0.0f, ort.axis[0][2], ort.axis[0][1], ort.axis[0][0]);
@@ -525,9 +505,9 @@ void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
 		axisLength = 1.0f;
 	}
 
-	ort.viewOrigin[0] = DotProduct_SIMD(delta, ort.axis[0]) * axisLength;
-	ort.viewOrigin[1] = DotProduct_SIMD(delta, ort.axis[1]) * axisLength;
-	ort.viewOrigin[2] = DotProduct_SIMD(delta, ort.axis[2]) * axisLength;
+	ort.viewOrigin[0] = DotProduct(delta, ort.axis[0]) * axisLength;
+	ort.viewOrigin[1] = DotProduct(delta, ort.axis[1]) * axisLength;
+	ort.viewOrigin[2] = DotProduct(delta, ort.axis[2]) * axisLength;
 }
 
 // #include <chrono>
@@ -573,10 +553,10 @@ static void R_RotateForViewer(void)
 	tr.ort.axis[0][0] = 1;
 	tr.ort.axis[1][1] = 1;
 	tr.ort.axis[2][2] = 1;
-	VectorCopy(tr.viewParms.ort.origin, tr.ort.viewOrigin);
+	VectorCopy_SIMD(tr.viewParms.ort.origin, tr.ort.viewOrigin);
 
 	// transform by the camera placement
-	VectorCopy(tr.viewParms.ort.origin, origin);
+	VectorCopy_SIMD(tr.viewParms.ort.origin, origin);
 
 	viewerMatrix[0] = tr.viewParms.ort.axis[0][0];
 	viewerMatrix[4] = tr.viewParms.ort.axis[0][1];
@@ -711,7 +691,7 @@ static void R_SetupFrustum(viewParms_t &dest, const float xmin, const float xmax
 	}
 
 	// near clipping plane
-	VectorCopy(dest.ort.axis[0], dest.frustum[4].normal);
+	VectorCopy_SIMD(dest.ort.axis[0], dest.frustum[4].normal);
 	dest.frustum[4].type = PLANE_NON_AXIAL;
 	dest.frustum[4].dist = DotProduct(ofsorigin, dest.frustum[4].normal) + r_znear->value;
 	SetPlaneSignbits(&dest.frustum[4]);
@@ -963,7 +943,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 		plane = originalPlane;
 	}
 
-	VectorCopy(plane.normal, surface.axis[0]);
+	VectorCopy_SIMD(plane.normal, surface.axis[0]);
 	PerpendicularVector(surface.axis[1], surface.axis[0]);
 	CrossProduct(surface.axis[0], surface.axis[1], surface.axis[2]);
 
@@ -985,7 +965,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 		}
 
 		// get the pvsOrigin from the entity
-		VectorCopy(tre.e.oldorigin, pvsOrigin);
+		VectorCopy_SIMD(tre.e.oldorigin, pvsOrigin);
 
 		// if the entity is just a mirror, don't use as a camera point
 		if (tre.e.oldorigin[0] == tre.e.origin[0] &&
@@ -993,10 +973,10 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 			tre.e.oldorigin[2] == tre.e.origin[2])
 		{
 			VectorScale(plane.normal, plane.dist, surface.origin);
-			VectorCopy(surface.origin, camera.origin);
+			VectorCopy_SIMD(surface.origin, camera.origin);
 			VectorSubtract(vec3_origin, surface.axis[0], camera.axis[0]);
-			VectorCopy(surface.axis[1], camera.axis[1]);
-			VectorCopy(surface.axis[2], camera.axis[2]);
+			VectorCopy_SIMD(surface.axis[1], camera.axis[1]);
+			VectorCopy_SIMD(surface.axis[2], camera.axis[2]);
 
 			*portalView = PV_MIRROR;
 			return true;
@@ -1008,7 +988,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 		VectorMA(tre.e.origin, -d, surface.axis[0], surface.origin);
 
 		// now get the camera origin and orientation
-		VectorCopy(tre.e.oldorigin, camera.origin);
+		VectorCopy_SIMD(tre.e.oldorigin, camera.origin);
 		AxisCopy(tre.e.axis, camera.axis);
 		VectorSubtract(vec3_origin, camera.axis[0], camera.axis[0]);
 		VectorSubtract(vec3_origin, camera.axis[1], camera.axis[1]);
@@ -1021,7 +1001,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 			{
 				// continuous rotate
 				d = (tr.refdef.time / 1000.0f) * tre.e.frame;
-				VectorCopy(camera.axis[1], transformed);
+				VectorCopy_SIMD(camera.axis[1], transformed);
 				RotatePointAroundVector(camera.axis[1], camera.axis[0], transformed, d);
 				CrossProduct(camera.axis[0], camera.axis[1], camera.axis[2]);
 			}
@@ -1030,7 +1010,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 				// bobbing rotate, with skinNum being the rotation offset
 				d = sin(tr.refdef.time * 0.003f);
 				d = tre.e.skinNum + d * 4;
-				VectorCopy(camera.axis[1], transformed);
+				VectorCopy_SIMD(camera.axis[1], transformed);
 				RotatePointAroundVector(camera.axis[1], camera.axis[0], transformed, d);
 				CrossProduct(camera.axis[0], camera.axis[1], camera.axis[2]);
 			}
@@ -1038,7 +1018,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 		else if (tre.e.skinNum)
 		{
 			d = tre.e.skinNum;
-			VectorCopy(camera.axis[1], transformed);
+			VectorCopy_SIMD(camera.axis[1], transformed);
 			RotatePointAroundVector(camera.axis[1], camera.axis[0], transformed, d);
 			CrossProduct(camera.axis[0], camera.axis[1], camera.axis[2]);
 		}

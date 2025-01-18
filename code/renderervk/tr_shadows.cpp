@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_backend.hpp"
 #include "vk.hpp"
 #include "utils.hpp"
+#include "math.hpp"
 
 /*
 
@@ -155,10 +156,10 @@ void RB_ShadowTessEnd(void)
 
 #ifdef USE_PMLIGHT
 	if (r_dlightMode->integer == 2 && r_shadows->integer == 2)
-		VectorCopy(backEnd.currentEntity->shadowLightDir, lightDir);
+		VectorCopy_SIMD(backEnd.currentEntity->shadowLightDir, lightDir);
 	else
 #endif
-		VectorCopy(backEnd.currentEntity->lightDir, lightDir);
+		VectorCopy_SIMD(backEnd.currentEntity->lightDir, lightDir);
 
 	// clamp projection by height
 	if (lightDir[2] > 0.1)
@@ -336,10 +337,10 @@ void RB_ProjectionShadowDeform(void)
 
 #ifdef USE_PMLIGHT
 	if (r_dlightMode->integer == 2 && r_shadows->integer == 2)
-		VectorCopy(backEnd.currentEntity->shadowLightDir, lightDir);
+		VectorCopy_SIMD(backEnd.currentEntity->shadowLightDir, lightDir);
 	else
 #endif
-		VectorCopy(backEnd.currentEntity->lightDir, lightDir);
+		VectorCopy_SIMD(backEnd.currentEntity->lightDir, lightDir);
 
 	d = DotProduct(lightDir, ground);
 	// don't let the shadows get too long ort go negative

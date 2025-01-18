@@ -348,9 +348,9 @@ static void ComputePoseMats(iqmData_t &data, const int frame, const int oldframe
 		pose = &data.poses[frame * data.num_poses];
 		for (i = 0; i < data.num_poses; i++, pose++, relativeJoint++)
 		{
-			VectorCopy(pose->translate, relativeJoint->translate);
+			VectorCopy_SIMD(pose->translate, relativeJoint->translate);
 			QuatCopy(pose->rotate, relativeJoint->rotate);
-			VectorCopy(pose->scale, relativeJoint->scale);
+			VectorCopy_SIMD(pose->scale, relativeJoint->scale);
 		}
 	}
 	else
@@ -1633,9 +1633,9 @@ bool R_LoadIQM(model_t &mod, void *buffer, const int filesize, std::string_view 
 				if (pose->mask & 0x200)
 					scale[2] += *framedata++ * pose->channelscale[9];
 
-				VectorCopy(translate, transform->translate);
+				VectorCopy_SIMD(translate, transform->translate);
 				QuatNormalize2(rotate, transform->rotate);
-				VectorCopy(scale, transform->scale);
+				VectorCopy_SIMD(scale, transform->scale);
 			}
 		}
 	}
