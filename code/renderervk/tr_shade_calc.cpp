@@ -407,7 +407,7 @@ static void AutospriteDeform(void)
 
 		if (backEnd.viewParms.portalView == PV_MIRROR)
 		{
-			VectorSubtract(vec3_origin, left, left);
+			VectorSubtract_SIMD(vec3_origin, left, left);
 		}
 
 		// compensate for scale in the axes if necessary
@@ -516,7 +516,7 @@ static void Autosprite2Deform(void)
 		}
 
 		// find the vector of the major axis
-		VectorSubtract(mid[1], mid[0], major);
+		VectorSubtract_SIMD(mid[1], mid[0], major);
 
 		// cross this with the view direction to get minor axis
 		CrossProduct(major, forward, minor);
@@ -845,7 +845,7 @@ void RB_CalcFogTexCoords(float *st)
 	fog = tr.world->fogs + tess.fogNum;
 
 	// all fogging distance is based on world Z units
-	VectorSubtract(backEnd.ort.origin, backEnd.viewParms.ort.origin, local);
+	VectorSubtract_SIMD(backEnd.ort.origin, backEnd.viewParms.ort.origin, local);
 	vec4_t fogDistanceVector{
 		-backEnd.ort.modelMatrix[2],
 		-backEnd.ort.modelMatrix[6],
@@ -942,7 +942,7 @@ void RB_CalcFogProgramParms(fogProgramParms_t &parm)
 	fog_t &fog = *(tr.world->fogs + tess.fogNum);
 
 	// all fogging distance is based on world Z units
-	VectorSubtract(backEnd.ort.origin, backEnd.viewParms.ort.origin, local);
+	VectorSubtract_SIMD(backEnd.ort.origin, backEnd.viewParms.ort.origin, local);
 	parm.fogDistanceVector[0] = -backEnd.ort.modelMatrix[2];
 	parm.fogDistanceVector[1] = -backEnd.ort.modelMatrix[6];
 	parm.fogDistanceVector[2] = -backEnd.ort.modelMatrix[10];

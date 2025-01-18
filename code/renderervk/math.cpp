@@ -77,24 +77,55 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 	return sides;
 }
 
-void VectorCopy_SIMD(const vec3_t source, vec3_t dest) {
-    // Load 3 floats from `source` and pad with 0.0f for the 4th element
-    __m128 vec = _mm_set_ps(0.0f, source[2], source[1], source[0]);
-
-    // Store the first 3 floats into `dest`
-    _mm_storeu_ps(dest, vec);
+void VectorCopy_SIMD(const float *source, float* dest) {
+	__m128 vec = _mm_loadu_ps(source);  // Load 4 floats (3 + padding) from source
+	_mm_storeu_ps(dest, vec);           // Store 4 floats into dest
 }
 
-float DotProduct_SIMD(const float* x, const float* y) {
-	__m128 vec1 = _mm_loadu_ps(x); // Load 3 + padding from `x`
-	__m128 vec2 = _mm_loadu_ps(y); // Load 3 + padding from `y`
+//float DotProduct_SIMD(const float* x, const float* y) {
+//	__m128 vec1 = _mm_loadu_ps(x); // Load 3 + padding from `x`
+//	__m128 vec2 = _mm_loadu_ps(y); // Load 3 + padding from `y`
+//
+//	__m128 mul = _mm_mul_ps(vec1, vec2);           // Element-wise multiplication
+//	__m128 shuf1 = _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 1, 0, 0)); // Shuffle to sum
+//	__m128 shuf2 = _mm_add_ps(mul, shuf1);
+//	__m128 shuf3 = _mm_movehl_ps(shuf2, shuf2);
+//
+//	return _mm_cvtss_f32(_mm_add_ss(shuf2, shuf3)); // Horizontal sum and extract result
+//}
 
-	__m128 mul = _mm_mul_ps(vec1, vec2);           // Element-wise multiplication
-	__m128 shuf1 = _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 1, 0, 0)); // Shuffle to sum
-	__m128 shuf2 = _mm_add_ps(mul, shuf1);
-	__m128 shuf3 = _mm_movehl_ps(shuf2, shuf2);
+// VectorSubtract: c = a - b
+void VectorSubtract_SIMD(const float* a, const float* b, float* dest) {
+	__m128 vec_a = _mm_loadu_ps(a); // Load 3 elements from a (assume 4th element is unused)
+	__m128 vec_b = _mm_loadu_ps(b); // Load 3 elements from b
+	__m128 vec_c = _mm_sub_ps(vec_a, vec_b); // Perform subtraction
+	_mm_storeu_ps(dest, vec_c); // Store result into c
+}
 
-	return _mm_cvtss_f32(_mm_add_ss(shuf2, shuf3)); // Horizontal sum and extract result
+// VectorAdd: c = a + b
+void VectorAdd_SIMD(const float* a, const float* b, float* dest) {
+	__m128 vec_a = _mm_loadu_ps(a);
+	__m128 vec_b = _mm_loadu_ps(b);
+	__m128 vec_c = _mm_add_ps(vec_a, vec_b);
+	_mm_storeu_ps(dest, vec_c);
+}
+
+// VectorScale: o = v * s
+void VectorScale_SIMD(const float* v, float s, float* dest) {
+	__m128 vec_v = _mm_loadu_ps(v);
+	__m128 scalar = _mm_set1_ps(s); // Broadcast scalar to all elements
+	__m128 vec_o = _mm_mul_ps(vec_v, scalar); // Perform multiplication
+	_mm_storeu_ps(dest, vec_o);
+}
+
+// VectorMA: o = v + b * s
+void VectorMA_SIMD(const float* v, float s, const float* b, float* dest) {
+	__m128 vec_v = _mm_loadu_ps(v);
+	__m128 vec_b = _mm_loadu_ps(b);
+	__m128 scalar = _mm_set1_ps(s);
+	__m128 scaled_b = _mm_mul_ps(vec_b, scalar); // b * s
+	__m128 vec_o = _mm_add_ps(vec_v, scaled_b); // v + (b * s)
+	_mm_storeu_ps(dest, vec_o);
 }
 
 // int ColorIndexFromChar(char ccode)

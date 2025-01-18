@@ -7,9 +7,20 @@
 
 int BoxOnPlaneSide_cpp(const vec3_t& emins, const vec3_t& emaxs, cplane_s& p);
 
-void VectorCopy_SIMD(const vec3_t source, vec3_t dest);
+void VectorCopy_SIMD(const float* source, float* dest);
 
-float DotProduct_SIMD(const float* x, const float* y);
+//float DotProduct_SIMD(const float* x, const float* y);
+
+// VectorSubtract: c = a - b
+void VectorSubtract_SIMD(const float* a, const float* b, float* dest);
+// VectorAdd: c = a + b
+void VectorAdd_SIMD(const float* a, const float* b, float* dest);
+
+// VectorScale: o = v * s
+void VectorScale_SIMD(const float* v, float s, float* dest);
+
+// VectorMA: o = v + b * s
+void VectorMA_SIMD(const float* v, float s, const float* b, float* dest);
 
 // vec_t VectorNormalize(vec3_t v);
 // void PerpendicularVector(vec3_t dst, const vec3_t src);

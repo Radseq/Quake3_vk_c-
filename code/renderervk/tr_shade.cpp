@@ -525,14 +525,14 @@ static void VK_SetLightParams(vkUniform_t &uniform, const dlight_t &dl)
 	if (!glConfig.deviceSupportsGamma && !vk_inst.fboActive)
 		VectorScale(dl.color, 2 * powf(r_intensity->value, r_gamma->value), uniform.light.color);
 	else
-		VectorCopy(dl.color, uniform.light.color);
+		VectorCopy_SIMD(dl.color, uniform.light.color);
 
 	radius = dl.radius;
 
 	// vertex data
-	VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
+	VectorCopy_SIMD(backEnd.ort.viewOrigin, uniform.eyePos);
 	uniform.eyePos[3] = 0.0f;
-	VectorCopy(dl.transformed, uniform.light.pos);
+	VectorCopy_SIMD(dl.transformed, uniform.light.pos);
 	uniform.light.pos[3] = 0.0f;
 
 	// fragment data
@@ -642,7 +642,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 	if (fogCollapse)
 	{
 		VK_SetFogParams(uniform, fog_stage);
-		VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
+		VectorCopy_SIMD(backEnd.ort.viewOrigin, uniform.eyePos);
 		vk_update_descriptor(VK_DESC_FOG_COLLAPSE, tr.fogImage->descriptor);
 		pushUniform = true;
 	}
@@ -652,7 +652,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 		fog_stage = 0;
 		if (tess_flags & TESS_VPOS)
 		{
-			VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
+			VectorCopy_SIMD(backEnd.ort.viewOrigin, uniform.eyePos);
 			tess_flags &= ~TESS_VPOS;
 			pushUniform = true;
 		}

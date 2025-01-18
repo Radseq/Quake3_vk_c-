@@ -333,7 +333,7 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 	{
 		VectorSubtract(points[(i + 1) % numPoints], points[i], v1);
 		VectorAdd(points[i], projection, v2);
-		VectorSubtract(points[i], v2, v2);
+		VectorSubtract_SIMD(points[i], v2, v2);
 		CrossProduct(v1, v2, normals[i]);
 		VectorNormalizeFast(normals[i]);
 		dists[i] = DotProduct(normals[i], points[i]);
@@ -395,8 +395,8 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 					VectorCopy_SIMD(dv[1].xyz, clipPoints[0][2]);
 					VectorMA(clipPoints[0][2], MARKER_OFFSET, dv[1].normal, clipPoints[0][2]);
 					// check the normal of this triangle
-					VectorSubtract(clipPoints[0][0], clipPoints[0][1], v1);
-					VectorSubtract(clipPoints[0][2], clipPoints[0][1], v2);
+					VectorSubtract_SIMD(clipPoints[0][0], clipPoints[0][1], v1);
+					VectorSubtract_SIMD(clipPoints[0][2], clipPoints[0][1], v2);
 					CrossProduct(v1, v2, normal);
 					VectorNormalizeFast(normal);
 					if (DotProduct(normal, projectionDir) < -0.1)
@@ -421,8 +421,8 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 					VectorCopy_SIMD(dv[cv->width + 1].xyz, clipPoints[0][2]);
 					VectorMA(clipPoints[0][2], MARKER_OFFSET, dv[cv->width + 1].normal, clipPoints[0][2]);
 					// check the normal of this triangle
-					VectorSubtract(clipPoints[0][0], clipPoints[0][1], v1);
-					VectorSubtract(clipPoints[0][2], clipPoints[0][1], v2);
+					VectorSubtract_SIMD(clipPoints[0][0], clipPoints[0][1], v1);
+					VectorSubtract_SIMD(clipPoints[0][2], clipPoints[0][1], v2);
 					CrossProduct(v1, v2, normal);
 					VectorNormalizeFast(normal);
 					if (DotProduct(normal, projectionDir) < -0.05)

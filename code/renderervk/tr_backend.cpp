@@ -719,12 +719,12 @@ static void RB_DebugPolygon(const int color, const int numPoints, float *points)
 
 	transform_to_eye_space(&points[0], pa);
 	transform_to_eye_space(&points[3], pb);
-	VectorSubtract(pb, pa, p);
+	VectorSubtract_SIMD(pb, pa, p);
 
 	for (i = 2; i < numPoints; i++)
 	{
 		transform_to_eye_space(&points[3 * i], pb);
-		VectorSubtract(pb, pa, q);
+		VectorSubtract_SIMD(pb, pa, q);
 		CrossProduct(q, p, n);
 		if (VectorLength(n) > 1e-5)
 		{

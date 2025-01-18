@@ -139,7 +139,7 @@ static void MakeMeshNormals(const int width, const int height, drawVert_t ctrl[M
 	wrapWidth = false;
 	for (i = 0; i < height; i++)
 	{
-		VectorSubtract(ctrl[i][0].xyz, ctrl[i][width - 1].xyz, delta);
+		VectorSubtract_SIMD(ctrl[i][0].xyz, ctrl[i][width - 1].xyz, delta);
 		len = VectorLengthSquared(delta);
 		if (len > 1.0)
 		{
@@ -154,7 +154,7 @@ static void MakeMeshNormals(const int width, const int height, drawVert_t ctrl[M
 	wrapHeight = false;
 	for (i = 0; i < width; i++)
 	{
-		VectorSubtract(ctrl[0][i].xyz, ctrl[height - 1][i].xyz, delta);
+		VectorSubtract_SIMD(ctrl[0][i].xyz, ctrl[height - 1][i].xyz, delta);
 		len = VectorLengthSquared(delta);
 		if (len > 1.0)
 		{
@@ -208,7 +208,7 @@ static void MakeMeshNormals(const int width, const int height, drawVert_t ctrl[M
 					{
 						break; // edge of patch
 					}
-					VectorSubtract(ctrl[y][x].xyz, base, temp);
+					VectorSubtract_SIMD(ctrl[y][x].xyz, base, temp);
 					if (VectorNormalize(temp) < 0.001f)
 					{
 						continue; // degenerate edge, get more dist
@@ -371,7 +371,7 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh(const int width, const int height,
 	// compute local origin and bounds
 	VectorAdd(grid->meshBounds[0], grid->meshBounds[1], grid->localOrigin);
 	VectorScale(grid->localOrigin, 0.5f, grid->localOrigin);
-	VectorSubtract(grid->meshBounds[0], grid->localOrigin, tmpVec);
+	VectorSubtract_SIMD(grid->meshBounds[0], grid->localOrigin, tmpVec);
 	grid->meshRadius = VectorLength(tmpVec);
 
 	VectorCopy_SIMD(grid->localOrigin, grid->lodOrigin);
@@ -452,13 +452,13 @@ srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
 				// using dist-from-line will not account for internal
 				// texture warping, but it gives a lot less polygons than
 				// dist-from-midpoint
-				VectorSubtract(midxyz, ctrl[i][j].xyz, midxyz);
-				VectorSubtract(ctrl[i][j + 2].xyz, ctrl[i][j].xyz, dir);
+				VectorSubtract_SIMD(midxyz, ctrl[i][j].xyz, midxyz);
+				VectorSubtract_SIMD(ctrl[i][j + 2].xyz, ctrl[i][j].xyz, dir);
 				VectorNormalize(dir);
 
 				d = DotProduct(midxyz, dir);
 				VectorScale(dir, d, projected);
-				VectorSubtract(midxyz, projected, midxyz2);
+				VectorSubtract_SIMD(midxyz, projected, midxyz2);
 				len = VectorLengthSquared(midxyz2); // we will do the sqrt later
 				if (len > maxLen)
 				{

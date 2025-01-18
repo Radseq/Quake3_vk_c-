@@ -122,7 +122,7 @@ void RB_AddQuadStampExt(const vec3_t &origin, const vec3_t &left, const vec3_t &
 	tess.xyz[ndx + 3][2] = origin[2] + left[2] - up[2];
 
 	// constant normal all the way around
-	VectorSubtract(vec3_origin, backEnd.viewParms.ort.axis[0], normal);
+	VectorSubtract_SIMD(vec3_origin, backEnd.viewParms.ort.axis[0], normal);
 
 	tess.normal[ndx][0] = tess.normal[ndx + 1][0] = tess.normal[ndx + 2][0] = tess.normal[ndx + 3][0] = normal[0];
 	tess.normal[ndx][1] = tess.normal[ndx + 1][1] = tess.normal[ndx + 2][1] = tess.normal[ndx + 3][1] = normal[1];
@@ -253,7 +253,7 @@ static void RB_SurfaceSprite(void)
 
 	if (backEnd.viewParms.portalView == PV_MIRROR)
 	{
-		VectorSubtract(vec3_origin, left, left);
+		VectorSubtract_SIMD(vec3_origin, left, left);
 	}
 
 	RB_AddQuadStamp(backEnd.currentEntity->e.origin, left, up, backEnd.currentEntity->e.shader);
@@ -611,7 +611,7 @@ static void RB_SurfaceRailRings(void)
 	VectorCopy_SIMD(backEnd.currentEntity->e.origin, end);
 
 	// compute variables
-	VectorSubtract(end, start, vec);
+	VectorSubtract_SIMD(end, start, vec);
 	len = VectorNormalize(vec);
 	MakeNormalVectors(vec, right, up);
 	numSegs = (len) / r_railSegmentLength->value;
@@ -639,13 +639,13 @@ static void RB_SurfaceRailCore(void)
 	VectorCopy_SIMD(backEnd.currentEntity->e.oldorigin, start);
 	VectorCopy_SIMD(backEnd.currentEntity->e.origin, end);
 
-	VectorSubtract(end, start, vec);
+	VectorSubtract_SIMD(end, start, vec);
 	len = VectorNormalize(vec);
 
 	// compute side vector
-	VectorSubtract(start, backEnd.viewParms.ort.origin, v1);
+	VectorSubtract_SIMD(start, backEnd.viewParms.ort.origin, v1);
 	VectorNormalize(v1);
-	VectorSubtract(end, backEnd.viewParms.ort.origin, v2);
+	VectorSubtract_SIMD(end, backEnd.viewParms.ort.origin, v2);
 	VectorNormalize(v2);
 	CrossProduct(v1, v2, right);
 	VectorNormalize(right);
@@ -669,13 +669,13 @@ static void RB_SurfaceLightningBolt(void)
 	VectorCopy_SIMD(backEnd.currentEntity->e.origin, start);
 
 	// compute variables
-	VectorSubtract(end, start, vec);
+	VectorSubtract_SIMD(end, start, vec);
 	len = VectorNormalize(vec);
 
 	// compute side vector
-	VectorSubtract(start, backEnd.viewParms.ort.origin, v1);
+	VectorSubtract_SIMD(start, backEnd.viewParms.ort.origin, v1);
 	VectorNormalize(v1);
-	VectorSubtract(end, backEnd.viewParms.ort.origin, v2);
+	VectorSubtract_SIMD(end, backEnd.viewParms.ort.origin, v2);
 	VectorNormalize(v2);
 	CrossProduct(v1, v2, right);
 	VectorNormalize(right);
@@ -1000,7 +1000,7 @@ static float LodErrorForVolume(const vec3_t& local, const float radius)
 		local[0] * backEnd.ort.axis[0][2] + local[1] * backEnd.ort.axis[1][2] +
 			local[2] * backEnd.ort.axis[2][2] + backEnd.ort.origin[2]};
 
-	VectorSubtract(world, backEnd.viewParms.ort.origin, world);
+	VectorSubtract_SIMD(world, backEnd.viewParms.ort.origin, world);
 	float d = DotProduct(world, backEnd.viewParms.ort.axis[0]);
 
 	if (d < 0)

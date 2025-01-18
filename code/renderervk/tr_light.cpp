@@ -50,13 +50,13 @@ void R_TransformDlights(const int count, dlight_t *dl, orientationr_t &ort)
 
     for (i = 0; i < count; i++, dl++)
     {
-        VectorSubtract(dl->origin, ort.origin, temp);
+        VectorSubtract_SIMD(dl->origin, ort.origin, temp);
         dl->transformed[0] = DotProduct(temp, ort.axis[0]);
         dl->transformed[1] = DotProduct(temp, ort.axis[1]);
         dl->transformed[2] = DotProduct(temp, ort.axis[2]);
         if (dl->linear)
         {
-            VectorSubtract(dl->origin2, ort.origin, temp2);
+            VectorSubtract_SIMD(dl->origin2, ort.origin, temp2);
             dl->transformed2[0] = DotProduct(temp2, ort.axis[0]);
             dl->transformed2[1] = DotProduct(temp2, ort.axis[1]);
             dl->transformed2[2] = DotProduct(temp2, ort.axis[2]);
@@ -152,7 +152,7 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
         VectorCopy_SIMD(ent.e.origin, lightOrigin);
     }
 
-    VectorSubtract(lightOrigin, tr.world->lightGridOrigin, lightOrigin);
+    VectorSubtract_SIMD(lightOrigin, tr.world->lightGridOrigin, lightOrigin);
     for (i = 0; i < 3; i++)
     {
         float v = lightOrigin[i] * tr.world->lightGridInverseSize[i];
@@ -388,7 +388,7 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
                 const dlight_t &dl = refdef.dlights[i];
                 if (dl.linear) // no support for linear lights atm
                     continue;
-                VectorSubtract(dl.origin, lightOrigin, dir);
+                VectorSubtract_SIMD(dl.origin, lightOrigin, dir);
                 d = VectorNormalize(dir);
                 power = DLIGHT_AT_RADIUS * (dl.radius * dl.radius);
                 if (d < DLIGHT_MINIMUM_RADIUS)
@@ -405,7 +405,7 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
         for (i = 0; i < refdef.num_dlights; i++)
         {
             const dlight_t &dl = refdef.dlights[i];
-            VectorSubtract(dl.origin, lightOrigin, dir);
+            VectorSubtract_SIMD(dl.origin, lightOrigin, dir);
             d = VectorNormalize(dir);
 
             power = DLIGHT_AT_RADIUS * (dl.radius * dl.radius);

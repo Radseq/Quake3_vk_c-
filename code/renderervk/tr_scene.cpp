@@ -516,10 +516,10 @@ void RE_RenderScene(const refdef_t *fd)
 
 	parms.stereoFrame = tr.refdef.stereoFrame;
 
-	VectorCopy(fd->vieworg, parms.ort.origin);
-	VectorCopy(fd->viewaxis[0], parms.ort.axis[0]);
-	VectorCopy(fd->viewaxis[1], parms.ort.axis[1]);
-	VectorCopy(fd->viewaxis[2], parms.ort.axis[2]);
+	VectorCopy_SIMD(fd->vieworg, parms.ort.origin);
+	VectorCopy_SIMD(fd->viewaxis[0], parms.ort.axis[0]);
+	VectorCopy_SIMD(fd->viewaxis[1], parms.ort.axis[1]);
+	VectorCopy_SIMD(fd->viewaxis[2], parms.ort.axis[2]);
 
 	VectorCopy(fd->vieworg, parms.pvsOrigin);
 

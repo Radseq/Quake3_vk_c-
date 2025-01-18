@@ -462,11 +462,11 @@ void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
 	// float glMatrix[16]{};
 	// vec3_t delta{};
 	// float axisLength;
-	VectorCopy(ent.e.origin, ort.origin);
+	VectorCopy_SIMD(ent.e.origin, ort.origin);
 
-	VectorCopy(ent.e.axis[0], ort.axis[0]);
-	VectorCopy(ent.e.axis[1], ort.axis[1]);
-	VectorCopy(ent.e.axis[2], ort.axis[2]);
+	VectorCopy_SIMD(ent.e.axis[0], ort.axis[0]);
+	VectorCopy_SIMD(ent.e.axis[1], ort.axis[1]);
+	VectorCopy_SIMD(ent.e.axis[2], ort.axis[2]);
 
 	// Build glMatrix rows using SIMD (float layout: [x, y, z, w])
 	row0 = _mm_set_ps(0.0f, ort.axis[0][2], ort.axis[0][1], ort.axis[0][0]);
@@ -485,7 +485,7 @@ void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
 
 	// calculate the viewer origin in the model's space
 	// needed for fog, specular, and environment mapping
-	VectorSubtract(viewParms.ort.origin, ort.origin, delta);
+	VectorSubtract_SIMD(viewParms.ort.origin, ort.origin, delta);
 
 	// compensate for scale in the axes if necessary
 	if (ent.e.nonNormalizedAxes)
@@ -614,7 +614,7 @@ static void R_SetFarClip(void)
 			tr.viewParms.visBounds[(i >> 1) & 1][1],
 			tr.viewParms.visBounds[(i >> 2) & 1][2]};
 
-		VectorSubtract(v, tr.viewParms.ort.origin, vecTo);
+		VectorSubtract_SIMD(v, tr.viewParms.ort.origin, vecTo);
 
 		float distance = DotProduct(vecTo, vecTo);
 
@@ -644,7 +644,7 @@ static void R_SetupFrustum(viewParms_t &dest, const float xmin, const float xmax
 	if (stereoSep == 0 && xmin == -xmax)
 	{
 		// symmetric case can be simplified
-		VectorCopy(dest.ort.origin, ofsorigin);
+		VectorCopy_SIMD(dest.ort.origin, ofsorigin);
 
 		length = sqrt(xmax * xmax + zProj * zProj);
 		oppleg = xmax / length;
@@ -830,7 +830,7 @@ static void R_MirrorPoint(const vec3_t &in, const orientation_t &surface, const 
 	vec3_t transformed{};
 	float d;
 
-	VectorSubtract(in, surface.origin, local);
+	VectorSubtract_SIMD(in, surface.origin, local);
 
 	for (i = 0; i < 3; i++)
 	{
@@ -883,13 +883,13 @@ static void R_PlaneForSurface(const surfaceType_t *surfType, cplane_t &plane)
 		v2 = tri->verts + tri->indexes[1];
 		v3 = tri->verts + tri->indexes[2];
 		PlaneFromPoints(plane4, v1->xyz, v2->xyz, v3->xyz);
-		VectorCopy(plane4, plane.normal);
+		VectorCopy_SIMD(plane4, plane.normal);
 		plane.dist = plane4[3];
 		return;
 	case SF_POLY:
 		poly = (srfPoly_t *)surfType;
 		PlaneFromPoints(plane4, poly->verts[0].xyz, poly->verts[1].xyz, poly->verts[2].xyz);
-		VectorCopy(plane4, plane.normal);
+		VectorCopy_SIMD(plane4, plane.normal);
 		plane.dist = plane4[3];
 		return;
 	default:
@@ -974,7 +974,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 		{
 			VectorScale(plane.normal, plane.dist, surface.origin);
 			VectorCopy_SIMD(surface.origin, camera.origin);
-			VectorSubtract(vec3_origin, surface.axis[0], camera.axis[0]);
+			VectorSubtract_SIMD(vec3_origin, surface.axis[0], camera.axis[0]);
 			VectorCopy_SIMD(surface.axis[1], camera.axis[1]);
 			VectorCopy_SIMD(surface.axis[2], camera.axis[2]);
 
@@ -990,8 +990,8 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 		// now get the camera origin and orientation
 		VectorCopy_SIMD(tre.e.oldorigin, camera.origin);
 		AxisCopy(tre.e.axis, camera.axis);
-		VectorSubtract(vec3_origin, camera.axis[0], camera.axis[0]);
-		VectorSubtract(vec3_origin, camera.axis[1], camera.axis[1]);
+		VectorSubtract_SIMD(vec3_origin, camera.axis[0], camera.axis[0]);
+		VectorSubtract_SIMD(vec3_origin, camera.axis[1], camera.axis[1]);
 
 		// optionally rotate
 		if (tre.e.oldframe)
@@ -1373,7 +1373,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, const int entityNu
 
 	R_MirrorPoint(oldParms.ort.origin, surface, camera, newParms.ort.origin);
 
-	VectorSubtract(vec3_origin, camera.axis[0], newParms.portalPlane.normal);
+	VectorSubtract_SIMD(vec3_origin, camera.axis[0], newParms.portalPlane.normal);
 	newParms.portalPlane.dist = DotProduct(camera.origin, newParms.portalPlane.normal);
 
 	R_MirrorVector(oldParms.ort.axis[0], surface, camera, newParms.ort.axis[0]);

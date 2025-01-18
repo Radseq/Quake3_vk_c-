@@ -859,7 +859,7 @@ static void ParseMesh(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 	}
 	VectorAdd(bounds[0], bounds[1], bounds[1]);
 	VectorScale(bounds[1], 0.5f, grid->lodOrigin);
-	VectorSubtract(bounds[0], grid->lodOrigin, tmpVec);
+	VectorSubtract_SIMD(bounds[0], grid->lodOrigin, tmpVec);
 	grid->lodRadius = VectorLength(tmpVec);
 }
 
@@ -2299,7 +2299,7 @@ static void R_LoadFogs(const lump_t *l, const lump_t *brushesLump, const lump_t 
 			{
 				out->hasSurface = true;
 				planeNum = LittleLong(sides[sideOffset].planeNum);
-				VectorSubtract(vec3_origin, s_worldData.planes[planeNum].normal, out->surface);
+				VectorSubtract_SIMD(vec3_origin, s_worldData.planes[planeNum].normal, out->surface);
 				out->surface[3] = -s_worldData.planes[planeNum].dist;
 			}
 		}
