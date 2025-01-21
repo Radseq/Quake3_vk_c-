@@ -48,7 +48,7 @@ bool SkipBracedSection_cpp(const char **program, int depth)
     do
     {
         token = COM_ParseExt_cpp(program, true);
-        if (token[1] == 0)
+        if (token.size() == 1)
         {
             if (token[0] == '{')
             {
