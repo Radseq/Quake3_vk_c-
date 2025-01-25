@@ -119,9 +119,6 @@ This will also allow mirrors on both sides of a model without recursion.
 */
 static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 {
-	srfSurfaceFace_t *sface;
-	float d;
-
 	if (r_nocull->integer)
 	{
 		return false;
@@ -153,8 +150,8 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 		return false;
 	}
 
-	sface = (srfSurfaceFace_t *)surface;
-	d = DotProduct(tr.ort.viewOrigin, sface->plane.normal);
+	srfSurfaceFace_t* sface = (srfSurfaceFace_t *)surface;
+	float d = DotProduct(tr.ort.viewOrigin, sface->plane.normal);
 
 	// don't cull exactly on the plane, because there are levels of rounding
 	// through the BSP, ICD, and hardware that may cause pixel gaps if an
@@ -808,19 +805,15 @@ static mnode_t *R_PointInLeaf(const vec3_t p)
 		ri.Error(ERR_DROP, "R_PointInLeaf: bad model");
 	}
 
-	mnode_t *node;
-	float d;
-	const cplane_t *plane;
-
-	node = tr.world->nodes;
+	mnode_t* node = tr.world->nodes;
 	while (1)
 	{
 		if (static_cast<uint32_t>(node->contents) != CONTENTS_NODE)
 		{
 			break;
 		}
-		plane = node->plane;
-		d = DotProduct(p, plane->normal) - plane->dist;
+		const cplane_t* plane = node->plane;
+		float d = DotProduct(p, plane->normal) - plane->dist;
 		if (d > 0)
 		{
 			node = node->children[0];

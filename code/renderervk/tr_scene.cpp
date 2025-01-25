@@ -114,6 +114,12 @@ void R_AddPolygonSurfaces(void)
 		sh = R_GetShaderByHandle(poly->hShader);
 		R_AddDrawSurf(const_cast<surfaceType_t &>(reinterpret_cast<const surfaceType_t &>(*poly)), *sh, poly->fogIndex, 0);
 	}
+	//std::span<srfPoly_s> polys(tr.refdef.polys, tr.refdef.numPolys);
+
+	//for (const auto& poly : polys) {
+	//	auto* sh = R_GetShaderByHandle(poly.hShader);
+	//	R_AddDrawSurf(const_cast<surfaceType_t&>(reinterpret_cast<const surfaceType_t&>(poly)), *sh, poly.fogIndex, 0);
+	//}
 }
 
 /*

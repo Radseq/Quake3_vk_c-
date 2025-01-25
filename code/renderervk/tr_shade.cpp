@@ -475,9 +475,6 @@ uint32_t VK_PushUniform(const vkUniform_t &uniform)
 
 static void R_BindAnimatedImage(const textureBundle_t &bundle)
 {
-	int64_t index;
-	double v;
-
 	if (bundle.isVideoMap)
 	{
 		ri.CIN_RunCinematic(bundle.videoMapHandle);
@@ -506,8 +503,8 @@ static void R_BindAnimatedImage(const textureBundle_t &bundle)
 	// index = v;
 	// index >>= FUNCTABLE_SIZE2;
 
-	v = tess.shaderTime * bundle.imageAnimationSpeed; // fix for frameloss bug -EC-
-	index = v;
+	double v = tess.shaderTime * bundle.imageAnimationSpeed; // fix for frameloss bug -EC-
+	int64_t index = v;
 
 	if (index < 0)
 	{

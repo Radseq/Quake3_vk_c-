@@ -78,7 +78,7 @@ void RB_CheckOverflow(const int verts, const int indexes)
 RB_AddQuadStampExt
 ==============
 */
-void RB_AddQuadStampExt(const vec3_t &origin, const vec3_t &left, const vec3_t &up, const color4ub_t &color, 
+void RB_AddQuadStampExt(const vec3cpp_t&origin, const vec3cpp_t&left, const vec3cpp_t&up, const color4ub_t &color,
 	const float s1, const float t1, const float s2, const float t2)
 {
 	vec3_t normal{};
@@ -216,7 +216,7 @@ void RB_AddQuadStamp2(float x, float y, float w, float h, float s1, float t1, fl
 RB_AddQuadStamp
 ==============
 */
-void RB_AddQuadStamp(const vec3_t &origin, const vec3_t &left, const vec3_t &up, const color4ub_t &color)
+void RB_AddQuadStamp(const vec3cpp_t&origin, const vec3cpp_t&left, const vec3cpp_t&up, const color4ub_t &color)
 {
 	RB_AddQuadStampExt(origin, left, up, color, 0, 0, 1, 1);
 }
@@ -228,15 +228,15 @@ RB_SurfaceSprite
 */
 static void RB_SurfaceSprite(void)
 {
-	vec3_t left{}, up{};
+	vec3cpp_t left{}, up{};
 	float radius;
 
 	// calculate the xyz locations for the four corners
 	radius = backEnd.currentEntity->e.radius;
 	if (backEnd.currentEntity->e.rotation == 0.0)
 	{
-		VectorScale(backEnd.viewParms.ort.axis[1], radius, left);
-		VectorScale(backEnd.viewParms.ort.axis[2], radius, up);
+		left = VectorScale_cpp(backEnd.viewParms.ort.axis[1], radius);
+		up = VectorScale_cpp(backEnd.viewParms.ort.axis[2], radius);
 	}
 	else
 	{
@@ -244,19 +244,19 @@ static void RB_SurfaceSprite(void)
 		float s = sin(ang);
 		float c = cos(ang);
 
-		VectorScale(backEnd.viewParms.ort.axis[1], c * radius, left);
+		left = VectorScale_cpp(backEnd.viewParms.ort.axis[1], c * radius);
 		VectorMA(left, -s * radius, backEnd.viewParms.ort.axis[2], left);
 
-		VectorScale(backEnd.viewParms.ort.axis[2], c * radius, up);
+		up = VectorScale_cpp(backEnd.viewParms.ort.axis[2], c * radius);
 		VectorMA(up, s * radius, backEnd.viewParms.ort.axis[1], up);
 	}
 
 	if (backEnd.viewParms.portalView == PV_MIRROR)
 	{
-		VectorSubtract(vec3_origin, left, left);
+		left = VectorSubtract_cpp(vec3cpp_origin_cpp, left);
 	}
 
-	RB_AddQuadStamp(backEnd.currentEntity->e.origin, left, up, backEnd.currentEntity->e.shader);
+	RB_AddQuadStamp({ backEnd.currentEntity->e.origin[0], backEnd.currentEntity->e.origin[1], backEnd.currentEntity->e.origin[2] }, left, up, backEnd.currentEntity->e.shader);
 }
 
 /*
@@ -480,7 +480,7 @@ static void RB_SurfaceBeam(void)
 
 //================================================================================
 
-static void DoRailCore(const vec3_t &start, const vec3_t &end, const vec3_t &up, float len, float spanWidth)
+static void DoRailCore(const vec3cpp_t&start, const vec3cpp_t&end, const vec3cpp_t&up, float len, float spanWidth)
 {
 	float spanWidth2;
 	int vbase;
@@ -630,25 +630,19 @@ static void RB_SurfaceRailRings(void)
 */
 static void RB_SurfaceRailCore(void)
 {
-	int len;
-	vec3_t right;
-	vec3_t vec{};
-	vec3_t start{}, end{};
-	vec3_t v1{}, v2{};
+	vec3cpp_t start = VectorCopy_cpp(backEnd.currentEntity->e.oldorigin);
+	vec3cpp_t end = VectorCopy_cpp(backEnd.currentEntity->e.origin);
 
-	VectorCopy(backEnd.currentEntity->e.oldorigin, start);
-	VectorCopy(backEnd.currentEntity->e.origin, end);
-
-	VectorSubtract(end, start, vec);
-	len = VectorNormalize(vec);
+	vec3cpp_t vec = VectorSubtract_cpp(end, start);
+	int len = VectorNormalize_cpp(vec);
 
 	// compute side vector
-	VectorSubtract(start, backEnd.viewParms.ort.origin, v1);
-	VectorNormalize(v1);
-	VectorSubtract(end, backEnd.viewParms.ort.origin, v2);
-	VectorNormalize(v2);
-	CrossProduct(v1, v2, right);
-	VectorNormalize(right);
+	vec3cpp_t v1 = VectorSubtract_cpp(start, backEnd.viewParms.ort.origin);
+	VectorNormalize_cpp(v1);
+	vec3cpp_t v2 = VectorSubtract_cpp(end, backEnd.viewParms.ort.origin);
+	VectorNormalize_cpp(v2);
+	vec3cpp_t right = CrossProduct_cpp(v1, v2);
+	VectorNormalize_cpp(right);
 
 	DoRailCore(start, end, right, len, r_railCoreWidth->integer);
 }
@@ -658,35 +652,28 @@ static void RB_SurfaceRailCore(void)
 */
 static void RB_SurfaceLightningBolt(void)
 {
-	int len;
-	vec3_t right;
-	vec3_t vec{};
-	vec3_t start{}, end{};
-	vec3_t v1{}, v2{};
 	int i;
 
-	VectorCopy(backEnd.currentEntity->e.oldorigin, end);
-	VectorCopy(backEnd.currentEntity->e.origin, start);
+	vec3cpp_t end = VectorCopy_cpp(backEnd.currentEntity->e.oldorigin);
+	vec3cpp_t start = VectorCopy_cpp(backEnd.currentEntity->e.origin);
 
 	// compute variables
-	VectorSubtract(end, start, vec);
-	len = VectorNormalize(vec);
+	vec3cpp_t vec = VectorSubtract_cpp(end, start);
+	int len = VectorNormalize_cpp(vec);
 
 	// compute side vector
-	VectorSubtract(start, backEnd.viewParms.ort.origin, v1);
-	VectorNormalize(v1);
-	VectorSubtract(end, backEnd.viewParms.ort.origin, v2);
-	VectorNormalize(v2);
-	CrossProduct(v1, v2, right);
-	VectorNormalize(right);
+	vec3cpp_t v1 = VectorSubtract_cpp(start, backEnd.viewParms.ort.origin);
+	VectorNormalize_cpp(v1);
+	vec3cpp_t v2 = VectorSubtract_cpp(end, backEnd.viewParms.ort.origin);
+	VectorNormalize_cpp(v2);
+	vec3cpp_t right = CrossProduct_cpp(v1, v2);
+	VectorNormalize_cpp(right);
 
 	for (i = 0; i < 4; i++)
 	{
-		vec3_t temp;
-
 		DoRailCore(start, end, right, len, 8);
-		RotatePointAroundVector(temp, vec, right, 45);
-		VectorCopy(temp, right);
+		vec3cpp_t temp = RotatePointAroundVector_cpp(vec, right, 45);
+		right = VectorCopy_cpp(temp);
 	}
 }
 

@@ -34,6 +34,247 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cmath>
 #include <assert.h>
 
+void VectorInverse_cpp(vec3cpp_t& v) {
+	v[0] = -v[0];
+	v[1] = -v[1];
+	v[2] = -v[2];
+}
+
+const vec3cpp_t& toArrayConstRef(const std::span<vec_tcpp>& arr) {
+	return *reinterpret_cast<const vec3cpp_t*>(&arr);
+}
+
+//const vec4cpp_t& toArray4ConstRef(const float* arr) {
+//	return *reinterpret_cast<const vec4cpp_t*>(&arr);
+//}
+
+const vec3cpp_t& toArrayConstRef(const float* arr)
+{
+	return *reinterpret_cast<const vec3cpp_t*>(&arr);
+}
+
+const vec3cpp_t& toArrayConstRef(const vec3_t(&arr)[3]) {
+	return *reinterpret_cast<const vec3cpp_t*>(&arr);
+}
+
+const vec3cpp_t& toArrayConstRef(vec3_t(&arr)[3]) {
+	return *reinterpret_cast<const vec3cpp_t*>(&arr);
+}
+
+vec3cpp_t& toArrayRef(vec3_t& vec) {
+	return *reinterpret_cast<vec3cpp_t*>(&vec);
+}
+
+vec3_t& toArrayRef(vec3cpp_t& vec) {
+	return *reinterpret_cast<vec3_t*>(&vec);
+}
+
+vec3cpp_t& toArrayFloatRef(float(&vec)[3]) {
+	return *reinterpret_cast<vec3cpp_t*>(&vec);
+}
+
+//vec3cpp_t& toArrayRef(const float* arr) {
+//	return *reinterpret_cast<vec3cpp_t*>(&arr);
+//}
+
+// Dot product of 3D vectors - RVO works here since we return a scalar by value
+float DotProduct_cpp(const float* a, const float* b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+// Dot product of 3D vectors - RVO works here since we return a scalar by value
+float DotProduct_cpp(const float* a, const vec3cpp_t& b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+// Subtract one 3D vector from another - Return by value for RVO
+vec3cpp_t VectorSubtract_cpp(const float* a, const float* b) {
+	return { a[0] - b[0], a[1] - b[1], a[2] - b[2] };
+}
+
+// Add two 3D vectors - Return by value for RVO
+vec3cpp_t VectorAdd_cpp(const float* a, const float* b) {
+	return { a[0] + b[0], a[1] + b[1], a[2] + b[2] };
+}
+
+// Add two 3D vectors - Return by value for RVO
+vec3cpp_t VectorAdd_cpp(const float* a, const vec3cpp_t& b) {
+	return { a[0] + b[0], a[1] + b[1], a[2] + b[2] };
+}
+
+// Copy a 3D vector - Return by value for RVO
+vec3cpp_t VectorCopy_cpp(const float* a) {
+	return { a[0], a[1], a[2] };  // Return by value, RVO ensures efficiency
+}
+
+// Copy a 3D vector - Return by value for RVO
+vec4cpp_t VectorCopy_cppToVec4(const float* a) {
+	return { a[0], a[1], a[2] };  // Return by value, RVO ensures efficiency
+}
+
+// Scale a 3D vector by a scalar - Return by value for RVO
+vec3cpp_t VectorScale_cpp(const float* v, float s) {
+	return { v[0] * s, v[1] * s, v[2] * s };
+}
+
+// Multiply and add two vectors: o = v + b * s - Return by value for RVO
+vec3cpp_t VectorMA_cpp(const float* v, float s, const float* b) {
+	return { v[0] + b[0] * s, v[1] + b[1] * s, v[2] + b[2] * s };
+}
+
+// Dot product of 4D vectors - Return by value for RVO
+float DotProduct4_cpp(const float* a, const float* b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+}
+
+// Scale a 4D vector by a scalar - Return by value for RVO
+vec4cpp_t VectorScale4_cpp(const float* a, float b) {
+	return { a[0] * b, a[1] * b, a[2] * b, a[3] * b };
+}
+
+// Dot product of 3D vectors - RVO works here since we return a scalar by value
+float DotProduct_cpp(const vec3cpp_t& a, const vec3cpp_t& b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+// Dot product of 3D vectors - RVO works here since we return a scalar by value
+float DotProduct_cpp(const std::span<float>& a, const vec3cpp_t& b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+// Dot product of 3D vectors - RVO works here since we return a scalar by value
+float DotProduct_cpp(const std::span<float>& a, const std::span<float>& b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+// Dot product of 3D vectors - RVO works here since we return a scalar by value
+float DotProduct_cpp_v2(const std::span<vec_tcpp>& a, const vec3cpp_t& b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+// Dot product of 3D vectors - RVO works here since we return a scalar by value
+float DotProduct_cpp_v2(const std::array<vec_tcpp, 4>& a, const vec3cpp_t& b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+// Dot product of 3D vectors - RVO works here since we return a scalar by value
+float DotProduct_cpp(const vec3cpp_t& a, const std::span<float>& b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+// Subtract one 3D vector from another - Return by value for RVO
+vec3cpp_t VectorSubtract_cpp(const vec3cpp_t& a, const vec3cpp_t& b) {
+	return { a[0] - b[0], a[1] - b[1], a[2] - b[2] };
+}
+
+vec3cpp_t VectorSubtract_cpp(float* a, const vec3cpp_t& b) {
+	return { a[0] - b[0], a[1] - b[1], a[2] - b[2] };
+}
+
+// Dot product of 3D vectors - RVO works here since we return a scalar by value
+vec3cpp_t VectorSubtract_cpp(const std::span<float>& a, const vec3cpp_t& b) {
+	return { a[0] - b[0], a[1] - b[1], a[2] - b[2] };
+}
+
+// Dot product of 3D vectors - RVO works here since we return a scalar by value
+vec3cpp_t VectorSubtract_cpp(const vec3cpp_t& a, const std::span<float>& b) {
+	return { a[0] - b[0], a[1] - b[1], a[2] - b[2] };
+}
+
+
+// Add two 3D vectors - Return by value for RVO
+vec3cpp_t VectorAdd_cpp(const vec3cpp_t& a, const vec3cpp_t& b) {
+	return { a[0] + b[0], a[1] + b[1], a[2] + b[2] };
+}
+
+// Add two 3D vectors - Return by value for RVO
+vec4cpp_t VectorAdd_to4vec_cpp(const vec3cpp_t& a, const vec3cpp_t& b) {
+	return { a[0] + b[0], a[1] + b[1], a[2] + b[2] };
+}
+
+// Add two 3D vectors - Return by value for RVO
+vec3cpp_t VectorAdd_cpp(const std::span<float>& a, const vec3cpp_t& b) {
+	return { a[0] + b[0], a[1] + b[1], a[2] + b[2] };
+}
+
+// Copy a 3D vector - Return by value for RVO
+vec3cpp_t VectorCopy_cpp(const vec3cpp_t& a) {
+	return { a[0], a[1], a[2] };  // Return by value, RVO ensures efficiency
+}
+
+// Copy a 3D vector - Return by value for RVO
+vec4cpp_t VectorCopy_to4vec_cpp(const vec3cpp_t& a) {
+	return { a[0], a[1], a[2] };  // Return by value, RVO ensures efficiency
+}
+
+// Copy a 3D vector - Return by value for RVO
+vec4cpp_t VectorCopy_cppToVec4(const vec3cpp_t& a) {
+	return { a[0], a[1], a[2] };  // Return by value, RVO ensures efficiency
+}
+
+// Copy a 3D vector
+void VectorCopy_cpp_wrong(const vec3cpp_t& a, vec3_t& result) {
+	result[0] = a[0];
+	result[1] = a[1];
+	result[2] = a[2];
+}
+
+
+// Scale a 3D vector by a scalar - Return by value for RVO
+vec3cpp_t VectorScale_cpp(const vec3cpp_t& v, float s) {
+	return { v[0] * s, v[1] * s, v[2] * s };
+}
+
+
+// Scale a 3D vector by a scalar - Return by value for RVO
+vec4cpp_t VectorScale_to4vec_cpp(const vec3cpp_t& v, float s) {
+	return { v[0] * s, v[1] * s, v[2] * s };
+}
+
+// Scale a 3D vector by a scalar
+void VectorScale_cpp_wrong(const vec3cpp_t& v, float s, vec3_t& result) {
+	result[0] = v[0] * s;
+	result[1] = v[1] * s;
+	result[2] = v[2] * s;
+}
+
+// Multiply and add two vectors: o = v + b * s - Return by value for RVO
+vec3cpp_t VectorMA_cpp(const vec3cpp_t& v, float s, const vec3cpp_t& b) {
+	return { v[0] + b[0] * s, v[1] + b[1] * s, v[2] + b[2] * s };
+}
+
+// Multiply and add two vectors: o = v + b * s - Return by value for RVO
+vec4cpp_t VectorMA_to4vec_cpp(const vec3cpp_t& v, float s, const vec3cpp_t& b) {
+	return { v[0] + b[0] * s, v[1] + b[1] * s, v[2] + b[2] * s };
+}
+
+// Multiply and add two vectors: o = v + b * s - Return by value for RVO
+vec4cpp_t VectorMA_to4vec_cpp(const vec4cpp_t& v, float s, const vec3cpp_t& b) {
+	return { v[0] + b[0] * s, v[1] + b[1] * s, v[2] + b[2] * s };
+}
+
+// Multiply and add two vectors: o = v + b * s
+void VectorMA_cpp_wrong(const vec3cpp_t& v, float s, const vec3cpp_t& b, vec3_t& result) {
+	result[0] = v[0] + b[0] * s;
+	result[1] = v[1] + b[1] * s;
+	result[2] = v[2] + b[2] * s;
+}
+
+// Dot product of 4D vectors - Return by value for RVO
+float DotProduct4_cpp(const vec4cpp_t& a, const vec4cpp_t& b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+}
+
+// Scale a 4D vector by a scalar - Return by value for RVO
+vec4cpp_t VectorScale4_cpp(const vec4cpp_t& a, float b) {
+	return { a[0] * b, a[1] * b, a[2] * b, a[3] * b };
+}
+
+// Copy a 4D vector - Return by value for RVO
+vec4cpp_t VectorCopy_cpp(const vec4cpp_t& a) {
+	return { a[0], a[1], a[2], a[3] };  // Return by value, RVO ensures efficiency
+}
+
 /*
 ==================
 BoxOnPlaneSide
@@ -42,7 +283,7 @@ Returns 1, 2, or 1 + 2
 ==================
 */
 
-int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
+int BoxOnPlaneSide_cpp(const vec3_t& emins, const vec3_t& emaxs, cplane_s& p)
 {
 	float dist[2]{};
 	int sides, b, i;
@@ -77,6 +318,268 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 	return sides;
 }
 
+vec3cpp_t RotatePointAroundVector_cpp(const vec3cpp_t& dir, const vec3cpp_t& point, const float degrees) {
+	float	m[3][3];
+	float	im[3][3];
+	float	zrot[3][3];
+	float	tmpmat[3][3];
+	float	rot[3][3];
+	vec3cpp_t vr;
+	float	rad;
+
+	vec3cpp_t vf{ dir[0], dir[1], dir[2] };
+
+	PerpendicularVector_cpp(vr, dir);
+	vec3cpp_t vup = CrossProduct_cpp(vr, vf);
+
+	m[0][0] = vr[0];
+	m[1][0] = vr[1];
+	m[2][0] = vr[2];
+
+	m[0][1] = vup[0];
+	m[1][1] = vup[1];
+	m[2][1] = vup[2];
+
+	m[0][2] = vf[0];
+	m[1][2] = vf[1];
+	m[2][2] = vf[2];
+
+	memcpy(im, m, sizeof(im));
+
+	im[0][1] = m[1][0];
+	im[0][2] = m[2][0];
+	im[1][0] = m[0][1];
+	im[1][2] = m[2][1];
+	im[2][0] = m[0][2];
+	im[2][1] = m[1][2];
+
+	memset(zrot, 0, sizeof(zrot));
+	zrot[0][0] = zrot[1][1] = zrot[2][2] = 1.0F;
+
+	rad = DEG2RAD(degrees);
+	zrot[0][0] = cos(rad);
+	zrot[0][1] = sin(rad);
+	zrot[1][0] = -sin(rad);
+	zrot[1][1] = cos(rad);
+
+	MatrixMultiply(m, zrot, tmpmat);
+	MatrixMultiply(tmpmat, im, rot);
+
+
+	return { rot[0][0] * point[0] + rot[0][1] * point[1] + rot[0][2] * point[2],
+			rot[1][0] * point[0] + rot[1][1] * point[1] + rot[1][2] * point[2],
+			rot[2][0] * point[0] + rot[2][1] * point[1] + rot[2][2] * point[2] };
+}
+
+void MakeNormalVectors_cpp(const vec3cpp_t& forward, vec3cpp_t& right, vec3cpp_t& up) {
+	// this rotate and negate guarantees a vector
+	// not colinear with the original
+	right[1] = -forward[0];
+	right[2] = forward[1];
+	right[0] = forward[2];
+
+	float d = DotProduct_cpp(right, forward);
+	right = VectorMA_cpp(right, -d, forward);
+	VectorNormalize_cpp(right);
+	up = CrossProduct_cpp(right, forward);
+}
+
+/*
+** assumes "src" is normalized
+*/
+void PerpendicularVector_cpp(vec3cpp_t& dst, const vec3cpp_t& src)
+{
+	int	pos;
+	int i;
+	float minelem = 1.0F;
+	vec3cpp_t tempvec{};
+
+	/*
+	** find the smallest magnitude axially aligned vector
+	*/
+	for (pos = 0, i = 0; i < 3; i++)
+	{
+		if (fabs(src[i]) < minelem)
+		{
+			pos = i;
+			minelem = fabs(src[i]);
+		}
+	}
+	tempvec[pos] = 1.0F;
+
+	/*
+	** project the point onto the plane defined by src
+	*/
+	ProjectPointOnPlane_cpp(dst, tempvec, src);
+
+	/*
+	** normalize the result
+	*/
+	VectorNormalize_cpp(dst);
+}
+
+void PerpendicularVector_cpp(vec3cpp_t& dst, const float* src)
+{
+	int	pos;
+	int i;
+	float minelem = 1.0F;
+	vec3cpp_t tempvec{};
+
+	/*
+	** find the smallest magnitude axially aligned vector
+	*/
+	for (pos = 0, i = 0; i < 3; i++)
+	{
+		if (fabs(src[i]) < minelem)
+		{
+			pos = i;
+			minelem = fabs(src[i]);
+		}
+	}
+	tempvec[pos] = 1.0F;
+
+	/*
+	** project the point onto the plane defined by src
+	*/
+	ProjectPointOnPlane_cpp(dst, tempvec, src);
+
+	/*
+	** normalize the result
+	*/
+	VectorNormalize_cpp(dst);
+}
+
+void ProjectPointOnPlane_cpp(vec3cpp_t& dst, const vec3cpp_t& p, const float* normal)
+{
+	float inv_denom = DotProduct_cpp(normal, normal);
+#ifndef Q3_VM
+	assert(Q_fabs(inv_denom) != 0.0f); // zero vectors get here
+#endif
+	inv_denom = 1.0f / inv_denom;
+
+	float d = DotProduct_cpp(normal, p) * inv_denom;
+	vec3cpp_t n{
+		normal[0] * inv_denom,
+		normal[1] * inv_denom,
+		normal[2] * inv_denom
+	};
+
+	dst[0] = p[0] - d * n[0];
+	dst[1] = p[1] - d * n[1];
+	dst[2] = p[2] - d * n[2];
+}
+
+void ProjectPointOnPlane_cpp(vec3cpp_t& dst, const vec3cpp_t& p, const vec3cpp_t& normal)
+{
+	float inv_denom = DotProduct_cpp(normal, normal);
+#ifndef Q3_VM
+	assert(Q_fabs(inv_denom) != 0.0f); // zero vectors get here
+#endif
+	inv_denom = 1.0f / inv_denom;
+
+	float d = DotProduct_cpp(normal, p) * inv_denom;
+	vec3cpp_t n{
+		normal[0] * inv_denom,
+		normal[1] * inv_denom,
+		normal[2] * inv_denom
+	};
+
+	dst[0] = p[0] - d * n[0];
+	dst[1] = p[1] - d * n[1];
+	dst[2] = p[2] - d * n[2];
+}
+
+void AddPointToBounds_cpp(const vec3cpp_t& v, vec3cpp_t& mins, vec3cpp_t& maxs) {
+	if (v[0] < mins[0]) {
+		mins[0] = v[0];
+	}
+	if (v[0] > maxs[0]) {
+		maxs[0] = v[0];
+	}
+
+	if (v[1] < mins[1]) {
+		mins[1] = v[1];
+	}
+	if (v[1] > maxs[1]) {
+		maxs[1] = v[1];
+	}
+
+	if (v[2] < mins[2]) {
+		mins[2] = v[2];
+	}
+	if (v[2] > maxs[2]) {
+		maxs[2] = v[2];
+	}
+}
+
+vec_tcpp VectorNormalize2_cpp(const vec3cpp_t v, vec3cpp_t& out) {
+	float	length, ilength;
+
+	length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+
+	if (length)
+	{
+		/* writing it this way allows gcc to recognize that rsqrt can be used */
+		ilength = 1 / (float)sqrt(length);
+		/* sqrt(length) = length * (1 / sqrt(length)) */
+		length *= ilength;
+		out[0] = v[0] * ilength;
+		out[1] = v[1] * ilength;
+		out[2] = v[2] * ilength;
+	}
+	else {
+		VectorClear(out);
+	}
+
+	return length;
+}
+
+vec_tcpp VectorNormalize2_cpp(const vec3cpp_t v, vec3_t& out) {
+	float	length, ilength;
+
+	length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+
+	if (length)
+	{
+		/* writing it this way allows gcc to recognize that rsqrt can be used */
+		ilength = 1 / (float)sqrt(length);
+		/* sqrt(length) = length * (1 / sqrt(length)) */
+		length *= ilength;
+		out[0] = v[0] * ilength;
+		out[1] = v[1] * ilength;
+		out[2] = v[2] * ilength;
+	}
+	else {
+		VectorClear(out);
+	}
+
+	return length;
+}
+
+vec_tcpp VectorNormalize_cpp(vec3cpp_t& v) {
+	// NOTE: TTimo - Apple G4 altivec source uses double?
+	float	length, ilength;
+
+	length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+
+	if (length) {
+		/* writing it this way allows gcc to recognize that rsqrt can be used */
+		ilength = 1 / (float)sqrt(length);
+		/* sqrt(length) = length * (1 / sqrt(length)) */
+		length *= ilength;
+		v[0] *= ilength;
+		v[1] *= ilength;
+		v[2] *= ilength;
+	}
+
+	return length;
+}
+
+void ClearBounds_cpp(vec3cpp_t& mins, vec3cpp_t& maxs) {
+	mins[0] = mins[1] = mins[2] = 99999;
+	maxs[0] = maxs[1] = maxs[2] = -99999;
+}
+
 // int ColorIndexFromChar(char ccode)
 // {
 // 	if (ccode >= '0' && ccode <= '9')
@@ -97,7 +600,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	}
 // }
 
-// // vec3_t bytedirs[NUMVERTEXNORMALS] =
+// // vec3cpp_t bytedirs[NUMVERTEXNORMALS] =
 // // 	{
 // // 		{-0.525731f, 0.000000f, 0.850651f}, {-0.442863f, 0.238856f, 0.864188f},
 // // 		{-0.295242f, 0.000000f, 0.955423f}, {-0.309017f, 0.500000f, 0.809017f},
@@ -241,7 +744,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // }
 
 // // this isn't a real cheap function to call!
-// // int DirToByte(vec3_t dir)
+// // int DirToByte(vec3cpp_t dir)
 // // {
 // // 	int i, best;
 // // 	float d, bestd;
@@ -255,7 +758,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // // 	best = 0;
 // // 	for (i = 0; i < NUMVERTEXNORMALS; i++)
 // // 	{
-// // 		d = DotProduct(dir, bytedirs[i]);
+// // 		d = DotProduct_cpp(dir, bytedirs[i]);
 // // 		if (d > bestd)
 // // 		{
 // // 			bestd = d;
@@ -266,14 +769,14 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // // 	return best;
 // // }
 
-// // void ByteToDir(int b, vec3_t dir)
+// // void ByteToDir(int b, vec3cpp_t dir)
 // // {
 // // 	if (b < 0 || b >= NUMVERTEXNORMALS)
 // // 	{
-// // 		VectorCopy(vec3_origin, dir);
+// // 		VectorCopy_cpp(vec3_origin, dir);
 // // 		return;
 // // 	}
-// // 	VectorCopy(bytedirs[b], dir);
+// // 	VectorCopy_cpp(bytedirs[b], dir);
 // // }
 
 // unsigned ColorBytes3(float r, float g, float b)
@@ -299,7 +802,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	return i;
 // }
 
-// float NormalizeColor(const vec3_t in, vec3_t out)
+// float NormalizeColor(const vec3cpp_t in, vec3cpp_t out)
 // {
 // 	float max;
 
@@ -334,19 +837,19 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // The normal will point out of the clock for clockwise ordered points
 // =====================
 // */
-// bool PlaneFromPoints(vec4_t plane, const vec3_t a, const vec3_t b, const vec3_t c)
+// bool PlaneFromPoints(vec4cpp_t plane, const vec3cpp_t a, const vec3cpp_t b, const vec3cpp_t c)
 // {
-// 	vec3_t d1, d2;
+// 	vec3cpp_t d1, d2;
 
-// 	VectorSubtract(b, a, d1);
-// 	VectorSubtract(c, a, d2);
-// 	CrossProduct(d2, d1, plane);
-// 	if (VectorNormalize(plane) == 0)
+// 	VectorSubtract_cpp(b, a, d1);
+// 	VectorSubtract_cpp(c, a, d2);
+// 	CrossProduct_cpp(d2, d1, plane);
+// 	if (VectorNormalize_cpp(plane) == 0)
 // 	{
 // 		return false;
 // 	}
 
-// 	plane[3] = DotProduct(a, plane);
+// 	plane[3] = DotProduct_cpp(a, plane);
 // 	return true;
 // }
 
@@ -357,7 +860,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // This is not implemented very well...
 // ===============
 // */
-// void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point,
+// void RotatePointAroundVector(vec3cpp_t dst, const vec3cpp_t dir, const vec3cpp_t point,
 // 							 float degrees)
 // {
 // 	float m[3][3];
@@ -366,15 +869,15 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	float tmpmat[3][3];
 // 	float rot[3][3];
 // 	int i;
-// 	vec3_t vr, vup, vf;
+// 	vec3cpp_t vr, vup, vf;
 // 	float rad;
 
 // 	vf[0] = dir[0];
 // 	vf[1] = dir[1];
 // 	vf[2] = dir[2];
 
-// 	PerpendicularVector(vr, dir);
-// 	CrossProduct(vr, vf, vup);
+// 	PerpendicularVector_cpp(vr, dir);
+// 	CrossProduct_cpp(vr, vf, vup);
 
 // 	m[0][0] = vr[0];
 // 	m[1][0] = vr[1];
@@ -420,26 +923,26 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // // RotateAroundDirection
 // // ===============
 // // */
-// // void RotateAroundDirection(vec3_t axis[3], float yaw)
+// // void RotateAroundDirection(vec3cpp_t axis[3], float yaw)
 // // {
 
 // // 	// create an arbitrary axis[1]
-// // 	PerpendicularVector(axis[1], axis[0]);
+// // 	PerpendicularVector_cpp(axis[1], axis[0]);
 
 // // 	// rotate it around axis[0] by yaw
 // // 	if (yaw)
 // // 	{
-// // 		vec3_t temp;
+// // 		vec3cpp_t temp;
 
-// // 		VectorCopy(axis[1], temp);
+// // 		VectorCopy_cpp(axis[1], temp);
 // // 		RotatePointAroundVector(axis[1], axis[0], temp, yaw);
 // // 	}
 
 // // 	// cross to get axis[2]
-// // 	CrossProduct(axis[0], axis[1], axis[2]);
+// // 	CrossProduct_cpp(axis[0], axis[1], axis[2]);
 // // }
 
-// void vectoangles(const vec3_t value1, vec3_t angles)
+// void vectoangles(const vec3cpp_t value1, vec3cpp_t angles)
 // {
 // 	float forward;
 // 	float yaw, pitch;
@@ -493,16 +996,16 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // AnglesToAxis
 // =================
 // */
-// void AnglesToAxis(const vec3_t angles, vec3_t axis[3])
+// void AnglesToAxis(const vec3cpp_t angles, vec3cpp_t axis[3])
 // {
-// 	vec3_t right;
+// 	vec3cpp_t right;
 
 // 	// angle vectors returns "right" instead of "y axis"
 // 	AngleVectors(angles, axis[0], right, axis[2]);
-// 	VectorSubtract(vec3_origin, right, axis[1]);
+// 	VectorSubtract_cpp(vec3_origin, right, axis[1]);
 // }
 
-// void AxisClear(vec3_t axis[3])
+// void AxisClear(vec3cpp_t axis[3])
 // {
 // 	axis[0][0] = 1;
 // 	axis[0][1] = 0;
@@ -515,26 +1018,26 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	axis[2][2] = 1;
 // }
 
-// void AxisCopy(vec3_t in[3], vec3_t out[3])
+// void AxisCopy(vec3cpp_t in[3], vec3cpp_t out[3])
 // {
-// 	VectorCopy(in[0], out[0]);
-// 	VectorCopy(in[1], out[1]);
-// 	VectorCopy(in[2], out[2]);
+// 	VectorCopy_cpp(in[0], out[0]);
+// 	VectorCopy_cpp(in[1], out[1]);
+// 	VectorCopy_cpp(in[2], out[2]);
 // }
 
-// void ProjectPointOnPlane(vec3_t dst, const vec3_t p, const vec3_t normal)
+// void ProjectPointOnPlane(vec3cpp_t dst, const vec3cpp_t p, const vec3cpp_t normal)
 // {
 // 	float d;
-// 	vec3_t n;
+// 	vec3cpp_t n;
 // 	float inv_denom;
 
-// 	inv_denom = DotProduct(normal, normal);
+// 	inv_denom = DotProduct_cpp(normal, normal);
 // #ifndef Q3_VM
 // 	assert(Q_fabs(inv_denom) != 0.0f); // zero vectors get here
 // #endif
 // 	inv_denom = 1.0f / inv_denom;
 
-// 	d = DotProduct(normal, p) * inv_denom;
+// 	d = DotProduct_cpp(normal, p) * inv_denom;
 
 // 	n[0] = normal[0] * inv_denom;
 // 	n[1] = normal[1] * inv_denom;
@@ -547,13 +1050,13 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 
 // /*
 // ================
-// MakeNormalVectors
+// MakeNormalVectors_cpp
 
 // Given a normalized forward vector, create two
 // other perpendicular vectors
 // ================
 // */
-// void MakeNormalVectors(const vec3_t forward, vec3_t right, vec3_t up)
+// void MakeNormalVectors_cpp(const vec3cpp_t forward, vec3cpp_t right, vec3cpp_t up)
 // {
 // 	float d;
 
@@ -563,17 +1066,17 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	right[2] = forward[1];
 // 	right[0] = forward[2];
 
-// 	d = DotProduct(right, forward);
-// 	VectorMA(right, -d, forward, right);
-// 	VectorNormalize(right);
-// 	CrossProduct(right, forward, up);
+// 	d = DotProduct_cpp(right, forward);
+// 	VectorMA_cpp(right, -d, forward, right);
+// 	VectorNormalize_cpp(right);
+// 	CrossProduct_cpp(right, forward, up);
 // }
 
-// void VectorRotate(const vec3_t in, const vec3_t matrix[3], vec3_t out)
+// void VectorRotate(const vec3cpp_t in, const vec3cpp_t matrix[3], vec3cpp_t out)
 // {
-// 	out[0] = DotProduct(in, matrix[0]);
-// 	out[1] = DotProduct(in, matrix[1]);
-// 	out[2] = DotProduct(in, matrix[2]);
+// 	out[0] = DotProduct_cpp(in, matrix[0]);
+// 	out[1] = DotProduct_cpp(in, matrix[1]);
+// 	out[2] = DotProduct_cpp(in, matrix[2]);
 // }
 
 // //============================================================================
@@ -637,7 +1140,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	return a;
 // }
 
-// void AnglesSubtract(vec3_t v1, vec3_t v2, vec3_t v3)
+// void AnglesSubtract(vec3cpp_t v1, vec3cpp_t v2, vec3cpp_t v3)
 // {
 // 	v3[0] = AngleSubtract(v1[0], v2[0]);
 // 	v3[1] = AngleSubtract(v1[1], v2[1]);
@@ -698,10 +1201,10 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // RadiusFromBounds
 // =================
 // */
-// float RadiusFromBounds(const vec3_t mins, const vec3_t maxs)
+// float RadiusFromBounds(const vec3cpp_t mins, const vec3cpp_t maxs)
 // {
 // 	int i;
-// 	vec3_t corner;
+// 	vec3cpp_t corner;
 // 	float a, b;
 
 // 	for (i = 0; i < 3; i++)
@@ -711,17 +1214,17 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 		corner[i] = a > b ? a : b;
 // 	}
 
-// 	return VectorLength(corner);
+// 	return VectorLength_cpp(corner);
 // }
 
-// void ClearBounds(vec3_t mins, vec3_t maxs)
+// void ClearBounds_cpp(vec3cpp_t mins, vec3cpp_t maxs)
 // {
 // 	mins[0] = mins[1] = mins[2] = 99999;
 // 	maxs[0] = maxs[1] = maxs[2] = -99999;
 // }
 
-// bool BoundsIntersect(const vec3_t mins, const vec3_t maxs,
-// 					 const vec3_t mins2, const vec3_t maxs2)
+// bool BoundsIntersect(const vec3cpp_t mins, const vec3cpp_t maxs,
+// 					 const vec3cpp_t mins2, const vec3cpp_t maxs2)
 // {
 // 	if (maxs[0] < mins2[0] ||
 // 		maxs[1] < mins2[1] ||
@@ -736,8 +1239,8 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	return true;
 // }
 
-// bool BoundsIntersectSphere(const vec3_t mins, const vec3_t maxs,
-// 						   const vec3_t origin, vec_t radius)
+// bool BoundsIntersectSphere(const vec3cpp_t mins, const vec3cpp_t maxs,
+// 						   const vec3cpp_t origin, vec_t radius)
 // {
 // 	if (origin[0] - radius > maxs[0] ||
 // 		origin[0] + radius < mins[0] ||
@@ -752,8 +1255,8 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	return true;
 // }
 
-// bool BoundsIntersectPoint(const vec3_t mins, const vec3_t maxs,
-// 						  const vec3_t origin)
+// bool BoundsIntersectPoint(const vec3cpp_t mins, const vec3cpp_t maxs,
+// 						  const vec3cpp_t origin)
 // {
 // 	if (origin[0] > maxs[0] ||
 // 		origin[0] < mins[0] ||
@@ -768,7 +1271,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	return true;
 // }
 
-// vec_t VectorNormalize(vec3_t v)
+// vec_t VectorNormalize_cpp(vec3cpp_t v)
 // {
 // 	// NOTE: TTimo - Apple G4 altivec source uses double?
 // 	float length, ilength;
@@ -789,7 +1292,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	return length;
 // }
 
-// vec_t VectorNormalize2(const vec3_t v, vec3_t out)
+// vec_t VectorNormalize2_cpp(const vec3cpp_t v, vec3cpp_t out)
 // {
 // 	float length, ilength;
 
@@ -813,7 +1316,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	return length;
 // }
 
-// void Vector4Scale(const vec4_t in, vec_t scale, vec4_t out)
+// void Vector4Scale(const vec4cpp_t in, vec_t scale, vec4cpp_t out)
 // {
 // 	out[0] = in[0] * scale;
 // 	out[1] = in[1] * scale;
@@ -839,7 +1342,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // =================
 // */
 // /*
-// int	PlaneTypeForNormal (vec3_t normal) {
+// int	PlaneTypeForNormal (vec3cpp_t normal) {
 // 	if ( normal[0] == 1.0 )
 // 		return PLANE_X;
 // 	if ( normal[1] == 1.0 )
@@ -878,7 +1381,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 				in1[2][2] * in2[2][2];
 // }
 
-// void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
+// void AngleVectors(const vec3cpp_t angles, vec3cpp_t forward, vec3cpp_t right, vec3cpp_t up)
 // {
 // 	float angle;
 // 	static float sr, sp, sy, cr, cp, cy;
@@ -917,12 +1420,12 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // /*
 // ** assumes "src" is normalized
 // */
-// void PerpendicularVector(vec3_t dst, const vec3_t src)
+// void PerpendicularVector_cpp(vec3cpp_t dst, const vec3cpp_t src)
 // {
 // 	int pos;
 // 	int i;
 // 	float minelem = 1.0F;
-// 	vec3_t tempvec;
+// 	vec3cpp_t tempvec;
 
 // 	/*
 // 	** find the smallest magnitude axially aligned vector
@@ -946,7 +1449,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	/*
 // 	** normalize the result
 // 	*/
-// 	VectorNormalize(dst);
+// 	VectorNormalize_cpp(dst);
 // }
 
 // /*

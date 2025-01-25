@@ -122,7 +122,6 @@ RB_CalcDeformVertexes
 static void RB_CalcDeformVertexes(deformStage_t &ds)
 {
 	int i;
-	vec3_t offset{};
 	float scale;
 	float *xyz = (float *)tess.xyz;
 	float *normal = (float *)tess.normal;
@@ -134,7 +133,7 @@ static void RB_CalcDeformVertexes(deformStage_t &ds)
 
 		for (i = 0; i < tess.numVertexes; i++, xyz += 4, normal += 4)
 		{
-			VectorScale(normal, scale, offset);
+			vec3cpp_t offset = VectorScale_cpp(normal, scale);
 
 			xyz[0] += offset[0];
 			xyz[1] += offset[1];
@@ -154,7 +153,7 @@ static void RB_CalcDeformVertexes(deformStage_t &ds)
 							  ds.deformationWave.phase + off,
 							  ds.deformationWave.frequency);
 
-			VectorScale(normal, scale, offset);
+			vec3cpp_t offset = VectorScale_cpp(normal, scale);
 
 			xyz[0] += offset[0];
 			xyz[1] += offset[1];
@@ -269,20 +268,20 @@ Change a polygon into a bunch of text polygons
 static void DeformText(std::string_view text)
 {
 	int i;
-	vec3_t origin{}, width, height{0, 0, -1};
+	vec3cpp_t height{0, 0, -1};
 	int len;
 	int ch;
 	color4ub_t color{};
-	vec3_t mid{};
+	vec3cpp_t mid{};
 
-	CrossProduct(tess.normal[0], height, width);
+	vec3cpp_t width = CrossProduct_cpp(tess.normal[0], height);
 
 	// find the midpoint of the box
 	float bottom = 999999;
 	float top = -999999;
 	for (i = 0; i < 4; i++)
 	{
-		VectorAdd(tess.xyz[i], mid, mid);
+		mid = VectorAdd_cpp(tess.xyz[i], mid);
 		if (tess.xyz[i][2] < bottom)
 		{
 			bottom = tess.xyz[i][2];
@@ -292,18 +291,18 @@ static void DeformText(std::string_view text)
 			top = tess.xyz[i][2];
 		}
 	}
-	VectorScale(mid, 0.25f, origin);
+	vec3cpp_t origin = VectorScale_cpp(mid, 0.25f);
 
 	// determine the individual character size
 	height[0] = 0;
 	height[1] = 0;
 	height[2] = (top - bottom) * 0.5f;
 
-	VectorScale(width, height[2] * -0.75f, width);
+	width = VectorScale_cpp(width, height[2] * -0.75f);
 
 	// determine the starting position
 	len = text.size();
-	VectorMA(origin, (len - 1), width, origin);
+	origin = VectorMA_cpp(origin, (len - 1), width);
 
 	// clear the shader indexes
 	tess.numIndexes = 0;
@@ -331,7 +330,7 @@ static void DeformText(std::string_view text)
 
 			RB_AddQuadStampExt(origin, width, height, color, fcol, frow, fcol + size, frow + size);
 		}
-		VectorMA(origin, -2, width, origin);
+		origin = VectorMA_cpp(origin, -2, width);
 	}
 }
 
@@ -340,11 +339,17 @@ static void DeformText(std::string_view text)
 GlobalVectorToLocal
 ==================
 */
-static void GlobalVectorToLocal(const vec3_t &in, vec3_t &out)
+static void GlobalVectorToLocal(const vec3cpp_t&in, vec3cpp_t&out)
 {
-	out[0] = DotProduct(in, backEnd.ort.axis[0]);
-	out[1] = DotProduct(in, backEnd.ort.axis[1]);
-	out[2] = DotProduct(in, backEnd.ort.axis[2]);
+	out[0] = DotProduct_cpp(in, backEnd.ort.axis[0]);
+	out[1] = DotProduct_cpp(in, backEnd.ort.axis[1]);
+	out[2] = DotProduct_cpp(in, backEnd.ort.axis[2]);
+}
+
+static void GlobalVectorToLocal(const float* in, vec3cpp_t& out) {
+	out[0] = DotProduct_cpp(in, backEnd.ort.axis[0]);
+	out[1] = DotProduct_cpp(in, backEnd.ort.axis[1]);
+	out[2] = DotProduct_cpp(in, backEnd.ort.axis[2]);
 }
 
 /*
@@ -360,10 +365,8 @@ static void AutospriteDeform(void)
 	int i;
 	int oldVerts;
 	float *xyz;
-	vec3_t delta{};
 	float radius;
-	vec3_t left = {}, up = {};
-	vec3_t leftDir, upDir;
+	vec3cpp_t leftDir{}, upDir{};
 
 	if (tess.numVertexes & 3)
 	{
@@ -385,8 +388,8 @@ static void AutospriteDeform(void)
 	}
 	else
 	{
-		VectorCopy(backEnd.viewParms.ort.axis[1], leftDir);
-		VectorCopy(backEnd.viewParms.ort.axis[2], upDir);
+		leftDir = VectorCopy_cpp(backEnd.viewParms.ort.axis[1]);
+		upDir = VectorCopy_cpp(backEnd.viewParms.ort.axis[2]);
 	}
 
 	for (i = 0; i < oldVerts; i += 4)
@@ -394,20 +397,22 @@ static void AutospriteDeform(void)
 		// find the midpoint
 		xyz = tess.xyz[i];
 
-		vec3_t mid = {
-			{0.25f * (xyz[0] + xyz[4] + xyz[8] + xyz[12])},
-			{0.25f * (xyz[1] + xyz[5] + xyz[9] + xyz[13])},
-			{0.25f * (xyz[2] + xyz[6] + xyz[10] + xyz[14])}};
+		vec3cpp_t mid = {
+			0.25f * (xyz[0] + xyz[4] + xyz[8] + xyz[12]),
+			0.25f * (xyz[1] + xyz[5] + xyz[9] + xyz[13]),
+			0.25f * (xyz[2] + xyz[6] + xyz[10] + xyz[14])
+		};
 
-		VectorSubtract(xyz, mid, delta);
-		radius = VectorLength(delta) * 0.707f; // / sqrt(2)
 
-		VectorScale(leftDir, radius, left);
-		VectorScale(upDir, radius, up);
+		vec3cpp_t delta = VectorSubtract_cpp(xyz, mid);
+		radius = VectorLength_cpp(delta) * 0.707f; // / sqrt(2)
+
+		vec3cpp_t left = VectorScale_cpp(leftDir, radius);
+		vec3cpp_t up = VectorScale_cpp(upDir, radius);
 
 		if (backEnd.viewParms.portalView == PV_MIRROR)
 		{
-			VectorSubtract(vec3_origin, left, left);
+			left = VectorSubtract_cpp(vec3cpp_origin_cpp, left);
 		}
 
 		// compensate for scale in the axes if necessary
@@ -445,7 +450,7 @@ static void Autosprite2Deform(void)
 	int i, j, k;
 	int indexes;
 	float *xyz;
-	vec3_t forward;
+	vec3cpp_t forward;
 
 	if (tess.numVertexes & 3)
 	{
@@ -473,8 +478,7 @@ static void Autosprite2Deform(void)
 		// identify the two shortest edges
 		float lengths[2]{999999, 999999};
 		int nums[2]{};
-		vec3_t mid[2]{};
-		vec3_t major{}, minor;
+		vec3cpp_t mid[2]{};
 		float *v1, *v2;
 
 		// find the midpoint
@@ -482,15 +486,12 @@ static void Autosprite2Deform(void)
 
 		for (j = 0; j < 6; j++)
 		{
-			float l;
-			vec3_t temp{};
-
 			v1 = xyz + 4 * edgeVerts[j][0];
 			v2 = xyz + 4 * edgeVerts[j][1];
 
-			VectorSubtract(v1, v2, temp);
+			vec3cpp_t temp = VectorSubtract_cpp(v1, v2);
 
-			l = DotProduct(temp, temp);
+			float l = DotProduct_cpp(temp, temp);
 			if (l < lengths[0])
 			{
 				nums[1] = nums[0];
@@ -516,11 +517,11 @@ static void Autosprite2Deform(void)
 		}
 
 		// find the vector of the major axis
-		VectorSubtract(mid[1], mid[0], major);
+		vec3cpp_t major = VectorSubtract_cpp(mid[1], mid[0]);
 
 		// cross this with the view direction to get minor axis
-		CrossProduct(major, forward, minor);
-		VectorNormalize(minor);
+		vec3cpp_t minor = CrossProduct_cpp(major, forward);
+		VectorNormalize_cpp(minor);
 
 		// re-project the points
 		for (j = 0; j < 2; j++)
@@ -735,15 +736,11 @@ void RB_CalcWaveColor(const waveForm_t &wf, unsigned char *dstColors)
 */
 void RB_CalcWaveAlpha(const waveForm_t &wf, unsigned char *dstColors)
 {
-	int i;
-	int v;
-	float glow;
+	float glow = EvalWaveFormClamped(wf);
 
-	glow = EvalWaveFormClamped(wf);
+	int v = 255 * glow;
 
-	v = 255 * glow;
-
-	for (i = 0; i < tess.numVertexes; i++, dstColors += 4)
+	for (int i = 0; i < tess.numVertexes; i++, dstColors += 4)
 	{
 		dstColors[3] = v;
 	}
@@ -1217,27 +1214,23 @@ void RB_CalcSpecularAlpha(unsigned char *alphas)
 	int i;
 	const float *v, *normal;
 	vec3_t viewer{};
-	float l, d;
 	int b;
 	vec3_t lightDir{};
-	int numVertexes;
 
 	v = tess.xyz[0];
 	normal = tess.normal[0];
 
 	alphas += 3;
 
-	numVertexes = tess.numVertexes;
+	int numVertexes = tess.numVertexes;
 	for (i = 0; i < numVertexes; i++, v += 4, normal += 4, alphas += 4)
 	{
-		float ilength;
-
 		VectorSubtract(lightOrigin, v, lightDir);
 		//		ilength = Q_rsqrt( DotProduct( lightDir, lightDir ) );
 		VectorNormalizeFast(lightDir);
 
 		// calculate the specular color
-		d = DotProduct(normal, lightDir);
+		float d = DotProduct(normal, lightDir);
 		//		d *= ilength;
 
 		// we don't optimize for the d < 0 case since this tends to
@@ -1248,8 +1241,8 @@ void RB_CalcSpecularAlpha(unsigned char *alphas)
 			normal[2] * 2 * d - lightDir[2]};
 
 		VectorSubtract(backEnd.ort.viewOrigin, v, viewer);
-		ilength = Q_rsqrt(DotProduct(viewer, viewer));
-		l = DotProduct(reflected, viewer);
+		float ilength = Q_rsqrt(DotProduct(viewer, viewer));
+		float l = DotProduct(reflected, viewer);
 		l *= ilength;
 
 		if (l < 0)

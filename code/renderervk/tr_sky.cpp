@@ -57,7 +57,7 @@ static float sky_min, sky_max;
 static float sky_min_depth;
 
 constexpr int sky_texorder[6] = {0, 2, 1, 3, 4, 5};
-static vec3_t s_skyPoints[SKY_SUBDIVISIONS + 1][SKY_SUBDIVISIONS + 1];
+static vec3cpp_t s_skyPoints[SKY_SUBDIVISIONS + 1][SKY_SUBDIVISIONS + 1];
 static float s_skyTexCoords[SKY_SUBDIVISIONS + 1][SKY_SUBDIVISIONS + 1][2];
 
 /*
@@ -68,7 +68,6 @@ AddSkyPolygon
 static void AddSkyPolygon(const int nump, vec3_t vecs)
 {
 	int i, j;
-	vec3_t v{};
 	float s, t, dv;
 	int axis;
 	float *vp;
@@ -89,10 +88,10 @@ static void AddSkyPolygon(const int nump, vec3_t vecs)
 		};
 
 	// decide which face it maps to
-	VectorCopy(vec3_origin, v);
+	vec3cpp_t v = VectorCopy_cpp(vec3_origin);
 	for (i = 0, vp = vecs; i < nump; i++, vp += 3)
 	{
-		VectorAdd(vp, v, v);
+		v = VectorAdd_cpp(vp, v);
 	}
 	vec3_t av{
 		fabs(v[0]),
@@ -299,7 +298,7 @@ CLOUD VERTEX GENERATION
 **
 ** Parms: s, t range from -1 to 1
 */
-static void MakeSkyVec(float s, float t, int axis, vec3_t &outXYZ)
+static void MakeSkyVec(float s, float t, int axis, vec3cpp_t& outXYZ)
 {
 	// 1 = s, 2 = t, 3 = 2048
 	static constexpr int st_to_vec[6][3] =
@@ -317,7 +316,7 @@ static void MakeSkyVec(float s, float t, int axis, vec3_t &outXYZ)
 	int j, k;
 
 	float boxSize = backEnd.viewParms.zFar / 1.75; // div sqrt(3)
-	vec3_t b{
+	vec3cpp_t b{
 		s * boxSize,
 		t * boxSize,
 		boxSize
@@ -342,7 +341,7 @@ static void MakeSkyVec(float s, float t, int axis, vec3_t &outXYZ)
 CullPoints
 =================
 */
-static bool CullPoints(const std::array<vec4_t, 4> &v)
+static bool CullPoints(const std::array<vec4cpp_t, 4> &v)
 {
 	int i;
 	std::size_t j;
@@ -373,7 +372,7 @@ static bool CullPoints(const std::array<vec4_t, 4> &v)
 static bool CullSkySide(const int mins[2], const int maxs[2])
 {
 	int s, t;
-	std::array<vec4_t, 4> v;
+	std::array<vec4cpp_t, 4> v;
 
 	if (r_nocull->integer)
 		return false;
@@ -700,8 +699,7 @@ void R_InitSkyTexCoords(float heightCloud)
 	constexpr float radiusWorld = 4096;
 	float p;
 	float sRad, tRad;
-	vec3_t skyVec;
-	vec3_t v;
+	vec3cpp_t skyVec;
 
 	if (!Q_stricmp_cpp(glConfig.renderer_string, "GDI Generic") && !Q_stricmp_cpp(glConfig.version_string, "1.1.0"))
 	{
@@ -741,11 +739,11 @@ void R_InitSkyTexCoords(float heightCloud)
 							  Square(skyVec[2]) * Square(heightCloud)));
 
 				// compute intersection point based on p
-				VectorScale(skyVec, p, v);
+				vec3cpp_t v = VectorScale_cpp(skyVec, p);
 				v[2] += radiusWorld;
 
 				// compute vector from world origin to intersection point 'v'
-				VectorNormalize(v);
+				VectorNormalize_cpp(v);
 
 				sRad = Q_acos(v[0]);
 				tRad = Q_acos(v[1]);
@@ -768,7 +766,7 @@ void RB_DrawSun(const float scale, shader_t &shader)
 {
 	float size;
 	float dist;
-	vec3_t origin{}, vec1, vec2;
+	vec3cpp_t vec1;
 	color4ub_t sunColor{};
 
 	if (!backEnd.skyRenderedThisView)
@@ -780,12 +778,12 @@ void RB_DrawSun(const float scale, shader_t &shader)
 	dist = backEnd.viewParms.zFar / 1.75; // div sqrt(3)
 	size = dist * scale;
 
-	VectorMA(backEnd.viewParms.ort.origin, dist, tr.sunDirection, origin);
-	PerpendicularVector(vec1, tr.sunDirection);
-	CrossProduct(tr.sunDirection, vec1, vec2);
+	vec3cpp_t origin = VectorMA_cpp(backEnd.viewParms.ort.origin, dist, tr.sunDirection);
+	PerpendicularVector_cpp(vec1, tr.sunDirection);
+	vec3cpp_t vec2 = CrossProduct_cpp(tr.sunDirection, vec1);
 
-	VectorScale(vec1, size, vec1);
-	VectorScale(vec2, size, vec2);
+	vec1 = VectorScale_cpp(vec1, size);
+	vec2 = VectorScale_cpp(vec2, size);
 
 	// farthest depth range
 	tess.depthRange = DEPTH_RANGE_ONE;

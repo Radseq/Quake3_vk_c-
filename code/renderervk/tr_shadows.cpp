@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_backend.hpp"
 #include "vk.hpp"
 #include "utils.hpp"
+#include "math.hpp"
 
 /*
 
@@ -150,21 +151,21 @@ void RB_ShadowTessEnd(void)
 
 	int i;
 	int numTris;
-	vec3_t lightDir{};
+	vec3cpp_t lightDir{};
 	uint32_t pipeline[2]{};
 
 #ifdef USE_PMLIGHT
 	if (r_dlightMode->integer == 2 && r_shadows->integer == 2)
-		VectorCopy(backEnd.currentEntity->shadowLightDir, lightDir);
+		lightDir = VectorCopy_cpp(backEnd.currentEntity->shadowLightDir);
 	else
 #endif
-		VectorCopy(backEnd.currentEntity->lightDir, lightDir);
+		lightDir = VectorCopy_cpp(backEnd.currentEntity->lightDir);
 
 	// clamp projection by height
 	if (lightDir[2] > 0.1)
 	{
 		float s = 0.1 / lightDir[2];
-		VectorScale(lightDir, s, lightDir);
+		lightDir = VectorScale_cpp(lightDir, s);
 	}
 
 	// project vertexes away from light direction
@@ -180,9 +181,7 @@ void RB_ShadowTessEnd(void)
 	for (i = 0; i < numTris; i++)
 	{
 		int i1, i2, i3;
-		vec3_t d1{}, d2{}, normal;
 		float *v1, *v2, *v3;
-		float d;
 
 		i1 = tess.indexes[i * 3 + 0];
 		i2 = tess.indexes[i * 3 + 1];
@@ -192,11 +191,11 @@ void RB_ShadowTessEnd(void)
 		v2 = tess.xyz[i2];
 		v3 = tess.xyz[i3];
 
-		VectorSubtract(v2, v1, d1);
-		VectorSubtract(v3, v1, d2);
-		CrossProduct(d1, d2, normal);
+		vec3cpp_t d1 = VectorSubtract_cpp(v2, v1);
+		vec3cpp_t d2 = VectorSubtract_cpp(v3, v1);
+		vec3cpp_t normal = CrossProduct_cpp(d1, d2);
 
-		d = DotProduct(normal, lightDir);
+		float d = DotProduct_cpp(normal, lightDir);
 		if (d > 0)
 		{
 			facing[i] = 1;
@@ -317,47 +316,43 @@ RB_ProjectionShadowDeform
 */
 void RB_ProjectionShadowDeform(void)
 {
-	float *xyz;
+	float *xyz = (float*)tess.xyz;
 	int i;
 	float h;
 
-	float groundDist;
-	float d;
-	vec3_t lightDir{};
+	vec3cpp_t lightDir{};
 
-	xyz = (float *)tess.xyz;
-
-	vec3_t ground{
+	vec3cpp_t ground{
 		backEnd.ort.axis[0][2],
 		backEnd.ort.axis[1][2],
 		backEnd.ort.axis[2][2]};
 
-	groundDist = backEnd.ort.origin[2] - backEnd.currentEntity->e.shadowPlane;
+	float groundDist = backEnd.ort.origin[2] - backEnd.currentEntity->e.shadowPlane;
 
 #ifdef USE_PMLIGHT
 	if (r_dlightMode->integer == 2 && r_shadows->integer == 2)
-		VectorCopy(backEnd.currentEntity->shadowLightDir, lightDir);
+		lightDir = VectorCopy_cpp (backEnd.currentEntity->shadowLightDir);
 	else
 #endif
-		VectorCopy(backEnd.currentEntity->lightDir, lightDir);
+		lightDir = VectorCopy_cpp(backEnd.currentEntity->lightDir);
 
-	d = DotProduct(lightDir, ground);
+	float d = DotProduct_cpp(lightDir, ground);
 	// don't let the shadows get too long ort go negative
 	if (d < 0.5)
 	{
-		VectorMA(lightDir, (0.5 - d), ground, lightDir);
-		d = DotProduct(lightDir, ground);
+		lightDir = VectorMA_cpp(lightDir, (0.5 - d), ground);
+		d = DotProduct_cpp(lightDir, ground);
 	}
 	d = 1.0 / d;
 
-	vec3_t light{
+	vec3cpp_t light{
 		lightDir[0] * d,
 		lightDir[1] * d,
 		lightDir[2] * d};
 
 	for (i = 0; i < tess.numVertexes; i++, xyz += 4)
 	{
-		h = DotProduct(xyz, ground) + groundDist;
+		h = DotProduct_cpp(xyz, ground) + groundDist;
 
 		xyz[0] -= light[0] * h;
 		xyz[1] -= light[1] * h;

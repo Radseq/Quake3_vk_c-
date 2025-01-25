@@ -60,6 +60,12 @@ constexpr int MAX_FLARES = 256;
 
 constexpr int MAX_TEXTURE_SIZE = 2048; // must be less or equal to 32768
 
+typedef float vec_tcpp;
+using vec2cpp_t = std::array<vec_tcpp, 2>;
+using vec3cpp_t = std::array<vec_tcpp, 3>;
+using vec4cpp_t = std::array<vec_tcpp, 4>;
+using quatcpp_t = std::array<vec_tcpp, 4>;
+using vec5cpp_t = std::array<vec_tcpp, 5>;
 
 // GL constants substitutions
 typedef enum

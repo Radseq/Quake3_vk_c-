@@ -21,7 +21,7 @@ void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
 void R_SetupProjection(viewParms_t &dest, const float zProj, const bool computeFrustum);
 
 int R_CullPointAndRadius(const vec3_t &pt, const float radius);
-void R_LocalPointToWorld(const vec3_t &local, vec3_t &world);
+void R_LocalPointToWorld(const vec3_t& local, vec3_t& world);
 
 void R_WorldToLocal(const vec3_t &world, vec3_t &local);
 

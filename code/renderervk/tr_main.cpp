@@ -48,7 +48,7 @@ static const float s_flipMatrix[16] = {
 	0, 0, -1, 0,
 	-1, 0, 0, 0,
 	0, 1, 0, 0,
-	0, 0, 0, 1};
+	0, 0, 0, 1 };
 
 refimport_t ri;
 
@@ -78,7 +78,7 @@ int R_CullLocalBox(const vec3_t bounds[2])
 		vec3_t v{
 			bounds[i & 1][0],
 			bounds[(i >> 1) & 1][1],
-			bounds[(i >> 2) & 1][2]};
+			bounds[(i >> 2) & 1][2] };
 
 		VectorCopy(tr.ort.origin, transformed[i]);
 		VectorMA(transformed[i], v[0], tr.ort.axis[0], transformed[i]);
@@ -90,7 +90,7 @@ int R_CullLocalBox(const vec3_t bounds[2])
 	anyBack = 0;
 	for (i = 0; i < 4; i++)
 	{
-		cplane_t &frust = tr.viewParms.frustum[i];
+		cplane_t& frust = tr.viewParms.frustum[i];
 
 		front = back = 0;
 		for (j = 0; j < 8; j++)
@@ -128,7 +128,7 @@ int R_CullLocalBox(const vec3_t bounds[2])
 /*
 ** R_CullLocalPointAndRadius
 */
-int R_CullLocalPointAndRadius(const vec3_t &pt, const float radius)
+int R_CullLocalPointAndRadius(const vec3_t& pt, const float radius)
 {
 	vec3_t transformed;
 
@@ -140,7 +140,7 @@ int R_CullLocalPointAndRadius(const vec3_t &pt, const float radius)
 /*
 ** R_CullPointAndRadius
 */
-int R_CullPointAndRadius(const vec3_t &pt, const float radius)
+int R_CullPointAndRadius(const vec3_t& pt, const float radius)
 {
 	if (r_nocull->integer)
 	{
@@ -154,7 +154,7 @@ int R_CullPointAndRadius(const vec3_t &pt, const float radius)
 	// check against frustum planes
 	for (i = 0; i < 4; i++)
 	{
-		const cplane_t &frust = tr.viewParms.frustum[i];
+		const cplane_t& frust = tr.viewParms.frustum[i];
 
 		dist = DotProduct(pt, frust.normal) - frust.dist;
 		if (dist < -radius)
@@ -175,7 +175,7 @@ int R_CullPointAndRadius(const vec3_t &pt, const float radius)
 	return CULL_IN; // completely inside frustum
 }
 
-int R_CullDlight(const dlight_t &dl)
+int R_CullDlight(const dlight_t& dl)
 {
 	int i;
 	float dist, dist2;
@@ -188,7 +188,7 @@ int R_CullDlight(const dlight_t &dl)
 	{
 		for (i = 0; i < 4; i++)
 		{
-			cplane_t &frust = tr.viewParms.frustum[i];
+			cplane_t& frust = tr.viewParms.frustum[i];
 			dist = DotProduct(dl.transformed, frust.normal) - frust.dist;
 			dist2 = DotProduct(dl.transformed2, frust.normal) - frust.dist;
 			if (dist < -dl.radius && dist2 < -dl.radius)
@@ -201,7 +201,7 @@ int R_CullDlight(const dlight_t &dl)
 		// check against frustum planes
 		for (i = 0; i < 4; i++)
 		{
-			cplane_t &frust = tr.viewParms.frustum[i];
+			cplane_t& frust = tr.viewParms.frustum[i];
 			dist = DotProduct(dl.transformed, frust.normal) - frust.dist;
 			if (dist < -dl.radius)
 				return CULL_OUT;
@@ -220,7 +220,7 @@ int R_CullDlight(const dlight_t &dl)
 R_LocalNormalToWorld
 =================
 */
-static void R_LocalNormalToWorld(const vec3_t &local, vec3_t &world)
+static void R_LocalNormalToWorld(const vec3_t& local, vec3_t& world)
 {
 	world[0] = local[0] * tr.ort.axis[0][0] + local[1] * tr.ort.axis[1][0] + local[2] * tr.ort.axis[2][0];
 	world[1] = local[0] * tr.ort.axis[0][1] + local[1] * tr.ort.axis[1][1] + local[2] * tr.ort.axis[2][1];
@@ -232,7 +232,7 @@ static void R_LocalNormalToWorld(const vec3_t &local, vec3_t &world)
 R_LocalPointToWorld
 =================
 */
-void R_LocalPointToWorld(const vec3_t &local, vec3_t &world)
+void R_LocalPointToWorld(const vec3_t& local, vec3_t& world)
 {
 	world[0] = local[0] * tr.ort.axis[0][0] + local[1] * tr.ort.axis[1][0] + local[2] * tr.ort.axis[2][0] + tr.ort.origin[0];
 	world[1] = local[0] * tr.ort.axis[0][1] + local[1] * tr.ort.axis[1][1] + local[2] * tr.ort.axis[2][1] + tr.ort.origin[1];
@@ -244,7 +244,7 @@ void R_LocalPointToWorld(const vec3_t &local, vec3_t &world)
 R_WorldToLocal
 =================
 */
-void R_WorldToLocal(const vec3_t &world, vec3_t &local)
+void R_WorldToLocal(const vec3_t& world, vec3_t& local)
 {
 	local[0] = DotProduct(world, tr.ort.axis[0]);
 	local[1] = DotProduct(world, tr.ort.axis[1]);
@@ -256,8 +256,8 @@ void R_WorldToLocal(const vec3_t &world, vec3_t &local)
 R_TransformModelToClip
 ==========================
 */
-void R_TransformModelToClip(const vec3_t src, const float *modelMatrix, const float *projectionMatrix,
-							vec4_t &eye, vec4_t &dst)
+void R_TransformModelToClip(const vec3_t src, const float* modelMatrix, const float* projectionMatrix,
+	vec4_t& eye, vec4_t& dst)
 {
 	int i;
 
@@ -285,7 +285,7 @@ void R_TransformModelToClip(const vec3_t src, const float *modelMatrix, const fl
 R_TransformModelToClipMVP
 ==========================
 */
-static void R_TransformModelToClipMVP(const vec3_t src, const float *mvp, vec4_t &clip)
+static void R_TransformModelToClipMVP(const vec3_t src, const float* mvp, vec4_t& clip)
 {
 	int i;
 
@@ -304,7 +304,7 @@ static void R_TransformModelToClipMVP(const vec3_t src, const float *mvp, vec4_t
 R_TransformClipToWindow
 ==========================
 */
-void R_TransformClipToWindow(const vec4_t &clip, const viewParms_t &view, vec4_t &normalized, vec4_t &window)
+void R_TransformClipToWindow(const vec4_t& clip, const viewParms_t& view, vec4_t& normalized, vec4_t& window)
 {
 	normalized[0] = clip[0] / clip[3];
 	normalized[1] = clip[1] / clip[3];
@@ -323,7 +323,7 @@ void R_TransformClipToWindow(const vec4_t &clip, const viewParms_t &view, vec4_t
 myGlMultMatrix
 ==========================
 */
-void myGlMultMatrix(const float *a, const float *b, float *out)
+void myGlMultMatrix(const float* a, const float* b, float* out)
 {
 	int i, j;
 
@@ -346,162 +346,45 @@ Does NOT produce any GL calls
 Called by both the front end and the back end
 =================
 */
-// void R_RotateForEntityOrg(const trRefEntity_t &ent, const viewParms_t &viewParms,
-// 						  orientationr_t &ort)
-// {
-// 	if (ent.e.reType != RT_MODEL)
-// 	{
-// 		ort = viewParms.world;
-// 		return;
-// 	}
-// 	float glMatrix[16]{};
-// 	vec3_t delta{};
-// 	float axisLength;
-
-// 	VectorCopy(ent.e.origin, ort.origin);
-
-// 	VectorCopy(ent.e.axis[0], ort.axis[0]);
-// 	VectorCopy(ent.e.axis[1], ort.axis[1]);
-// 	VectorCopy(ent.e.axis[2], ort.axis[2]);
-
-// 	glMatrix[0] = ort.axis[0][0];
-// 	glMatrix[4] = ort.axis[1][0];
-// 	glMatrix[8] = ort.axis[2][0];
-// 	glMatrix[12] = ort.origin[0];
-
-// 	glMatrix[1] = ort.axis[0][1];
-// 	glMatrix[5] = ort.axis[1][1];
-// 	glMatrix[9] = ort.axis[2][1];
-// 	glMatrix[13] = ort.origin[1];
-
-// 	glMatrix[2] = ort.axis[0][2];
-// 	glMatrix[6] = ort.axis[1][2];
-// 	glMatrix[10] = ort.axis[2][2];
-// 	glMatrix[14] = ort.origin[2];
-
-// 	glMatrix[3] = 0;
-// 	glMatrix[7] = 0;
-// 	glMatrix[11] = 0;
-// 	glMatrix[15] = 1;
-
-// 	myGlMultMatrix(glMatrix, viewParms.world.modelMatrix, ort.modelMatrix);
-
-// 	// calculate the viewer origin in the model's space
-// 	// needed for fog, specular, and environment mapping
-// 	VectorSubtract(viewParms.ort.origin, ort.origin, delta);
-
-// 	// compensate for scale in the axes if necessary
-// 	if (ent.e.nonNormalizedAxes)
-// 	{
-// 		axisLength = VectorLength(ent.e.axis[0]);
-// 		if (!axisLength)
-// 		{
-// 			axisLength = 0;
-// 		}
-// 		else
-// 		{
-// 			axisLength = 1.0f / axisLength;
-// 		}
-// 	}
-// 	else
-// 	{
-// 		axisLength = 1.0f;
-// 	}
-
-// 	ort.viewOrigin[0] = DotProduct(delta, ort.axis[0]) * axisLength;
-// 	ort.viewOrigin[1] = DotProduct(delta, ort.axis[1]) * axisLength;
-// 	ort.viewOrigin[2] = DotProduct(delta, ort.axis[2]) * axisLength;
-// }
-
-#include <immintrin.h> // AVX SIMD headers
-
-// SIMD optimized myGlMultMatrix (SSE2-compatible)
-void myGlMultMatrix_SIMD(const float *a, const float *b, float *out) {
-    __m128 rowA;
-
-    for (int i = 0; i < 4; ++i) {
-        // Compute each row of the output matrix
-        __m128 colB0 = _mm_loadu_ps(&b[0]);  // Load first column of B
-        __m128 colB1 = _mm_loadu_ps(&b[4]);  // Load second column of B
-        __m128 colB2 = _mm_loadu_ps(&b[8]);  // Load third column of B
-        __m128 colB3 = _mm_loadu_ps(&b[12]); // Load fourth column of B
-
-        rowA = _mm_set1_ps(a[i * 4 + 0]); // Broadcast element a[i][0]
-        __m128 res0 = _mm_mul_ps(rowA, colB0);
-
-        rowA = _mm_set1_ps(a[i * 4 + 1]); // Broadcast element a[i][1]
-        __m128 res1 = _mm_mul_ps(rowA, colB1);
-
-        rowA = _mm_set1_ps(a[i * 4 + 2]); // Broadcast element a[i][2]
-        __m128 res2 = _mm_mul_ps(rowA, colB2);
-
-        rowA = _mm_set1_ps(a[i * 4 + 3]); // Broadcast element a[i][3]
-        __m128 res3 = _mm_mul_ps(rowA, colB3);
-
-        // Accumulate all partial results
-        __m128 result = _mm_add_ps(_mm_add_ps(res0, res1), _mm_add_ps(res2, res3));
-
-        // Store the computed row in the output matrix
-        _mm_storeu_ps(&out[i * 4], result);
-    }
-}
-
-inline void VectorCopy_SIMD(const float *a, float *b) {
-    __m128 vec = _mm_loadu_ps(a);  // Load 4 floats (3 + padding) from `a`
-    _mm_storeu_ps(b, vec);         // Store 4 floats into `b`
-}
-
-// SIMD DotProduct
-inline float DotProduct_SIMD(const float *x, const float *y) {
-    __m128 vec1 = _mm_loadu_ps(x); // Load 3 + padding from `x`
-    __m128 vec2 = _mm_loadu_ps(y); // Load 3 + padding from `y`
-
-    __m128 mul = _mm_mul_ps(vec1, vec2);           // Element-wise multiplication
-    __m128 shuf1 = _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 1, 0, 0)); // Shuffle to sum
-    __m128 shuf2 = _mm_add_ps(mul, shuf1);
-    __m128 shuf3 = _mm_movehl_ps(shuf2, shuf2);
-
-    return _mm_cvtss_f32(_mm_add_ss(shuf2, shuf3)); // Horizontal sum and extract result
-}
-
-
-void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
-						   orientationr_t &ort)
+void R_RotateForEntityOrg(const trRefEntity_t& ent, const viewParms_t& viewParms,
+	orientationr_t& ort)
 {
 	if (ent.e.reType != RT_MODEL)
 	{
 		ort = viewParms.world;
 		return;
 	}
-
-	__m128 row0, row1, row2, row3;						  // Matrix rows for glMatrix
-	float glMatrix[16] __attribute__((aligned(16))) = {}; // Ensure alignment
-	float delta[3] __attribute__((aligned(16))) = {};
+	float glMatrix[16]{};
+	vec3_t delta{};
 	float axisLength;
 
-	// float glMatrix[16]{};
-	// vec3_t delta{};
-	// float axisLength;
-	VectorCopy_SIMD(ent.e.origin, ort.origin);
+	VectorCopy(ent.e.origin, ort.origin);
 
-	VectorCopy_SIMD(ent.e.axis[0], ort.axis[0]);
-	VectorCopy_SIMD(ent.e.axis[1], ort.axis[1]);
-	VectorCopy_SIMD(ent.e.axis[2], ort.axis[2]);
+	VectorCopy(ent.e.axis[0], ort.axis[0]);
+	VectorCopy(ent.e.axis[1], ort.axis[1]);
+	VectorCopy(ent.e.axis[2], ort.axis[2]);
 
-	// Build glMatrix rows using SIMD (float layout: [x, y, z, w])
-	row0 = _mm_set_ps(0.0f, ort.axis[0][2], ort.axis[0][1], ort.axis[0][0]);
-	row1 = _mm_set_ps(0.0f, ort.axis[1][2], ort.axis[1][1], ort.axis[1][0]);
-	row2 = _mm_set_ps(0.0f, ort.axis[2][2], ort.axis[2][1], ort.axis[2][0]);
-	row3 = _mm_set_ps(1.0f, ort.origin[2], ort.origin[1], ort.origin[0]);
+	glMatrix[0] = ort.axis[0][0];
+	glMatrix[4] = ort.axis[1][0];
+	glMatrix[8] = ort.axis[2][0];
+	glMatrix[12] = ort.origin[0];
 
-	// Store the rows into glMatrix
-	_mm_store_ps(&glMatrix[0], row0);
-	_mm_store_ps(&glMatrix[4], row1);
-	_mm_store_ps(&glMatrix[8], row2);
-	_mm_store_ps(&glMatrix[12], row3);
+	glMatrix[1] = ort.axis[0][1];
+	glMatrix[5] = ort.axis[1][1];
+	glMatrix[9] = ort.axis[2][1];
+	glMatrix[13] = ort.origin[1];
 
-	// Multiply glMatrix with viewParms.world.modelMatrix
-	myGlMultMatrix_SIMD(glMatrix, viewParms.world.modelMatrix, ort.modelMatrix);
+	glMatrix[2] = ort.axis[0][2];
+	glMatrix[6] = ort.axis[1][2];
+	glMatrix[10] = ort.axis[2][2];
+	glMatrix[14] = ort.origin[2];
+
+	glMatrix[3] = 0;
+	glMatrix[7] = 0;
+	glMatrix[11] = 0;
+	glMatrix[15] = 1;
+
+	myGlMultMatrix(glMatrix, viewParms.world.modelMatrix, ort.modelMatrix);
 
 	// calculate the viewer origin in the model's space
 	// needed for fog, specular, and environment mapping
@@ -525,9 +408,42 @@ void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
 		axisLength = 1.0f;
 	}
 
-	ort.viewOrigin[0] = DotProduct_SIMD(delta, ort.axis[0]) * axisLength;
-	ort.viewOrigin[1] = DotProduct_SIMD(delta, ort.axis[1]) * axisLength;
-	ort.viewOrigin[2] = DotProduct_SIMD(delta, ort.axis[2]) * axisLength;
+	ort.viewOrigin[0] = DotProduct(delta, ort.axis[0]) * axisLength;
+	ort.viewOrigin[1] = DotProduct(delta, ort.axis[1]) * axisLength;
+	ort.viewOrigin[2] = DotProduct(delta, ort.axis[2]) * axisLength;
+}
+
+#include <immintrin.h> // AVX SIMD headers
+
+// SIMD optimized myGlMultMatrix (SSE2-compatible)
+void myGlMultMatrix_SIMD(const float* a, const float* b, float* out) {
+	__m128 rowA;
+
+	for (int i = 0; i < 4; ++i) {
+		// Compute each row of the output matrix
+		__m128 colB0 = _mm_loadu_ps(&b[0]);  // Load first column of B
+		__m128 colB1 = _mm_loadu_ps(&b[4]);  // Load second column of B
+		__m128 colB2 = _mm_loadu_ps(&b[8]);  // Load third column of B
+		__m128 colB3 = _mm_loadu_ps(&b[12]); // Load fourth column of B
+
+		rowA = _mm_set1_ps(a[i * 4 + 0]); // Broadcast element a[i][0]
+		__m128 res0 = _mm_mul_ps(rowA, colB0);
+
+		rowA = _mm_set1_ps(a[i * 4 + 1]); // Broadcast element a[i][1]
+		__m128 res1 = _mm_mul_ps(rowA, colB1);
+
+		rowA = _mm_set1_ps(a[i * 4 + 2]); // Broadcast element a[i][2]
+		__m128 res2 = _mm_mul_ps(rowA, colB2);
+
+		rowA = _mm_set1_ps(a[i * 4 + 3]); // Broadcast element a[i][3]
+		__m128 res3 = _mm_mul_ps(rowA, colB3);
+
+		// Accumulate all partial results
+		__m128 result = _mm_add_ps(_mm_add_ps(res0, res1), _mm_add_ps(res2, res3));
+
+		// Store the computed row in the output matrix
+		_mm_storeu_ps(&out[i * 4], result);
+	}
 }
 
 // #include <chrono>
@@ -537,7 +453,7 @@ void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
 // 					   orientationr_t &ort)
 // {
 // 	// R_RotateForEntityOrg   R_RotateForEntitySIMD
-	
+
 // 	auto start = std::chrono::high_resolution_clock::now();
 // 	R_RotateForEntityOrg(ent, viewParms, ort);
 // 	auto end = std::chrono::high_resolution_clock::now();
@@ -548,7 +464,7 @@ void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
 
 // 	if (results.size() > 10000)
 // 	{
-		
+
 // 		auto max = std::reduce(results.begin(), results.end()) / 10000;
 // 		ri.Printf(PRINT_ALL, "%ld \n",
 // 				  max);
@@ -566,8 +482,6 @@ Sets up the modelview matrix for a given viewParm
 static void R_RotateForViewer(void)
 {
 	float viewerMatrix[16]{};
-	vec3_t origin{};
-
 	tr.ort = {};
 
 	tr.ort.axis[0][0] = 1;
@@ -576,7 +490,7 @@ static void R_RotateForViewer(void)
 	VectorCopy(tr.viewParms.ort.origin, tr.ort.viewOrigin);
 
 	// transform by the camera placement
-	VectorCopy(tr.viewParms.ort.origin, origin);
+	vec3cpp_t origin = VectorCopy_cpp(tr.viewParms.ort.origin);
 
 	viewerMatrix[0] = tr.viewParms.ort.axis[0][0];
 	viewerMatrix[4] = tr.viewParms.ort.axis[0][1];
@@ -632,7 +546,7 @@ static void R_SetFarClip(void)
 		vec3_t v{
 			tr.viewParms.visBounds[(i >> 0) & 1][0],
 			tr.viewParms.visBounds[(i >> 1) & 1][1],
-			tr.viewParms.visBounds[(i >> 2) & 1][2]};
+			tr.viewParms.visBounds[(i >> 2) & 1][2] };
 
 		VectorSubtract(v, tr.viewParms.ort.origin, vecTo);
 
@@ -655,7 +569,7 @@ Set up the culling frustum planes for the current view using the results we got 
 the projection matrix.
 =================
 */
-static void R_SetupFrustum(viewParms_t &dest, const float xmin, const float xmax, const float ymax, const float zProj, const float stereoSep)
+static void R_SetupFrustum(viewParms_t& dest, const float xmin, const float xmax, const float ymax, const float zProj, const float stereoSep)
 {
 	vec3_t ofsorigin{};
 	float oppleg, adjleg, length;
@@ -722,7 +636,7 @@ static void R_SetupFrustum(viewParms_t &dest, const float xmin, const float xmax
 R_SetupProjection
 ===============
 */
-void R_SetupProjection(viewParms_t &dest, const float zProj, const bool computeFrustum)
+void R_SetupProjection(viewParms_t& dest, const float zProj, const bool computeFrustum)
 {
 	float xmin, xmax, ymin, ymax;
 	float width, height, stereoSep = r_stereoSeparation->value;
@@ -778,7 +692,7 @@ R_SetupProjectionZ
 Sets the z-component transformation part in the projection matrix
 ===============
 */
-static void R_SetupProjectionZ(viewParms_t &dest)
+static void R_SetupProjectionZ(viewParms_t& dest)
 {
 	const float zNear = r_znear->value;
 	const float zFar = dest.zFar;
@@ -807,13 +721,13 @@ static void R_SetupProjectionZ(viewParms_t &dest)
 			dest.portalPlane.normal[0],
 			dest.portalPlane.normal[1],
 			dest.portalPlane.normal[2],
-			dest.portalPlane.dist};
+			dest.portalPlane.dist };
 
 		float plane2[4]{
 			-DotProduct(dest.ort.axis[1], plane),
 			DotProduct(dest.ort.axis[2], plane),
 			-DotProduct(dest.ort.axis[0], plane),
-			DotProduct(plane, dest.ort.origin) - plane[3]};
+			DotProduct(plane, dest.ort.origin) - plane[3] };
 
 		// Lengyel, Eric. "Modifying the Projection Matrix to Perform Oblique Near-plane Clipping".
 		// Terathon Software 3D Graphics Library, 2004. http://www.terathon.com/code/oblique.html
@@ -821,7 +735,7 @@ static void R_SetupProjectionZ(viewParms_t &dest)
 			(SGN(plane2[0]) + dest.projectionMatrix[8]) / dest.projectionMatrix[0],
 			(SGN(plane2[1]) + dest.projectionMatrix[9]) / dest.projectionMatrix[5],
 			-1.0f,
-			-dest.projectionMatrix[10] / dest.projectionMatrix[14]};
+			-dest.projectionMatrix[10] / dest.projectionMatrix[14] };
 		VectorScale4(plane2, 2.0f / DotProduct4(plane2, q), c);
 
 		dest.projectionMatrix[2] = c[0];
@@ -843,7 +757,7 @@ static void R_SetupProjectionZ(viewParms_t &dest)
 R_MirrorPoint
 =================
 */
-static void R_MirrorPoint(const vec3_t &in, const orientation_t &surface, const orientation_t &camera, vec3_t &out)
+static void R_MirrorPoint(const vec3_t& in, const orientation_t& surface, const orientation_t& camera, vec3_t& out)
 {
 	int i;
 	vec3_t local{};
@@ -861,7 +775,7 @@ static void R_MirrorPoint(const vec3_t &in, const orientation_t &surface, const 
 	VectorAdd(transformed, camera.origin, out);
 }
 
-static void R_MirrorVector(const vec3_t &in, const orientation_t &surface, const orientation_t &camera, vec3_t &out)
+static void R_MirrorVector(const vec3_t& in, const orientation_t& surface, const orientation_t& camera, vec3_t& out)
 {
 	int i;
 	float d;
@@ -879,11 +793,11 @@ static void R_MirrorVector(const vec3_t &in, const orientation_t &surface, const
 R_PlaneForSurface
 =============
 */
-static void R_PlaneForSurface(const surfaceType_t *surfType, cplane_t &plane)
+static void R_PlaneForSurface(const surfaceType_t* surfType, cplane_t& plane)
 {
-	srfTriangles_t *tri;
-	srfPoly_t *poly;
-	drawVert_t *v1, *v2, *v3;
+	srfTriangles_t* tri;
+	srfPoly_t* poly;
+	drawVert_t* v1, * v2, * v3;
 	vec4_t plane4;
 
 	if (!surfType)
@@ -895,10 +809,10 @@ static void R_PlaneForSurface(const surfaceType_t *surfType, cplane_t &plane)
 	switch (*surfType)
 	{
 	case SF_FACE:
-		plane = ((srfSurfaceFace_t *)surfType)->plane;
+		plane = ((srfSurfaceFace_t*)surfType)->plane;
 		return;
 	case SF_TRIANGLES:
-		tri = (srfTriangles_t *)surfType;
+		tri = (srfTriangles_t*)surfType;
 		v1 = tri->verts + tri->indexes[0];
 		v2 = tri->verts + tri->indexes[1];
 		v3 = tri->verts + tri->indexes[2];
@@ -907,7 +821,7 @@ static void R_PlaneForSurface(const surfaceType_t *surfType, cplane_t &plane)
 		plane.dist = plane4[3];
 		return;
 	case SF_POLY:
-		poly = (srfPoly_t *)surfType;
+		poly = (srfPoly_t*)surfType;
 		PlaneFromPoints(plane4, poly->verts[0].xyz, poly->verts[1].xyz, poly->verts[2].xyz);
 		VectorCopy(plane4, plane.normal);
 		plane.dist = plane4[3];
@@ -929,9 +843,9 @@ be moving and rotating.
 Returns true if it should be mirrored
 =================
 */
-static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
-									orientation_t &surface, orientation_t &camera,
-									vec3_t &pvsOrigin, portalView_t *portalView)
+static bool R_GetPortalOrientations(const drawSurf_t& drawSurf, int entityNum,
+	orientation_t& surface, orientation_t& camera,
+	vec3_t& pvsOrigin, portalView_t* portalView)
 {
 	int i;
 	cplane_t originalPlane, plane{};
@@ -972,7 +886,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 	// the origin of the camera
 	for (i = 0; i < tr.refdef.num_entities; i++)
 	{
-		trRefEntity_t &tre = tr.refdef.entities[i];
+		trRefEntity_t& tre = tr.refdef.entities[i];
 		if (tre.e.reType != RT_PORTALSURFACE)
 		{
 			continue;
@@ -1061,7 +975,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 	return false;
 }
 
-static bool IsMirror(const drawSurf_t &drawSurf, const int entityNum)
+static bool IsMirror(const drawSurf_t& drawSurf, const int entityNum)
 {
 	int i;
 	cplane_t originalPlane, plane{};
@@ -1097,7 +1011,7 @@ static bool IsMirror(const drawSurf_t &drawSurf, const int entityNum)
 	// the origin of the camera
 	for (i = 0; i < tr.refdef.num_entities; i++)
 	{
-		trRefEntity_t &e = tr.refdef.entities[i];
+		trRefEntity_t& e = tr.refdef.entities[i];
 		if (e.e.reType != RT_PORTALSURFACE)
 		{
 			continue;
@@ -1127,12 +1041,12 @@ static bool IsMirror(const drawSurf_t &drawSurf, const int entityNum)
 **
 ** Determines if a surface is completely offscreen.
 */
-static bool SurfIsOffscreen(const drawSurf_t &drawSurf, bool &isMirror)
+static bool SurfIsOffscreen(const drawSurf_t& drawSurf, bool& isMirror)
 {
 	float shortest = 100000000;
 	int entityNum;
 	int numTriangles;
-	shader_t *shader;
+	shader_t* shader;
 	int fogNum;
 	int dlighted;
 	vec4_t clip, eye;
@@ -1233,10 +1147,10 @@ static bool SurfIsOffscreen(const drawSurf_t &drawSurf, bool &isMirror)
 R_GetModelViewBounds
 ================
 */
-static void R_GetModelViewBounds(std::array<int, 2> &mins, std::array<int, 2> &maxs)
+static void R_GetModelViewBounds(std::array<int, 2>& mins, std::array<int, 2>& maxs)
 {
-	float minn[2]{1.0, 1.0};
-	float maxn[2]{-1.0, -1.0};
+	float minn[2]{ 1.0, 1.0 };
+	float maxn[2]{ -1.0, -1.0 };
 	float norm[2]{};
 	float mvp[16];
 	vec4_t clip;
@@ -1325,13 +1239,8 @@ Returns true if another view has been rendered
 ========================
 */
 extern int r_numdlights;
-static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, const int entityNum)
+static bool R_MirrorViewBySurface(const drawSurf_t& drawSurf, const int entityNum)
 {
-	viewParms_t newParms;
-	viewParms_t oldParms;
-	orientation_t surface, camera;
-	bool isMirror;
-
 	// don't recursively mirror
 	if (tr.viewParms.portalView != PV_NONE)
 	{
@@ -1343,6 +1252,8 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, const int entityNu
 	{
 		return false;
 	}
+
+	bool isMirror;
 
 	// trivially reject portal/mirror
 	if (SurfIsOffscreen(drawSurf, isMirror))
@@ -1356,13 +1267,15 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, const int entityNu
 	}
 
 	// save old viewParms so we can return to it after the mirror view
-	oldParms = tr.viewParms;
+	viewParms_t	oldParms = tr.viewParms;
 
-	newParms = tr.viewParms;
+	viewParms_t newParms = tr.viewParms;
 	newParms.portalView = PV_NONE;
 
+	orientation_t surface, camera;
+
 	if (!R_GetPortalOrientations(drawSurf, entityNum, surface, camera,
-								 newParms.pvsOrigin, &newParms.portalView))
+		newParms.pvsOrigin, &newParms.portalView))
 	{
 		return false; // bad portal, no portalentity
 	}
@@ -1417,7 +1330,7 @@ R_SpriteFogNum
 See if a sprite is inside a fog volume
 =================
 */
-static int R_SpriteFogNum(const trRefEntity_t &ent)
+static int R_SpriteFogNum(const trRefEntity_t& ent)
 {
 	if (tr.refdef.rdflags & RDF_NOWORLDMODEL)
 	{
@@ -1433,7 +1346,7 @@ static int R_SpriteFogNum(const trRefEntity_t &ent)
 
 	for (i = 1; i < tr.world->numfogs; i++)
 	{
-		const fog_t &fog = tr.world->fogs[i];
+		const fog_t& fog = tr.world->fogs[i];
 		for (j = 0; j < 3; j++)
 		{
 			if (ent.e.origin[j] - ent.e.radius >= fog.bounds[1][j])
@@ -1467,13 +1380,13 @@ DRAWSURF SORTING
 R_Radix
 ===============
 */
-static ID_INLINE void R_Radix(const int byte, const int size, const drawSurf_t *source, drawSurf_t *dest)
+static ID_INLINE void R_Radix(const int byte, const int size, const drawSurf_t* source, drawSurf_t* dest)
 {
 	int count[256] = {};
 	int index[256] = {};
 	int i;
-	const unsigned char *sortKey = (const unsigned char *)&source[0].sort + byte;
-	const unsigned char *end = sortKey + (size * sizeof(drawSurf_t));
+	const unsigned char* sortKey = (const unsigned char*)&source[0].sort + byte;
+	const unsigned char* end = sortKey + (size * sizeof(drawSurf_t));
 
 	// Count occurrences of each byte value
 	for (; sortKey < end; sortKey += sizeof(drawSurf_t))
@@ -1485,7 +1398,7 @@ static ID_INLINE void R_Radix(const int byte, const int size, const drawSurf_t *
 		index[i] = index[i - 1] + count[i - 1];
 
 	// Move elements to their sorted positions
-	sortKey = (const unsigned char *)&source[0].sort + byte;
+	sortKey = (const unsigned char*)&source[0].sort + byte;
 	for (i = 0; i < size; ++i, sortKey += sizeof(drawSurf_t))
 		dest[index[*sortKey]++] = source[i];
 }
@@ -1497,7 +1410,7 @@ R_RadixSort
 Radix sort with 4 byte size buckets
 ===============
 */
-static void R_RadixSort(drawSurf_t *source, int size)
+static void R_RadixSort(drawSurf_t* source, int size)
 {
 	static drawSurf_t scratch[MAX_DRAWSURFS];
 #ifdef Q3_LITTLE_ENDIAN
@@ -1517,25 +1430,25 @@ static void R_RadixSort(drawSurf_t *source, int size)
 
 typedef struct litSurf_tape_s
 {
-	struct litSurf_s *first;
-	struct litSurf_s *last;
+	struct litSurf_s* first;
+	struct litSurf_s* last;
 	unsigned count;
 } litSurf_tape_t;
 
 // Philip Erdelsky gets all the credit for this one...
 
-static void R_SortLitsurfs(dlight_t &dl)
+static void R_SortLitsurfs(dlight_t& dl)
 {
 	litSurf_tape_t tape[4]{};
 	int base;
-	litSurf_t *p;
-	litSurf_t *next;
+	litSurf_t* p;
+	litSurf_t* next;
 	unsigned block_size;
-	litSurf_tape_t *tape0;
-	litSurf_tape_t *tape1;
+	litSurf_tape_t* tape0;
+	litSurf_tape_t* tape1;
 	int dest;
-	litSurf_tape_t *output_tape;
-	litSurf_tape_t *chosen_tape;
+	litSurf_tape_t* output_tape;
+	litSurf_tape_t* chosen_tape;
 	unsigned n0, n1;
 
 	// distribute the records alternately to tape[0] and tape[1]
@@ -1620,14 +1533,14 @@ static void R_SortLitsurfs(dlight_t &dl)
 R_AddLitSurf
 =================
 */
-void R_AddLitSurf(surfaceType_t &surface, shader_t &shader, const int fogIndex)
+void R_AddLitSurf(surfaceType_t& surface, shader_t& shader, const int fogIndex)
 {
 	if (tr.refdef.numLitSurfs >= static_cast<int>(arrayLen(backEndData->litSurfs)))
 		return;
 
 	tr.pc.c_lit_surfs++;
 
-	struct litSurf_s &litsurf = tr.refdef.litSurfs[tr.refdef.numLitSurfs++];
+	struct litSurf_s& litsurf = tr.refdef.litSurfs[tr.refdef.numLitSurfs++];
 
 	litsurf.sort = (shader.sortedIndex << QSORT_SHADERNUM_SHIFT) | tr.shiftedEntityNum | (fogIndex << QSORT_FOGNUM_SHIFT);
 	litsurf.surface = &surface;
@@ -1646,7 +1559,7 @@ void R_AddLitSurf(surfaceType_t &surface, shader_t &shader, const int fogIndex)
 R_DecomposeLitSort
 =================
 */
-void R_DecomposeLitSort(unsigned sort, int &entityNum, shader_t **shader, int &fogNum)
+void R_DecomposeLitSort(unsigned sort, int& entityNum, shader_t** shader, int& fogNum)
 {
 	fogNum = (sort >> QSORT_FOGNUM_SHIFT) & FOGNUM_MASK;
 	*shader = tr.sortedShaders[(sort >> QSORT_SHADERNUM_SHIFT) & SHADERNUM_MASK];
@@ -1662,8 +1575,8 @@ void R_DecomposeLitSort(unsigned sort, int &entityNum, shader_t **shader, int &f
 R_AddDrawSurf
 =================
 */
-void R_AddDrawSurf(surfaceType_t &surface, shader_t &shader,
-				   const int fogIndex, const int dlightMap)
+void R_AddDrawSurf(surfaceType_t& surface, shader_t& shader,
+	const int fogIndex, const int dlightMap)
 {
 	int index;
 
@@ -1682,8 +1595,8 @@ void R_AddDrawSurf(surfaceType_t &surface, shader_t &shader,
 R_DecomposeSort
 =================
 */
-void R_DecomposeSort(unsigned sort, int &entityNum, shader_t **shader,
-					 int &fogNum, int &dlightMap)
+void R_DecomposeSort(unsigned sort, int& entityNum, shader_t** shader,
+	int& fogNum, int& dlightMap)
 {
 	fogNum = (sort >> QSORT_FOGNUM_SHIFT) & FOGNUM_MASK;
 	*shader = tr.sortedShaders[(sort >> QSORT_SHADERNUM_SHIFT) & SHADERNUM_MASK];
@@ -1696,7 +1609,7 @@ void R_DecomposeSort(unsigned sort, int &entityNum, shader_t **shader,
 R_SortDrawSurfs
 =================
 */
-static void R_SortDrawSurfs(drawSurf_t &drawSurfs, const int numDrawSurfs)
+static void R_SortDrawSurfs(drawSurf_t& drawSurfs, const int numDrawSurfs)
 {
 	// it is possible for some views to not have any surfaces
 	if (numDrawSurfs < 1)
@@ -1706,7 +1619,7 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, const int numDrawSurfs)
 		return;
 	}
 
-	shader_t *shader;
+	shader_t* shader;
 	int fogNum;
 	int entityNum;
 	int dlighted;
@@ -1756,7 +1669,7 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, const int numDrawSurfs)
 		// ri.Printf(PRINT_ALL, "@@@@@@@@@@@@@@@@@@@ %u \n", tr.refdef.num_dlights);
 		for (uint32_t i = 0; i < tr.refdef.num_dlights; ++i)
 		{
-			dlight_t &dl = tr.refdef.dlights[i];
+			dlight_t& dl = tr.refdef.dlights[i];
 			if (dl.head)
 			{
 				R_SortLitsurfs(dl);
@@ -1775,7 +1688,7 @@ R_AddEntitySurfaces
 */
 static void R_AddEntitySurfaces(void)
 {
-	shader_t *shader;
+	shader_t* shader;
 
 	if (!r_drawentities->integer)
 	{
@@ -1783,11 +1696,11 @@ static void R_AddEntitySurfaces(void)
 	}
 
 	for (tr.currentEntityNum = 0;
-		 tr.currentEntityNum < tr.refdef.num_entities;
-		 tr.currentEntityNum++)
+		tr.currentEntityNum < tr.refdef.num_entities;
+		tr.currentEntityNum++)
 	{
 		tr.currentEntity = &tr.refdef.entities[tr.currentEntityNum];
-		trRefEntity_t &ent = *tr.currentEntity;
+		trRefEntity_t& ent = *tr.currentEntity;
 #ifdef USE_LEGACY_DLIGHTS
 		ent.needDlights = 0;
 #endif
@@ -1903,7 +1816,7 @@ A view may be either the actual camera view,
 ort a mirror / remote location
 ================
 */
-void R_RenderView(const viewParms_t &parms)
+void R_RenderView(const viewParms_t& parms)
 {
 	if (parms.viewportWidth <= 0 || parms.viewportHeight <= 0)
 	{

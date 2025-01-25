@@ -574,14 +574,12 @@ void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data, i
 
 void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client, bool dirty)
 {
-	image_t *image;
-
 	if (!tr.scratchImage[client])
 	{
 		tr.scratchImage[client] = R_CreateImage(va_cpp("*scratch%i", client), {}, data, cols, rows, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
 	}
 
-	image = tr.scratchImage[client];
+	image_t* image = tr.scratchImage[client];
 
 	Bind(image);
 
@@ -625,12 +623,9 @@ RB_StretchPic
 */
 static const void *RB_StretchPic(const void *data)
 {
-	const stretchPicCommand_t *cmd;
-	shader_t *shader;
+	const stretchPicCommand_t* cmd = (const stretchPicCommand_t *)data;
 
-	cmd = (const stretchPicCommand_t *)data;
-
-	shader = cmd->shader;
+	shader_t* shader = cmd->shader;
 	if (shader != tess.shader)
 	{
 		if (tess.numIndexes)
