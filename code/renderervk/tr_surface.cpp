@@ -81,7 +81,6 @@ RB_AddQuadStampExt
 void RB_AddQuadStampExt(const vec3cpp_t&origin, const vec3cpp_t&left, const vec3cpp_t&up, const color4ub_t &color,
 	const float s1, const float t1, const float s2, const float t2)
 {
-	vec3_t normal{};
 	int ndx;
 
 #ifdef USE_VBO
@@ -122,7 +121,7 @@ void RB_AddQuadStampExt(const vec3cpp_t&origin, const vec3cpp_t&left, const vec3
 	tess.xyz[ndx + 3][2] = origin[2] + left[2] - up[2];
 
 	// constant normal all the way around
-	VectorSubtract(vec3_origin, backEnd.viewParms.ort.axis[0], normal);
+	vec3cpp_t normal = VectorSubtract_cpp(vec3_origin, backEnd.viewParms.ort.axis[0]);
 
 	tess.normal[ndx][0] = tess.normal[ndx + 1][0] = tess.normal[ndx + 2][0] = tess.normal[ndx + 3][0] = normal[0];
 	tess.normal[ndx][1] = tess.normal[ndx + 1][1] = tess.normal[ndx + 2][1] = tess.normal[ndx + 3][1] = normal[1];
@@ -420,18 +419,18 @@ static void RB_SurfaceBeam(void)
 {
 	constexpr int NUM_BEAM_SEGS = 6;
 	int i;
-	vec3_t perpvec;
-	vec3_t direction{}, normalized_direction{};
-	vec3_t points[NUM_BEAM_SEGS + 1][2]{};
+	vec3cpp_t  perpvec;
+	vec3cpp_t direction{}, normalized_direction{};
+	vec3cpp_t points[NUM_BEAM_SEGS + 1][2]{};
 
 	const refEntity_t& e = backEnd.currentEntity->e;
 
-	vec3_t oldorigin{
+	vec3cpp_t oldorigin{
 		e.oldorigin[0],
 		e.oldorigin[1],
 		e.oldorigin[2]};
 
-	vec3_t origin{
+	vec3cpp_t origin{
 		e.origin[0],
 		e.origin[1],
 		e.origin[2]};
@@ -440,17 +439,17 @@ static void RB_SurfaceBeam(void)
 	normalized_direction[1] = direction[1] = oldorigin[1] - origin[1];
 	normalized_direction[2] = direction[2] = oldorigin[2] - origin[2];
 
-	if (VectorNormalize(normalized_direction) == 0)
+	if (VectorNormalize_cpp(normalized_direction) == 0)
 		return;
 
-	PerpendicularVector(perpvec, normalized_direction);
+	PerpendicularVector_cpp(perpvec, normalized_direction);
 
 	VectorScale(perpvec, 4, perpvec);
 
 	for (i = 0; i <= NUM_BEAM_SEGS; i++)
 	{
-		RotatePointAroundVector(points[i][0], normalized_direction, perpvec, (360.0 / NUM_BEAM_SEGS) * i);
-		VectorAdd(points[i][0], direction, points[i][1]);
+		points[i][0] = RotatePointAroundVector_cpp(normalized_direction, perpvec, (360.0 / NUM_BEAM_SEGS) * i);
+		points[i][1] = VectorAdd_cpp(points[i][0], direction);
 	}
 
 	tess.numIndexes = 0;
@@ -535,7 +534,7 @@ static void DoRailCore(const vec3cpp_t&start, const vec3cpp_t&end, const vec3cpp
 	tess.indexes[tess.numIndexes++] = vbase + 3;
 }
 
-static void DoRailDiscs(int numSegs, const vec3_t& start, const vec3_t& dir, const vec3_t& right, const vec3_t& up)
+static void DoRailDiscs(int numSegs, const vec3cpp_t& start, const vec3cpp_t& dir, const vec3cpp_t& right, const vec3cpp_t& up)
 {
 	if (numSegs > 1)
 		numSegs--;
@@ -543,28 +542,25 @@ static void DoRailDiscs(int numSegs, const vec3_t& start, const vec3_t& dir, con
 		return;
 
 	int i;
-	vec3_t pos[4]{};
+	vec3cpp_t pos[4]{};
 	int spanWidth = r_railWidth->integer;
-	float c, s;
-	float scale;
-
-	scale = 0.25;
+	float scale = 0.25;
 
 	for (i = 0; i < 4; i++)
 	{
-		c = cos(DEG2RAD(45 + i * 90));
-		s = sin(DEG2RAD(45 + i * 90));
-		vec3_t v{
+		float c = cos(DEG2RAD(45 + i * 90));
+		float s = sin(DEG2RAD(45 + i * 90));
+		vec3cpp_t v{
 			(right[0] * c + up[0] * s) * scale * spanWidth,
 			(right[1] * c + up[1] * s) * scale * spanWidth,
 			(right[2] * c + up[2] * s) * scale * spanWidth};
 
-		VectorAdd(start, v, pos[i]);
+		pos[i] = VectorAdd_cpp(start, v);
 
 		if (numSegs > 1)
 		{
 			// offset by 1 segment if we're doing a long distance shot
-			VectorAdd(pos[i], dir, pos[i]);
+			pos[i] = VectorAdd_cpp(pos[i], dir);
 		}
 	}
 
@@ -584,7 +580,7 @@ static void DoRailDiscs(int numSegs, const vec3_t& start, const vec3_t& dir, con
 			tess.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shader.rgba[2];
 			tess.numVertexes++;
 
-			VectorAdd(pos[j], dir, pos[j]);
+			pos[j] = VectorAdd_cpp(pos[j], dir);
 		}
 
 		tess.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 0;
@@ -603,24 +599,23 @@ static void RB_SurfaceRailRings(void)
 {
 	int numSegs;
 	int len;
-	vec3_t vec{};
-	vec3_t right, up;
-	vec3_t start{}, end{};
+	
+	vec3cpp_t right, up;
 
-	VectorCopy(backEnd.currentEntity->e.oldorigin, start);
-	VectorCopy(backEnd.currentEntity->e.origin, end);
+	vec3cpp_t start = VectorCopy_cpp(backEnd.currentEntity->e.oldorigin);
+	vec3cpp_t end = VectorCopy_cpp(backEnd.currentEntity->e.origin);
 
 	// compute variables
-	VectorSubtract(end, start, vec);
-	len = VectorNormalize(vec);
-	MakeNormalVectors(vec, right, up);
+	vec3cpp_t vec = VectorSubtract_cpp(end, start);
+	len = VectorNormalize_cpp(vec);
+	MakeNormalVectors_cpp(vec, right, up);
 	numSegs = (len) / r_railSegmentLength->value;
 	if (numSegs <= 0)
 	{
 		numSegs = 1;
 	}
 
-	VectorScale(vec, r_railSegmentLength->value, vec);
+	vec = VectorScale_cpp(vec, r_railSegmentLength->value);
 
 	DoRailDiscs(numSegs, start, vec, right, up);
 }

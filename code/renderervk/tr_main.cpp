@@ -346,7 +346,7 @@ Does NOT produce any GL calls
 Called by both the front end and the back end
 =================
 */
-void R_RotateForEntityOrg(const trRefEntity_t& ent, const viewParms_t& viewParms,
+void R_RotateForEntity(const trRefEntity_t& ent, const viewParms_t& viewParms,
 	orientationr_t& ort)
 {
 	if (ent.e.reType != RT_MODEL)
@@ -355,7 +355,6 @@ void R_RotateForEntityOrg(const trRefEntity_t& ent, const viewParms_t& viewParms
 		return;
 	}
 	float glMatrix[16]{};
-	vec3_t delta{};
 	float axisLength;
 
 	VectorCopy(ent.e.origin, ort.origin);
@@ -388,7 +387,7 @@ void R_RotateForEntityOrg(const trRefEntity_t& ent, const viewParms_t& viewParms
 
 	// calculate the viewer origin in the model's space
 	// needed for fog, specular, and environment mapping
-	VectorSubtract(viewParms.ort.origin, ort.origin, delta);
+	vec3cpp_t delta = VectorSubtract_cpp(viewParms.ort.origin, ort.origin);
 
 	// compensate for scale in the axes if necessary
 	if (ent.e.nonNormalizedAxes)
@@ -541,16 +540,14 @@ static void R_SetFarClip(void)
 
 	for (i = 0; i < 8; i++)
 	{
-		vec3_t vecTo{};
-
-		vec3_t v{
+		vec3cpp_t v{
 			tr.viewParms.visBounds[(i >> 0) & 1][0],
 			tr.viewParms.visBounds[(i >> 1) & 1][1],
 			tr.viewParms.visBounds[(i >> 2) & 1][2] };
 
-		VectorSubtract(v, tr.viewParms.ort.origin, vecTo);
+		vec3cpp_t vecTo = VectorSubtract_cpp(v, tr.viewParms.ort.origin);
 
-		float distance = DotProduct(vecTo, vecTo);
+		float distance = DotProduct_cpp(vecTo, vecTo);
 
 		if (distance > farthestCornerDistance)
 		{
@@ -571,14 +568,14 @@ the projection matrix.
 */
 static void R_SetupFrustum(viewParms_t& dest, const float xmin, const float xmax, const float ymax, const float zProj, const float stereoSep)
 {
-	vec3_t ofsorigin{};
 	float oppleg, adjleg, length;
 	int i;
+	vec3cpp_t ofsorigin{};
 
 	if (stereoSep == 0 && xmin == -xmax)
 	{
 		// symmetric case can be simplified
-		VectorCopy(dest.ort.origin, ofsorigin);
+		ofsorigin = VectorCopy_cpp(dest.ort.origin);
 
 		length = sqrt(xmax * xmax + zProj * zProj);
 		oppleg = xmax / length;
@@ -594,7 +591,7 @@ static void R_SetupFrustum(viewParms_t& dest, const float xmin, const float xmax
 	{
 		// In stereo rendering, due to the modification of the projection matrix, dest.ort.origin is not the
 		// actual origin that we're rendering so offset the tip of the view pyramid.
-		VectorMA(dest.ort.origin, stereoSep, dest.ort.axis[1], ofsorigin);
+		ofsorigin = VectorMA_cpp(dest.ort.origin, stereoSep, dest.ort.axis[1]);
 
 		oppleg = xmax + stereoSep;
 		length = sqrt(oppleg * oppleg + zProj * zProj);
@@ -620,14 +617,14 @@ static void R_SetupFrustum(viewParms_t& dest, const float xmin, const float xmax
 	for (i = 0; i < 4; i++)
 	{
 		dest.frustum[i].type = PLANE_NON_AXIAL;
-		dest.frustum[i].dist = DotProduct(ofsorigin, dest.frustum[i].normal);
+		dest.frustum[i].dist = DotProduct_cpp(ofsorigin, dest.frustum[i].normal);
 		SetPlaneSignbits(&dest.frustum[i]);
 	}
 
 	// near clipping plane
 	VectorCopy(dest.ort.axis[0], dest.frustum[4].normal);
 	dest.frustum[4].type = PLANE_NON_AXIAL;
-	dest.frustum[4].dist = DotProduct(ofsorigin, dest.frustum[4].normal) + r_znear->value;
+	dest.frustum[4].dist = DotProduct_cpp(ofsorigin, dest.frustum[4].normal) + r_znear->value;
 	SetPlaneSignbits(&dest.frustum[4]);
 }
 
@@ -709,8 +706,6 @@ static void R_SetupProjectionZ(viewParms_t& dest)
 #endif
 	if (dest.portalView != PV_NONE)
 	{
-		vec4_t c{};
-
 #ifdef USE_REVERSED_DEPTH
 		dest.projectionMatrix[10] = -zFar / depth;
 		dest.projectionMatrix[14] = -zFar * zNear / depth;
@@ -723,11 +718,11 @@ static void R_SetupProjectionZ(viewParms_t& dest)
 			dest.portalPlane.normal[2],
 			dest.portalPlane.dist };
 
-		float plane2[4]{
-			-DotProduct(dest.ort.axis[1], plane),
-			DotProduct(dest.ort.axis[2], plane),
-			-DotProduct(dest.ort.axis[0], plane),
-			DotProduct(plane, dest.ort.origin) - plane[3] };
+		vec4cpp_t plane2{
+			-DotProduct_cpp(dest.ort.axis[1], plane),
+			DotProduct_cpp(dest.ort.axis[2], plane),
+			-DotProduct_cpp(dest.ort.axis[0], plane),
+			DotProduct_cpp(plane, dest.ort.origin) - plane[3] };
 
 		// Lengyel, Eric. "Modifying the Projection Matrix to Perform Oblique Near-plane Clipping".
 		// Terathon Software 3D Graphics Library, 2004. http://www.terathon.com/code/oblique.html
@@ -736,7 +731,7 @@ static void R_SetupProjectionZ(viewParms_t& dest)
 			(SGN(plane2[1]) + dest.projectionMatrix[9]) / dest.projectionMatrix[5],
 			-1.0f,
 			-dest.projectionMatrix[10] / dest.projectionMatrix[14] };
-		VectorScale4(plane2, 2.0f / DotProduct4(plane2, q), c);
+		vec4cpp_t c = VectorScale4_cpp(plane2, 2.0f / DotProduct4(plane2, q));
 
 		dest.projectionMatrix[2] = c[0];
 		dest.projectionMatrix[6] = c[1];
@@ -760,11 +755,10 @@ R_MirrorPoint
 static void R_MirrorPoint(const vec3_t& in, const orientation_t& surface, const orientation_t& camera, vec3_t& out)
 {
 	int i;
-	vec3_t local{};
-	vec3_t transformed{};
+	vec3cpp_t transformed{};
 	float d;
 
-	VectorSubtract(in, surface.origin, local);
+	vec3cpp_t local = VectorSubtract_cpp(in, surface.origin);
 
 	for (i = 0; i < 3; i++)
 	{

@@ -102,6 +102,11 @@ vec3cpp_t VectorAdd_cpp(const float* a, const vec3cpp_t& b) {
 	return { a[0] + b[0], a[1] + b[1], a[2] + b[2] };
 }
 
+// Add two 3D vectors - Return by value for RVO
+vec3cpp_t VectorAdd_cpp(const vec3cpp_t& a, const float* b) {
+	return { a[0] + b[0], a[1] + b[1], a[2] + b[2] };
+}
+
 // Copy a 3D vector - Return by value for RVO
 vec3cpp_t VectorCopy_cpp(const float* a) {
 	return { a[0], a[1], a[2] };  // Return by value, RVO ensures efficiency

@@ -95,6 +95,7 @@ vec4cpp_t VectorAdd_to4vec_cpp(const vec3cpp_t& a, const vec3cpp_t& b);
 
 // Add two 3D vectors - Return by value for RVO
 vec3cpp_t VectorAdd_cpp(const std::span<float>& a, const vec3cpp_t& b);
+vec3cpp_t VectorAdd_cpp(const vec3cpp_t& a, const float* b);
 
 // Copy a 3D vector - Return by value for RVO
 vec3cpp_t VectorCopy_cpp(const vec3cpp_t& a);
