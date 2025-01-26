@@ -34,6 +34,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "math.hpp"
 #include "utils.hpp"
 
+#include <immintrin.h> // AVX SIMD headers
+
 #include <string.h> // memcpy
 
 // entities that will have procedurally generated surfaces will just
@@ -337,6 +339,38 @@ void myGlMultMatrix(const float *a, const float *b, float *out)
 	}
 }
 
+// SIMD optimized myGlMultMatrix (SSE2-compatible)
+// 3x faster
+void myGlMultMatrix_SIMD(const float* a, const float* b, float* out) {
+	__m128 rowA;
+
+	for (int i = 0; i < 4; ++i) {
+		// Compute each row of the output matrix
+		__m128 colB0 = _mm_loadu_ps(&b[0]);  // Load first column of B
+		__m128 colB1 = _mm_loadu_ps(&b[4]);  // Load second column of B
+		__m128 colB2 = _mm_loadu_ps(&b[8]);  // Load third column of B
+		__m128 colB3 = _mm_loadu_ps(&b[12]); // Load fourth column of B
+
+		rowA = _mm_set1_ps(a[i * 4 + 0]); // Broadcast element a[i][0]
+		__m128 res0 = _mm_mul_ps(rowA, colB0);
+
+		rowA = _mm_set1_ps(a[i * 4 + 1]); // Broadcast element a[i][1]
+		__m128 res1 = _mm_mul_ps(rowA, colB1);
+
+		rowA = _mm_set1_ps(a[i * 4 + 2]); // Broadcast element a[i][2]
+		__m128 res2 = _mm_mul_ps(rowA, colB2);
+
+		rowA = _mm_set1_ps(a[i * 4 + 3]); // Broadcast element a[i][3]
+		__m128 res3 = _mm_mul_ps(rowA, colB3);
+
+		// Accumulate all partial results
+		__m128 result = _mm_add_ps(_mm_add_ps(res0, res1), _mm_add_ps(res2, res3));
+
+		// Store the computed row in the output matrix
+		_mm_storeu_ps(&out[i * 4], result);
+	}
+}
+
 /*
 =================
 R_RotateForEntity
@@ -346,215 +380,74 @@ Does NOT produce any GL calls
 Called by both the front end and the back end
 =================
 */
-// void R_RotateForEntityOrg(const trRefEntity_t &ent, const viewParms_t &viewParms,
-// 						  orientationr_t &ort)
-// {
-// 	if (ent.e.reType != RT_MODEL)
-// 	{
-// 		ort = viewParms.world;
-// 		return;
-// 	}
-// 	float glMatrix[16]{};
-// 	vec3_t delta{};
-// 	float axisLength;
-
-// 	VectorCopy(ent.e.origin, ort.origin);
-
-// 	VectorCopy(ent.e.axis[0], ort.axis[0]);
-// 	VectorCopy(ent.e.axis[1], ort.axis[1]);
-// 	VectorCopy(ent.e.axis[2], ort.axis[2]);
-
-// 	glMatrix[0] = ort.axis[0][0];
-// 	glMatrix[4] = ort.axis[1][0];
-// 	glMatrix[8] = ort.axis[2][0];
-// 	glMatrix[12] = ort.origin[0];
-
-// 	glMatrix[1] = ort.axis[0][1];
-// 	glMatrix[5] = ort.axis[1][1];
-// 	glMatrix[9] = ort.axis[2][1];
-// 	glMatrix[13] = ort.origin[1];
-
-// 	glMatrix[2] = ort.axis[0][2];
-// 	glMatrix[6] = ort.axis[1][2];
-// 	glMatrix[10] = ort.axis[2][2];
-// 	glMatrix[14] = ort.origin[2];
-
-// 	glMatrix[3] = 0;
-// 	glMatrix[7] = 0;
-// 	glMatrix[11] = 0;
-// 	glMatrix[15] = 1;
-
-// 	myGlMultMatrix(glMatrix, viewParms.world.modelMatrix, ort.modelMatrix);
-
-// 	// calculate the viewer origin in the model's space
-// 	// needed for fog, specular, and environment mapping
-// 	VectorSubtract(viewParms.ort.origin, ort.origin, delta);
-
-// 	// compensate for scale in the axes if necessary
-// 	if (ent.e.nonNormalizedAxes)
-// 	{
-// 		axisLength = VectorLength(ent.e.axis[0]);
-// 		if (!axisLength)
-// 		{
-// 			axisLength = 0;
-// 		}
-// 		else
-// 		{
-// 			axisLength = 1.0f / axisLength;
-// 		}
-// 	}
-// 	else
-// 	{
-// 		axisLength = 1.0f;
-// 	}
-
-// 	ort.viewOrigin[0] = DotProduct(delta, ort.axis[0]) * axisLength;
-// 	ort.viewOrigin[1] = DotProduct(delta, ort.axis[1]) * axisLength;
-// 	ort.viewOrigin[2] = DotProduct(delta, ort.axis[2]) * axisLength;
-// }
-
-#include <immintrin.h> // AVX SIMD headers
-
-// SIMD optimized myGlMultMatrix (SSE2-compatible)
-void myGlMultMatrix_SIMD(const float *a, const float *b, float *out) {
-    __m128 rowA;
-
-    for (int i = 0; i < 4; ++i) {
-        // Compute each row of the output matrix
-        __m128 colB0 = _mm_loadu_ps(&b[0]);  // Load first column of B
-        __m128 colB1 = _mm_loadu_ps(&b[4]);  // Load second column of B
-        __m128 colB2 = _mm_loadu_ps(&b[8]);  // Load third column of B
-        __m128 colB3 = _mm_loadu_ps(&b[12]); // Load fourth column of B
-
-        rowA = _mm_set1_ps(a[i * 4 + 0]); // Broadcast element a[i][0]
-        __m128 res0 = _mm_mul_ps(rowA, colB0);
-
-        rowA = _mm_set1_ps(a[i * 4 + 1]); // Broadcast element a[i][1]
-        __m128 res1 = _mm_mul_ps(rowA, colB1);
-
-        rowA = _mm_set1_ps(a[i * 4 + 2]); // Broadcast element a[i][2]
-        __m128 res2 = _mm_mul_ps(rowA, colB2);
-
-        rowA = _mm_set1_ps(a[i * 4 + 3]); // Broadcast element a[i][3]
-        __m128 res3 = _mm_mul_ps(rowA, colB3);
-
-        // Accumulate all partial results
-        __m128 result = _mm_add_ps(_mm_add_ps(res0, res1), _mm_add_ps(res2, res3));
-
-        // Store the computed row in the output matrix
-        _mm_storeu_ps(&out[i * 4], result);
-    }
-}
-
-inline void VectorCopy_SIMD(const float *a, float *b) {
-    __m128 vec = _mm_loadu_ps(a);  // Load 4 floats (3 + padding) from `a`
-    _mm_storeu_ps(b, vec);         // Store 4 floats into `b`
-}
-
-// SIMD DotProduct
-inline float DotProduct_SIMD(const float *x, const float *y) {
-    __m128 vec1 = _mm_loadu_ps(x); // Load 3 + padding from `x`
-    __m128 vec2 = _mm_loadu_ps(y); // Load 3 + padding from `y`
-
-    __m128 mul = _mm_mul_ps(vec1, vec2);           // Element-wise multiplication
-    __m128 shuf1 = _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 1, 0, 0)); // Shuffle to sum
-    __m128 shuf2 = _mm_add_ps(mul, shuf1);
-    __m128 shuf3 = _mm_movehl_ps(shuf2, shuf2);
-
-    return _mm_cvtss_f32(_mm_add_ss(shuf2, shuf3)); // Horizontal sum and extract result
-}
-
-
-void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
-						   orientationr_t &ort)
-{
-	if (ent.e.reType != RT_MODEL)
-	{
-		ort = viewParms.world;
-		return;
-	}
-
-	__m128 row0, row1, row2, row3;						  // Matrix rows for glMatrix
+ void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
+ 						  orientationr_t &ort)
+ {
+ 	if (ent.e.reType != RT_MODEL)
+ 	{
+ 		ort = viewParms.world;
+ 		return;
+ 	}
+ 	//float glMatrix[16]{};
 	float glMatrix[16] __attribute__((aligned(16))) = {}; // Ensure alignment
-	float delta[3] __attribute__((aligned(16))) = {};
-	float axisLength;
+ 	vec3_t delta{};
+ 	float axisLength;
 
-	// float glMatrix[16]{};
-	// vec3_t delta{};
-	// float axisLength;
-	VectorCopy_SIMD(ent.e.origin, ort.origin);
+ 	VectorCopy(ent.e.origin, ort.origin);
 
-	VectorCopy_SIMD(ent.e.axis[0], ort.axis[0]);
-	VectorCopy_SIMD(ent.e.axis[1], ort.axis[1]);
-	VectorCopy_SIMD(ent.e.axis[2], ort.axis[2]);
+ 	VectorCopy(ent.e.axis[0], ort.axis[0]);
+ 	VectorCopy(ent.e.axis[1], ort.axis[1]);
+ 	VectorCopy(ent.e.axis[2], ort.axis[2]);
 
-	// Build glMatrix rows using SIMD (float layout: [x, y, z, w])
-	row0 = _mm_set_ps(0.0f, ort.axis[0][2], ort.axis[0][1], ort.axis[0][0]);
-	row1 = _mm_set_ps(0.0f, ort.axis[1][2], ort.axis[1][1], ort.axis[1][0]);
-	row2 = _mm_set_ps(0.0f, ort.axis[2][2], ort.axis[2][1], ort.axis[2][0]);
-	row3 = _mm_set_ps(1.0f, ort.origin[2], ort.origin[1], ort.origin[0]);
+ 	glMatrix[0] = ort.axis[0][0];
+ 	glMatrix[4] = ort.axis[1][0];
+ 	glMatrix[8] = ort.axis[2][0];
+ 	glMatrix[12] = ort.origin[0];
 
-	// Store the rows into glMatrix
-	_mm_store_ps(&glMatrix[0], row0);
-	_mm_store_ps(&glMatrix[4], row1);
-	_mm_store_ps(&glMatrix[8], row2);
-	_mm_store_ps(&glMatrix[12], row3);
+ 	glMatrix[1] = ort.axis[0][1];
+ 	glMatrix[5] = ort.axis[1][1];
+ 	glMatrix[9] = ort.axis[2][1];
+ 	glMatrix[13] = ort.origin[1];
 
-	// Multiply glMatrix with viewParms.world.modelMatrix
+ 	glMatrix[2] = ort.axis[0][2];
+ 	glMatrix[6] = ort.axis[1][2];
+ 	glMatrix[10] = ort.axis[2][2];
+ 	glMatrix[14] = ort.origin[2];
+
+ 	glMatrix[3] = 0;
+ 	glMatrix[7] = 0;
+ 	glMatrix[11] = 0;
+ 	glMatrix[15] = 1;
+
+ 	//myGlMultMatrix(glMatrix, viewParms.world.modelMatrix, ort.modelMatrix);
 	myGlMultMatrix_SIMD(glMatrix, viewParms.world.modelMatrix, ort.modelMatrix);
 
-	// calculate the viewer origin in the model's space
-	// needed for fog, specular, and environment mapping
-	VectorSubtract(viewParms.ort.origin, ort.origin, delta);
+ 	// calculate the viewer origin in the model's space
+ 	// needed for fog, specular, and environment mapping
+ 	VectorSubtract(viewParms.ort.origin, ort.origin, delta);
 
-	// compensate for scale in the axes if necessary
-	if (ent.e.nonNormalizedAxes)
-	{
-		axisLength = VectorLength(ent.e.axis[0]);
-		if (!axisLength)
-		{
-			axisLength = 0;
-		}
-		else
-		{
-			axisLength = 1.0f / axisLength;
-		}
-	}
-	else
-	{
-		axisLength = 1.0f;
-	}
+ 	// compensate for scale in the axes if necessary
+ 	if (ent.e.nonNormalizedAxes)
+ 	{
+ 		axisLength = VectorLength(ent.e.axis[0]);
+ 		if (!axisLength)
+ 		{
+ 			axisLength = 0;
+ 		}
+ 		else
+ 		{
+ 			axisLength = 1.0f / axisLength;
+ 		}
+ 	}
+ 	else
+ 	{
+ 		axisLength = 1.0f;
+ 	}
 
-	ort.viewOrigin[0] = DotProduct_SIMD(delta, ort.axis[0]) * axisLength;
-	ort.viewOrigin[1] = DotProduct_SIMD(delta, ort.axis[1]) * axisLength;
-	ort.viewOrigin[2] = DotProduct_SIMD(delta, ort.axis[2]) * axisLength;
-}
-
-// #include <chrono>
-// #include <numeric>
-// static std::vector<int64_t> results;
-// void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
-// 					   orientationr_t &ort)
-// {
-// 	// R_RotateForEntityOrg   R_RotateForEntitySIMD
-	
-// 	auto start = std::chrono::high_resolution_clock::now();
-// 	R_RotateForEntityOrg(ent, viewParms, ort);
-// 	auto end = std::chrono::high_resolution_clock::now();
-
-// 	auto res = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-
-// 	results.push_back(res);
-
-// 	if (results.size() > 10000)
-// 	{
-		
-// 		auto max = std::reduce(results.begin(), results.end()) / 10000;
-// 		ri.Printf(PRINT_ALL, "%ld \n",
-// 				  max);
-// 				  results.clear();
-// 	}
-// }
+ 	ort.viewOrigin[0] = DotProduct(delta, ort.axis[0]) * axisLength;
+ 	ort.viewOrigin[1] = DotProduct(delta, ort.axis[1]) * axisLength;
+ 	ort.viewOrigin[2] = DotProduct(delta, ort.axis[2]) * axisLength;
+ }
 
 /*
 =================
@@ -565,7 +458,7 @@ Sets up the modelview matrix for a given viewParm
 */
 static void R_RotateForViewer(void)
 {
-	float viewerMatrix[16]{};
+	float viewerMatrix[16] __attribute__((aligned(16))) = {}; // Ensure alignment
 	vec3_t origin{};
 
 	tr.ort = {};
@@ -600,7 +493,7 @@ static void R_RotateForViewer(void)
 
 	// convert from our coordinate system (looking down X)
 	// to OpenGL's coordinate system (looking down -Z)
-	myGlMultMatrix(viewerMatrix, s_flipMatrix, tr.ort.modelMatrix);
+	myGlMultMatrix_SIMD(viewerMatrix, s_flipMatrix, tr.ort.modelMatrix);
 
 	tr.viewParms.world = tr.ort;
 }
@@ -1243,7 +1136,7 @@ static void R_GetModelViewBounds(std::array<int, 2> &mins, std::array<int, 2> &m
 	int i, j;
 
 	// premultiply
-	myGlMultMatrix(tr.ort.modelMatrix, tr.viewParms.projectionMatrix, mvp);
+	myGlMultMatrix_SIMD(tr.ort.modelMatrix, tr.viewParms.projectionMatrix, mvp);
 
 	for (i = 0; i < tess.numVertexes; i++)
 	{
