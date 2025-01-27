@@ -1397,7 +1397,7 @@ static void ParseDeform(const char **text)
 		return;
 	}
 
-	ri.Printf(PRINT_WARNING, "WARNING: unknown deformVertexes subtype '%s' found in shader '%s'\n", token, shader.name);
+	ri.Printf(PRINT_WARNING, "WARNING: unknown deformVertexes subtype '%s' found in shader '%s'\n", token.data(), shader.name);
 }
 
 /*
@@ -3155,6 +3155,41 @@ static void DetectNeeds(void)
 	}
 }
 
+struct ShaderDefInfo
+{
+	uint32_t tessFlags;
+	Vk_Shader_Type shaderType;
+};
+
+constexpr auto GetShaderDefForBlendMode3(int blendMode)
+{
+	switch (blendMode)
+	{
+	case GL_MODULATE:
+		return ShaderDefInfo{TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2, TYPE_MULTI_TEXTURE_MUL3};
+	case GL_ADD:
+		return ShaderDefInfo{TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2, TYPE_MULTI_TEXTURE_ADD3_1_1};
+	case GL_ADD_NONIDENTITY:
+		return ShaderDefInfo{TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2, TYPE_MULTI_TEXTURE_ADD3};
+	case GL_BLEND_MODULATE:
+		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, TYPE_BLEND3_MUL};
+	case GL_BLEND_ADD:
+		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, TYPE_BLEND3_ADD};
+	case GL_BLEND_ALPHA:
+		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, TYPE_BLEND3_ALPHA};
+	case GL_BLEND_ONE_MINUS_ALPHA:
+		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, TYPE_BLEND3_ONE_MINUS_ALPHA};
+	case GL_BLEND_MIX_ONE_MINUS_ALPHA:
+		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, TYPE_BLEND3_MIX_ONE_MINUS_ALPHA};
+	case GL_BLEND_MIX_ALPHA:
+		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, TYPE_BLEND3_MIX_ALPHA};
+	case GL_BLEND_DST_COLOR_SRC_ALPHA:
+		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, TYPE_BLEND3_DST_COLOR_SRC_ALPHA};
+	default:
+		return ShaderDefInfo{0, TYPE_SIGNLE_TEXTURE}; // Default case
+	}
+}
+
 /*
 =========================
 FinishShader
@@ -3514,53 +3549,12 @@ static shader_t *FinishShader(void)
 
 			if (pStage.mtEnv3)
 			{
-				switch (pStage.mtEnv3)
-				{
-				case GL_MODULATE:
-					pStage.tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2;
-					def.shader_type = TYPE_MULTI_TEXTURE_MUL3;
-					break;
-				case GL_ADD:
-					pStage.tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2;
-					def.shader_type = TYPE_MULTI_TEXTURE_ADD3_1_1;
-					break;
-				case GL_ADD_NONIDENTITY:
-					pStage.tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2;
-					def.shader_type = TYPE_MULTI_TEXTURE_ADD3;
+				auto shaderDef = GetShaderDefForBlendMode3(pStage.mtEnv3);
+				if (shaderDef.tessFlags == 0)
 					break;
 
-				case GL_BLEND_MODULATE:
-					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
-					def.shader_type = TYPE_BLEND3_MUL;
-					break;
-				case GL_BLEND_ADD:
-					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
-					def.shader_type = TYPE_BLEND3_ADD;
-					break;
-				case GL_BLEND_ALPHA:
-					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
-					def.shader_type = TYPE_BLEND3_ALPHA;
-					break;
-				case GL_BLEND_ONE_MINUS_ALPHA:
-					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
-					def.shader_type = TYPE_BLEND3_ONE_MINUS_ALPHA;
-					break;
-				case GL_BLEND_MIX_ONE_MINUS_ALPHA:
-					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
-					def.shader_type = TYPE_BLEND3_MIX_ONE_MINUS_ALPHA;
-					break;
-				case GL_BLEND_MIX_ALPHA:
-					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
-					def.shader_type = TYPE_BLEND3_MIX_ALPHA;
-					break;
-				case GL_BLEND_DST_COLOR_SRC_ALPHA:
-					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2;
-					def.shader_type = TYPE_BLEND3_DST_COLOR_SRC_ALPHA;
-					break;
-
-				default:
-					break;
-				}
+				pStage.tessFlags = shaderDef.tessFlags;
+				def.shader_type = shaderDef.shaderType;
 			}
 			else
 			{

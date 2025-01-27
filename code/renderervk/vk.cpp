@@ -221,14 +221,13 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer)
 									  &command_buffer);
 }
 
-static constexpr vk::PipelineStageFlagBits get_src_stage(const vk::ImageLayout old_layout)
+static constexpr vk::PipelineStageFlagBits get_src_stage(const vk::ImageLayout old_layout) noexcept
 {
 	switch (old_layout)
 	{
 	case vk::ImageLayout::eUndefined:
 		return vk::PipelineStageFlagBits::eTopOfPipe;
 	case vk::ImageLayout::eTransferDstOptimal:
-		return vk::PipelineStageFlagBits::eTransfer;
 	case vk::ImageLayout::eTransferSrcOptimal:
 		return vk::PipelineStageFlagBits::eTransfer;
 	case vk::ImageLayout::eShaderReadOnlyOptimal:
@@ -236,7 +235,6 @@ static constexpr vk::PipelineStageFlagBits get_src_stage(const vk::ImageLayout o
 	case vk::ImageLayout::ePresentSrcKHR:
 		return vk::PipelineStageFlagBits::eTransfer;
 	default:
-		ri.Error(ERR_DROP, "unsupported old layout %i", (int)old_layout);
 		return vk::PipelineStageFlagBits::eAllCommands;
 	}
 }
@@ -277,7 +275,6 @@ static constexpr vk::PipelineStageFlagBits get_dst_stage(const vk::ImageLayout n
 	case vk::ImageLayout::eShaderReadOnlyOptimal:
 		return vk::PipelineStageFlagBits::eFragmentShader;
 	default:
-		ri.Error(ERR_DROP, "unsupported new layout %i", (int)new_layout);
 		return vk::PipelineStageFlagBits::eAllCommands;
 	}
 }
@@ -320,8 +317,16 @@ static void record_image_layout_transition(const vk::CommandBuffer &command_buff
 									vk::RemainingArrayLayers},
 								   nullptr};
 
-	command_buffer.pipelineBarrier(get_src_stage(old_layout),
-								   get_dst_stage(new_layout),
+	auto stageFlag = get_src_stage(old_layout);
+	if (stageFlag == vk::PipelineStageFlagBits::eAllCommands)
+		ri.Error(ERR_DROP, "unsupported old layout %i", (int)old_layout);
+
+	auto destFlag = get_dst_stage(new_layout);
+	if (destFlag == vk::PipelineStageFlagBits::eAllCommands)
+		ri.Error(ERR_DROP, "unsupported new layout %i", (int)new_layout);
+
+	command_buffer.pipelineBarrier(stageFlag,
+								   destFlag,
 								   {},
 								   0,
 								   nullptr,
@@ -4715,49 +4720,63 @@ struct ColorDepth
 	int b;
 };
 
-// Populate the map with known VkFormats and their corresponding color depths
-static const std::unordered_map<vk::Format, ColorDepth> formatColorDepthMap = {
-	{vk::Format::eB8G8R8A8Unorm, {255, 255, 255}},
-	{vk::Format::eB8G8R8A8Srgb, {255, 255, 255}},
-	{vk::Format::eA2B10G10R10UnormPack32, {1023, 1023, 1023}},
-	{vk::Format::eR8G8B8A8Unorm, {255, 255, 255}},
-	{vk::Format::eR8G8B8A8Srgb, {255, 255, 255}},
-	{vk::Format::eA2R10G10B10UnormPack32, {1023, 1023, 1023}},
-	{vk::Format::eR5G6B5UnormPack16, {31, 63, 31}},
-	{vk::Format::eR8G8B8A8Snorm, {255, 255, 255}},
-	{vk::Format::eA8B8G8R8UnormPack32, {255, 255, 255}},
-	{vk::Format::eA8B8G8R8SnormPack32, {255, 255, 255}},
-	{vk::Format::eA8B8G8R8SrgbPack32, {255, 255, 255}},
-	{vk::Format::eR16G16B16A16Unorm, {65535, 65535, 65535}},
-	{vk::Format::eR16G16B16A16Snorm, {65535, 65535, 65535}},
-	{vk::Format::eB5G6R5UnormPack16, {31, 63, 31}},
-	{vk::Format::eB8G8R8A8Snorm, {255, 255, 255}},
-	{vk::Format::eR4G4B4A4UnormPack16, {15, 15, 15}},
-	{vk::Format::eB4G4R4A4UnormPack16, {15, 15, 15}},
-	{vk::Format::eA1R5G5B5UnormPack16, {31, 31, 31}},
-	{vk::Format::eR5G5B5A1UnormPack16, {31, 31, 31}},
-	{vk::Format::eB5G5R5A1UnormPack16, {31, 31, 31}},
-};
+static constexpr ColorDepth GetColorDepthForFormat(vk::Format format)
+{
+	switch (format)
+	{
+	case vk::Format::eB8G8R8A8Unorm:
+	case vk::Format::eB8G8R8A8Srgb:
+	case vk::Format::eR8G8B8A8Unorm:
+	case vk::Format::eR8G8B8A8Srgb:
+	case vk::Format::eR8G8B8A8Snorm:
+	case vk::Format::eA8B8G8R8UnormPack32:
+	case vk::Format::eA8B8G8R8SnormPack32:
+	case vk::Format::eA8B8G8R8SrgbPack32:
+	case vk::Format::eB8G8R8A8Snorm:
+		return {255, 255, 255};
+
+	case vk::Format::eA2B10G10R10UnormPack32:
+	case vk::Format::eA2R10G10B10UnormPack32:
+		return {1023, 1023, 1023};
+
+	case vk::Format::eR16G16B16A16Unorm:
+	case vk::Format::eR16G16B16A16Snorm:
+		return {65535, 65535, 65535};
+
+	case vk::Format::eR5G6B5UnormPack16:
+	case vk::Format::eB5G6R5UnormPack16:
+		return {31, 63, 31};
+
+	case vk::Format::eR4G4B4A4UnormPack16:
+	case vk::Format::eB4G4R4A4UnormPack16:
+		return {15, 15, 15};
+
+	case vk::Format::eA1R5G5B5UnormPack16:
+	case vk::Format::eR5G5B5A1UnormPack16:
+	case vk::Format::eB5G5R5A1UnormPack16:
+		return {31, 31, 31};
+
+	default:
+		return {-1, -1, -1};
+	}
+}
 
 static bool vk_surface_format_color_depth(const vk::Format format, int *r, int *g, int *b)
 {
-	// Use the map to find the corresponding color depth
-	auto it = formatColorDepthMap.find(format);
-	if (it != formatColorDepthMap.end())
+	ColorDepth depth = GetColorDepthForFormat(format);
+
+	if (depth.r == -1 && depth.g == -1 && depth.b == -1) // Default case
 	{
-		*r = it->second.r;
-		*g = it->second.g;
-		*b = it->second.b;
-		return true;
-	}
-	else
-	{
-		// Default case
 		*r = 255;
 		*g = 255;
 		*b = 255;
 		return false;
 	}
+
+	*r = depth.r;
+	*g = depth.g;
+	*b = depth.b;
+	return true;
 }
 
 void vk_create_post_process_pipeline(const int program_index, const uint32_t width, const uint32_t height)

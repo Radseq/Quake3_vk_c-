@@ -620,7 +620,7 @@ $(Q)$(CC) $(CFLAGS) $(RENDCFLAGS) -o $@ -c $<
 endef
 
 # Remove C-specific flags when compiling C++
-CXXFLAGS := -std=c++23 -O3 $(filter-out -Wimplicit -Wstrict-prototypes,$(CFLAGS))
+CXXFLAGS := -std=c++23 $(filter-out -Wimplicit -Wstrict-prototypes,$(CFLAGS))
 
 define DO_REND_PLUS_CC
 $(echo_cmd) "REND_C++ $<"
