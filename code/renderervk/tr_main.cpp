@@ -341,14 +341,16 @@ void myGlMultMatrix(const float *a, const float *b, float *out)
 
 // SIMD optimized myGlMultMatrix (SSE2-compatible)
 // 3x faster
-void myGlMultMatrix_SIMD(const float* a, const float* b, float* out) {
+void myGlMultMatrix_SIMD(const float *a, const float *b, float *out)
+{
 	__m128 rowA;
 
-	for (int i = 0; i < 4; ++i) {
+	for (int i = 0; i < 4; ++i)
+	{
 		// Compute each row of the output matrix
-		__m128 colB0 = _mm_loadu_ps(&b[0]);  // Load first column of B
-		__m128 colB1 = _mm_loadu_ps(&b[4]);  // Load second column of B
-		__m128 colB2 = _mm_loadu_ps(&b[8]);  // Load third column of B
+		__m128 colB0 = _mm_loadu_ps(&b[0]);	 // Load first column of B
+		__m128 colB1 = _mm_loadu_ps(&b[4]);	 // Load second column of B
+		__m128 colB2 = _mm_loadu_ps(&b[8]);	 // Load third column of B
 		__m128 colB3 = _mm_loadu_ps(&b[12]); // Load fourth column of B
 
 		rowA = _mm_set1_ps(a[i * 4 + 0]); // Broadcast element a[i][0]
@@ -380,74 +382,74 @@ Does NOT produce any GL calls
 Called by both the front end and the back end
 =================
 */
- void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
- 						  orientationr_t &ort)
- {
- 	if (ent.e.reType != RT_MODEL)
- 	{
- 		ort = viewParms.world;
- 		return;
- 	}
- 	//float glMatrix[16]{};
+void R_RotateForEntity(const trRefEntity_t &ent, const viewParms_t &viewParms,
+					   orientationr_t &ort)
+{
+	if (ent.e.reType != RT_MODEL)
+	{
+		ort = viewParms.world;
+		return;
+	}
+	// float glMatrix[16]{};
 	float glMatrix[16] __attribute__((aligned(16))) = {}; // Ensure alignment
- 	vec3_t delta{};
- 	float axisLength;
+	vec3_t delta{};
+	float axisLength;
 
- 	VectorCopy(ent.e.origin, ort.origin);
+	VectorCopy(ent.e.origin, ort.origin);
 
- 	VectorCopy(ent.e.axis[0], ort.axis[0]);
- 	VectorCopy(ent.e.axis[1], ort.axis[1]);
- 	VectorCopy(ent.e.axis[2], ort.axis[2]);
+	VectorCopy(ent.e.axis[0], ort.axis[0]);
+	VectorCopy(ent.e.axis[1], ort.axis[1]);
+	VectorCopy(ent.e.axis[2], ort.axis[2]);
 
- 	glMatrix[0] = ort.axis[0][0];
- 	glMatrix[4] = ort.axis[1][0];
- 	glMatrix[8] = ort.axis[2][0];
- 	glMatrix[12] = ort.origin[0];
+	glMatrix[0] = ort.axis[0][0];
+	glMatrix[4] = ort.axis[1][0];
+	glMatrix[8] = ort.axis[2][0];
+	glMatrix[12] = ort.origin[0];
 
- 	glMatrix[1] = ort.axis[0][1];
- 	glMatrix[5] = ort.axis[1][1];
- 	glMatrix[9] = ort.axis[2][1];
- 	glMatrix[13] = ort.origin[1];
+	glMatrix[1] = ort.axis[0][1];
+	glMatrix[5] = ort.axis[1][1];
+	glMatrix[9] = ort.axis[2][1];
+	glMatrix[13] = ort.origin[1];
 
- 	glMatrix[2] = ort.axis[0][2];
- 	glMatrix[6] = ort.axis[1][2];
- 	glMatrix[10] = ort.axis[2][2];
- 	glMatrix[14] = ort.origin[2];
+	glMatrix[2] = ort.axis[0][2];
+	glMatrix[6] = ort.axis[1][2];
+	glMatrix[10] = ort.axis[2][2];
+	glMatrix[14] = ort.origin[2];
 
- 	glMatrix[3] = 0;
- 	glMatrix[7] = 0;
- 	glMatrix[11] = 0;
- 	glMatrix[15] = 1;
+	glMatrix[3] = 0;
+	glMatrix[7] = 0;
+	glMatrix[11] = 0;
+	glMatrix[15] = 1;
 
- 	//myGlMultMatrix(glMatrix, viewParms.world.modelMatrix, ort.modelMatrix);
+	// myGlMultMatrix(glMatrix, viewParms.world.modelMatrix, ort.modelMatrix);
 	myGlMultMatrix_SIMD(glMatrix, viewParms.world.modelMatrix, ort.modelMatrix);
 
- 	// calculate the viewer origin in the model's space
- 	// needed for fog, specular, and environment mapping
- 	VectorSubtract(viewParms.ort.origin, ort.origin, delta);
+	// calculate the viewer origin in the model's space
+	// needed for fog, specular, and environment mapping
+	VectorSubtract(viewParms.ort.origin, ort.origin, delta);
 
- 	// compensate for scale in the axes if necessary
- 	if (ent.e.nonNormalizedAxes)
- 	{
- 		axisLength = VectorLength(ent.e.axis[0]);
- 		if (!axisLength)
- 		{
- 			axisLength = 0;
- 		}
- 		else
- 		{
- 			axisLength = 1.0f / axisLength;
- 		}
- 	}
- 	else
- 	{
- 		axisLength = 1.0f;
- 	}
+	// compensate for scale in the axes if necessary
+	if (ent.e.nonNormalizedAxes)
+	{
+		axisLength = VectorLength(ent.e.axis[0]);
+		if (!axisLength)
+		{
+			axisLength = 0;
+		}
+		else
+		{
+			axisLength = 1.0f / axisLength;
+		}
+	}
+	else
+	{
+		axisLength = 1.0f;
+	}
 
- 	ort.viewOrigin[0] = DotProduct(delta, ort.axis[0]) * axisLength;
- 	ort.viewOrigin[1] = DotProduct(delta, ort.axis[1]) * axisLength;
- 	ort.viewOrigin[2] = DotProduct(delta, ort.axis[2]) * axisLength;
- }
+	ort.viewOrigin[0] = DotProduct(delta, ort.axis[0]) * axisLength;
+	ort.viewOrigin[1] = DotProduct(delta, ort.axis[1]) * axisLength;
+	ort.viewOrigin[2] = DotProduct(delta, ort.axis[2]) * axisLength;
+}
 
 /*
 =================

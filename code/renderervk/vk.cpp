@@ -6689,6 +6689,8 @@ void vk_draw_geometry(const Vk_Depth_Range depth_range, const bool indexed)
 
 static void vk_begin_render_pass(const vk::RenderPass &renderPass, const vk::Framebuffer &frameBuffer, const bool clearValues, const uint32_t width, const uint32_t height)
 {
+	vk::ClearValue clear_values[3]{};
+
 	// Begin render pass.
 
 	vk::RenderPassBeginInfo render_pass_begin_info{renderPass,
@@ -6700,8 +6702,6 @@ static void vk_begin_render_pass(const vk::RenderPass &renderPass, const vk::Fra
 
 	if (clearValues)
 	{
-		vk::ClearValue clear_values[3]{};
-
 		// attachments layout:
 		// [0] - resolve/color/presentation
 		// [1] - depth/stencil

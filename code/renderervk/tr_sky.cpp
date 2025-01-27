@@ -320,8 +320,7 @@ static void MakeSkyVec(float s, float t, int axis, vec3_t &outXYZ)
 	vec3_t b{
 		s * boxSize,
 		t * boxSize,
-		boxSize
-	};
+		boxSize};
 
 	for (j = 0; j < 3; j++)
 	{
@@ -535,6 +534,23 @@ static void DrawSkyBox(const shader_t &shader)
 	}
 }
 
+static constexpr float GetMinT(int i)
+{
+	switch (i)
+	{
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+		return -1.0f;
+	case 5:
+		return 0.0f;
+	case 4:			 // top
+	default:
+		return -HALF_SKY_SUBDIVISIONS;
+	}
+}
+
 static void FillCloudBox(void)
 {
 	int i;
@@ -555,22 +571,9 @@ static void FillCloudBox(void)
 		}
 		else
 		{
-			switch (i)
-			{
-			case 0:
-			case 1:
-			case 2:
-			case 3:
-				MIN_T = -1;
-				break;
-			case 5:
-				// don't draw clouds beneath you
+			if (i == 5) // don't draw clouds beneath you
 				continue;
-			case 4: // top
-			default:
-				MIN_T = -HALF_SKY_SUBDIVISIONS;
-				break;
-			}
+			MIN_T = GetMinT(i);
 		}
 
 		sky_mins[0][i] = floor(sky_mins[0][i] * HALF_SKY_SUBDIVISIONS) / HALF_SKY_SUBDIVISIONS;
@@ -766,13 +769,13 @@ void R_InitSkyTexCoords(float heightCloud)
 */
 void RB_DrawSun(const float scale, shader_t &shader)
 {
+	if (!backEnd.skyRenderedThisView)
+		return;
+
 	float size;
 	float dist;
 	vec3_t origin{}, vec1, vec2;
 	color4ub_t sunColor{};
-
-	if (!backEnd.skyRenderedThisView)
-		return;
 
 	sunColor.u32 = ~0U;
 	vk_update_mvp(NULL);
