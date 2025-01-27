@@ -26,14 +26,14 @@ constexpr int MAX_VK_PIPELINES = (1024 + 128);
 
 typedef unsigned char byte;
 
-typedef enum
+enum class Vk_Depth_Range : uint8_t
 {
     DEPTH_RANGE_NORMAL, // [0..1]
     DEPTH_RANGE_ZERO,   // [0..0]
     DEPTH_RANGE_ONE,    // [1..1]
     DEPTH_RANGE_WEAPON, // [0..0.3]
     DEPTH_RANGE_COUNT
-} Vk_Depth_Range;
+};
 
 typedef struct
 {
@@ -86,15 +86,17 @@ typedef struct
     float modelview_transform[16];
 } Vk_World;
 
-typedef enum
+enum class renderPass_t : uint8_t
 {
     RENDER_PASS_SCREENMAP = 0,
     RENDER_PASS_MAIN,
     RENDER_PASS_POST_BLOOM,
     RENDER_PASS_COUNT
-} renderPass_t;
+};
 
-typedef enum
+constexpr int RENDER_PASS_COUNT = static_cast<int>(renderPass_t::RENDER_PASS_COUNT);
+
+enum class Vk_Shader_Type : uint8_t
 {
     TYPE_COLOR_BLACK,
     TYPE_COLOR_WHITE,
@@ -180,7 +182,7 @@ typedef enum
 
     TYPE_GENERIC_END = TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV
 
-} Vk_Shader_Type;
+};
 
 // used with cg_shadows == 2
 typedef enum

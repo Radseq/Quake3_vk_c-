@@ -2501,7 +2501,7 @@ static void vk_alloc_persistent_pipelines(void)
 
 	// skybox
 	{
-		def.shader_type = TYPE_SIGNLE_TEXTURE_FIXED_COLOR;
+		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR;
 		def.color.rgb = tr.identityLightByte;
 		def.color.alpha = tr.identityLightByte;
 		def.face_culling = CT_FRONT_SIDED;
@@ -2519,7 +2519,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def = {};
 		def.polygon_offset = false;
 		def.state_bits = 0;
-		def.shader_type = TYPE_SIGNLE_TEXTURE;
+		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 		def.shadow_phase = SHADOW_EDGES;
 
 		for (i = 0; i < 2; i++)
@@ -2537,7 +2537,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.face_culling = CT_FRONT_SIDED;
 		def.polygon_offset = false;
 		def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO;
-		def.shader_type = TYPE_SIGNLE_TEXTURE;
+		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 		def.mirror = false;
 		def.shadow_phase = SHADOW_FS_QUAD;
 		def.primitives = TRIANGLE_STRIP;
@@ -2558,7 +2558,7 @@ static void vk_alloc_persistent_pipelines(void)
 		int i, j, k, l;
 
 		def = {};
-		def.shader_type = TYPE_SIGNLE_TEXTURE;
+		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 		def.mirror = false;
 
 		for (i = 0; i < 2; i++)
@@ -2574,14 +2574,14 @@ static void vk_alloc_persistent_pipelines(void)
 				{
 					def.polygon_offset = polygon_offset[k];
 #ifdef USE_FOG_ONLY
-					def.shader_type = TYPE_FOG_ONLY;
+					def.shader_type = Vk_Shader_Type::TYPE_FOG_ONLY;
 #else
-					def.shader_type = TYPE_SIGNLE_TEXTURE;
+					def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 #endif
 					def.state_bits = fog_state;
 					vk_inst.fog_pipelines[i][j][k] = vk_find_pipeline_ext(0, def, true);
 
-					def.shader_type = TYPE_SIGNLE_TEXTURE;
+					def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 					def.state_bits = dlight_state;
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
@@ -2596,7 +2596,7 @@ static void vk_alloc_persistent_pipelines(void)
 
 #ifdef USE_PMLIGHT
 		def.state_bits = GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHFUNC_EQUAL;
-		// def.shader_type = TYPE_SIGNLE_TEXTURE_LIGHTING;
+		// def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING;
 		for (i = 0; i < 3; i++)
 		{ // cullType
 			def.face_culling = static_cast<cullType_t>(i);
@@ -2609,9 +2609,9 @@ static void vk_alloc_persistent_pipelines(void)
 					for (l = 0; l < 2; l++)
 					{
 						def.abs_light = l;
-						def.shader_type = TYPE_SIGNLE_TEXTURE_LIGHTING;
+						def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING;
 						vk_inst.dlight_pipelines_x[i][j][k][l] = vk_find_pipeline_ext(0, def, false);
-						def.shader_type = TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR;
+						def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR;
 						vk_inst.dlight1_pipelines_x[i][j][k][l] = vk_find_pipeline_ext(0, def, false);
 					}
 				}
@@ -2633,7 +2633,7 @@ static void vk_alloc_persistent_pipelines(void)
 	{
 		def = {};
 		def.state_bits = GLS_DEFAULT;
-		def.shader_type = TYPE_SIGNLE_TEXTURE;
+		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 		def.face_culling = CT_TWO_SIDED;
 		def.primitives = LINE_LIST;
 		if (vk_inst.wideLines)
@@ -2647,7 +2647,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def = {};
 		// def.state_bits = GLS_DEFAULT;
 		def.face_culling = CT_TWO_SIDED;
-		def.shader_type = TYPE_DOT;
+		def.shader_type = Vk_Shader_Type::TYPE_DOT;
 		def.primitives = POINT_LIST;
 		vk_inst.dot_pipeline = vk_find_pipeline_ext(0, def, true);
 	}
@@ -2657,42 +2657,42 @@ static void vk_alloc_persistent_pipelines(void)
 	{
 		def = {};
 		def.state_bits = state_bits;
-		def.shader_type = TYPE_COLOR_WHITE;
+		def.shader_type = Vk_Shader_Type::TYPE_COLOR_WHITE;
 		def.face_culling = CT_FRONT_SIDED;
 		vk_inst.tris_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
-		def.shader_type = TYPE_COLOR_WHITE;
+		def.shader_type = Vk_Shader_Type::TYPE_COLOR_WHITE;
 		def.face_culling = CT_BACK_SIDED;
 		vk_inst.tris_mirror_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
-		def.shader_type = TYPE_COLOR_GREEN;
+		def.shader_type = Vk_Shader_Type::TYPE_COLOR_GREEN;
 		def.face_culling = CT_FRONT_SIDED;
 		vk_inst.tris_debug_green_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
-		def.shader_type = TYPE_COLOR_GREEN;
+		def.shader_type = Vk_Shader_Type::TYPE_COLOR_GREEN;
 		def.face_culling = CT_BACK_SIDED;
 		vk_inst.tris_mirror_debug_green_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
-		def.shader_type = TYPE_COLOR_RED;
+		def.shader_type = Vk_Shader_Type::TYPE_COLOR_RED;
 		def.face_culling = CT_FRONT_SIDED;
 		vk_inst.tris_debug_red_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
-		def.shader_type = TYPE_COLOR_RED;
+		def.shader_type = Vk_Shader_Type::TYPE_COLOR_RED;
 		def.face_culling = CT_BACK_SIDED;
 		vk_inst.tris_mirror_debug_red_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
@@ -2701,7 +2701,7 @@ static void vk_alloc_persistent_pipelines(void)
 	{
 		def = {};
 		def.state_bits = GLS_DEPTHMASK_TRUE;
-		def.shader_type = TYPE_SIGNLE_TEXTURE;
+		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 		def.primitives = LINE_LIST;
 		vk_inst.normals_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
@@ -2710,13 +2710,13 @@ static void vk_alloc_persistent_pipelines(void)
 	{
 		def = {};
 		def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
-		def.shader_type = TYPE_SIGNLE_TEXTURE;
+		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 		vk_inst.surface_debug_pipeline_solid = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
-		def.shader_type = TYPE_SIGNLE_TEXTURE;
+		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 		def.primitives = LINE_LIST;
 		vk_inst.surface_debug_pipeline_outline = vk_find_pipeline_ext(0, def, false);
 	}
@@ -2725,7 +2725,7 @@ static void vk_alloc_persistent_pipelines(void)
 	{
 		def = {};
 		def.state_bits = GLS_DEPTHTEST_DISABLE | GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
-		def.shader_type = TYPE_SIGNLE_TEXTURE;
+		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 		def.primitives = TRIANGLE_STRIP;
 		vk_inst.images_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
@@ -3932,7 +3932,7 @@ void vk_initialize(void)
 		VK_CHECK_ASSIGN(vk_inst.pipelineCache, vk_inst.device.createPipelineCache(ci));
 	}
 
-	vk_inst.renderPassIndex = RENDER_PASS_MAIN; // default render pass
+	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_MAIN; // default render pass
 
 	// swapchain
 	vk_inst.initSwapchainLayout = vk::ImageLayout::ePresentSrcKHR;
@@ -5091,7 +5091,7 @@ static vk::PipelineColorBlendAttachmentState createBlendAttachmentState(const ui
 
 	// Initialize colorWriteMask based on shader phase/type
 	vk::ColorComponentFlags colorWriteMask =
-		(def.shadow_phase == SHADOW_EDGES || def.shader_type == TYPE_SIGNLE_TEXTURE_DF) ? vk::ColorComponentFlags(0) : vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+		(def.shadow_phase == SHADOW_EDGES || def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF) ? vk::ColorComponentFlags(0) : vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
 
 	vk::BlendFactor srcColorBlendFactor = {};
 	vk::BlendFactor dstColorBlendFactor = {};
@@ -5196,178 +5196,178 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	switch (def.shader_type)
 	{
 
-	case TYPE_SIGNLE_TEXTURE_LIGHTING:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
 		vs_module = &vk_inst.modules.vert.light[0];
 		fs_module = &vk_inst.modules.frag.light[0][0];
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
 		vs_module = &vk_inst.modules.vert.light[0];
 		fs_module = &vk_inst.modules.frag.light[1][0];
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_DF:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF:
 		state_bits |= GLS_DEPTHMASK_TRUE;
 		vs_module = &vk_inst.modules.vert.ident1[0][0][0];
 		fs_module = &vk_inst.modules.frag.gen0_df;
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
 		vs_module = &vk_inst.modules.vert.fixed[0][0][0];
 		fs_module = &vk_inst.modules.frag.fixed[0][0];
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
 		vs_module = &vk_inst.modules.vert.fixed[0][1][0];
 		fs_module = &vk_inst.modules.frag.fixed[0][0];
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
 		vs_module = &vk_inst.modules.vert.fixed[0][0][0];
 		fs_module = &vk_inst.modules.frag.ent[0][0];
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
 		vs_module = &vk_inst.modules.vert.fixed[0][1][0];
 		fs_module = &vk_inst.modules.frag.ent[0][0];
 		break;
 
-	case TYPE_SIGNLE_TEXTURE:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
 		vs_module = &vk_inst.modules.vert.gen[0][0][0][0];
 		fs_module = &vk_inst.modules.frag.gen[0][0][0];
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
 		vs_module = &vk_inst.modules.vert.gen[0][0][1][0];
 		fs_module = &vk_inst.modules.frag.gen[0][0][0];
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_IDENTITY:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
 		vs_module = &vk_inst.modules.vert.ident1[0][0][0];
 		fs_module = &vk_inst.modules.frag.ident1[0][0];
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
 		vs_module = &vk_inst.modules.vert.ident1[0][1][0];
 		fs_module = &vk_inst.modules.frag.ident1[0][0];
 		break;
 
-	case TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
-	case TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
 		vs_module = &vk_inst.modules.vert.ident1[1][0][0];
 		fs_module = &vk_inst.modules.frag.ident1[1][0];
 		break;
 
-	case TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV:
-	case TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV:
 		vs_module = &vk_inst.modules.vert.ident1[1][1][0];
 		fs_module = &vk_inst.modules.frag.ident1[1][0];
 		break;
 
-	case TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR:
-	case TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR:
 		vs_module = &vk_inst.modules.vert.fixed[1][0][0];
 		fs_module = &vk_inst.modules.frag.fixed[1][0];
 		break;
 
-	case TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV:
-	case TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV:
 		vs_module = &vk_inst.modules.vert.fixed[1][1][0];
 		fs_module = &vk_inst.modules.frag.fixed[1][0];
 		break;
 
-	case TYPE_MULTI_TEXTURE_MUL2:
-	case TYPE_MULTI_TEXTURE_ADD2_1_1:
-	case TYPE_MULTI_TEXTURE_ADD2:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2:
 		vs_module = &vk_inst.modules.vert.gen[1][0][0][0];
 		fs_module = &vk_inst.modules.frag.gen[1][0][0];
 		break;
 
-	case TYPE_MULTI_TEXTURE_MUL2_ENV:
-	case TYPE_MULTI_TEXTURE_ADD2_1_1_ENV:
-	case TYPE_MULTI_TEXTURE_ADD2_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_ENV:
 		vs_module = &vk_inst.modules.vert.gen[1][0][1][0];
 		fs_module = &vk_inst.modules.frag.gen[1][0][0];
 		break;
 
-	case TYPE_MULTI_TEXTURE_MUL3:
-	case TYPE_MULTI_TEXTURE_ADD3_1_1:
-	case TYPE_MULTI_TEXTURE_ADD3:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3:
 		vs_module = &vk_inst.modules.vert.gen[2][0][0][0];
 		fs_module = &vk_inst.modules.frag.gen[2][0][0];
 		break;
 
-	case TYPE_MULTI_TEXTURE_MUL3_ENV:
-	case TYPE_MULTI_TEXTURE_ADD3_1_1_ENV:
-	case TYPE_MULTI_TEXTURE_ADD3_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV:
 		vs_module = &vk_inst.modules.vert.gen[2][0][1][0];
 		fs_module = &vk_inst.modules.frag.gen[2][0][0];
 		break;
 
-	case TYPE_BLEND2_ADD:
-	case TYPE_BLEND2_MUL:
-	case TYPE_BLEND2_ALPHA:
-	case TYPE_BLEND2_ONE_MINUS_ALPHA:
-	case TYPE_BLEND2_MIX_ALPHA:
-	case TYPE_BLEND2_MIX_ONE_MINUS_ALPHA:
-	case TYPE_BLEND2_DST_COLOR_SRC_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_ADD:
+	case Vk_Shader_Type::TYPE_BLEND2_MUL:
+	case Vk_Shader_Type::TYPE_BLEND2_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA:
 		vs_module = &vk_inst.modules.vert.gen[1][1][0][0];
 		fs_module = &vk_inst.modules.frag.gen[1][1][0];
 		break;
 
-	case TYPE_BLEND2_ADD_ENV:
-	case TYPE_BLEND2_MUL_ENV:
-	case TYPE_BLEND2_ALPHA_ENV:
-	case TYPE_BLEND2_ONE_MINUS_ALPHA_ENV:
-	case TYPE_BLEND2_MIX_ALPHA_ENV:
-	case TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
-	case TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_ADD_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_MUL_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
 		vs_module = &vk_inst.modules.vert.gen[1][1][1][0];
 		fs_module = &vk_inst.modules.frag.gen[1][1][0];
 		break;
 
-	case TYPE_BLEND3_ADD:
-	case TYPE_BLEND3_MUL:
-	case TYPE_BLEND3_ALPHA:
-	case TYPE_BLEND3_ONE_MINUS_ALPHA:
-	case TYPE_BLEND3_MIX_ALPHA:
-	case TYPE_BLEND3_MIX_ONE_MINUS_ALPHA:
-	case TYPE_BLEND3_DST_COLOR_SRC_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_ADD:
+	case Vk_Shader_Type::TYPE_BLEND3_MUL:
+	case Vk_Shader_Type::TYPE_BLEND3_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA:
 		vs_module = &vk_inst.modules.vert.gen[2][1][0][0];
 		fs_module = &vk_inst.modules.frag.gen[2][1][0];
 		break;
 
-	case TYPE_BLEND3_ADD_ENV:
-	case TYPE_BLEND3_MUL_ENV:
-	case TYPE_BLEND3_ALPHA_ENV:
-	case TYPE_BLEND3_ONE_MINUS_ALPHA_ENV:
-	case TYPE_BLEND3_MIX_ALPHA_ENV:
-	case TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
-	case TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_ADD_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_MUL_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
 		vs_module = &vk_inst.modules.vert.gen[2][1][1][0];
 		fs_module = &vk_inst.modules.frag.gen[2][1][0];
 		break;
 
-	case TYPE_COLOR_BLACK:
-	case TYPE_COLOR_WHITE:
-	case TYPE_COLOR_GREEN:
-	case TYPE_COLOR_RED:
+	case Vk_Shader_Type::TYPE_COLOR_BLACK:
+	case Vk_Shader_Type::TYPE_COLOR_WHITE:
+	case Vk_Shader_Type::TYPE_COLOR_GREEN:
+	case Vk_Shader_Type::TYPE_COLOR_RED:
 		vs_module = &vk_inst.modules.color_vs;
 		fs_module = &vk_inst.modules.color_fs;
 		break;
 
-	case TYPE_FOG_ONLY:
+	case Vk_Shader_Type::TYPE_FOG_ONLY:
 		vs_module = &vk_inst.modules.fog_vs;
 		fs_module = &vk_inst.modules.fog_fs;
 		break;
 
-	case TYPE_DOT:
+	case Vk_Shader_Type::TYPE_DOT:
 		vs_module = &vk_inst.modules.dot_vs;
 		fs_module = &vk_inst.modules.dot_fs;
 		break;
 
 	default:
-		ri.Error(ERR_DROP, "create_pipeline_plus: unknown shader type %i\n", def.shader_type);
+		ri.Error(ERR_DROP, "create_pipeline_plus: unknown shader type %i\n", static_cast<int>(def.shader_type));
 		return nullptr;
 	}
 
@@ -5375,13 +5375,13 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	{
 		switch (def.shader_type)
 		{
-		case TYPE_FOG_ONLY:
-		case TYPE_DOT:
-		case TYPE_SIGNLE_TEXTURE_DF:
-		case TYPE_COLOR_BLACK:
-		case TYPE_COLOR_WHITE:
-		case TYPE_COLOR_GREEN:
-		case TYPE_COLOR_RED:
+		case Vk_Shader_Type::TYPE_FOG_ONLY:
+		case Vk_Shader_Type::TYPE_DOT:
+		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF:
+		case Vk_Shader_Type::TYPE_COLOR_BLACK:
+		case Vk_Shader_Type::TYPE_COLOR_WHITE:
+		case Vk_Shader_Type::TYPE_COLOR_GREEN:
+		case Vk_Shader_Type::TYPE_COLOR_RED:
 			break;
 		default:
 			// switch to fogged modules
@@ -5437,13 +5437,13 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	default:
 		frag_spec_data[4].i = 0;
 		break;
-	case TYPE_COLOR_WHITE:
+	case Vk_Shader_Type::TYPE_COLOR_WHITE:
 		frag_spec_data[4].i = 1;
 		break;
-	case TYPE_COLOR_GREEN:
+	case Vk_Shader_Type::TYPE_COLOR_GREEN:
 		frag_spec_data[4].i = 2;
 		break;
-	case TYPE_COLOR_RED:
+	case Vk_Shader_Type::TYPE_COLOR_RED:
 		frag_spec_data[4].i = 3;
 		break;
 	}
@@ -5451,8 +5451,8 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	// abs lighting
 	switch (def.shader_type)
 	{
-	case TYPE_SIGNLE_TEXTURE_LIGHTING:
-	case TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
 		frag_spec_data[5].i = def.abs_light ? 1 : 0;
 	default:
 		break;
@@ -5461,75 +5461,75 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	// multutexture mode
 	switch (def.shader_type)
 	{
-	case TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
-	case TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV:
-	case TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR:
-	case TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV:
-	case TYPE_MULTI_TEXTURE_MUL2:
-	case TYPE_MULTI_TEXTURE_MUL2_ENV:
-	case TYPE_MULTI_TEXTURE_MUL3:
-	case TYPE_MULTI_TEXTURE_MUL3_ENV:
-	case TYPE_BLEND2_MUL:
-	case TYPE_BLEND2_MUL_ENV:
-	case TYPE_BLEND3_MUL:
-	case TYPE_BLEND3_MUL_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_MUL:
+	case Vk_Shader_Type::TYPE_BLEND2_MUL_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_MUL:
+	case Vk_Shader_Type::TYPE_BLEND3_MUL_ENV:
 		frag_spec_data[6].i = 0;
 		break;
 
-	case TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
-	case TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV:
-	case TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR:
-	case TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV:
-	case TYPE_MULTI_TEXTURE_ADD2_1_1:
-	case TYPE_MULTI_TEXTURE_ADD2_1_1_ENV:
-	case TYPE_MULTI_TEXTURE_ADD3_1_1:
-	case TYPE_MULTI_TEXTURE_ADD3_1_1_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV:
 		frag_spec_data[6].i = 1;
 		break;
 
-	case TYPE_MULTI_TEXTURE_ADD2:
-	case TYPE_MULTI_TEXTURE_ADD2_ENV:
-	case TYPE_MULTI_TEXTURE_ADD3:
-	case TYPE_MULTI_TEXTURE_ADD3_ENV:
-	case TYPE_BLEND2_ADD:
-	case TYPE_BLEND2_ADD_ENV:
-	case TYPE_BLEND3_ADD:
-	case TYPE_BLEND3_ADD_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_ADD:
+	case Vk_Shader_Type::TYPE_BLEND2_ADD_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_ADD:
+	case Vk_Shader_Type::TYPE_BLEND3_ADD_ENV:
 		frag_spec_data[6].i = 2;
 		break;
 
-	case TYPE_BLEND2_ALPHA:
-	case TYPE_BLEND2_ALPHA_ENV:
-	case TYPE_BLEND3_ALPHA:
-	case TYPE_BLEND3_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_ALPHA_ENV:
 		frag_spec_data[6].i = 3;
 		break;
 
-	case TYPE_BLEND2_ONE_MINUS_ALPHA:
-	case TYPE_BLEND2_ONE_MINUS_ALPHA_ENV:
-	case TYPE_BLEND3_ONE_MINUS_ALPHA:
-	case TYPE_BLEND3_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA_ENV:
 		frag_spec_data[6].i = 4;
 		break;
 
-	case TYPE_BLEND2_MIX_ALPHA:
-	case TYPE_BLEND2_MIX_ALPHA_ENV:
-	case TYPE_BLEND3_MIX_ALPHA:
-	case TYPE_BLEND3_MIX_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV:
 		frag_spec_data[6].i = 5;
 		break;
 
-	case TYPE_BLEND2_MIX_ONE_MINUS_ALPHA:
-	case TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
-	case TYPE_BLEND3_MIX_ONE_MINUS_ALPHA:
-	case TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
 		frag_spec_data[6].i = 6;
 		break;
 
-	case TYPE_BLEND2_DST_COLOR_SRC_ALPHA:
-	case TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
-	case TYPE_BLEND3_DST_COLOR_SRC_ALPHA:
-	case TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
 		frag_spec_data[6].i = 7;
 		break;
 
@@ -5596,31 +5596,31 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	switch (def.shader_type)
 	{
 
-	case TYPE_FOG_ONLY:
-	case TYPE_DOT:
+	case Vk_Shader_Type::TYPE_FOG_ONLY:
+	case Vk_Shader_Type::TYPE_DOT:
 		push_bind(0, sizeof(vec4_t)); // xyz array
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
-	case TYPE_COLOR_BLACK:
-	case TYPE_COLOR_WHITE:
-	case TYPE_COLOR_GREEN:
-	case TYPE_COLOR_RED:
+	case Vk_Shader_Type::TYPE_COLOR_BLACK:
+	case Vk_Shader_Type::TYPE_COLOR_WHITE:
+	case Vk_Shader_Type::TYPE_COLOR_GREEN:
+	case Vk_Shader_Type::TYPE_COLOR_RED:
 		push_bind(0, sizeof(vec4_t)); // xyz array
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_DF:
-	case TYPE_SIGNLE_TEXTURE_IDENTITY:
-	case TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
-	case TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
 		push_bind(0, sizeof(vec4_t)); // xyz array
 		push_bind(2, sizeof(vec2_t)); // st0 array
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(2, 2, vk::Format::eR32G32Sfloat);
 		break;
 
-	case TYPE_SIGNLE_TEXTURE:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
 		push_bind(0, sizeof(vec4_t));	  // xyz array
 		push_bind(1, sizeof(color4ub_t)); // color array
 		push_bind(2, sizeof(vec2_t));	  // st0 array
@@ -5629,7 +5629,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		push_attr(2, 2, vk::Format::eR32G32Sfloat);
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
 		push_bind(0, sizeof(vec4_t));	  // xyz array
 		push_bind(1, sizeof(color4ub_t)); // color array
 		// push_bind( 2, sizeof( vec2_t ) );					// st0 array
@@ -5640,17 +5640,17 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
-	case TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
-	case TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
 		push_bind(0, sizeof(vec4_t)); // xyz array
 		push_bind(5, sizeof(vec4_t)); // normals
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
-	case TYPE_SIGNLE_TEXTURE_LIGHTING:
-	case TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
 		push_bind(0, sizeof(vec4_t)); // xyz array
 		push_bind(1, sizeof(vec2_t)); // st0 array
 		push_bind(2, sizeof(vec4_t)); // normals array
@@ -5659,10 +5659,10 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		push_attr(2, 2, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
-	case TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
-	case TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
-	case TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR:
-	case TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR:
 		push_bind(0, sizeof(vec4_t)); // xyz array
 		push_bind(2, sizeof(vec2_t)); // st0 array
 		push_bind(3, sizeof(vec2_t)); // st1 array
@@ -5671,10 +5671,10 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		push_attr(3, 3, vk::Format::eR32G32Sfloat);
 		break;
 
-	case TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV:
-	case TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV:
-	case TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV:
-	case TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV:
 		push_bind(0, sizeof(vec4_t)); // xyz array
 		push_bind(3, sizeof(vec2_t)); // st1 array
 		push_bind(5, sizeof(vec4_t)); // normals
@@ -5683,9 +5683,9 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
-	case TYPE_MULTI_TEXTURE_MUL2:
-	case TYPE_MULTI_TEXTURE_ADD2_1_1:
-	case TYPE_MULTI_TEXTURE_ADD2:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2:
 		push_bind(0, sizeof(vec4_t));	  // xyz array
 		push_bind(1, sizeof(color4ub_t)); // color array
 		push_bind(2, sizeof(vec2_t));	  // st0 array
@@ -5696,9 +5696,9 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		push_attr(3, 3, vk::Format::eR32G32Sfloat);
 		break;
 
-	case TYPE_MULTI_TEXTURE_MUL2_ENV:
-	case TYPE_MULTI_TEXTURE_ADD2_1_1_ENV:
-	case TYPE_MULTI_TEXTURE_ADD2_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_ENV:
 		push_bind(0, sizeof(vec4_t));	  // xyz array
 		push_bind(1, sizeof(color4ub_t)); // color array
 		// push_bind( 2, sizeof( vec2_t ) );					// st0 array
@@ -5711,9 +5711,9 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
-	case TYPE_MULTI_TEXTURE_MUL3:
-	case TYPE_MULTI_TEXTURE_ADD3_1_1:
-	case TYPE_MULTI_TEXTURE_ADD3:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3:
 		push_bind(0, sizeof(vec4_t));	  // xyz array
 		push_bind(1, sizeof(color4ub_t)); // color array
 		push_bind(2, sizeof(vec2_t));	  // st0 array
@@ -5726,9 +5726,9 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		push_attr(4, 4, vk::Format::eR32G32Sfloat);
 		break;
 
-	case TYPE_MULTI_TEXTURE_MUL3_ENV:
-	case TYPE_MULTI_TEXTURE_ADD3_1_1_ENV:
-	case TYPE_MULTI_TEXTURE_ADD3_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV:
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV:
 		push_bind(0, sizeof(vec4_t));	  // xyz array
 		push_bind(1, sizeof(color4ub_t)); // color array
 		// push_bind( 2, sizeof( vec2_t ) );					// st0 array
@@ -5743,13 +5743,13 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
-	case TYPE_BLEND2_ADD:
-	case TYPE_BLEND2_MUL:
-	case TYPE_BLEND2_ALPHA:
-	case TYPE_BLEND2_ONE_MINUS_ALPHA:
-	case TYPE_BLEND2_MIX_ALPHA:
-	case TYPE_BLEND2_MIX_ONE_MINUS_ALPHA:
-	case TYPE_BLEND2_DST_COLOR_SRC_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_ADD:
+	case Vk_Shader_Type::TYPE_BLEND2_MUL:
+	case Vk_Shader_Type::TYPE_BLEND2_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA:
 		push_bind(0, sizeof(vec4_t));	  // xyz array
 		push_bind(1, sizeof(color4ub_t)); // color0 array
 		push_bind(2, sizeof(vec2_t));	  // st0 array
@@ -5762,13 +5762,13 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		push_attr(6, 6, vk::Format::eR8G8B8A8Unorm);
 		break;
 
-	case TYPE_BLEND2_ADD_ENV:
-	case TYPE_BLEND2_MUL_ENV:
-	case TYPE_BLEND2_ALPHA_ENV:
-	case TYPE_BLEND2_ONE_MINUS_ALPHA_ENV:
-	case TYPE_BLEND2_MIX_ALPHA_ENV:
-	case TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
-	case TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_ADD_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_MUL_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
 		push_bind(0, sizeof(vec4_t));	  // xyz array
 		push_bind(1, sizeof(color4ub_t)); // color0 array
 		// push_bind( 2, sizeof( vec2_t ) );					// st0 array
@@ -5783,13 +5783,13 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		push_attr(6, 6, vk::Format::eR8G8B8A8Unorm);
 		break;
 
-	case TYPE_BLEND3_ADD:
-	case TYPE_BLEND3_MUL:
-	case TYPE_BLEND3_ALPHA:
-	case TYPE_BLEND3_ONE_MINUS_ALPHA:
-	case TYPE_BLEND3_MIX_ALPHA:
-	case TYPE_BLEND3_MIX_ONE_MINUS_ALPHA:
-	case TYPE_BLEND3_DST_COLOR_SRC_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_ADD:
+	case Vk_Shader_Type::TYPE_BLEND3_MUL:
+	case Vk_Shader_Type::TYPE_BLEND3_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA:
 		push_bind(0, sizeof(vec4_t));	  // xyz array
 		push_bind(1, sizeof(color4ub_t)); // color0 array
 		push_bind(2, sizeof(vec2_t));	  // st0 array
@@ -5806,13 +5806,13 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		push_attr(7, 7, vk::Format::eR8G8B8A8Unorm);
 		break;
 
-	case TYPE_BLEND3_ADD_ENV:
-	case TYPE_BLEND3_MUL_ENV:
-	case TYPE_BLEND3_ALPHA_ENV:
-	case TYPE_BLEND3_ONE_MINUS_ALPHA_ENV:
-	case TYPE_BLEND3_MIX_ALPHA_ENV:
-	case TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
-	case TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_ADD_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_MUL_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
 		push_bind(0, sizeof(vec4_t));	  // xyz array
 		push_bind(1, sizeof(color4ub_t)); // color0 array
 		// push_bind( 2, sizeof( vec2_t ) );					// st0 array
@@ -5832,7 +5832,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		break;
 
 	default:
-		ri.Error(ERR_DROP, "%s: invalid shader type - %i", __func__, def.shader_type);
+		ri.Error(ERR_DROP, "%s: invalid shader type - %i", __func__, static_cast<int>(def.shader_type));
 		break;
 	}
 
@@ -5867,7 +5867,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	vk::PipelineRasterizationStateCreateInfo rasterization_state{{},
 																 vk::False,
 																 vk::False,
-																 def.shader_type == TYPE_DOT ? vk::PolygonMode::ePoint : ((state_bits & GLS_POLYMODE_LINE) ? vk::PolygonMode::eLine : vk::PolygonMode::eFill),
+																 def.shader_type == Vk_Shader_Type::TYPE_DOT ? vk::PolygonMode::ePoint : ((state_bits & GLS_POLYMODE_LINE) ? vk::PolygonMode::eLine : vk::PolygonMode::eFill),
 																 {},
 																 vk::FrontFace::eClockwise, // Q3 defaults to clockwise vertex order
 																 def.polygon_offset ? vk::True : vk::False,
@@ -5901,7 +5901,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	}
 
 	vk::PipelineMultisampleStateCreateInfo multisample_state{{},
-															 (vk_inst.renderPassIndex == RENDER_PASS_SCREENMAP) ? vk_inst.screenMapSamples : vkSamples,
+															 (vk_inst.renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP) ? vk_inst.screenMapSamples : vkSamples,
 															 vk::False,
 															 1.0f,
 															 nullptr,
@@ -5996,7 +5996,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 											   &blend_state,
 											   &dynamic_state,
 											   vk_inst.pipeline_layout,
-											   (renderPassIndex == RENDER_PASS_SCREENMAP) ? vk_inst.render_pass.screenmap : vk_inst.render_pass.main,
+											   (renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP) ? vk_inst.render_pass.screenmap : vk_inst.render_pass.main,
 											   0,
 											   nullptr,
 											   -1,
@@ -6036,10 +6036,11 @@ vk::Pipeline vk_gen_pipeline(const uint32_t index)
 {
 	if (index < vk_inst.pipelines_count)
 	{
+		uint8_t renderPassIndex = static_cast<uint8_t>(vk_inst.renderPassIndex);
 		VK_Pipeline_t *pipeline = vk_inst.pipelines + index;
-		if (!pipeline->handle[vk_inst.renderPassIndex])
-			pipeline->handle[vk_inst.renderPassIndex] = create_pipeline(pipeline->def, vk_inst.renderPassIndex);
-		return pipeline->handle[vk_inst.renderPassIndex];
+		if (!pipeline->handle[renderPassIndex])
+			pipeline->handle[renderPassIndex] = create_pipeline(pipeline->def, vk_inst.renderPassIndex);
+		return pipeline->handle[renderPassIndex];
 	}
 	else
 	{
@@ -6124,6 +6125,38 @@ static void get_viewport_rect(vk::Rect2D &r)
 	}
 }
 
+constexpr float get_min_depth(const Vk_Depth_Range depth_range) {
+    switch (depth_range) {
+    #ifdef USE_REVERSED_DEPTH
+        case Vk_Depth_Range::DEPTH_RANGE_ZERO: return 1.0f;
+        case Vk_Depth_Range::DEPTH_RANGE_ONE: return 0.0f;
+        case Vk_Depth_Range::DEPTH_RANGE_WEAPON: return 0.6f;
+        default: return 0.0f; // DEPTH_RANGE_NORMAL
+    #else
+        case Vk_Depth_Range::DEPTH_RANGE_ZERO: return 0.0f;
+        case Vk_Depth_Range::DEPTH_RANGE_ONE: return 1.0f;
+        case Vk_Depth_Range::DEPTH_RANGE_WEAPON: return 0.0f;
+        default: return 0.0f; // DEPTH_RANGE_NORMAL
+    #endif
+    }
+}
+
+constexpr float get_max_depth(const Vk_Depth_Range depth_range) {
+    switch (depth_range) {
+    #ifdef USE_REVERSED_DEPTH
+        case Vk_Depth_Range::DEPTH_RANGE_ZERO: return 1.0f;
+        case Vk_Depth_Range::DEPTH_RANGE_ONE: return 0.0f;
+        case Vk_Depth_Range::DEPTH_RANGE_WEAPON: return 1.0f;
+        default: return 1.0f; // DEPTH_RANGE_NORMAL
+    #else
+        case Vk_Depth_Range::DEPTH_RANGE_ZERO: return 0.0f;
+        case Vk_Depth_Range::DEPTH_RANGE_ONE: return 1.0f;
+        case Vk_Depth_Range::DEPTH_RANGE_WEAPON: return 0.3f;
+        default: return 1.0f; // DEPTH_RANGE_NORMAL
+    #endif
+    }
+}
+
 static void get_viewport(vk::Viewport &viewport, const Vk_Depth_Range depth_range)
 {
 	vk::Rect2D r;
@@ -6134,46 +6167,8 @@ static void get_viewport(vk::Viewport &viewport, const Vk_Depth_Range depth_rang
 	viewport.y = (float)r.offset.y;
 	viewport.width = (float)r.extent.width;
 	viewport.height = (float)r.extent.height;
-
-	switch (depth_range)
-	{
-	default:
-#ifdef USE_REVERSED_DEPTH
-		// case DEPTH_RANGE_NORMAL:
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 1.0f;
-		break;
-	case DEPTH_RANGE_ZERO:
-		viewport.minDepth = 1.0f;
-		viewport.maxDepth = 1.0f;
-		break;
-	case DEPTH_RANGE_ONE:
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 0.0f;
-		break;
-	case DEPTH_RANGE_WEAPON:
-		viewport.minDepth = 0.6f;
-		viewport.maxDepth = 1.0f;
-		break;
-#else
-		// case DEPTH_RANGE_NORMAL:
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 1.0f;
-		break;
-	case DEPTH_RANGE_ZERO:
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 0.0f;
-		break;
-	case DEPTH_RANGE_ONE:
-		viewport.minDepth = 1.0f;
-		viewport.maxDepth = 1.0f;
-		break;
-	case DEPTH_RANGE_WEAPON:
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 0.3f;
-		break;
-#endif
-	}
+	viewport.minDepth = get_min_depth(depth_range);
+	viewport.maxDepth = get_max_depth(depth_range);
 }
 
 static void get_scissor_rect(vk::Rect2D &r)
@@ -6594,12 +6589,12 @@ void vk_update_descriptor_offset(const int index, const uint32_t offset)
 
 void vk_bind_descriptor_sets(void)
 {
-	uint32_t offsets[2]{}, offset_count;
-	uint32_t start, end, count;
-
-	start = vk_inst.cmd->descriptor_set.start;
+	uint32_t start = vk_inst.cmd->descriptor_set.start;
 	if (start == ~0U)
 		return;
+
+	uint32_t offsets[2]{}, offset_count;
+	uint32_t end, count;
 
 	end = vk_inst.cmd->descriptor_set.end;
 
@@ -6722,7 +6717,7 @@ void vk_begin_main_render_pass(void)
 {
 	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
 
-	vk_inst.renderPassIndex = RENDER_PASS_MAIN;
+	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_MAIN;
 
 	vk_inst.renderWidth = glConfig.vidWidth;
 	vk_inst.renderHeight = glConfig.vidHeight;
@@ -6738,7 +6733,7 @@ void vk_begin_post_bloom_render_pass(void)
 {
 	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
 
-	vk_inst.renderPassIndex = RENDER_PASS_POST_BLOOM;
+	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_POST_BLOOM;
 
 	vk_inst.renderWidth = glConfig.vidWidth;
 	vk_inst.renderHeight = glConfig.vidHeight;
@@ -6786,7 +6781,7 @@ static void vk_begin_screenmap_render_pass(void)
 {
 	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.screenmap;
 
-	vk_inst.renderPassIndex = RENDER_PASS_SCREENMAP;
+	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_SCREENMAP;
 
 	vk_inst.renderWidth = vk_inst.screenMapWidth;
 	vk_inst.renderHeight = vk_inst.screenMapHeight;
@@ -6801,7 +6796,7 @@ void vk_end_render_pass(void)
 {
 	vk_inst.cmd->command_buffer.endRenderPass();
 
-	//	vk_inst.renderPassIndex = RENDER_PASS_MAIN;
+	//	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_MAIN;
 }
 
 static bool vk_find_screenmap_drawsurfs(void)
@@ -7410,7 +7405,7 @@ bool vk_bloom(void)
 {
 	uint32_t i;
 
-	if (vk_inst.renderPassIndex == RENDER_PASS_SCREENMAP)
+	if (vk_inst.renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP)
 	{
 		return false;
 	}
@@ -7487,7 +7482,7 @@ bool vk_bloom(void)
 		vk_update_mvp(nullptr);
 
 		// force depth range and viewport/scissor updates
-		vk_inst.cmd->depth_range = DEPTH_RANGE_COUNT;
+		vk_inst.cmd->depth_range = Vk_Depth_Range::DEPTH_RANGE_COUNT;
 
 		// restore clobbered descriptor sets
 		for (i = 0; i < VK_NUM_BLOOM_PASSES; i++)

@@ -374,7 +374,7 @@ static void RB_TestFlare(flare_t *f)
 
 	vk_bind_pipeline(vk_inst.dot_pipeline);
 	vk_bind_geometry(TESS_XYZ);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, false);
 
 	// Com_Memcpy( vk_world.modelview_transform, modelMatrix_original, sizeof( modelMatrix_original ) );
 	// vk_update_mvp( NULL );
@@ -513,7 +513,7 @@ void RB_RenderFlares(void)
 		return;
 	}
 
-	if (vk_inst.renderPassIndex == RENDER_PASS_SCREENMAP)
+	if (vk_inst.renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP)
 	{
 		return;
 	}

@@ -472,7 +472,7 @@ static void RB_SurfaceBeam(void)
 
 	vk_bind_pipeline(vk_inst.surface_beam_pipeline);
 	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, false);
 
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
@@ -1375,7 +1375,7 @@ static void RB_SurfaceAxis(void)
 	vk_bind_pipeline(vk_inst.surface_axis_pipeline);
 	// TODO: use common layout and avoid ST0 binding?
 	vk_bind_geometry(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, false);
 
 	tess.numVertexes = 0;
 }

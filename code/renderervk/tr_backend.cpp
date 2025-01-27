@@ -134,7 +134,7 @@ static void SetViewportAndScissor(void)
 	// Com_Memcpy( vk_world.modelview_transform, backEnd.ort.modelMatrix, 64 );
 	// vk_update_mvp();
 	//  force depth range and viewport/scissor updates
-	vk_inst.cmd->depth_range = DEPTH_RANGE_COUNT;
+	vk_inst.cmd->depth_range = Vk_Depth_Range::DEPTH_RANGE_COUNT;
 }
 
 /*
@@ -224,7 +224,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 		}
 
 		R_DecomposeSort(drawSurf->sort, entityNum, &shader, fogNum, dlighted);
-		if (vk_inst.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
+		if (vk_inst.renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
 		{
 			continue;
 		}
@@ -308,7 +308,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 			tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
 
 			Com_Memcpy(vk_world.modelview_transform, backEnd.ort.modelMatrix, 64);
-			tess.depthRange = depthRange ? DEPTH_RANGE_WEAPON : DEPTH_RANGE_NORMAL;
+			tess.depthRange = depthRange ? Vk_Depth_Range::DEPTH_RANGE_WEAPON : Vk_Depth_Range::DEPTH_RANGE_NORMAL;
 			vk_update_mvp(NULL);
 
 			//
@@ -333,7 +333,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 
 	// go back to the world modelview matrix
 	Com_Memcpy(vk_world.modelview_transform, backEnd.viewParms.world.modelMatrix, 64);
-	tess.depthRange = DEPTH_RANGE_NORMAL;
+	tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_NORMAL;
 	// vk_update_mvp();
 }
 
@@ -399,7 +399,7 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 
 		R_DecomposeLitSort(litSurf->sort, entityNum, &shader, fogNum);
 
-		if (vk_inst.renderPassIndex == RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
+		if (vk_inst.renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
 		{
 			continue;
 		}
@@ -469,7 +469,7 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 			R_TransformDlights(1, &dl, backEnd.ort);
 			tess.dlightUpdateParams = true;
 
-			tess.depthRange = depthRange ? DEPTH_RANGE_WEAPON : DEPTH_RANGE_NORMAL;
+			tess.depthRange = depthRange ? Vk_Depth_Range::DEPTH_RANGE_WEAPON : Vk_Depth_Range::DEPTH_RANGE_NORMAL;
 			Com_Memcpy(vk_world.modelview_transform, backEnd.ort.modelMatrix, 64);
 			vk_update_mvp(NULL);
 
@@ -490,7 +490,7 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 
 	// go back to the world modelview matrix
 	Com_Memcpy(vk_world.modelview_transform, backEnd.viewParms.world.modelMatrix, 64);
-	tess.depthRange = DEPTH_RANGE_NORMAL;
+	tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_NORMAL;
 	// vk_update_mvp();
 }
 #endif // USE_PMLIGHT
@@ -515,7 +515,7 @@ static void RB_SetGL2D(void)
 	vk_update_mvp(NULL);
 
 	// force depth range and viewport/scissor updates
-	vk_inst.cmd->depth_range = DEPTH_RANGE_COUNT;
+	vk_inst.cmd->depth_range = Vk_Depth_Range::DEPTH_RANGE_COUNT;
 
 	// set time for 2D shaders
 	backEnd.refdef.time = ri.Milliseconds();
@@ -760,7 +760,7 @@ static void RB_DebugPolygon(const int color, const int numPoints, float *points)
 	vk_bind_index();
 	vk_bind_pipeline(vk_inst.surface_debug_pipeline_solid);
 	vk_bind_geometry(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, true);
 
 	// Outline.
 	Com_Memset(tess.svars.colors[0], tr.identityLightByte, numPoints * 2 * sizeof(color4ub_t));
@@ -775,7 +775,7 @@ static void RB_DebugPolygon(const int color, const int numPoints, float *points)
 
 	vk_bind_pipeline(vk_inst.surface_debug_pipeline_outline);
 	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
-	vk_draw_geometry(DEPTH_RANGE_ZERO, false);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_ZERO, false);
 	tess.numVertexes = 0;
 }
 
@@ -876,10 +876,10 @@ static const void *RB_DrawBuffer(const void *data)
 
 	vk_begin_frame();
 
-	tess.depthRange = DEPTH_RANGE_NORMAL;
+	tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_NORMAL;
 
 	// force depth range and viewport/scissor updates
-	vk_inst.cmd->depth_range = DEPTH_RANGE_COUNT;
+	vk_inst.cmd->depth_range = Vk_Depth_Range::DEPTH_RANGE_COUNT;
 
 	if (r_clear->integer)
 	{
@@ -962,7 +962,7 @@ void RB_ShowImages(void)
 
 		vk_bind_pipeline(vk_inst.images_debug_pipeline);
 		vk_bind_geometry(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
-		vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
+		vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, false);
 	}
 
 	tess.numIndexes = 0;

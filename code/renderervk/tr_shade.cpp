@@ -908,7 +908,7 @@ static bool ProjectDlightTexture(void)
 		vk_bind_pipeline(pipeline);
 		vk_bind_index_ext(numIndexes, hitIndexes);
 		vk_bind_geometry(TESS_RGBA0 | TESS_ST0);
-		vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
+		vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, true);
 		backEnd.pc.c_totalIndexes += numIndexes;
 		backEnd.pc.c_dlightIndexes += numIndexes;
 	}
@@ -940,7 +940,7 @@ static void RB_FogPass(bool rebindIndex)
 	VK_SetFogParams(uniform, fog_stage);
 	VK_PushUniform(uniform);
 	vk_update_descriptor(VK_DESC_FOG_ONLY, tr.fogImage->descriptor);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, true);
 #else
 	const fog_t *fog = tr.world->fogs + tess.fogNum;
 	int i;
@@ -1057,7 +1057,7 @@ static void DrawTris(const shaderCommands_t &input)
 	}
 
 	vk_bind_pipeline(pipeline);
-	vk_draw_geometry(DEPTH_RANGE_ZERO, true);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_ZERO, true);
 }
 
 /*
@@ -1091,7 +1091,7 @@ static void DrawNormals(const shaderCommands_t &input)
 	vk_bind_pipeline(vk_inst.normals_debug_pipeline);
 	vk_bind_index();
 	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
-	vk_draw_geometry(DEPTH_RANGE_ZERO, true);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_ZERO, true);
 }
 
 void RB_EndSurface(void)

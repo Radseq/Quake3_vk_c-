@@ -466,7 +466,7 @@ static void DrawSkySide(image_t *image, const int mins[2], const int maxs[2])
 		vk_bind_pipeline(vk_inst.skybox_pipeline);
 		vk_bind_index();
 		vk_bind_geometry(TESS_XYZ | TESS_ST0);
-		vk_draw_geometry(r_showsky->integer ? DEPTH_RANGE_ZERO : DEPTH_RANGE_ONE, true);
+		vk_draw_geometry(r_showsky->integer ? Vk_Depth_Range::DEPTH_RANGE_ZERO : Vk_Depth_Range::DEPTH_RANGE_ONE, true);
 		tess.numVertexes = 0;
 		tess.numIndexes = 0;
 	}
@@ -791,7 +791,7 @@ void RB_DrawSun(const float scale, shader_t &shader)
 	VectorScale(vec2, size, vec2);
 
 	// farthest depth range
-	tess.depthRange = DEPTH_RANGE_ONE;
+	tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_ONE;
 
 	RB_BeginSurface(shader, 0);
 
@@ -800,7 +800,7 @@ void RB_DrawSun(const float scale, shader_t &shader)
 	RB_EndSurface();
 
 	// back to normal depth range
-	tess.depthRange = DEPTH_RANGE_NORMAL;
+	tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_NORMAL;
 }
 
 /*
@@ -834,11 +834,11 @@ void RB_StageIteratorSky(void)
 
 	if (r_showsky->integer)
 	{
-		tess.depthRange = DEPTH_RANGE_ZERO;
+		tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_ZERO;
 	}
 	else
 	{
-		tess.depthRange = DEPTH_RANGE_ONE;
+		tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_ONE;
 	}
 
 	// draw the outer skybox
@@ -858,7 +858,7 @@ void RB_StageIteratorSky(void)
 	}
 
 	// back to normal depth range
-	tess.depthRange = DEPTH_RANGE_NORMAL;
+	tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_NORMAL;
 
 	// note that sky was drawn so we will draw a sun later
 	backEnd.skyRenderedThisView = true;

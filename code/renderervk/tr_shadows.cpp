@@ -231,9 +231,9 @@ void RB_ShadowTessEnd(void)
 	vk_bind_pipeline(pipeline[0]); // back-sided
 	vk_bind_index();
 	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, true);
 	vk_bind_pipeline(pipeline[1]); // front-sided
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, true);
 
 	tess.numVertexes /= 2;
 
@@ -301,7 +301,7 @@ void RB_ShadowFinish(void)
 	vk_update_mvp(NULL);
 
 	vk_bind_geometry(TESS_XYZ | TESS_RGBA0 /*| TESS_ST0 */);
-	vk_draw_geometry(DEPTH_RANGE_NORMAL, false);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, false);
 
 	Com_Memcpy(vk_world.modelview_transform, tmp, 64);
 
