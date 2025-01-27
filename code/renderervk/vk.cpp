@@ -1803,12 +1803,6 @@ void vk_update_uniform_descriptor(const vk::DescriptorSet &descriptor, const vk:
 
 static vk::Sampler vk_find_sampler(const Vk_Sampler_Def &def)
 {
-	vk::SamplerAddressMode address_mode;
-	vk::Sampler sampler;
-	vk::Filter mag_filter;
-	vk::Filter min_filter;
-	vk::SamplerMipmapMode mipmap_mode;
-	float maxLod;
 	int i;
 
 	// Look for sampler among existing samplers.
@@ -1820,6 +1814,13 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def &def)
 			return vk_world.samplers[i];
 		}
 	}
+
+	vk::SamplerAddressMode address_mode;
+	vk::Sampler sampler;
+	vk::Filter mag_filter;
+	vk::Filter min_filter;
+	vk::SamplerMipmapMode mipmap_mode;
+	float maxLod;
 
 	// Create new sampler.
 	if (vk_world.num_samplers >= MAX_VK_SAMPLERS)
@@ -6688,8 +6689,6 @@ void vk_draw_geometry(const Vk_Depth_Range depth_range, const bool indexed)
 
 static void vk_begin_render_pass(const vk::RenderPass &renderPass, const vk::Framebuffer &frameBuffer, const bool clearValues, const uint32_t width, const uint32_t height)
 {
-	vk::ClearValue clear_values[3]{};
-
 	// Begin render pass.
 
 	vk::RenderPassBeginInfo render_pass_begin_info{renderPass,
@@ -6701,6 +6700,8 @@ static void vk_begin_render_pass(const vk::RenderPass &renderPass, const vk::Fra
 
 	if (clearValues)
 	{
+		vk::ClearValue clear_values[3]{};
+
 		// attachments layout:
 		// [0] - resolve/color/presentation
 		// [1] - depth/stencil
