@@ -185,20 +185,20 @@ enum class Vk_Shader_Type : uint8_t
 };
 
 // used with cg_shadows == 2
-typedef enum
+enum class Vk_Shadow_Phase : uint8_t
 {
     SHADOW_DISABLED,
     SHADOW_EDGES,
     SHADOW_FS_QUAD,
-} Vk_Shadow_Phase;
+};
 
-typedef enum
+enum class Vk_Primitive_Topology : uint8_t
 {
     TRIANGLE_LIST = 0,
     TRIANGLE_STRIP,
     LINE_LIST,
     POINT_LIST
-} Vk_Primitive_Topology;
+};
 
 typedef struct
 {

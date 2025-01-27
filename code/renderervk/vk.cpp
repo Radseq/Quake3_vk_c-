@@ -2520,7 +2520,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.polygon_offset = false;
 		def.state_bits = 0;
 		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
-		def.shadow_phase = SHADOW_EDGES;
+		def.shadow_phase = Vk_Shadow_Phase::SHADOW_EDGES;
 
 		for (i = 0; i < 2; i++)
 		{
@@ -2539,8 +2539,8 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO;
 		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 		def.mirror = false;
-		def.shadow_phase = SHADOW_FS_QUAD;
-		def.primitives = TRIANGLE_STRIP;
+		def.shadow_phase = Vk_Shadow_Phase::SHADOW_FS_QUAD;
+		def.primitives = Vk_Primitive_Topology::TRIANGLE_STRIP;
 		vk_inst.shadow_finish_pipeline = vk_find_pipeline_ext(0, def, r_shadows->integer ? true : false);
 	}
 
@@ -2625,7 +2625,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def = {};
 		def.state_bits = GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.face_culling = CT_FRONT_SIDED;
-		def.primitives = TRIANGLE_STRIP;
+		def.primitives = Vk_Primitive_Topology::TRIANGLE_STRIP;
 		vk_inst.surface_beam_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 
@@ -2635,7 +2635,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.state_bits = GLS_DEFAULT;
 		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 		def.face_culling = CT_TWO_SIDED;
-		def.primitives = LINE_LIST;
+		def.primitives = Vk_Primitive_Topology::LINE_LIST;
 		if (vk_inst.wideLines)
 			def.line_width = 3;
 		vk_inst.surface_axis_pipeline = vk_find_pipeline_ext(0, def, false);
@@ -2648,7 +2648,7 @@ static void vk_alloc_persistent_pipelines(void)
 		// def.state_bits = GLS_DEFAULT;
 		def.face_culling = CT_TWO_SIDED;
 		def.shader_type = Vk_Shader_Type::TYPE_DOT;
-		def.primitives = POINT_LIST;
+		def.primitives = Vk_Primitive_Topology::POINT_LIST;
 		vk_inst.dot_pipeline = vk_find_pipeline_ext(0, def, true);
 	}
 
@@ -2702,7 +2702,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def = {};
 		def.state_bits = GLS_DEPTHMASK_TRUE;
 		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
-		def.primitives = LINE_LIST;
+		def.primitives = Vk_Primitive_Topology::LINE_LIST;
 		vk_inst.normals_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 
@@ -2717,7 +2717,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def = {};
 		def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
-		def.primitives = LINE_LIST;
+		def.primitives = Vk_Primitive_Topology::LINE_LIST;
 		vk_inst.surface_debug_pipeline_outline = vk_find_pipeline_ext(0, def, false);
 	}
 
@@ -2726,7 +2726,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def = {};
 		def.state_bits = GLS_DEPTHTEST_DISABLE | GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
 		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
-		def.primitives = TRIANGLE_STRIP;
+		def.primitives = Vk_Primitive_Topology::TRIANGLE_STRIP;
 		vk_inst.images_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 }
@@ -5054,11 +5054,11 @@ static constexpr vk::PrimitiveTopology GetTopologyByPrimitivies(const Vk_Pipelin
 {
 	switch (def.primitives)
 	{
-	case LINE_LIST:
+	case Vk_Primitive_Topology::LINE_LIST:
 		return vk::PrimitiveTopology::eLineList;
-	case POINT_LIST:
+	case Vk_Primitive_Topology::POINT_LIST:
 		return vk::PrimitiveTopology::ePointList;
-	case TRIANGLE_STRIP:
+	case Vk_Primitive_Topology::TRIANGLE_STRIP:
 		return vk::PrimitiveTopology::eTriangleStrip;
 	default:
 		return vk::PrimitiveTopology::eTriangleList;
@@ -5091,7 +5091,7 @@ static vk::PipelineColorBlendAttachmentState createBlendAttachmentState(const ui
 
 	// Initialize colorWriteMask based on shader phase/type
 	vk::ColorComponentFlags colorWriteMask =
-		(def.shadow_phase == SHADOW_EDGES || def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF) ? vk::ColorComponentFlags(0) : vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+		(def.shadow_phase == Vk_Shadow_Phase::SHADOW_EDGES || def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF) ? vk::ColorComponentFlags(0) : vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
 
 	vk::BlendFactor srcColorBlendFactor = {};
 	vk::BlendFactor dstColorBlendFactor = {};
@@ -5914,7 +5914,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 																(state_bits & GLS_DEPTHMASK_TRUE) ? vk::True : vk::False,
 																{},
 																vk::False,
-																(def.shadow_phase != SHADOW_DISABLED) ? vk::True : vk::False,
+																(def.shadow_phase != Vk_Shadow_Phase::SHADOW_DISABLED) ? vk::True : vk::False,
 																{},
 																{},
 																0.0f,
@@ -5927,7 +5927,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	depth_stencil_state.depthCompareOp = (state_bits & GLS_DEPTHFUNC_EQUAL) ? vk::CompareOp::eEqual : vk::CompareOp::eLessOrEqual;
 #endif
 
-	if (def.shadow_phase == SHADOW_EDGES)
+	if (def.shadow_phase == Vk_Shadow_Phase::SHADOW_EDGES)
 	{
 		depth_stencil_state.front.failOp = vk::StencilOp::eKeep;
 		depth_stencil_state.front.passOp = (def.face_culling == CT_FRONT_SIDED) ? vk::StencilOp::eIncrementAndClamp : vk::StencilOp::eDecrementAndClamp;
@@ -5939,7 +5939,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 
 		depth_stencil_state.back = depth_stencil_state.front;
 	}
-	else if (def.shadow_phase == SHADOW_FS_QUAD)
+	else if (def.shadow_phase == Vk_Shadow_Phase::SHADOW_FS_QUAD)
 	{
 		depth_stencil_state.front.failOp = vk::StencilOp::eKeep;
 		depth_stencil_state.front.passOp = vk::StencilOp::eKeep;
