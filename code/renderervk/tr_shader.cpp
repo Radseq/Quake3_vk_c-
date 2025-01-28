@@ -1613,25 +1613,25 @@ static void ParseSurfaceParm(const char **text)
 	}
 }
 
-typedef enum
+enum class resultType : int8_t
 {
 	res_invalid = -1,
 	res_false = 0,
 	res_true = 1
-} resultType;
+};
 
-typedef enum
+enum class branchType : int8_t
 {
 	brIF,
 	brELIF,
 	brELSE
-} branchType;
+};
 
-typedef enum
+enum class resultMask : int8_t
 {
 	maskOR,
 	maskAND
-} resultMask;
+};
 
 static void derefVariable(std::string_view name, char *buf, const int size)
 {
@@ -1670,8 +1670,8 @@ static bool ParseCondition(const char **text, resultType *res)
 	bool str;
 	int r, r0;
 
-	r = 0;		 // resulting value
-	rm = maskOR; // default mask
+	r = 0;					 // resulting value
+	rm = resultMask::maskOR; // default mask
 
 	for (;;)
 	{
@@ -1808,20 +1808,20 @@ static bool ParseCondition(const char **text, resultType *res)
 			}
 		}
 
-		if (rm == maskOR)
+		if (rm == resultMask::maskOR)
 			r |= r0;
 		else
 			r &= r0;
 
 		if (com_tokentype == TK_OR)
 		{
-			rm = maskOR;
+			rm = resultMask::maskOR;
 			continue;
 		}
 
 		if (com_tokentype == TK_AND)
 		{
-			rm = maskAND;
+			rm = resultMask::maskAND;
 			continue;
 		}
 
@@ -1835,7 +1835,7 @@ static bool ParseCondition(const char **text, resultType *res)
 	}
 
 	if (res)
-		*res = r ? res_true : res_false;
+		*res = r ? resultType::res_true : resultType::res_false;
 
 	return true;
 }
@@ -1951,7 +1951,7 @@ static bool ParseShader(const char **text)
 		return false;
 	}
 
-	res = res_invalid;
+	res = resultType::res_invalid;
 
 	while (1)
 	{
@@ -2165,23 +2165,23 @@ static bool ParseShader(const char **text)
 		{
 			if (Q_stricmp_cpp(token, "if") == 0)
 			{
-				branch = brIF;
+				branch = branchType::brIF;
 			}
 			else
 			{
-				if (res == res_invalid)
+				if (res == resultType::res_invalid)
 				{
 					// we don't have any previous 'if' statements
 					ri.Printf(PRINT_WARNING, "WARNING: unexpected '%s' in '%s'\n", token.data(), shader.name);
 					return false;
 				}
 				if (Q_stricmp_cpp(token, "else") == 0)
-					branch = brELSE;
+					branch = branchType::brELSE;
 				else
-					branch = brELIF;
+					branch = branchType::brELIF;
 			}
 
-			if (branch != brELSE)
+			if (branch != branchType::brELSE)
 			{ // we can set/update result
 				token = COM_ParseComplex(text, false);
 				if (com_tokentype != TK_SCOPE_OPEN)
@@ -2189,14 +2189,14 @@ static bool ParseShader(const char **text)
 					ri.Printf(PRINT_WARNING, "WARNING: expecting '(' in '%s'\n", shader.name);
 					return false;
 				}
-				if (!ParseCondition(text, (branch == brIF || res == res_true) ? &res : NULL))
+				if (!ParseCondition(text, (branch == branchType::brIF || res == resultType::res_true) ? &res : NULL))
 				{
 					ri.Printf(PRINT_WARNING, "WARNING: error parsing condition in '%s'\n", shader.name);
 					return false;
 				}
 			}
 
-			if (res == res_false)
+			if (res == resultType::res_false)
 			{
 				// skip next stage or keyword until newline
 				token = COM_ParseExt_cpp(text, true);
@@ -2210,10 +2210,10 @@ static bool ParseShader(const char **text)
 				// parse next tokens as usual
 			}
 
-			if (branch == brELSE)
-				res = res_invalid; // finalize branch
+			if (branch == branchType::brELSE)
+				res = resultType::res_invalid; // finalize branch
 			else
-				res = static_cast<resultType>(res ^ 1); // or toggle for possible "elif" / "else" statements
+				res = static_cast<resultType>(static_cast<int>(res) ^ 1); // or toggle for possible "elif" / "else" statements
 
 			continue;
 		}
@@ -2571,27 +2571,27 @@ static void FixRenderCommandList(const int newShader)
 	{
 		const void *curCmd = cmdList->cmds;
 
-		*((int *)(cmdList->cmds + cmdList->used)) = RC_END_OF_LIST;
+		*((int *)(cmdList->cmds + cmdList->used)) = static_cast<int>(renderCommand_t::RC_END_OF_LIST);
 
 		while (1)
 		{
 			curCmd = PADP(curCmd, sizeof(void *));
 
-			switch (*(const int *)curCmd)
+			switch (static_cast<renderCommand_t>(*(const int *)curCmd))
 			{
-			case RC_SET_COLOR:
+			case renderCommand_t::RC_SET_COLOR:
 			{
 				const setColorCommand_t *sc_cmd = (const setColorCommand_t *)curCmd;
 				curCmd = (const void *)(sc_cmd + 1);
 				break;
 			}
-			case RC_STRETCH_PIC:
+			case renderCommand_t::RC_STRETCH_PIC:
 			{
 				const stretchPicCommand_t *sp_cmd = (const stretchPicCommand_t *)curCmd;
 				curCmd = (const void *)(sp_cmd + 1);
 				break;
 			}
-			case RC_DRAW_SURFS:
+			case renderCommand_t::RC_DRAW_SURFS:
 			{
 				int i;
 				drawSurf_t *drawSurf;
@@ -2615,43 +2615,43 @@ static void FixRenderCommandList(const int newShader)
 				curCmd = (const void *)(ds_cmd + 1);
 				break;
 			}
-			case RC_DRAW_BUFFER:
+			case renderCommand_t::RC_DRAW_BUFFER:
 			{
 				const drawBufferCommand_t *db_cmd = (const drawBufferCommand_t *)curCmd;
 				curCmd = (const void *)(db_cmd + 1);
 				break;
 			}
-			case RC_SWAP_BUFFERS:
+			case renderCommand_t::RC_SWAP_BUFFERS:
 			{
 				const swapBuffersCommand_t *sb_cmd = (const swapBuffersCommand_t *)curCmd;
 				curCmd = (const void *)(sb_cmd + 1);
 				break;
 			}
-			case RC_FINISHBLOOM:
+			case renderCommand_t::RC_FINISHBLOOM:
 			{
 				const finishBloomCommand_t *fb_cmd = (const finishBloomCommand_t *)curCmd;
 				curCmd = (const void *)(fb_cmd + 1);
 				break;
 			}
-			case RC_COLORMASK:
+			case renderCommand_t::RC_COLORMASK:
 			{
 				const colorMaskCommand_t *cm_cmd = (const colorMaskCommand_t *)curCmd;
 				curCmd = (const void *)(cm_cmd + 1);
 				break;
 			}
-			case RC_CLEARDEPTH:
+			case renderCommand_t::RC_CLEARDEPTH:
 			{
 				const clearDepthCommand_t *cd_cmd = (const clearDepthCommand_t *)curCmd;
 				curCmd = (const void *)(cd_cmd + 1);
 				break;
 			}
-			case RC_CLEARCOLOR:
+			case renderCommand_t::RC_CLEARCOLOR:
 			{
 				const clearColorCommand_t *cc_cmd = (const clearColorCommand_t *)curCmd;
 				curCmd = (const void *)(cc_cmd + 1);
 				break;
 			}
-			case RC_END_OF_LIST:
+			case renderCommand_t::RC_END_OF_LIST:
 			default:
 				return;
 			}
@@ -4665,7 +4665,7 @@ static void CreateInternalShaders(void)
 	stages[0].bundle[0].tcGen = TCGEN_TEXTURE;
 	stages[0].active = true;
 	stages[0].stateBits = GLS_DEFAULT;
-	shader.sort =  static_cast<float>(shaderSort_t::SS_STENCIL_SHADOW);
+	shader.sort = static_cast<float>(shaderSort_t::SS_STENCIL_SHADOW);
 	tr.shadowShader = FinishShader();
 
 	InitShader("<cinematic>", LIGHTMAP_NONE);

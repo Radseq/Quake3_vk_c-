@@ -99,7 +99,7 @@ static void R_IssueRenderCommands(void)
 	renderCommandList_t &cmdList = backEndData->commands;
 
 	// add an end-of-list command
-	*(int *)(cmdList.cmds + cmdList.used) = RC_END_OF_LIST;
+	*(int *)(cmdList.cmds + cmdList.used) = static_cast<int>(renderCommand_t::RC_END_OF_LIST);
 
 	// clear it out, in case this is a sync and not a buffer flip
 	cmdList.used = 0;
@@ -164,7 +164,7 @@ returns NULL if there is not enough space for important commands
 */
 void *R_GetCommandBuffer(int bytes)
 {
-	tr.lastRenderCommand = RC_END_OF_LIST;
+	tr.lastRenderCommand = renderCommand_t::RC_END_OF_LIST;
 	return R_GetCommandBufferReserved(bytes, PAD(sizeof(swapBuffersCommand_t), sizeof(void *)));
 }
 
@@ -182,7 +182,7 @@ void R_AddDrawSurfCmd(drawSurf_t &drawSurfs, int numDrawSurfs)
 	{
 		return;
 	}
-	cmd->commandId = RC_DRAW_SURFS;
+	cmd->commandId = renderCommand_t::RC_DRAW_SURFS;
 
 	cmd->drawSurfs = &drawSurfs;
 	cmd->numDrawSurfs = numDrawSurfs;
@@ -219,7 +219,7 @@ void RE_SetColor(const float *rgba)
 	{
 		return;
 	}
-	cmd->commandId = RC_SET_COLOR;
+	cmd->commandId = renderCommand_t::RC_SET_COLOR;
 	if (!rgba)
 	{
 		rgba = colorWhite_cpp;
@@ -250,7 +250,7 @@ void RE_StretchPic(float x, float y, float w, float h,
 	{
 		return;
 	}
-	cmd->commandId = RC_STRETCH_PIC;
+	cmd->commandId = renderCommand_t::RC_STRETCH_PIC;
 	cmd->shader = R_GetShaderByHandle(hShader);
 	cmd->x = x;
 	cmd->y = y;
@@ -288,9 +288,9 @@ void RE_BeginFrame(stereoFrame_t stereoFrame)
 	if ((cmd = static_cast<drawBufferCommand_t *>(R_GetCommandBuffer(sizeof(*cmd)))) == NULL)
 		return;
 
-	cmd->commandId = RC_DRAW_BUFFER;
+	cmd->commandId = renderCommand_t::RC_DRAW_BUFFER;
 
-	tr.lastRenderCommand = RC_DRAW_BUFFER;
+	tr.lastRenderCommand = renderCommand_t::RC_DRAW_BUFFER;
 
 	if (glConfig.stereoEnabled)
 	{
@@ -324,7 +324,7 @@ void RE_BeginFrame(stereoFrame_t stereoFrame)
 			clearColorCommand_t *clrcmd;
 			if ((clrcmd = static_cast<clearColorCommand_t *>(R_GetCommandBuffer(sizeof(*clrcmd)))) == NULL)
 				return;
-			clrcmd->commandId = RC_CLEARCOLOR;
+			clrcmd->commandId = renderCommand_t::RC_CLEARCOLOR;
 		}
 	}
 
@@ -377,7 +377,7 @@ void RE_FinishBloom()
 		return;
 	}
 
-	cmd->commandId = RC_FINISHBLOOM;
+	cmd->commandId = renderCommand_t::RC_FINISHBLOOM;
 }
 
 bool RE_CanMinimize()
@@ -419,7 +419,7 @@ void RE_EndFrame(int *frontEndMsec, int *backEndMsec)
 	{
 		return;
 	}
-	cmd->commandId = RC_SWAP_BUFFERS;
+	cmd->commandId = renderCommand_t::RC_SWAP_BUFFERS;
 
 	R_PerformanceCounters();
 

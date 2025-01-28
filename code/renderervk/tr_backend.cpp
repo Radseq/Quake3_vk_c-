@@ -1121,36 +1121,36 @@ void RB_ExecuteRenderCommands(const void *data)
 	{
 		data = PADP(data, sizeof(void *));
 
-		switch (*(const int *)data)
+		switch (static_cast<renderCommand_t>(*(const int *)data))
 		{
-		case RC_SET_COLOR:
+		case renderCommand_t::RC_SET_COLOR:
 			data = RB_SetColor(data);
 			break;
-		case RC_STRETCH_PIC:
+		case renderCommand_t::RC_STRETCH_PIC:
 			data = RB_StretchPic(data);
 			break;
-		case RC_DRAW_SURFS:
+		case renderCommand_t::RC_DRAW_SURFS:
 			data = RB_DrawSurfs(data);
 			break;
-		case RC_DRAW_BUFFER:
+		case renderCommand_t::RC_DRAW_BUFFER:
 			data = RB_DrawBuffer(data);
 			break;
-		case RC_SWAP_BUFFERS:
+		case renderCommand_t::RC_SWAP_BUFFERS:
 			data = RB_SwapBuffers(data);
 			break;
-		case RC_FINISHBLOOM:
+		case renderCommand_t::RC_FINISHBLOOM:
 			data = RB_FinishBloom(data);
 			break;
-		case RC_COLORMASK:
+		case renderCommand_t::RC_COLORMASK:
 			data = RB_ColorMask(data);
 			break;
-		case RC_CLEARDEPTH:
+		case renderCommand_t::RC_CLEARDEPTH:
 			data = RB_ClearDepth(data);
 			break;
-		case RC_CLEARCOLOR:
+		case renderCommand_t::RC_CLEARCOLOR:
 			data = RB_ClearColor(data);
 			break;
-		case RC_END_OF_LIST:
+		case renderCommand_t::RC_END_OF_LIST:
 		default:
 			// stop rendering
 			if (vk_inst.frame_count)

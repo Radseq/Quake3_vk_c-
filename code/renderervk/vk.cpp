@@ -6808,13 +6808,13 @@ static bool vk_find_screenmap_drawsurfs(void)
 	for (;;)
 	{
 		curCmd = PADP(curCmd, sizeof(void *));
-		switch (*(const int *)curCmd)
+		switch (static_cast<renderCommand_t>(*(const int *)curCmd))
 		{
-		case RC_DRAW_BUFFER:
+		case renderCommand_t::RC_DRAW_BUFFER:
 			db_cmd = (const drawBufferCommand_t *)curCmd;
 			curCmd = (const void *)(db_cmd + 1);
 			break;
-		case RC_DRAW_SURFS:
+		case renderCommand_t::RC_DRAW_SURFS:
 			ds_cmd = (const drawSurfsCommand_t *)curCmd;
 			return ds_cmd->refdef.needScreenMap;
 		default:

@@ -38,13 +38,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 // #include "q_shared.hpp"
 
-extern "C" {
+extern "C"
+{
 #include "../qcommon/q_shared.h"
 #include "../qcommon/qfiles.h"
 #include "../qcommon/qcommon.h"
 #include "../renderercommon/tr_public.h"
 }
-
 
 #include <cstdint>
 using byte = std::uint8_t;
@@ -59,7 +59,6 @@ constexpr int MAX_LITSURFS = (MAX_DRAWSURFS);
 constexpr int MAX_FLARES = 256;
 
 constexpr int MAX_TEXTURE_SIZE = 2048; // must be less or equal to 32768
-
 
 // GL constants substitutions
 typedef enum
@@ -1183,6 +1182,21 @@ typedef struct
 
 typedef struct drawSurfsCommand_s drawSurfsCommand_t;
 
+enum class renderCommand_t : int8_t
+{
+	RC_END_OF_LIST,
+	RC_SET_COLOR,
+	RC_STRETCH_PIC,
+	RC_DRAW_SURFS,
+	RC_DRAW_BUFFER,
+	RC_SWAP_BUFFERS,
+	RC_FINISHBLOOM,
+	RC_COLORMASK,
+	RC_CLEARDEPTH,
+	RC_CLEARCOLOR
+};
+
+
 /*
 ** trGlobals_t
 **
@@ -1297,7 +1311,7 @@ typedef struct
 #ifdef USE_VULKAN
 	drawSurfsCommand_t *drawSurfCmd;
 	int numDrawSurfCmds;
-	int lastRenderCommand;
+	renderCommand_t lastRenderCommand;
 	int numFogs; // read before parsing shaders
 #endif
 
@@ -1500,7 +1514,7 @@ constexpr int CLS_COLOR_ARRAY = 0x00000001;
 constexpr int CLS_TEXCOORD_ARRAY = 0x00000002;
 constexpr int CLS_NORMAL_ARRAY = 0x00000004;
 
-constexpr vec4_t colorBlackCxpr = { 0, 0, 0, 1 };
+constexpr vec4_t colorBlackCxpr = {0, 0, 0, 1};
 
 void R_Init(void);
 
@@ -1677,13 +1691,13 @@ typedef struct
 
 typedef struct
 {
-	int commandId;
+	renderCommand_t commandId;
 	float color[4];
 } setColorCommand_t;
 
 typedef struct
 {
-	int commandId;
+	renderCommand_t commandId;
 	int buffer;
 } drawBufferCommand_t;
 
@@ -1698,17 +1712,17 @@ typedef struct
 
 typedef struct
 {
-	int commandId;
+	renderCommand_t commandId;
 } swapBuffersCommand_t;
 
 typedef struct
 {
-	int commandId;
+	renderCommand_t commandId;
 } finishBloomCommand_t;
 
 typedef struct
 {
-	int commandId;
+	renderCommand_t commandId;
 	shader_t *shader;
 	float x, y;
 	float w, h;
@@ -1718,7 +1732,7 @@ typedef struct
 
 typedef struct drawSurfsCommand_s
 {
-	int commandId;
+	renderCommand_t commandId;
 	trRefdef_t refdef;
 	viewParms_t viewParms;
 	drawSurf_t *drawSurfs;
@@ -1739,22 +1753,8 @@ typedef struct
 
 typedef struct
 {
-	int commandId;
+	renderCommand_t commandId;
 } clearColorCommand_t;
-
-typedef enum
-{
-	RC_END_OF_LIST,
-	RC_SET_COLOR,
-	RC_STRETCH_PIC,
-	RC_DRAW_SURFS,
-	RC_DRAW_BUFFER,
-	RC_SWAP_BUFFERS,
-	RC_FINISHBLOOM,
-	RC_COLORMASK,
-	RC_CLEARDEPTH,
-	RC_CLEARCOLOR
-} renderCommand_t;
 
 // these are sort of arbitrary limits.
 // the limits apply to the sum of all scenes in a frame --
@@ -1785,9 +1785,9 @@ extern int max_polyverts;
 
 extern backEndData_t *backEndData;
 
-void RB_TakeScreenshot(const int x, const int y, const int width, const int height, const char* fileName);
-void RB_TakeScreenshotJPEG(const int x, const int y, const int width, const int height, const char* fileName);
-void RB_TakeScreenshotBMP(const int x, const int y, const int width, const int height, const char* fileName, const int clipboardOnly);
+void RB_TakeScreenshot(const int x, const int y, const int width, const int height, const char *fileName);
+void RB_TakeScreenshotJPEG(const int x, const int y, const int width, const int height, const char *fileName);
+void RB_TakeScreenshotBMP(const int x, const int y, const int width, const int height, const char *fileName, const int clipboardOnly);
 
 #ifndef USE_VULKAN
 #define GLE(ret, name, ...) extern ret(APIENTRY *q##name)(__VA_ARGS__);

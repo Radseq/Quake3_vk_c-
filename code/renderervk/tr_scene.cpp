@@ -523,7 +523,7 @@ void RE_RenderScene(const refdef_t *fd)
 
 	VectorCopy(fd->vieworg, parms.pvsOrigin);
 
-	lastRenderCommand = static_cast<renderCommand_t>(tr.lastRenderCommand);
+	lastRenderCommand = tr.lastRenderCommand;
 	tr.drawSurfCmd = NULL;
 	tr.numDrawSurfCmds = 0;
 
@@ -531,7 +531,7 @@ void RE_RenderScene(const refdef_t *fd)
 
 	if (tr.needScreenMap)
 	{
-		if (lastRenderCommand == RC_DRAW_BUFFER)
+		if (lastRenderCommand == renderCommand_t::RC_DRAW_BUFFER)
 		{
 			// duplicate all views, including portals
 			drawSurfsCommand_t *cmd, *src = nullptr;
