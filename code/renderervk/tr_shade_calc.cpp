@@ -572,38 +572,38 @@ void RB_DeformTessGeometry(void)
 
 		switch (ds.deformation)
 		{
-		case DEFORM_NONE:
+		case deform_t::DEFORM_NONE:
 			break;
-		case DEFORM_NORMALS:
+		case deform_t::DEFORM_NORMALS:
 			RB_CalcDeformNormals(ds);
 			break;
-		case DEFORM_WAVE:
+		case deform_t::DEFORM_WAVE:
 			RB_CalcDeformVertexes(ds);
 			break;
-		case DEFORM_BULGE:
+		case deform_t::DEFORM_BULGE:
 			RB_CalcBulgeVertexes(ds);
 			break;
-		case DEFORM_MOVE:
+		case deform_t::DEFORM_MOVE:
 			RB_CalcMoveVertexes(ds);
 			break;
-		case DEFORM_PROJECTION_SHADOW:
+		case deform_t::DEFORM_PROJECTION_SHADOW:
 			RB_ProjectionShadowDeform();
 			break;
-		case DEFORM_AUTOSPRITE:
+		case deform_t::DEFORM_AUTOSPRITE:
 			AutospriteDeform();
 			break;
-		case DEFORM_AUTOSPRITE2:
+		case deform_t::DEFORM_AUTOSPRITE2:
 			Autosprite2Deform();
 			break;
-		case DEFORM_TEXT0:
-		case DEFORM_TEXT1:
-		case DEFORM_TEXT2:
-		case DEFORM_TEXT3:
-		case DEFORM_TEXT4:
-		case DEFORM_TEXT5:
-		case DEFORM_TEXT6:
-		case DEFORM_TEXT7:
-			DeformText(std::string_view(backEnd.refdef.text[ds.deformation - DEFORM_TEXT0]));
+		case deform_t::DEFORM_TEXT0:
+		case deform_t::DEFORM_TEXT1:
+		case deform_t::DEFORM_TEXT2:
+		case deform_t::DEFORM_TEXT3:
+		case deform_t::DEFORM_TEXT4:
+		case deform_t::DEFORM_TEXT5:
+		case deform_t::DEFORM_TEXT6:
+		case deform_t::DEFORM_TEXT7:
+			DeformText(std::string_view(backEnd.refdef.text[static_cast<int>(ds.deformation) - static_cast<int>(deform_t::DEFORM_TEXT0)]));
 			break;
 		}
 	}

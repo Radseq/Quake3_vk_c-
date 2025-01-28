@@ -1615,15 +1615,15 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, const int numDrawSurfs)
 	{
 		R_DecomposeSort(((&drawSurfs) + i)->sort, entityNum, &shader, fogNum, dlighted);
 
-		if (shader->sort > static_cast<float>(SS_PORTAL))
+		if (shader->sort > static_cast<float>(shaderSort_t::SS_PORTAL))
 		{
 			break;
 		}
 
 		// no shader should ever have this sort type
-		if (shader->sort == static_cast<float>(SS_BAD))
+		if (shader->sort == static_cast<float>(shaderSort_t::SS_BAD))
 		{
-			ri.Error(ERR_DROP, "Shader '%s'with sort == SS_BAD", shader->name);
+			ri.Error(ERR_DROP, "Shader '%s'with sort == shaderSort_t::SS_BAD", shader->name);
 		}
 
 		// if the mirror was completely clipped away, we may need to check another surface

@@ -88,7 +88,7 @@
 14-Oct-2022:
 * preserve \cl_reconnectAgrs between online mod changes
 * fixed nested cgame command execution
-* renderers: avoid potential division-by-zero for AGEN_PORTAL
+* renderers: avoid potential division-by-zero for alphaGen_t::AGEN_PORTAL
 * CMake: numerous improvements
 * Vulkan: updated SDK headers, applied potential fix for molten-vk compatibility
 * server: do not enforce non-zero level times at startup, for mod compatibility
@@ -154,7 +154,7 @@
 * Vulkan: use correct texture bundle for lighting, use static uniform location to avoid pushing garbage from stack variables
 * Vulkan: fixed crash with \r_showtris 1 and \r_fastsky 1, fixed environment shader selection
 * OpenGL: fixed crash with \snd_restart
-* Do not light up shaders whose sort comes after insertion point (SS_FOG)
+* Do not light up shaders whose sort comes after insertion point (shaderSort_t::SS_FOG)
 * Unified gamma correction between OpenGL and Vulkan renderers
 
 28-Mar-2021:
@@ -680,7 +680,7 @@ Fixed non-working rconPassword2 on linux
 * Allow more than 32 surfaces in skin files
 * Remove unused \r_ext_gamma_control
 * Fix OpenGL 1.4 version detection
-* Do light pass right before SS_UNDERWATER if possible
+* Do light pass right before shaderSort_t::SS_UNDERWATER if possible
 * Add \video-pipe command - redirect captured video stream to ffmpeg input pipe and save as mp4
  you need to install ffmpeg package (on linux) or put ffmpeg binary near quake3e executable (on windows)
 * Add \cl_aviPipeFormat - encoder parameters used for \video-pipe, see ffmpeg documentation for details

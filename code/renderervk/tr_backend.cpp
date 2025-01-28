@@ -239,7 +239,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 				RB_EndSurface();
 			}
 #ifdef USE_PMLIGHT
-#define INSERT_POINT SS_FOG
+#define INSERT_POINT shaderSort_t::SS_FOG
 			if (backEnd.refdef.numLitSurfs && oldShaderSort < static_cast<float>(INSERT_POINT) && shader->sort >= static_cast<float>(INSERT_POINT))
 			{
 				// RB_BeginDrawingLitSurfs(); // no need, already setup in RB_BeginDrawingView()
@@ -405,9 +405,9 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 		}
 
 		// anything BEFORE opaque is sky/portal, anything AFTER it should never have been added
-		// assert( shader->sort == SS_OPAQUE );
+		// assert( shader->sort == shaderSort_t::SS_OPAQUE );
 		// !!! but MIRRORS can trip that assert, so just do this for now
-		// if ( shader->sort < SS_OPAQUE )
+		// if ( shader->sort < shaderSort_t::SS_OPAQUE )
 		//	continue;
 
 		//

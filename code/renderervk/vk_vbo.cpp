@@ -101,18 +101,18 @@ constexpr static bool isStaticRGBgen(colorGen_t cgen)
 {
 	switch (cgen)
 	{
-	case CGEN_BAD:
-	case CGEN_IDENTITY_LIGHTING: // tr.identityLight
-	case CGEN_IDENTITY:			 // always (1,1,1,1)
-	case CGEN_ENTITY:			 // grabbed from entity's modulate field
-	case CGEN_ONE_MINUS_ENTITY:	 // grabbed from 1 - entity.modulate
-	case CGEN_EXACT_VERTEX:		 // tess.vertexColors
-	case CGEN_VERTEX:			 // tess.vertexColors * tr.identityLight
-	case CGEN_ONE_MINUS_VERTEX:
-	// case CGEN_WAVEFORM:			// programmatically generated
-	case CGEN_LIGHTING_DIFFUSE:
-	// case CGEN_FOG:				// standard fog
-	case CGEN_CONST: // fixed color
+	case colorGen_t::CGEN_BAD:
+	case colorGen_t::CGEN_IDENTITY_LIGHTING: // tr.identityLight
+	case colorGen_t::CGEN_IDENTITY:			 // always (1,1,1,1)
+	case colorGen_t::CGEN_ENTITY:			 // grabbed from entity's modulate field
+	case colorGen_t::CGEN_ONE_MINUS_ENTITY:	 // grabbed from 1 - entity.modulate
+	case colorGen_t::CGEN_EXACT_VERTEX:		 // tess.vertexColors
+	case colorGen_t::CGEN_VERTEX:			 // tess.vertexColors * tr.identityLight
+	case colorGen_t::CGEN_ONE_MINUS_VERTEX:
+	// case colorGen_t::CGEN_WAVEFORM:			// programmatically generated
+	case colorGen_t::CGEN_LIGHTING_DIFFUSE:
+	// case colorGen_t::CGEN_FOG:				// standard fog
+	case colorGen_t::CGEN_CONST: // fixed color
 		return true;
 	default:
 		return false;
@@ -167,16 +167,16 @@ constexpr static bool isStaticAgen(alphaGen_t agen)
 {
 	switch (agen)
 	{
-	case AGEN_IDENTITY:
-	case AGEN_SKIP:
-	case AGEN_ENTITY:
-	case AGEN_ONE_MINUS_ENTITY:
-	case AGEN_VERTEX:
-	case AGEN_ONE_MINUS_VERTEX:
-	// case AGEN_LIGHTING_SPECULAR:
-	// case AGEN_WAVEFORM:
-	// case AGEN_PORTAL:
-	case AGEN_CONST:
+	case alphaGen_t::AGEN_IDENTITY:
+	case alphaGen_t::AGEN_SKIP:
+	case alphaGen_t::AGEN_ENTITY:
+	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+	case alphaGen_t::AGEN_VERTEX:
+	case alphaGen_t::AGEN_ONE_MINUS_VERTEX:
+	// case alphaGen_t::AGEN_LIGHTING_SPECULAR:
+	// case alphaGen_t::AGEN_WAVEFORM:
+	// case alphaGen_t::AGEN_PORTAL:
+	case alphaGen_t::AGEN_CONST:
 		return true;
 	default:
 		return false;
@@ -219,7 +219,7 @@ static bool isStaticShader(shader_t &shader)
 				return false;
 			if (!isStaticTCgen(*stage, b))
 				return false;
-			if (stage->bundle[b].adjustColorsForFog != ACFF_NONE)
+			if (stage->bundle[b].adjustColorsForFog != acff_t::ACFF_NONE)
 				return false;
 			if (!isStaticRGBgen(stage->bundle[b].rgbGen))
 				return false;

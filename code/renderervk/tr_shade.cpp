@@ -246,7 +246,7 @@ void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 
 void VK_SetFogParams(vkUniform_t &uniform, int &fogStage)
 {
-	if (tess.fogNum && tess.shader->fogPass)
+	if (tess.fogNum && static_cast<int>(tess.shader->fogPass))
 	{
 		fogProgramParms_t fp = {};
 		RB_CalcFogProgramParms(fp);
@@ -284,26 +284,26 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 	//
 	switch (pStage.bundle[b].rgbGen)
 	{
-	case CGEN_IDENTITY:
+	case colorGen_t::CGEN_IDENTITY:
 		Com_Memset(dest, 0xff, tess.numVertexes * 4);
 		break;
 	default:
-	case CGEN_IDENTITY_LIGHTING:
+	case colorGen_t::CGEN_IDENTITY_LIGHTING:
 		Com_Memset(dest, tr.identityLightByte, tess.numVertexes * 4);
 		break;
-	case CGEN_LIGHTING_DIFFUSE:
+	case colorGen_t::CGEN_LIGHTING_DIFFUSE:
 		RB_CalcDiffuseColor((unsigned char *)dest);
 		break;
-	case CGEN_EXACT_VERTEX:
+	case colorGen_t::CGEN_EXACT_VERTEX:
 		Com_Memcpy(dest, tess.vertexColors, tess.numVertexes * sizeof(tess.vertexColors[0]));
 		break;
-	case CGEN_CONST:
+	case colorGen_t::CGEN_CONST:
 		for (i = 0; i < tess.numVertexes; i++)
 		{
 			dest[i] = pStage.bundle[b].constantColor;
 		}
 		break;
-	case CGEN_VERTEX:
+	case colorGen_t::CGEN_VERTEX:
 		if (tr.identityLight == 1)
 		{
 			Com_Memcpy(dest, tess.vertexColors, tess.numVertexes * sizeof(tess.vertexColors[0]));
@@ -319,7 +319,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 			}
 		}
 		break;
-	case CGEN_ONE_MINUS_VERTEX:
+	case colorGen_t::CGEN_ONE_MINUS_VERTEX:
 		if (tr.identityLight == 1)
 		{
 			for (i = 0; i < tess.numVertexes; i++)
@@ -339,7 +339,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 			}
 		}
 		break;
-	case CGEN_FOG:
+	case colorGen_t::CGEN_FOG:
 	{
 		const fog_t *fog = tr.world->fogs + tess.fogNum;
 
@@ -349,13 +349,13 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 		}
 	}
 	break;
-	case CGEN_WAVEFORM:
+	case colorGen_t::CGEN_WAVEFORM:
 		RB_CalcWaveColor(pStage.bundle[b].rgbWave, dest->rgba);
 		break;
-	case CGEN_ENTITY:
+	case colorGen_t::CGEN_ENTITY:
 		RB_CalcColorFromEntity(dest->rgba);
 		break;
-	case CGEN_ONE_MINUS_ENTITY:
+	case colorGen_t::CGEN_ONE_MINUS_ENTITY:
 		RB_CalcColorFromOneMinusEntity(dest->rgba);
 		break;
 	}
@@ -365,11 +365,11 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 	//
 	switch (pStage.bundle[b].alphaGen)
 	{
-	case AGEN_SKIP:
+	case alphaGen_t::AGEN_SKIP:
 		break;
-	case AGEN_IDENTITY:
-		if ((pStage.bundle[b].rgbGen == CGEN_VERTEX && tr.identityLight != 1) ||
-			pStage.bundle[b].rgbGen != CGEN_VERTEX)
+	case alphaGen_t::AGEN_IDENTITY:
+		if ((pStage.bundle[b].rgbGen == colorGen_t::CGEN_VERTEX && tr.identityLight != 1) ||
+			pStage.bundle[b].rgbGen != colorGen_t::CGEN_VERTEX)
 		{
 			for (i = 0; i < tess.numVertexes; i++)
 			{
@@ -377,37 +377,37 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 			}
 		}
 		break;
-	case AGEN_CONST:
+	case alphaGen_t::AGEN_CONST:
 		for (i = 0; i < tess.numVertexes; i++)
 		{
 			dest[i].rgba[3] = pStage.bundle[b].constantColor.rgba[3];
 		}
 		break;
-	case AGEN_WAVEFORM:
+	case alphaGen_t::AGEN_WAVEFORM:
 		RB_CalcWaveAlpha(pStage.bundle[b].alphaWave, dest->rgba);
 		break;
-	case AGEN_LIGHTING_SPECULAR:
+	case alphaGen_t::AGEN_LIGHTING_SPECULAR:
 		RB_CalcSpecularAlpha(dest->rgba);
 		break;
-	case AGEN_ENTITY:
+	case alphaGen_t::AGEN_ENTITY:
 		RB_CalcAlphaFromEntity(dest->rgba);
 		break;
-	case AGEN_ONE_MINUS_ENTITY:
+	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
 		RB_CalcAlphaFromOneMinusEntity(dest->rgba);
 		break;
-	case AGEN_VERTEX:
+	case alphaGen_t::AGEN_VERTEX:
 		for (i = 0; i < tess.numVertexes; i++)
 		{
 			dest[i].rgba[3] = tess.vertexColors[i].rgba[3];
 		}
 		break;
-	case AGEN_ONE_MINUS_VERTEX:
+	case alphaGen_t::AGEN_ONE_MINUS_VERTEX:
 		for (i = 0; i < tess.numVertexes; i++)
 		{
 			dest[i].rgba[3] = 255 - tess.vertexColors[i].rgba[3];
 		}
 		break;
-	case AGEN_PORTAL:
+	case alphaGen_t::AGEN_PORTAL:
 	{
 		for (i = 0; i < tess.numVertexes; i++)
 		{
@@ -440,16 +440,16 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 	{
 		switch (pStage.bundle[b].adjustColorsForFog)
 		{
-		case ACFF_MODULATE_RGB:
+		case acff_t::ACFF_MODULATE_RGB:
 			RB_CalcModulateColorsByFog(dest->rgba);
 			break;
-		case ACFF_MODULATE_ALPHA:
+		case acff_t::ACFF_MODULATE_ALPHA:
 			RB_CalcModulateAlphasByFog(dest->rgba);
 			break;
-		case ACFF_MODULATE_RGBA:
+		case acff_t::ACFF_MODULATE_RGBA:
 			RB_CalcModulateRGBAsByFog(dest->rgba);
 			break;
-		case ACFF_NONE:
+		case acff_t::ACFF_NONE:
 			break;
 		}
 	}
@@ -689,7 +689,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 					uniform.ent.color[i][0] = backEnd.currentEntity->e.shader.rgba[0] / 255.0;
 					uniform.ent.color[i][1] = backEnd.currentEntity->e.shader.rgba[1] / 255.0;
 					uniform.ent.color[i][2] = backEnd.currentEntity->e.shader.rgba[2] / 255.0;
-					uniform.ent.color[i][3] = pStage->bundle[i].alphaGen == AGEN_IDENTITY ? 1.0 : (backEnd.currentEntity->e.shader.rgba[3] / 255.0);
+					uniform.ent.color[i][3] = pStage->bundle[i].alphaGen == alphaGen_t::AGEN_IDENTITY ? 1.0 : (backEnd.currentEntity->e.shader.rgba[3] / 255.0);
 					pushUniform = true;
 				}
 			}
@@ -927,7 +927,7 @@ Blends a fog texture on top of everything else
 */
 static void RB_FogPass(bool rebindIndex)
 {
-	uint32_t pipeline = vk_inst.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
+	uint32_t pipeline = vk_inst.fog_pipelines[static_cast<int>(tess.shader->fogPass) - 1][tess.shader->cullType][tess.shader->polygonOffset];
 #ifdef USE_FOG_ONLY
 	int fog_stage;
 
@@ -988,7 +988,7 @@ void RB_StageIteratorGeneric(void)
 #endif
 
 #ifdef USE_FOG_COLLAPSE
-	fogCollapse = tess.fogNum && tess.shader->fogPass && tess.shader->fogCollapse;
+	fogCollapse = tess.fogNum && static_cast<int>(tess.shader->fogPass) && tess.shader->fogCollapse;
 #endif
 
 	// call shader function
@@ -999,7 +999,7 @@ void RB_StageIteratorGeneric(void)
 #ifdef USE_PMLIGHT
 	if (r_dlightMode->integer == 0)
 #endif
-		if (tess.dlightBits && tess.shader->sort <= static_cast<float>(SS_OPAQUE) && !(tess.shader->surfaceFlags & (SURF_NODLIGHT | SURF_SKY)))
+		if (tess.dlightBits && tess.shader->sort <= static_cast<float>(shaderSort_t::SS_OPAQUE) && !(tess.shader->surfaceFlags & (SURF_NODLIGHT | SURF_SKY)))
 		{
 			if (!fogCollapse)
 			{
@@ -1009,7 +1009,7 @@ void RB_StageIteratorGeneric(void)
 #endif // USE_LEGACY_DLIGHTS
 
 	// now do fog
-	if (tess.fogNum && tess.shader->fogPass && !fogCollapse)
+	if (tess.fogNum && static_cast<int>(tess.shader->fogPass) && !fogCollapse)
 	{
 		RB_FogPass(rebindIndex);
 	}

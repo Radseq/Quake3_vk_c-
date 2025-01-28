@@ -158,7 +158,7 @@ typedef struct
 
 //===============================================================================
 
-typedef enum
+enum class shaderSort_t : uint8_t
 {
 	SS_BAD,
 	SS_PORTAL,		// mirrors, portals, viewscreens
@@ -184,7 +184,7 @@ typedef enum
 	SS_ALMOST_NEAREST, // gun smoke puffs
 
 	SS_NEAREST // blood blobs
-} shaderSort_t;
+};
 
 constexpr int MAX_SHADER_STAGES = 8;
 
@@ -202,7 +202,7 @@ typedef enum
 
 } genFunc_t;
 
-typedef enum
+enum class deform_t : uint8_t
 {
 	DEFORM_NONE,
 	DEFORM_WAVE,
@@ -220,9 +220,9 @@ typedef enum
 	DEFORM_TEXT5,
 	DEFORM_TEXT6,
 	DEFORM_TEXT7
-} deform_t;
+};
 
-typedef enum
+enum class alphaGen_t : uint8_t
 {
 	AGEN_IDENTITY,
 	AGEN_SKIP,
@@ -234,9 +234,9 @@ typedef enum
 	AGEN_WAVEFORM,
 	AGEN_PORTAL,
 	AGEN_CONST
-} alphaGen_t;
+};
 
-typedef enum
+enum class colorGen_t : uint8_t
 {
 	CGEN_BAD,
 	CGEN_IDENTITY_LIGHTING, // tr.identityLight
@@ -250,7 +250,7 @@ typedef enum
 	CGEN_LIGHTING_DIFFUSE,
 	CGEN_FOG,  // standard fog
 	CGEN_CONST // fixed color
-} colorGen_t;
+};
 
 typedef enum
 {
@@ -264,13 +264,13 @@ typedef enum
 	TCGEN_VECTOR // S and T from world coordinates
 } texCoordGen_t;
 
-typedef enum
+enum class acff_t : uint8_t
 {
 	ACFF_NONE,
 	ACFF_MODULATE_RGB,
 	ACFF_MODULATE_RGBA,
 	ACFF_MODULATE_ALPHA
-} acff_t;
+};
 
 typedef struct
 {
@@ -373,7 +373,7 @@ typedef struct
 	waveForm_t alphaWave;
 	alphaGen_t alphaGen;
 
-	color4ub_t constantColor; // for CGEN_CONST and AGEN_CONST
+	color4ub_t constantColor; // for colorGen_t::CGEN_CONST and alphaGen_t::AGEN_CONST
 
 	acff_t adjustColorsForFog;
 
@@ -422,12 +422,12 @@ typedef struct
 
 struct shaderCommands_s;
 
-typedef enum
+enum class fogPass_t : uint8_t
 {
 	FP_NONE,  // surface is translucent and will just be adjusted properly
 	FP_EQUAL, // surface is opaque but possibly alpha tested
 	FP_LE	  // surface is translucent, but still needs a fog pass (fog surface)
-} fogPass_t;
+};
 
 typedef struct
 {

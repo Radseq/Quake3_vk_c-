@@ -489,7 +489,7 @@ void main() {
 		// ACFF_ALPHA
 		base.a = base.a * (1.0 - fog.w);
 	} else {
-		// default: ACFF_NONE
+		// default: acff_t::ACFF_NONE
 		base = mix( base, fog * fogColor, fog.a );
 	}
 #endif
