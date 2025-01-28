@@ -3339,10 +3339,11 @@ static char **FS_ListFilteredFiles( const char *path, const char *extension, con
 		Com_Error( ERR_FATAL, "Filesystem call made without initialization" );
 	}
 
-	if  ( fs_numServerPaks && !( flags & FS_MATCH_STICK ) ) {
+	if (fs_numServerPaks && (flags & FS_MATCH_STICK) == 0) {
 		flags &= ~FS_MATCH_UNPURE;
-		if ( !FS_AllowListExternal( extension ) )
+		if (!FS_AllowListExternal(extension)) {
 			flags &= ~FS_MATCH_EXTERN;
+		}
 	}
 
 	if ( !path ) {
@@ -3437,15 +3438,15 @@ static char **FS_ListFilteredFiles( const char *path, const char *extension, con
 					nfiles = FS_AddFileToList( name + temp, list, nfiles );
 				}
 			}
-		} else if ( search->dir && ( flags & FS_MATCH_EXTERN ) && search->policy != DIR_DENY ) { // scan for files in the filesystem
+		} else if (search->dir && (search->policy != DIR_DENY || (flags & FS_MATCH_EXTERN) != 0)) { // scan for files in the filesystem
 			const char *netpath;
 			int		numSysFiles;
 			char	**sysFiles;
 			const char *name;
 
 			netpath = FS_BuildOSPath( search->dir->path, search->dir->gamedir, path );
-			sysFiles = Sys_ListFiles( netpath, extension, filter, &numSysFiles, false );
-			for ( i = 0 ; i < numSysFiles ; i++ ) {
+			sysFiles = Sys_ListFiles(netpath, extension, filter, &numSysFiles, (flags & FS_MATCH_SUBDIRS) ? FS_MAX_SUBDIRS : 0);
+			for (i = 0; i < numSysFiles; i++) {
 				// unique the match
 				name = sysFiles[ i ];
 				length = strlen( name );
@@ -3464,7 +3465,7 @@ static char **FS_ListFilteredFiles( const char *path, const char *extension, con
 	// return a copy of the list
 	*numfiles = nfiles;
 
-	if ( !nfiles ) {
+	if (nfiles == 0) {
 		return NULL;
 	}
 
@@ -3636,6 +3637,11 @@ static void FS_GetModDescription( const char *modDir, char *description, int des
 			nDescLen = FS_Read( description, nDescLen, descHandle );
 			if ( nDescLen >= 0 ) {
 				description[ nDescLen ] = '\0';
+				while (nDescLen > 0 && description[nDescLen - 1] == '\n') {
+					// strip ending newlines
+					description[nDescLen - 1] = '\0';
+					nDescLen--;
+				}
 			}
 		} else {
 			Q_strncpyz( description, modDir, descriptionLen );
@@ -3702,12 +3708,16 @@ static int FS_GetModList( char *listbuf, int bufsize ) {
 	for (i = 0; i < ARRAY_LEN( paths ); i++) {
 		if ( !*paths[ i ] || !(*paths[i])->string[0] )
 			continue;
-		pFiles0 = Sys_ListFiles( (*paths[i])->string, NULL, NULL, &dummy, true );
+		pFiles0 = Sys_ListFiles((*paths[i])->string, "/", NULL, &dummy, 1);
 		// Sys_ConcatenateFileLists frees the lists so Sys_FreeFileList isn't required
-		pFiles = Sys_ConcatenateFileLists( pFiles, pFiles0 );
+		pFiles = FS_ConcatenateFileLists(pFiles, pFiles0);
 	}
 
 	nPotential = Sys_CountFileList( pFiles );
+
+	if (nPotential >= 2) {
+		FS_SortFileList(pFiles, nPotential - 1);
+	}
 
 	for ( i = 0 ; i < nPotential ; i++ ) {
 		name = pFiles[i];
@@ -3743,8 +3753,8 @@ static int FS_GetModList( char *listbuf, int bufsize ) {
 			path = FS_BuildOSPath( (*paths[j])->string, name, NULL );
 
 			nPaks = nDirs = nPakDirs = 0;
-			pPaks = Sys_ListFiles( path, ".pk3", NULL, &nPaks, false );
-			pDirs = Sys_ListFiles( path, "/", NULL, &nDirs, false );
+			pPaks = Sys_ListFiles( path, ".pk3", NULL, &nPaks, 0 );
+			pDirs = Sys_ListFiles( path, "/", NULL, &nDirs, 0 );
 			for ( k = 0; k < nDirs; k++ ) {
 				// we only want to count directories ending with ".pk3dir"
 				if ( FS_IsExt( pDirs[k], ".pk3dir", strlen( pDirs[k] ) ) ) {
@@ -3929,10 +3939,11 @@ static void FS_NewDir_f( void ) {
 
 	Com_Printf( "---------------\n" );
 
-	dirnames = FS_ListFilteredFiles( "", "", filter, &ndirs, FS_MATCH_ANY );
+	dirnames = FS_ListFilteredFiles("", "", filter, &ndirs, FS_MATCH_ANY | FS_MATCH_SUBDIRS);
 
-	if ( ndirs >= 2 )
-		FS_SortFileList( dirnames, ndirs - 1 );
+	if (ndirs >= 2) {
+		FS_SortFileList(dirnames, ndirs - 1);
+	}
 
 	for ( i = 0; i < ndirs; i++ ) {
 		Q_strncpyz( dirname, dirnames[i], sizeof( dirname ) );
@@ -4153,7 +4164,7 @@ static void FS_AddGameDirectory( const char *path, const char *dir ) {
 	Q_strncpyz( curpath, FS_BuildOSPath( path, dir, NULL ), sizeof( curpath ) );
 
 	// Get .pk3 files
-	pakfiles = Sys_ListFiles(curpath, ".pk3", NULL, &numfiles, false);
+	pakfiles = Sys_ListFiles(curpath, ".pk3", NULL, &numfiles, 0);
 
 	if ( numfiles >= 2 )
 		FS_SortFileList( pakfiles, numfiles - 1 );
@@ -4166,7 +4177,7 @@ static void FS_AddGameDirectory( const char *path, const char *dir ) {
 		pakdirs = NULL;
 	} else {
 		// Get top level directories (we'll filter them later since the Sys_ListFiles filtering is terrible)
-		pakdirs = Sys_ListFiles( curpath, "/", NULL, &numdirs, false );
+		pakdirs = Sys_ListFiles( curpath, "/", NULL, &numdirs, 0 );
 		if ( numdirs >= 2 ) {
 			FS_SortFileList( pakdirs, numdirs - 1 );
 		}
@@ -5572,8 +5583,7 @@ void FS_Flush( fileHandle_t f )
 }
 
 
-void	FS_FilenameCompletion( const char *dir, const char *ext,
-		bool stripExt, void(*callback)(const char *s), int flags ) {
+void FS_FilenameCompletion(const char* dir, const char* ext, bool stripExt, void(*callback)(const char* s), int flags) {
 	char	filename[ MAX_STRING_CHARS ];
 	char	**filenames;
 	int		nfiles;

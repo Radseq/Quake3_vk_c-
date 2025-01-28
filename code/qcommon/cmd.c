@@ -1007,9 +1007,9 @@ static void Cmd_List_f( void )
 Cmd_CompleteCfgName
 ==================
 */
-static void Cmd_CompleteCfgName( const char *args, int argNum ) {
-	if( argNum == 2 ) {
-		Field_CompleteFilename( "", "cfg", false, FS_MATCH_ANY | FS_MATCH_STICK );
+static void Cmd_CompleteCfgName(const char* args, int argNum) {
+	if (argNum == 2) {
+		Field_CompleteFilename("", "cfg", false, FS_MATCH_ANY | FS_MATCH_STICK | FS_MATCH_SUBDIRS);
 	}
 }
 
