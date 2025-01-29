@@ -187,7 +187,7 @@ enum class shaderSort_t : uint8_t
 
 constexpr int MAX_SHADER_STAGES = 8;
 
-typedef enum
+enum class genFunc_t : uint8_t
 {
 	GF_NONE,
 
@@ -199,7 +199,7 @@ typedef enum
 
 	GF_NOISE
 
-} genFunc_t;
+};
 
 enum class deform_t : uint8_t
 {
@@ -251,7 +251,7 @@ enum class colorGen_t : uint8_t
 	CGEN_CONST // fixed color
 };
 
-typedef enum
+enum class texCoordGen_t : uint8_t
 {
 	TCGEN_BAD,
 	TCGEN_IDENTITY, // clear to 0,0
@@ -261,7 +261,7 @@ typedef enum
 	TCGEN_ENVIRONMENT_MAPPED_FP, // with correct first-person mapping
 	TCGEN_FOG,
 	TCGEN_VECTOR // S and T from world coordinates
-} texCoordGen_t;
+};
 
 enum class acff_t : uint8_t
 {
@@ -283,7 +283,7 @@ typedef struct
 
 constexpr int TR_MAX_TEXMODS = 4;
 
-typedef enum
+enum class texMod_t : uint8_t
 {
 	TMOD_NONE,
 	TMOD_TRANSFORM,
@@ -296,7 +296,7 @@ typedef enum
 	TMOD_OFFSET,
 	TMOD_SCALE_OFFSET,
 	TMOD_OFFSET_SCALE,
-} texMod_t;
+};
 
 constexpr int MAX_SHADER_DEFORMS = 3;
 typedef struct
@@ -319,27 +319,27 @@ typedef struct
 	union
 	{
 
-		// used for TMOD_TURBULENT and TMOD_STRETCH
+		// used for texMod_t::TMOD_TURBULENT and texMod_t::TMOD_STRETCH
 		waveForm_t wave;
 
-		// used for TMOD_TRANSFORM
+		// used for texMod_t::TMOD_TRANSFORM
 		struct
 		{
 			float matrix[2][2]; // s' = s * m[0][0] + t * m[1][0] + trans[0]
 			float translate[2]; // t' = s * m[0][1] + t * m[0][1] + trans[1]
 		};
 
-		// used for TMOD_SCALE, TMOD_OFFSET, TMOD_SCALE_OFFSET
+		// used for texMod_t::TMOD_SCALE, texMod_t::TMOD_OFFSET, texMod_t::TMOD_SCALE_OFFSET
 		struct
 		{
 			float scale[2];	 // s' = s * scale[0] + offset[0]
 			float offset[2]; // t' = t * scale[1] + offset[1]
 		};
 
-		// used for TMOD_SCROLL
+		// used for texMod_t::TMOD_SCROLL
 		float scroll[2]; // s' = s + scroll[0] * time
 						 // t' = t + scroll[1] * time
-		// used for TMOD_ROTATE
+		// used for texMod_t::TMOD_ROTATE
 		// + = clockwise
 		// - = counterclockwise
 		float rotateSpeed;
@@ -473,7 +473,7 @@ typedef struct shader_s
 
 	bool multitextureEnv; // if shader has multitexture stage(s)
 
-	cullType_t cullType; // CT_FRONT_SIDED, CT_BACK_SIDED, or CT_TWO_SIDED
+	cullType_t cullType; // cullType_t::CT_FRONT_SIDED, cullType_t::CT_BACK_SIDED, or cullType_t::CT_TWO_SIDED
 	bool polygonOffset;	 // set for decals and other items that must be offset
 
 	unsigned noMipMaps : 1; // for console fonts, 2D elements, etc.
@@ -1196,7 +1196,6 @@ enum class renderCommand_t : int8_t
 	RC_CLEARCOLOR
 };
 
-
 /*
 ** trGlobals_t
 **
@@ -1350,7 +1349,7 @@ extern cvar_t *r_stereoSeparation; // separation of cameras for stereo rendering
 extern cvar_t *r_lodbias; // push/pull LOD transitions
 extern cvar_t *r_lodscale;
 
-extern cvar_t* r_teleporterFlash;		// teleport hyperspace visual
+extern cvar_t *r_teleporterFlash; // teleport hyperspace visual
 
 extern cvar_t *r_fastsky;	   // controls whether sky should be cleared or drawn
 extern cvar_t *r_neatsky;	   // nomip and nopicmip for skyboxes, cnq3 like look

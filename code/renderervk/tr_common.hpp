@@ -54,12 +54,12 @@ typedef enum
 	IMGFLAG_COLORSHIFT = 0x0200,
 } imgFlags_t;
 
-typedef enum
+enum class cullType_t : uint8_t
 {
 	CT_FRONT_SIDED = 0,
 	CT_BACK_SIDED,
 	CT_TWO_SIDED
-} cullType_t;
+};
 
 typedef struct image_s image_t;
 

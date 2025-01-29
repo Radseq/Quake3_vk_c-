@@ -115,7 +115,7 @@
 * Improve the default texture quality settings:
  - Use the highest texture quality
  - Use 8x anisotropic filtering by default
-* Renderers: make sure that amplitude for TMOD_STRETCH is not zero
+* Renderers: make sure that amplitude for texMod_t::TMOD_STRETCH is not zero
 * Fixed stack overflow in \varfunc
 * Fixed potential out-of-bounds access caused by large s_paintedtime
 * Added \con_scale - to scale console font size relative to default smallchar width/height

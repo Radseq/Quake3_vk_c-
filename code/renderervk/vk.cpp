@@ -2639,7 +2639,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR;
 		def.color.rgb = tr.identityLightByte;
 		def.color.alpha = tr.identityLightByte;
-		def.face_culling = CT_FRONT_SIDED;
+		def.face_culling = cullType_t::CT_FRONT_SIDED;
 		def.polygon_offset = false;
 		def.mirror = false;
 		vk_inst.skybox_pipeline = vk_find_pipeline_ext(0, def, true);
@@ -2647,7 +2647,7 @@ static void vk_alloc_persistent_pipelines(void)
 
 	// stencil shadows
 	{
-		cullType_t cull_types[2] = {CT_FRONT_SIDED, CT_BACK_SIDED};
+		cullType_t cull_types[2] = {cullType_t::CT_FRONT_SIDED, cullType_t::CT_BACK_SIDED};
 		bool mirror_flags[2] = {false, true};
 		int i, j;
 
@@ -2669,7 +2669,7 @@ static void vk_alloc_persistent_pipelines(void)
 	}
 	{
 		def = {};
-		def.face_culling = CT_FRONT_SIDED;
+		def.face_culling = cullType_t::CT_FRONT_SIDED;
 		def.polygon_offset = false;
 		def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO;
 		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
@@ -2759,7 +2759,7 @@ static void vk_alloc_persistent_pipelines(void)
 	{
 		def = {};
 		def.state_bits = GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
-		def.face_culling = CT_FRONT_SIDED;
+		def.face_culling = cullType_t::CT_FRONT_SIDED;
 		def.primitives = Vk_Primitive_Topology::TRIANGLE_STRIP;
 		vk_inst.surface_beam_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
@@ -2769,7 +2769,7 @@ static void vk_alloc_persistent_pipelines(void)
 		def = {};
 		def.state_bits = GLS_DEFAULT;
 		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
-		def.face_culling = CT_TWO_SIDED;
+		def.face_culling = cullType_t::CT_TWO_SIDED;
 		def.primitives = Vk_Primitive_Topology::LINE_LIST;
 		if (vk_inst.wideLines)
 			def.line_width = 3;
@@ -2781,7 +2781,7 @@ static void vk_alloc_persistent_pipelines(void)
 	{
 		def = {};
 		// def.state_bits = GLS_DEFAULT;
-		def.face_culling = CT_TWO_SIDED;
+		def.face_culling = cullType_t::CT_TWO_SIDED;
 		def.shader_type = Vk_Shader_Type::TYPE_DOT;
 		def.primitives = Vk_Primitive_Topology::POINT_LIST;
 		vk_inst.dot_pipeline = vk_find_pipeline_ext(0, def, true);
@@ -2793,42 +2793,42 @@ static void vk_alloc_persistent_pipelines(void)
 		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = Vk_Shader_Type::TYPE_COLOR_WHITE;
-		def.face_culling = CT_FRONT_SIDED;
+		def.face_culling = cullType_t::CT_FRONT_SIDED;
 		vk_inst.tris_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = Vk_Shader_Type::TYPE_COLOR_WHITE;
-		def.face_culling = CT_BACK_SIDED;
+		def.face_culling = cullType_t::CT_BACK_SIDED;
 		vk_inst.tris_mirror_debug_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = Vk_Shader_Type::TYPE_COLOR_GREEN;
-		def.face_culling = CT_FRONT_SIDED;
+		def.face_culling = cullType_t::CT_FRONT_SIDED;
 		vk_inst.tris_debug_green_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = Vk_Shader_Type::TYPE_COLOR_GREEN;
-		def.face_culling = CT_BACK_SIDED;
+		def.face_culling = cullType_t::CT_BACK_SIDED;
 		vk_inst.tris_mirror_debug_green_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = Vk_Shader_Type::TYPE_COLOR_RED;
-		def.face_culling = CT_FRONT_SIDED;
+		def.face_culling = cullType_t::CT_FRONT_SIDED;
 		vk_inst.tris_debug_red_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 	{
 		def = {};
 		def.state_bits = state_bits;
 		def.shader_type = Vk_Shader_Type::TYPE_COLOR_RED;
-		def.face_culling = CT_BACK_SIDED;
+		def.face_culling = cullType_t::CT_BACK_SIDED;
 		vk_inst.tris_mirror_debug_red_pipeline = vk_find_pipeline_ext(0, def, false);
 	}
 
@@ -5206,17 +5206,17 @@ static void GetCullModeByFaceCulling(const Vk_Pipeline_Def &def, vk::CullModeFla
 {
 	switch (def.face_culling)
 	{
-	case CT_TWO_SIDED:
+	case cullType_t::CT_TWO_SIDED:
 		cullMode = vk::CullModeFlagBits::eNone;
 		break;
-	case CT_FRONT_SIDED:
+	case cullType_t::CT_FRONT_SIDED:
 		cullMode = (def.mirror ? vk::CullModeFlagBits::eFront : vk::CullModeFlagBits::eBack);
 		break;
-	case CT_BACK_SIDED:
+	case cullType_t::CT_BACK_SIDED:
 		cullMode = (def.mirror ? vk::CullModeFlagBits::eBack : vk::CullModeFlagBits::eFront);
 		break;
 	default:
-		ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode %i\n", def.face_culling);
+		ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode %i\n", static_cast<int>(def.face_culling));
 		break;
 	}
 }
@@ -6067,7 +6067,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	if (def.shadow_phase == Vk_Shadow_Phase::SHADOW_EDGES)
 	{
 		depth_stencil_state.front.failOp = vk::StencilOp::eKeep;
-		depth_stencil_state.front.passOp = (def.face_culling == CT_FRONT_SIDED) ? vk::StencilOp::eIncrementAndClamp : vk::StencilOp::eDecrementAndClamp;
+		depth_stencil_state.front.passOp = (def.face_culling == cullType_t::CT_FRONT_SIDED) ? vk::StencilOp::eIncrementAndClamp : vk::StencilOp::eDecrementAndClamp;
 		depth_stencil_state.front.depthFailOp = vk::StencilOp::eKeep;
 		depth_stencil_state.front.compareOp = vk::CompareOp::eAlways;
 		depth_stencil_state.front.compareMask = 255;
