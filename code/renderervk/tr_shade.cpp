@@ -274,10 +274,10 @@ void VK_SetFogParams(vkUniform_t &uniform, int &fogStage)
 
 void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 {
-	int i;
-
 	if (tess.numVertexes == 0)
 		return;
+
+	int i;
 
 	//
 	// rgbGen

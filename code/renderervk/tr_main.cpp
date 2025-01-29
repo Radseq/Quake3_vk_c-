@@ -44,7 +44,7 @@ static surfaceType_t entitySurface = SF_ENTITY;
 
 trGlobals_t tr;
 
-static const float s_flipMatrix[16] = {
+static constexpr float s_flipMatrix[16] = {
 	// convert from our coordinate system (looking down X)
 	// to OpenGL's coordinate system (looking down -Z)
 	0, 0, -1, 0,
