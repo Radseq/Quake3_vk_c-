@@ -356,7 +356,7 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh(const int width, const int height,
 
 	grid->width = width;
 	grid->height = height;
-	grid->surfaceType = SF_GRID;
+	grid->surfaceType = surfaceType_t::SF_GRID;
 	ClearBounds(grid->meshBounds[0], grid->meshBounds[1]);
 	for (i = 0; i < width; i++)
 	{

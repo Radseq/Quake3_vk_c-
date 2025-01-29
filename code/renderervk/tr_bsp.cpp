@@ -698,7 +698,7 @@ static void ParseFace(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 	sfaceSize += sizeof(int) * numIndexes;
 
 	cv = static_cast<srfSurfaceFace_t *>(ri.Hunk_Alloc(sfaceSize, h_low));
-	cv->surfaceType = SF_FACE;
+	cv->surfaceType = surfaceType_t::SF_FACE;
 	cv->numPoints = numPoints;
 	cv->numIndices = numIndexes;
 	cv->ofsIndices = ofsIndexes;
@@ -790,7 +790,7 @@ static void ParseMesh(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 	float lightmapX, lightmapY;
 	vec3_t bounds[2]{};
 	vec3_t tmpVec{};
-	static surfaceType_t skipData = SF_SKIP;
+	static surfaceType_t skipData = surfaceType_t::SF_SKIP;
 
 	// get fog volume
 	surf.fogIndex = LittleLong(ds.fogNum) + 1;
@@ -899,7 +899,7 @@ static void ParseTriSurf(const dsurface_t &ds, const drawVert_t *verts, msurface
 	numIndexes = LittleLong(ds.numIndexes);
 
 	tri = static_cast<srfTriangles_t *>(ri.Hunk_Alloc(sizeof(*tri) + numVerts * sizeof(tri->verts[0]) + numIndexes * sizeof(tri->indexes[0]), h_low));
-	tri->surfaceType = SF_TRIANGLES;
+	tri->surfaceType = surfaceType_t::SF_TRIANGLES;
 	tri->numVerts = numVerts;
 	tri->numIndexes = numIndexes;
 	tri->verts = (drawVert_t *)(tri + 1);
@@ -962,7 +962,7 @@ static void ParseFlare(const dsurface_t &ds, const drawVert_t *verts, msurface_t
 	surf.shader = ShaderForShaderNum(LittleLong(ds.shaderNum), LIGHTMAP_BY_VERTEX);
 
 	flare = static_cast<srfFlare_t *>(ri.Hunk_Alloc(sizeof(*flare), h_low));
-	flare->surfaceType = SF_FLARE;
+	flare->surfaceType = surfaceType_t::SF_FLARE;
 
 	surf.data = (surfaceType_t *)flare;
 
@@ -1047,7 +1047,7 @@ static void R_FixSharedVertexLodError_r(int start, srfGridMesh_t &grid1)
 		//
 		grid2 = (srfGridMesh_t *)s_worldData.surfaces[j].data;
 		// if this surface is not a grid
-		if (grid2->surfaceType != SF_GRID)
+		if (grid2->surfaceType != surfaceType_t::SF_GRID)
 			continue;
 		// if the LOD errors are already fixed for this patch
 		if (grid2->lodFixed == 2)
@@ -1210,7 +1210,7 @@ static void R_FixSharedVertexLodError(void)
 		//
 		srfGridMesh_t &grid1 = (srfGridMesh_t &)s_worldData.surfaces[i].data;
 		// if this surface is not a grid
-		if (grid1.surfaceType != SF_GRID)
+		if (grid1.surfaceType != surfaceType_t::SF_GRID)
 			continue;
 		//
 		if (grid1.lodFixed)
@@ -1719,7 +1719,7 @@ static int R_TryStitchingPatch(int grid1num)
 		//
 		grid2 = (srfGridMesh_t *)s_worldData.surfaces[j].data;
 		// if this surface is not a grid
-		if (grid2->surfaceType != SF_GRID)
+		if (grid2->surfaceType != surfaceType_t::SF_GRID)
 			continue;
 		// grids in the same LOD group should have the exact same lod radius
 		if (grid1->lodRadius != grid2->lodRadius)
@@ -1758,7 +1758,7 @@ static void R_StitchAllPatches(void)
 			//
 			srfGridMesh_t &grid1 = (srfGridMesh_t &)s_worldData.surfaces[i].data;
 			// if this surface is not a grid
-			if (grid1.surfaceType != SF_GRID)
+			if (grid1.surfaceType != surfaceType_t::SF_GRID)
 				continue;
 			//
 			if (grid1.lodStitched)
@@ -1788,7 +1788,7 @@ static void R_MovePatchSurfacesToHunk(void)
 		//
 		srfGridMesh_t &grid = (srfGridMesh_t &)s_worldData.surfaces[i].data;
 		// if this surface is not a grid
-		if (grid.surfaceType != SF_GRID)
+		if (grid.surfaceType != surfaceType_t::SF_GRID)
 			continue;
 		//
 		size = (grid.width * grid.height - 1) * sizeof(drawVert_t) + sizeof(grid);
@@ -1913,7 +1913,7 @@ static void R_LoadSubmodels(const lump_t *l)
 			ri.Error(ERR_DROP, "R_LoadSubmodels: R_AllocModel() failed");
 		}
 
-		model->type = MOD_BRUSH;
+		model->type = modtype_t::MOD_BRUSH;
 		model->bmodel = out;
 		Com_sprintf(model->name.data(), sizeof(model->name), "*%d", i);
 

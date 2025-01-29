@@ -536,7 +536,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 	{
 		msurface_t &sf = surf;
 		face = (srfSurfaceFace_t *)sf.data;
-		if (face->surfaceType == SF_FACE && isStaticShader(*sf.shader))
+		if (face->surfaceType == surfaceType_t::SF_FACE && isStaticShader(*sf.shader))
 		{
 			face->vboItemIndex = ++numStaticSurfaces;
 			numStaticVertexes += face->numPoints;
@@ -548,7 +548,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 			continue;
 		}
 		tris = (srfTriangles_t *)sf.data;
-		if (tris->surfaceType == SF_TRIANGLES && isStaticShader(*sf.shader))
+		if (tris->surfaceType == surfaceType_t::SF_TRIANGLES && isStaticShader(*sf.shader))
 		{
 			tris->vboItemIndex = ++numStaticSurfaces;
 			numStaticVertexes += tris->numVerts;
@@ -560,7 +560,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 			continue;
 		}
 		grid = (srfGridMesh_t *)sf.data;
-		if (grid->surfaceType == SF_GRID && isStaticShader(*sf.shader))
+		if (grid->surfaceType == surfaceType_t::SF_GRID && isStaticShader(*sf.shader))
 		{
 			grid->vboItemIndex = ++numStaticSurfaces;
 			RB_SurfaceGridEstimate(*grid, &grid->vboExpectVertices, &grid->vboExpectIndices);
@@ -620,19 +620,19 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 	{
 		msurface_t &sf = surf;
 		face = (srfSurfaceFace_t *)sf.data;
-		if (face->surfaceType == SF_FACE && face->vboItemIndex)
+		if (face->surfaceType == surfaceType_t::SF_FACE && face->vboItemIndex)
 		{
 			surfList[n++] = &sf;
 			continue;
 		}
 		tris = (srfTriangles_t *)sf.data;
-		if (tris->surfaceType == SF_TRIANGLES && tris->vboItemIndex)
+		if (tris->surfaceType == surfaceType_t::SF_TRIANGLES && tris->vboItemIndex)
 		{
 			surfList[n++] = &sf;
 			continue;
 		}
 		grid = (srfGridMesh_t *)sf.data;
-		if (grid->surfaceType == SF_GRID && grid->vboItemIndex)
+		if (grid->surfaceType == surfaceType_t::SF_GRID && grid->vboItemIndex)
 		{
 			surfList[n++] = &sf;
 			continue;
@@ -659,13 +659,13 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 		face = (srfSurfaceFace_t *)sf.data;
 		tris = (srfTriangles_t *)sf.data;
 		grid = (srfGridMesh_t *)sf.data;
-		if (face->surfaceType == SF_FACE)
+		if (face->surfaceType == surfaceType_t::SF_FACE)
 			face->vboItemIndex = i + 1;
-		else if (tris->surfaceType == SF_TRIANGLES)
+		else if (tris->surfaceType == surfaceType_t::SF_TRIANGLES)
 		{
 			tris->vboItemIndex = i + 1;
 		}
-		else if (grid->surfaceType == SF_GRID)
+		else if (grid->surfaceType == surfaceType_t::SF_GRID)
 		{
 			grid->vboItemIndex = i + 1;
 		}
@@ -683,10 +683,10 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 		tess.needsST2 = true;
 #endif
 		// tesselate
-		rb_surfaceTable[*sf.data](sf.data); // VBO_PushData() may be called multiple times there
+		rb_surfaceTable[static_cast<uint32_t>(*sf.data)](sf.data); // VBO_PushData() may be called multiple times there
 		// setup colors and texture coordinates
 		VBO_PushData(i + 1, tess);
-		if (grid->surfaceType == SF_GRID)
+		if (grid->surfaceType == surfaceType_t::SF_GRID)
 		{
 			vbo_item_t *vi = vbo.items + i + 1;
 			if (vi->num_vertexes != grid->vboExpectVertices || vi->num_indexes != grid->vboExpectIndices)
@@ -711,17 +711,17 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 	// reset vbo markers
 	for ( i = 0, sf = surf; i < surfCount; i++, sf++ ) {
 		face = (srfSurfaceFace_t *) sf->data;
-		if ( face->surfaceType == SF_FACE ) {
+		if ( face->surfaceType == surfaceType_t::SF_FACE ) {
 			face->vboItemIndex = 0;
 			continue;
 		}
 		tris = (srfTriangles_t *) sf->data;
-		if ( tris->surfaceType == SF_TRIANGLES ) {
+		if ( tris->surfaceType == surfaceType_t::SF_TRIANGLES ) {
 			tris->vboItemIndex = 0;
 			continue;
 		}
 		grid = (srfGridMesh_t *) sf->data;
-		if ( grid->surfaceType == SF_GRID ) {
+		if ( grid->surfaceType == surfaceType_t::SF_GRID ) {
 			grid->vboItemIndex = 0;
 			continue;
 		}

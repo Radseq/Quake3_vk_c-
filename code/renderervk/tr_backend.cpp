@@ -226,7 +226,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 		if (drawSurf->sort == oldSort)
 		{
 			// fast path, same as previous sort
-			rb_surfaceTable[*drawSurf->surface](drawSurf->surface);
+			rb_surfaceTable[static_cast<uint32_t>(*drawSurf->surface)](drawSurf->surface);
 			continue;
 		}
 
@@ -327,7 +327,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 		}
 
 		// add the triangles for this surface
-		rb_surfaceTable[*drawSurf->surface](drawSurf->surface);
+		rb_surfaceTable[static_cast<uint32_t>(*drawSurf->surface)](drawSurf->surface);
 	}
 
 	// draw the contents of the last shader batch
@@ -400,7 +400,7 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 		if (litSurf->sort == oldSort)
 		{
 			// fast path, same as previous sort
-			rb_surfaceTable[*litSurf->surface](litSurf->surface);
+			rb_surfaceTable[static_cast<uint32_t>(*litSurf->surface)](litSurf->surface);
 			continue;
 		}
 
@@ -484,7 +484,7 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 		}
 
 		// add the triangles for this surface
-		rb_surfaceTable[*litSurf->surface](litSurf->surface);
+		rb_surfaceTable[static_cast<uint32_t>(*litSurf->surface)](litSurf->surface);
 	}
 
 	// draw the contents of the last shader batch

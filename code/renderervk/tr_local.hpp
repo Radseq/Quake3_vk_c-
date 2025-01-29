@@ -644,13 +644,13 @@ typedef struct
 	const float *fogColor; // vec4_t
 } fogProgramParms_t;
 
-typedef enum
+enum class portalView_t : uint8_t
 {
 	PV_NONE = 0,
 	PV_PORTAL, // this view is through a portal
 	PV_MIRROR, // portal + inverted face culling
 	PV_COUNT
-} portalView_t;
+};
 
 typedef struct
 {
@@ -685,7 +685,7 @@ SURFACES
 */
 
 // any changes in surfaceType must be mirrored in rb_surfaceTable[]
-typedef enum
+enum class surfaceType_t : uint32_t
 {
 	SF_BAD,
 	SF_SKIP, // ignore
@@ -701,7 +701,7 @@ typedef enum
 
 	SF_NUM_SURFACE_TYPES,
 	SF_MAX = 0x7fffffff // ensures that sizeof( surfaceType_t ) == sizeof( int )
-} surfaceType_t;
+};
 
 typedef struct drawSurf_s
 {
@@ -883,7 +883,7 @@ typedef struct srfIQModel_s
 	int first_influence, num_influences;
 } srfIQModel_t;
 
-extern void (*rb_surfaceTable[SF_NUM_SURFACE_TYPES])(void *);
+extern void (*rb_surfaceTable[static_cast<uint32_t>(surfaceType_t::SF_NUM_SURFACE_TYPES)])(void *);
 
 /*
 ==============================================================================
@@ -986,14 +986,14 @@ typedef struct
 
 //======================================================================
 
-typedef enum
+enum class modtype_t : uint8_t
 {
 	MOD_BAD,
 	MOD_BRUSH,
 	MOD_MESH,
 	MOD_MDR,
 	MOD_IQM
-} modtype_t;
+};
 
 typedef struct model_s
 {
@@ -1002,9 +1002,9 @@ typedef struct model_s
 	int index; // model = tr.models[model->index]
 
 	int dataSize;					// just for listing purposes
-	bmodel_t *bmodel;				// only if type == MOD_BRUSH
-	md3Header_t *md3[MD3_MAX_LODS]; // only if type == MOD_MESH
-	void *modelData;				// only if type == (MOD_MDR | MOD_IQM)
+	bmodel_t *bmodel;				// only if type == modtype_t::MOD_BRUSH
+	md3Header_t *md3[MD3_MAX_LODS]; // only if type == modtype_t::MOD_MESH
+	void *modelData;				// only if type == (modtype_t::MOD_MDR | modtype_t::MOD_IQM)
 
 	int numLods;
 } model_t;

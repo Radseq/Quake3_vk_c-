@@ -155,7 +155,7 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 		}
 
 		srfPoly_t& poly = backEndData->polys[r_numpolys];
-		poly.surfaceType = SF_POLY;
+		poly.surfaceType = surfaceType_t::SF_POLY;
 		poly.hShader = hShader;
 		poly.numVerts = numVerts;
 		poly.verts = &backEndData->polyVerts[r_numpolyverts];
@@ -504,7 +504,7 @@ void RE_RenderScene(const refdef_t *fd)
 	parms.scissorWidth = parms.viewportWidth;
 	parms.scissorHeight = parms.viewportHeight;
 
-	parms.portalView = PV_NONE;
+	parms.portalView = portalView_t::PV_NONE;
 
 #ifdef USE_PMLIGHT
 	parms.dlights = tr.refdef.dlights;

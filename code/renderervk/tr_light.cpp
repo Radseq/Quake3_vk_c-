@@ -114,15 +114,15 @@ void R_DlightBmodel(bmodel_t &bmodel)
     {
         surf = bmodel.firstSurface + i;
 
-        if (*surf->data == SF_FACE)
+        if (*surf->data == surfaceType_t::SF_FACE)
         {
             ((srfSurfaceFace_t *)surf->data)->dlightBits = mask;
         }
-        else if (*surf->data == SF_GRID)
+        else if (*surf->data == surfaceType_t::SF_GRID)
         {
             ((srfGridMesh_t *)surf->data)->dlightBits = mask;
         }
-        else if (*surf->data == SF_TRIANGLES)
+        else if (*surf->data == surfaceType_t::SF_TRIANGLES)
         {
             ((srfTriangles_t *)surf->data)->dlightBits = mask;
         }

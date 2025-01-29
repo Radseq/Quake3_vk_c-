@@ -122,7 +122,7 @@ static qhandle_t R_RegisterMD3(std::string_view name, model_t &mod)
 
 	ri.Printf(PRINT_DEVELOPER, S_COLOR_YELLOW "%s: couldn't load %s\n", __func__, name.data());
 
-	mod.type = MOD_BAD;
+	mod.type = modtype_t::MOD_BAD;
 	return 0;
 }
 
@@ -145,14 +145,14 @@ static qhandle_t R_RegisterMDR(std::string_view name, model_t &mod)
 	filesize = ri.FS_ReadFile(name.data(), &buf.v);
 	if (!buf.v)
 	{
-		mod.type = MOD_BAD;
+		mod.type = modtype_t::MOD_BAD;
 		return 0;
 	}
 
 	if (static_cast<std::size_t>(filesize) < sizeof(ident))
 	{
 		ri.FS_FreeFile(buf.v);
-		mod.type = MOD_BAD;
+		mod.type = modtype_t::MOD_BAD;
 		return 0;
 	}
 
@@ -165,7 +165,7 @@ static qhandle_t R_RegisterMDR(std::string_view name, model_t &mod)
 	if (!loaded)
 	{
 		ri.Printf(PRINT_WARNING, "%s: couldn't load %s\n", __func__, name.data());
-		mod.type = MOD_BAD;
+		mod.type = modtype_t::MOD_BAD;
 		return 0;
 	}
 
@@ -190,7 +190,7 @@ static qhandle_t R_RegisterIQM(std::string_view name, model_t &mod)
 	filesize = ri.FS_ReadFile(name.data(), (void **)&buf.v);
 	if (!buf.u)
 	{
-		mod.type = MOD_BAD;
+		mod.type = modtype_t::MOD_BAD;
 		return 0;
 	}
 
@@ -201,7 +201,7 @@ static qhandle_t R_RegisterIQM(std::string_view name, model_t &mod)
 	if (!loaded)
 	{
 		ri.Printf(PRINT_WARNING, "%s: couldn't load %s\n", __func__, name.data());
-		mod.type = MOD_BAD;
+		mod.type = modtype_t::MOD_BAD;
 		return 0;
 	}
 
@@ -306,7 +306,7 @@ qhandle_t RE_RegisterModel(const char *name)
 		mod = tr.models[hModel];
 		if (!strcmp(mod->name.data(), name))
 		{
-			if (mod->type == MOD_BAD)
+			if (mod->type == modtype_t::MOD_BAD)
 			{
 				return 0;
 			}
@@ -325,7 +325,7 @@ qhandle_t RE_RegisterModel(const char *name)
 	// only set the name after the model has been successfully loaded
 	Q_strncpyz_cpp(mod->name, name, sizeof(mod->name));
 
-	mod->type = MOD_BAD;
+	mod->type = modtype_t::MOD_BAD;
 	mod->numLods = 0;
 
 	//
@@ -430,7 +430,7 @@ static bool R_LoadMD3(model_t &mod, const int lod, void *buffer, const std::size
 		return false;
 	}
 
-	mod.type = MOD_MESH;
+	mod.type = modtype_t::MOD_MESH;
 	mod.dataSize += size;
 	mod.md3[lod] = reinterpret_cast<md3Header_t *>(ri.Hunk_Alloc(size, h_low));
 
@@ -574,7 +574,7 @@ static bool R_LoadMD3(model_t &mod, const int lod, void *buffer, const std::size
 		}
 
 		// change to surface identifier
-		surf->ident = SF_MD3;
+		surf->ident = static_cast<int>(surfaceType_t::SF_MD3);
 
 		// zero-terminate surface name
 		surf->name[sizeof(surf->name) - 1] = '\0';
@@ -682,7 +682,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, const int filesize, std::strin
 		return false;
 	}
 
-	mod.type = MOD_MDR;
+	mod.type = modtype_t::MOD_MDR;
 
 	LL(pinmodel->numFrames);
 	LL(pinmodel->numBones);
@@ -838,7 +838,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, const int filesize, std::strin
 
 			// first do some copying stuff
 
-			surf->ident = SF_MDR;
+			surf->ident = static_cast<int>(surfaceType_t::SF_MDR);
 			Q_strncpyz(surf->name, cursurf->name, sizeof(surf->name));
 			Q_strncpyz(surf->shader, cursurf->shader, sizeof(surf->shader));
 
@@ -1025,7 +1025,7 @@ void R_ModelInit(void)
 	tr.numModels = 0;
 
 	mod = R_AllocModel();
-	mod->type = MOD_BAD;
+	mod->type = modtype_t::MOD_BAD;
 }
 
 /*
@@ -1154,12 +1154,12 @@ int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame
 	model = R_GetModelByHandle(handle);
 	if (!model->md3[0])
 	{
-		if (model->type == MOD_MDR)
+		if (model->type == modtype_t::MOD_MDR)
 		{
 			start = R_GetAnimTag((mdrHeader_t *)model->modelData, startFrame, tagNameCpp, start_space);
 			end = R_GetAnimTag((mdrHeader_t *)model->modelData, endFrame, tagNameCpp, end_space);
 		}
-		else if (model->type == MOD_IQM)
+		else if (model->type == modtype_t::MOD_IQM)
 		{
 			return R_IQMLerpTag(*tag, reinterpret_cast<iqmData_t &>(model->modelData),
 								startFrame, endFrame,
@@ -1208,14 +1208,14 @@ void R_ModelBounds(qhandle_t handle, vec3_t mins, vec3_t maxs)
 {
 	model_t &model = *R_GetModelByHandle(handle);
 
-	if (model.type == MOD_BRUSH)
+	if (model.type == modtype_t::MOD_BRUSH)
 	{
 		VectorCopy(model.bmodel->bounds[0], mins);
 		VectorCopy(model.bmodel->bounds[1], maxs);
 
 		return;
 	}
-	else if (model.type == MOD_MESH)
+	else if (model.type == modtype_t::MOD_MESH)
 	{
 		md3Header_t *header;
 		md3Frame_t *frame;
@@ -1228,7 +1228,7 @@ void R_ModelBounds(qhandle_t handle, vec3_t mins, vec3_t maxs)
 
 		return;
 	}
-	else if (model.type == MOD_MDR)
+	else if (model.type == modtype_t::MOD_MDR)
 	{
 		mdrHeader_t *header;
 		mdrFrame_t *frame;
@@ -1241,7 +1241,7 @@ void R_ModelBounds(qhandle_t handle, vec3_t mins, vec3_t maxs)
 
 		return;
 	}
-	else if (model.type == MOD_IQM)
+	else if (model.type == modtype_t::MOD_IQM)
 	{
 		iqmData_t *iqmData;
 

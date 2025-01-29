@@ -414,7 +414,7 @@ static void AutospriteDeform(void)
 		VectorScale(leftDir, radius, left);
 		VectorScale(upDir, radius, up);
 
-		if (backEnd.viewParms.portalView == PV_MIRROR)
+		if (backEnd.viewParms.portalView == portalView_t::PV_MIRROR)
 		{
 			VectorSubtract(vec3_origin, left, left);
 		}

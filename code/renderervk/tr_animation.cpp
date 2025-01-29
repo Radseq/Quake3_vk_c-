@@ -211,7 +211,7 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 
 	mdrHeader_t &header = (mdrHeader_t &)tr.currentModel->modelData;
 
-	personalModel = (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE);
+	personalModel = (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE);
 
 	if (ent.e.renderfx & RF_WRAP_FRAMES)
 	{
@@ -340,7 +340,7 @@ void RB_MDRSurfaceAnim(mdrSurface_t &surface)
 #ifdef USE_VBO
 	VBO_Flush();
 
-	tess.surfType = SF_MDR;
+	tess.surfType = surfaceType_t::SF_MDR;
 #endif
 
 	// don't lerp if lerping off, or this is the only frame, or the last frame...

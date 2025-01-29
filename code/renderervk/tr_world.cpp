@@ -127,17 +127,17 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 		return false;
 	}
 
-	if (*surface == SF_GRID)
+	if (*surface == surfaceType_t::SF_GRID)
 	{
 		return R_CullGrid((srfGridMesh_t *)surface);
 	}
 
-	if (*surface == SF_TRIANGLES)
+	if (*surface == surfaceType_t::SF_TRIANGLES)
 	{
 		return R_CullTriSurf((srfTriangles_t *)surface);
 	}
 
-	if (*surface != SF_FACE)
+	if (*surface != surfaceType_t::SF_FACE)
 	{
 		return false;
 	}
@@ -242,14 +242,14 @@ static bool R_LightCullSurface(const surfaceType_t &surface, const dlight_t &dl)
 {
 	switch (surface)
 	{
-	case SF_FACE:
+	case surfaceType_t::SF_FACE:
 		return R_LightCullFace((const srfSurfaceFace_t &)surface, dl);
-	case SF_GRID:
+	case surfaceType_t::SF_GRID:
 	{
 		const srfGridMesh_t &grid = (const srfGridMesh_t &)surface;
 		return R_LightCullBounds(dl, grid.meshBounds[0], grid.meshBounds[1]);
 	}
-	case SF_TRIANGLES:
+	case surfaceType_t::SF_TRIANGLES:
 	{
 		const srfTriangles_t &tris = (const srfTriangles_t &)surface;
 		return R_LightCullBounds(dl, tris.bounds[0], tris.bounds[1]);
@@ -362,15 +362,15 @@ more dlights if possible.
 */
 static int R_DlightSurface(msurface_t &surf, int dlightBits)
 {
-	if (*surf.data == SF_FACE)
+	if (*surf.data == surfaceType_t::SF_FACE)
 	{
 		dlightBits = R_DlightFace(reinterpret_cast<srfSurfaceFace_t&>(*surf.data), dlightBits);
 	}
-	else if (*surf.data == SF_GRID)
+	else if (*surf.data == surfaceType_t::SF_GRID)
 	{
 		dlightBits = R_DlightGrid(reinterpret_cast<srfGridMesh_t&>(*surf.data), dlightBits);
 	}
-	else if (*surf.data == SF_TRIANGLES)
+	else if (*surf.data == surfaceType_t::SF_TRIANGLES)
 	{
 		dlightBits = R_DlightTrisurf(reinterpret_cast<srfTriangles_t&>(*surf.data), dlightBits);
 	}

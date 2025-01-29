@@ -182,7 +182,7 @@ static void R_BoxSurfaces_r(mnode_t *node, const vec3_t &mins, const vec3_t &max
 			surf->viewCount = tr.viewCount;
 		}
 		// extra check for surfaces to avoid list overflows
-		else if (*(surf->data) == SF_FACE)
+		else if (*(surf->data) == surfaceType_t::SF_FACE)
 		{
 			// the face plane should go through the box
 			s = BoxOnPlaneSide_cpp(mins, maxs, ((srfSurfaceFace_t *)surf->data)->plane);
@@ -196,8 +196,8 @@ static void R_BoxSurfaces_r(mnode_t *node, const vec3_t &mins, const vec3_t &max
 				surf->viewCount = tr.viewCount;
 			}
 		}
-		else if (*(surfaceType_t *)(surf->data) != SF_GRID &&
-				 *(surfaceType_t *)(surf->data) != SF_TRIANGLES)
+		else if (*(surfaceType_t *)(surf->data) != surfaceType_t::SF_GRID &&
+				 *(surfaceType_t *)(surf->data) != surfaceType_t::SF_TRIANGLES)
 			surf->viewCount = tr.viewCount;
 		// check the viewCount because the surface may have
 		// already been added if it spans multiple leafs
@@ -356,7 +356,7 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 
 	for (i = 0; i < numsurfaces; i++)
 	{
-		if (*surfaces[i] == SF_GRID)
+		if (*surfaces[i] == surfaceType_t::SF_GRID)
 		{
 			cv = (srfGridMesh_t *)surfaces[i];
 			for (m = 0; m < cv->height - 1; m++)
@@ -368,7 +368,7 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 					// LOD is not taken into account, not such a big deal though.
 					//
 					// It's probably much nicer to chop the grid itself and deal
-					// with this grid as a normal SF_GRID surface so LOD will
+					// with this grid as a normal surfaceType_t::SF_GRID surface so LOD will
 					// be applied. However the LOD of that chopped grid must
 					// be synced with the LOD of the original curve.
 					// One way to do this; the chopped grid shares vertices with
@@ -442,7 +442,7 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 				}
 			}
 		}
-		else if (*surfaces[i] == SF_FACE)
+		else if (*surfaces[i] == surfaceType_t::SF_FACE)
 		{
 
 			srfSurfaceFace_t *surf = (srfSurfaceFace_t *)surfaces[i];
@@ -474,7 +474,7 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 				}
 			}
 		}
-		else if (*surfaces[i] == SF_TRIANGLES && r_marksOnTriangleMeshes->integer)
+		else if (*surfaces[i] == surfaceType_t::SF_TRIANGLES && r_marksOnTriangleMeshes->integer)
 		{
 
 			srfTriangles_t *surf = (srfTriangles_t *)surfaces[i];

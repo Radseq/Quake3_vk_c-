@@ -6332,7 +6332,7 @@ static void get_viewport(vk::Viewport &viewport, const Vk_Depth_Range depth_rang
 
 static void get_scissor_rect(vk::Rect2D &r)
 {
-	if (backEnd.viewParms.portalView != PV_NONE)
+	if (backEnd.viewParms.portalView != portalView_t::PV_NONE)
 	{
 		r.offset.x = backEnd.viewParms.scissorX;
 		r.offset.y = glConfig.vidHeight - backEnd.viewParms.scissorY - backEnd.viewParms.scissorHeight;

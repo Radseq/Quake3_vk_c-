@@ -78,8 +78,8 @@ void RB_CheckOverflow(const int verts, const int indexes)
 RB_AddQuadStampExt
 ==============
 */
-void RB_AddQuadStampExt(const vec3_t &origin, const vec3_t &left, const vec3_t &up, const color4ub_t &color, 
-	const float s1, const float t1, const float s2, const float t2)
+void RB_AddQuadStampExt(const vec3_t &origin, const vec3_t &left, const vec3_t &up, const color4ub_t &color,
+						const float s1, const float t1, const float s2, const float t2)
 {
 	vec3_t normal{};
 	int ndx;
@@ -91,7 +91,7 @@ void RB_AddQuadStampExt(const vec3_t &origin, const vec3_t &left, const vec3_t &
 	RB_CHECKOVERFLOW(4, 6);
 
 #ifdef USE_VBO
-	tess.surfType = SF_TRIANGLES;
+	tess.surfType = surfaceType_t::SF_TRIANGLES;
 #endif
 
 	ndx = tess.numVertexes;
@@ -164,7 +164,7 @@ void RB_AddQuadStamp2(float x, float y, float w, float h, float s1, float t1, fl
 	RB_CHECKOVERFLOW(4, 6);
 
 #ifdef USE_VBO
-	tess.surfType = SF_TRIANGLES;
+	tess.surfType = surfaceType_t::SF_TRIANGLES;
 #endif
 
 	numIndexes = tess.numIndexes;
@@ -251,7 +251,7 @@ static void RB_SurfaceSprite(void)
 		VectorMA(up, s * radius, backEnd.viewParms.ort.axis[1], up);
 	}
 
-	if (backEnd.viewParms.portalView == PV_MIRROR)
+	if (backEnd.viewParms.portalView == portalView_t::PV_MIRROR)
 	{
 		VectorSubtract(vec3_origin, left, left);
 	}
@@ -276,7 +276,7 @@ static void RB_SurfacePolychain(const srfPoly_t *p)
 	RB_CHECKOVERFLOW(p->numVerts, 3 * (p->numVerts - 2));
 
 #ifdef USE_VBO
-	tess.surfType = SF_POLY;
+	tess.surfType = surfaceType_t::SF_POLY;
 #endif
 
 	// fan triangles into the tess array
@@ -338,7 +338,7 @@ static void RB_SurfaceTriangles(const srfTriangles_t *srf)
 			tess.numVertexes = 0;
 			VBO_ClearQueue();
 		}
-		tess.surfType = SF_TRIANGLES;
+		tess.surfType = surfaceType_t::SF_TRIANGLES;
 		tess.vboIndex = srf->vboItemIndex;
 		VBO_QueueItem(srf->vboItemIndex);
 		return; // no need to tesselate anything
@@ -355,7 +355,7 @@ static void RB_SurfaceTriangles(const srfTriangles_t *srf)
 #endif
 
 #ifdef USE_VBO
-	tess.surfType = SF_TRIANGLES;
+	tess.surfType = surfaceType_t::SF_TRIANGLES;
 #endif
 
 	for (i = 0; i < srf->numIndexes; i += 3)
@@ -424,7 +424,7 @@ static void RB_SurfaceBeam(void)
 	vec3_t direction{}, normalized_direction{};
 	vec3_t points[NUM_BEAM_SEGS + 1][2]{};
 
-	const refEntity_t& e = backEnd.currentEntity->e;
+	const refEntity_t &e = backEnd.currentEntity->e;
 
 	vec3_t oldorigin{
 		e.oldorigin[0],
@@ -535,7 +535,7 @@ static void DoRailCore(const vec3_t &start, const vec3_t &end, const vec3_t &up,
 	tess.indexes[tess.numIndexes++] = vbase + 3;
 }
 
-static void DoRailDiscs(int numSegs, const vec3_t& start, const vec3_t& dir, const vec3_t& right, const vec3_t& up)
+static void DoRailDiscs(int numSegs, const vec3_t &start, const vec3_t &dir, const vec3_t &right, const vec3_t &up)
 {
 	if (numSegs > 1)
 		numSegs--;
@@ -837,7 +837,7 @@ static void RB_SurfaceMesh(md3Surface_t *surface)
 	RB_CHECKOVERFLOW(surface->numVerts, surface->numTriangles * 3);
 
 #ifdef USE_VBO
-	tess.surfType = SF_MD3;
+	tess.surfType = surfaceType_t::SF_MD3;
 #endif
 
 	if (backEnd.currentEntity->e.oldframe == backEnd.currentEntity->e.frame)
@@ -911,7 +911,7 @@ static void RB_SurfaceFace(const srfSurfaceFace_t *surf)
 			tess.numVertexes = 0;
 			VBO_ClearQueue();
 		}
-		tess.surfType = SF_FACE;
+		tess.surfType = surfaceType_t::SF_FACE;
 		tess.vboIndex = surf->vboItemIndex;
 		VBO_QueueItem(surf->vboItemIndex);
 		return; // no need to tesselate anything
@@ -923,7 +923,7 @@ static void RB_SurfaceFace(const srfSurfaceFace_t *surf)
 	RB_CHECKOVERFLOW(surf->numPoints, surf->numIndices);
 
 #ifdef USE_VBO
-	tess.surfType = SF_FACE;
+	tess.surfType = surfaceType_t::SF_FACE;
 #endif
 
 #ifdef USE_LEGACY_DLIGHTS
@@ -984,7 +984,7 @@ static void RB_SurfaceFace(const srfSurfaceFace_t *surf)
 	tess.numVertexes += surf->numPoints;
 }
 
-static float LodErrorForVolume(const vec3_t& local, const float radius)
+static float LodErrorForVolume(const vec3_t &local, const float radius)
 {
 	// never let it go negative
 	if (r_lodCurveError->value < 0)
@@ -1137,7 +1137,7 @@ static void RB_SurfaceGrid(srfGridMesh_t *cv)
 			tess.numVertexes = 0;
 			VBO_ClearQueue();
 		}
-		tess.surfType = SF_GRID;
+		tess.surfType = surfaceType_t::SF_GRID;
 		tess.vboIndex = cv->vboItemIndex;
 		VBO_QueueItem(cv->vboItemIndex);
 		return; // no need to tesselate anything
@@ -1152,7 +1152,7 @@ static void RB_SurfaceGrid(srfGridMesh_t *cv)
 #endif
 
 #ifdef USE_VBO
-	tess.surfType = SF_GRID;
+	tess.surfType = surfaceType_t::SF_GRID;
 
 	// determine the allowable discrepance
 #ifdef USE_PMLIGHT
@@ -1416,7 +1416,7 @@ static void RB_SurfaceEntity(const surfaceType_t *surfType)
 		break;
 	}
 #ifdef USE_VBO
-	tess.surfType = SF_ENTITY;
+	tess.surfType = surfaceType_t::SF_ENTITY;
 #endif
 }
 
@@ -1431,7 +1431,7 @@ static void RB_SurfaceFlare(srfFlare_t *surf)
 	{
 #ifdef USE_VBO
 		VBO_Flush();
-		tess.surfType = SF_FLARE;
+		tess.surfType = surfaceType_t::SF_FLARE;
 #endif
 		RB_AddFlare(surf, tess.fogNum, surf->origin, surf->color, surf->normal);
 	}
@@ -1441,16 +1441,16 @@ static void RB_SurfaceSkip(void *surf)
 {
 }
 
-void (*rb_surfaceTable[SF_NUM_SURFACE_TYPES])(void *) = {
-	(void (*)(void *))RB_SurfaceBad,	   // SF_BAD,
-	(void (*)(void *))RB_SurfaceSkip,	   // SF_SKIP,
-	(void (*)(void *))RB_SurfaceFace,	   // SF_FACE,
-	(void (*)(void *))RB_SurfaceGrid,	   // SF_GRID,
-	(void (*)(void *))RB_SurfaceTriangles, // SF_TRIANGLES,
-	(void (*)(void *))RB_SurfacePolychain, // SF_POLY,
-	(void (*)(void *))RB_SurfaceMesh,	   // SF_MD3,
-	(void (*)(void *))RB_MDRSurfaceAnim,   // SF_MDR,
-	(void (*)(void *))RB_IQMSurfaceAnim,   // SF_IQM,
-	(void (*)(void *))RB_SurfaceFlare,	   // SF_FLARE,
-	(void (*)(void *))RB_SurfaceEntity	   // SF_ENTITY
+void (*rb_surfaceTable[static_cast<uint32_t>(surfaceType_t::SF_NUM_SURFACE_TYPES)])(void *) = {
+	(void (*)(void *))RB_SurfaceBad,	   // surfaceType_t::SF_BAD,
+	(void (*)(void *))RB_SurfaceSkip,	   // surfaceType_t::SF_SKIP,
+	(void (*)(void *))RB_SurfaceFace,	   // surfaceType_t::SF_FACE,
+	(void (*)(void *))RB_SurfaceGrid,	   // surfaceType_t::SF_GRID,
+	(void (*)(void *))RB_SurfaceTriangles, // surfaceType_t::SF_TRIANGLES,
+	(void (*)(void *))RB_SurfacePolychain, // surfaceType_t::SF_POLY,
+	(void (*)(void *))RB_SurfaceMesh,	   // surfaceType_t::SF_MD3,
+	(void (*)(void *))RB_MDRSurfaceAnim,   // surfaceType_t::SF_MDR,
+	(void (*)(void *))RB_IQMSurfaceAnim,   // surfaceType_t::SF_IQM,
+	(void (*)(void *))RB_SurfaceFlare,	   // surfaceType_t::SF_FLARE,
+	(void (*)(void *))RB_SurfaceEntity	   // surfaceType_t::SF_ENTITY
 };

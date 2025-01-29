@@ -581,7 +581,7 @@ void VK_LightingPass(void)
 		return; // no space left...
 
 	cull = tess.shader->cullType;
-	if (backEnd.viewParms.portalView == PV_MIRROR)
+	if (backEnd.viewParms.portalView == portalView_t::PV_MIRROR)
 	{
 		switch (cull)
 		{
@@ -709,7 +709,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 			Bind(tr.whiteImage); // replace diffuse texture with a white one thus effectively render only lightmap
 		}
 
-		if (backEnd.viewParms.portalView == PV_MIRROR)
+		if (backEnd.viewParms.portalView == portalView_t::PV_MIRROR)
 		{
 			pipeline = pStage->vk_mirror_pipeline[fog_stage];
 		}
@@ -724,7 +724,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 
 		if (pStage->depthFragment)
 		{
-			if (backEnd.viewParms.portalView == PV_MIRROR)
+			if (backEnd.viewParms.portalView == portalView_t::PV_MIRROR)
 				pipeline = pStage->vk_mirror_pipeline_df;
 			else
 				pipeline = pStage->vk_pipeline_df;
@@ -1040,20 +1040,20 @@ static void DrawTris(const shaderCommands_t &input)
 	{
 #ifdef USE_PMLIGHT
 		if (tess.dlightPass)
-			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk_inst.tris_mirror_debug_red_pipeline : vk_inst.tris_debug_red_pipeline;
+			pipeline = backEnd.viewParms.portalView == portalView_t::PV_MIRROR ? vk_inst.tris_mirror_debug_red_pipeline : vk_inst.tris_debug_red_pipeline;
 		else
 #endif
-			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk_inst.tris_mirror_debug_green_pipeline : vk_inst.tris_debug_green_pipeline;
+			pipeline = backEnd.viewParms.portalView == portalView_t::PV_MIRROR ? vk_inst.tris_mirror_debug_green_pipeline : vk_inst.tris_debug_green_pipeline;
 	}
 	else
 #endif
 	{
 #ifdef USE_PMLIGHT
 		if (tess.dlightPass)
-			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk_inst.tris_mirror_debug_red_pipeline : vk_inst.tris_debug_red_pipeline;
+			pipeline = backEnd.viewParms.portalView == portalView_t::PV_MIRROR ? vk_inst.tris_mirror_debug_red_pipeline : vk_inst.tris_debug_red_pipeline;
 		else
 #endif
-			pipeline = backEnd.viewParms.portalView == PV_MIRROR ? vk_inst.tris_mirror_debug_pipeline : vk_inst.tris_debug_pipeline;
+			pipeline = backEnd.viewParms.portalView == portalView_t::PV_MIRROR ? vk_inst.tris_mirror_debug_pipeline : vk_inst.tris_debug_pipeline;
 	}
 
 	vk_bind_pipeline(pipeline);

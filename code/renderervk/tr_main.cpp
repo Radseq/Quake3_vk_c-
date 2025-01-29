@@ -40,7 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 // entities that will have procedurally generated surfaces will just
 // point at this for their sorting surface
-static surfaceType_t entitySurface = SF_ENTITY;
+static surfaceType_t entitySurface = surfaceType_t::SF_ENTITY;
 
 trGlobals_t tr;
 
@@ -688,7 +688,7 @@ static void R_SetupProjectionZ(viewParms_t &dest)
 	dest.projectionMatrix[10] = -zFar / depth;
 	dest.projectionMatrix[14] = -zFar * zNear / depth;
 #endif
-	if (dest.portalView != PV_NONE)
+	if (dest.portalView != portalView_t::PV_NONE)
 	{
 		vec4_t c{};
 
@@ -789,10 +789,10 @@ static void R_PlaneForSurface(const surfaceType_t *surfType, cplane_t &plane)
 	}
 	switch (*surfType)
 	{
-	case SF_FACE:
+	case surfaceType_t::SF_FACE:
 		plane = ((srfSurfaceFace_t *)surfType)->plane;
 		return;
-	case SF_TRIANGLES:
+	case surfaceType_t::SF_TRIANGLES:
 		tri = (srfTriangles_t *)surfType;
 		v1 = tri->verts + tri->indexes[0];
 		v2 = tri->verts + tri->indexes[1];
@@ -801,7 +801,7 @@ static void R_PlaneForSurface(const surfaceType_t *surfType, cplane_t &plane)
 		VectorCopy(plane4, plane.normal);
 		plane.dist = plane4[3];
 		return;
-	case SF_POLY:
+	case surfaceType_t::SF_POLY:
 		poly = (srfPoly_t *)surfType;
 		PlaneFromPoints(plane4, poly->verts[0].xyz, poly->verts[1].xyz, poly->verts[2].xyz);
 		VectorCopy(plane4, plane.normal);
@@ -893,7 +893,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 			VectorCopy(surface.axis[1], camera.axis[1]);
 			VectorCopy(surface.axis[2], camera.axis[2]);
 
-			*portalView = PV_MIRROR;
+			*portalView = portalView_t::PV_MIRROR;
 			return true;
 		}
 
@@ -938,7 +938,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 			CrossProduct(camera.axis[0], camera.axis[1], camera.axis[2]);
 		}
 
-		*portalView = PV_PORTAL;
+		*portalView = portalView_t::PV_PORTAL;
 		return true;
 	}
 
@@ -1046,7 +1046,7 @@ static bool SurfIsOffscreen(const drawSurf_t &drawSurf, bool &isMirror)
 #ifdef USE_TESS_NEEDS_NORMAL
 	tess.needsNormal = true;
 #endif
-	rb_surfaceTable[*drawSurf.surface](drawSurf.surface);
+	rb_surfaceTable[static_cast<uint32_t>(*drawSurf.surface)](drawSurf.surface);
 
 	for (i = 0; i < tess.numVertexes; i++)
 	{
@@ -1228,7 +1228,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, const int entityNu
 	bool isMirror;
 
 	// don't recursively mirror
-	if (tr.viewParms.portalView != PV_NONE)
+	if (tr.viewParms.portalView != portalView_t::PV_NONE)
 	{
 		ri.Printf(PRINT_DEVELOPER, "WARNING: recursive mirror/portal found\n");
 		return false;
@@ -1254,7 +1254,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, const int entityNu
 	oldParms = tr.viewParms;
 
 	newParms = tr.viewParms;
-	newParms.portalView = PV_NONE;
+	newParms.portalView = portalView_t::PV_NONE;
 
 	if (!R_GetPortalOrientations(drawSurf, entityNum, surface, camera,
 								 newParms.pvsOrigin, &newParms.portalView))
@@ -1694,7 +1694,7 @@ static void R_AddEntitySurfaces(void)
 		// we don't want the hacked first person weapon position showing in
 		// mirrors, because the true body position will already be drawn
 		//
-		if ((ent.e.renderfx & RF_FIRST_PERSON) && (tr.viewParms.portalView != PV_NONE))
+		if ((ent.e.renderfx & RF_FIRST_PERSON) && (tr.viewParms.portalView != portalView_t::PV_NONE))
 		{
 			continue;
 		}
@@ -1712,7 +1712,7 @@ static void R_AddEntitySurfaces(void)
 			// self blood sprites, talk balloons, etc should not be drawn in the primary
 			// view.  We can't just do this check for all entities, because md3
 			// entities may still want to cast shadows from them
-			if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE))
+			if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE))
 			{
 				continue;
 			}
@@ -1733,20 +1733,20 @@ static void R_AddEntitySurfaces(void)
 			{
 				switch (tr.currentModel->type)
 				{
-				case MOD_MESH:
+				case modtype_t::MOD_MESH:
 					R_AddMD3Surfaces(ent);
 					break;
-				case MOD_MDR:
+				case modtype_t::MOD_MDR:
 					R_MDRAddAnimSurfaces(ent);
 					break;
-				case MOD_IQM:
+				case modtype_t::MOD_IQM:
 					R_AddIQMSurfaces(ent);
 					break;
-				case MOD_BRUSH:
+				case modtype_t::MOD_BRUSH:
 					R_AddBrushModelSurfaces(ent);
 					break;
-				case MOD_BAD: // null model axis
-					if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE))
+				case modtype_t::MOD_BAD: // null model axis
+					if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE))
 					{
 						break;
 					}

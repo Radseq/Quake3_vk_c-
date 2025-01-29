@@ -151,7 +151,7 @@ void R_AddIQMSurfaces(trRefEntity_t &ent)
 	surface = data->surfaces;
 
 	// don't add third_person objects if not in a portal
-	personalModel = (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE);
+	personalModel = (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE);
 
 	if (ent.e.renderfx & RF_WRAP_FRAMES)
 	{
@@ -1281,7 +1281,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, const int filesize, std::string_view 
 		size += 6 * sizeof(float); // model bounds
 	}
 
-	mod.type = MOD_IQM;
+	mod.type = modtype_t::MOD_IQM;
 	iqmData_t &iqmData = *(iqmData_t *)ri.Hunk_Alloc(size, h_low);
 	mod.modelData = &iqmData;
 
@@ -1384,7 +1384,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, const int filesize, std::string_view 
 		str = &(char &)header + header->ofs_text;
 		for (i = 0; i < header->num_meshes; i++, mesh++, surface++)
 		{
-			surface->surfaceType = SF_IQM;
+			surface->surfaceType = surfaceType_t::SF_IQM;
 			Q_strncpyz(surface->name, str + mesh->name, sizeof(surface->name));
 			Q_strlwr(surface->name); // lowercase the surface name so skin compares are faster
 			surface->shader = R_FindShader(str + mesh->material, LIGHTMAP_NONE, true);

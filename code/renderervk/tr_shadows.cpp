@@ -218,7 +218,7 @@ void RB_ShadowTessEnd(void)
 	Bind(tr.whiteImage);
 
 	// mirrors have the culling order reversed
-	if (backEnd.viewParms.portalView == PV_MIRROR)
+	if (backEnd.viewParms.portalView == portalView_t::PV_MIRROR)
 	{
 		pipeline[0] = vk_inst.shadow_volume_pipelines[0][1];
 		pipeline[1] = vk_inst.shadow_volume_pipelines[1][1];

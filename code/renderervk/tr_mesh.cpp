@@ -189,7 +189,7 @@ int R_ComputeLOD(trRefEntity_t &ent)
 		// multiple LODs exist, so compute projected bounding sphere
 		// and use that as a criteria for selecting LOD
 
-		if (tr.currentModel->type == MOD_MDR)
+		if (tr.currentModel->type == modtype_t::MOD_MDR)
 		{
 			int frameSize;
 			mdr = (mdrHeader_t *)tr.currentModel->modelData;
@@ -306,7 +306,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 #endif
 
 	// don't add third_person objects if not in a portal
-	personalModel = (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE);
+	personalModel = (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE);
 
 	if (ent.e.renderfx & RF_WRAP_FRAMES)
 	{
@@ -356,7 +356,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 
 #ifdef USE_PMLIGHT
 	numDlights = 0;
-	if (r_dlightMode->integer >= 2 && (!personalModel || tr.viewParms.portalView != PV_NONE))
+	if (r_dlightMode->integer >= 2 && (!personalModel || tr.viewParms.portalView != portalView_t::PV_NONE))
 	{
 		R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, tr.ort);
 		for (uint32_t n = 0; n < tr.viewParms.num_dlights; n++)
