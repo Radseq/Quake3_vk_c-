@@ -291,31 +291,31 @@ static genFunc_t NameToGenFunc(std::string_view funcname)
 {
 	if (!Q_stricmp_cpp(funcname, "sin"))
 	{
-		return GF_SIN;
+		return genFunc_t::GF_SIN;
 	}
 	else if (!Q_stricmp_cpp(funcname, "square"))
 	{
-		return GF_SQUARE;
+		return genFunc_t::GF_SQUARE;
 	}
 	else if (!Q_stricmp_cpp(funcname, "triangle"))
 	{
-		return GF_TRIANGLE;
+		return genFunc_t::GF_TRIANGLE;
 	}
 	else if (!Q_stricmp_cpp(funcname, "sawtooth"))
 	{
-		return GF_SAWTOOTH;
+		return genFunc_t::GF_SAWTOOTH;
 	}
 	else if (!Q_stricmp_cpp(funcname, "inversesawtooth"))
 	{
-		return GF_INVERSE_SAWTOOTH;
+		return genFunc_t::GF_INVERSE_SAWTOOTH;
 	}
 	else if (!Q_stricmp_cpp(funcname, "noise"))
 	{
-		return GF_NOISE;
+		return genFunc_t::GF_NOISE;
 	}
 
 	ri.Printf(PRINT_WARNING, "WARNING: invalid genfunc name '%s' in shader '%s'\n", funcname.data(), shader.name);
-	return GF_SIN;
+	return genFunc_t::GF_SIN;
 }
 
 /*
@@ -423,7 +423,7 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 		}
 		tmi.wave.frequency = Q_atof_cpp(token);
 
-		tmi.type = TMOD_TURBULENT;
+		tmi.type = texMod_t::TMOD_TURBULENT;
 	}
 	//
 	// scale
@@ -445,7 +445,7 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 			return;
 		}
 		tmi.scale[1] = Q_atof_cpp(token);
-		tmi.type = TMOD_SCALE;
+		tmi.type = texMod_t::TMOD_SCALE;
 	}
 	//
 	// scroll
@@ -466,7 +466,7 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 			return;
 		}
 		tmi.scroll[1] = Q_atof_cpp(token);
-		tmi.type = TMOD_SCROLL;
+		tmi.type = texMod_t::TMOD_SCROLL;
 	}
 	//
 	// stretch
@@ -513,7 +513,7 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 		}
 		tmi.wave.frequency = Q_atof_cpp(token);
 
-		tmi.type = TMOD_STRETCH;
+		tmi.type = texMod_t::TMOD_STRETCH;
 	}
 	//
 	// transform
@@ -568,7 +568,7 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 		}
 		tmi.translate[1] = Q_atof_cpp(token);
 
-		tmi.type = TMOD_TRANSFORM;
+		tmi.type = texMod_t::TMOD_TRANSFORM;
 	}
 	//
 	// rotate
@@ -582,14 +582,14 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 			return;
 		}
 		tmi.rotateSpeed = Q_atof_cpp(token);
-		tmi.type = TMOD_ROTATE;
+		tmi.type = texMod_t::TMOD_ROTATE;
 	}
 	//
 	// entityTranslate
 	//
 	else if (!Q_stricmp_cpp(token, "entityTranslate"))
 	{
-		tmi.type = TMOD_ENTITY_TRANSLATE;
+		tmi.type = texMod_t::TMOD_ENTITY_TRANSLATE;
 	}
 	else
 	{
@@ -1073,11 +1073,11 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			if (!Q_stricmp_cpp(token, "environment"))
 			{
 				const char *t = *text;
-				stage.bundle[0].tcGen = TCGEN_ENVIRONMENT_MAPPED;
+				stage.bundle[0].tcGen = texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED;
 				token = COM_ParseExt_cpp(text, false);
 				if (Q_stricmp_cpp(token, "firstPerson") == 0)
 				{
-					stage.bundle[0].tcGen = TCGEN_ENVIRONMENT_MAPPED_FP;
+					stage.bundle[0].tcGen = texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP;
 				}
 				else
 				{
@@ -1086,18 +1086,18 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			}
 			else if (!Q_stricmp_cpp(token, "lightmap"))
 			{
-				stage.bundle[0].tcGen = TCGEN_LIGHTMAP;
+				stage.bundle[0].tcGen = texCoordGen_t::TCGEN_LIGHTMAP;
 			}
 			else if (!Q_stricmp_cpp(token, "texture") || !Q_stricmp_cpp(token, "base"))
 			{
-				stage.bundle[0].tcGen = TCGEN_TEXTURE;
+				stage.bundle[0].tcGen = texCoordGen_t::TCGEN_TEXTURE;
 			}
 			else if (!Q_stricmp_cpp(token, "vector"))
 			{
 				ParseVector(text, 3, stage.bundle[0].tcGenVectors[0]);
 				ParseVector(text, 3, stage.bundle[0].tcGenVectors[1]);
 
-				stage.bundle[0].tcGen = TCGEN_VECTOR;
+				stage.bundle[0].tcGen = texCoordGen_t::TCGEN_VECTOR;
 			}
 			else
 			{
@@ -1209,15 +1209,15 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 	//
 	for (i = 0; i < NUM_TEXTURE_BUNDLES; i++)
 	{
-		if (stage.bundle[i].tcGen == TCGEN_BAD)
+		if (stage.bundle[i].tcGen == texCoordGen_t::TCGEN_BAD)
 		{
 			if (stage.bundle[i].lightmap != LIGHTMAP_INDEX_NONE)
 			{
-				stage.bundle[i].tcGen = TCGEN_LIGHTMAP;
+				stage.bundle[i].tcGen = texCoordGen_t::TCGEN_LIGHTMAP;
 			}
 			else
 			{
-				stage.bundle[i].tcGen = TCGEN_TEXTURE;
+				stage.bundle[i].tcGen = texCoordGen_t::TCGEN_TEXTURE;
 			}
 		}
 	}
@@ -1861,13 +1861,13 @@ static void FinishStage(shaderStage_t &stage)
 		// offset lightmap coordinates
 		if (bundle.lightmap >= LIGHTMAP_INDEX_OFFSET)
 		{
-			if (bundle.tcGen == TCGEN_LIGHTMAP)
+			if (bundle.tcGen == texCoordGen_t::TCGEN_LIGHTMAP)
 			{
 				texModInfo_t &tmi = bundle.texMods[bundle.numTexMods];
 				float x, y;
 				const int lightmapIndex = R_GetLightmapCoords(bundle.lightmap - LIGHTMAP_INDEX_OFFSET, x, y);
 				bundle.image[0] = tr.lightmaps[lightmapIndex];
-				tmi.type = TMOD_OFFSET;
+				tmi.type = texMod_t::TMOD_OFFSET;
 				tmi.offset[0] = x - tr.lightmapOffset[0];
 				tmi.offset[1] = y - tr.lightmapOffset[1];
 				bundle.numTexMods++;
@@ -1877,10 +1877,10 @@ static void FinishStage(shaderStage_t &stage)
 		// adjust texture coordinates to map on proper lightmap
 		if (bundle.lightmap == LIGHTMAP_INDEX_SHADER)
 		{
-			if (bundle.tcGen != TCGEN_LIGHTMAP)
+			if (bundle.tcGen != texCoordGen_t::TCGEN_LIGHTMAP)
 			{
 				texModInfo_t &tmi = bundle.texMods[bundle.numTexMods];
-				tmi.type = TMOD_SCALE_OFFSET;
+				tmi.type = texMod_t::TMOD_SCALE_OFFSET;
 				tmi.scale[0] = tr.lightmapScale[0];
 				tmi.scale[1] = tr.lightmapScale[1];
 				tmi.offset[0] = tr.lightmapOffset[0];
@@ -1892,7 +1892,7 @@ static void FinishStage(shaderStage_t &stage)
 				for (n = 0; n < bundle.numTexMods; n++)
 				{
 					texModInfo_t &tmi = bundle.texMods[n];
-					if (tmi.type == TMOD_TRANSFORM)
+					if (tmi.type == texMod_t::TMOD_TRANSFORM)
 					{
 						tmi.translate[0] *= tr.lightmapScale[0];
 						tmi.translate[1] *= tr.lightmapScale[1];
@@ -1908,14 +1908,14 @@ static void FinishStage(shaderStage_t &stage)
 		// revert lightmap texcoord correction if needed
 		if (bundle.lightmap == LIGHTMAP_INDEX_NONE)
 		{
-			if (bundle.tcGen == TCGEN_LIGHTMAP && shader.lightmapIndex >= 0)
+			if (bundle.tcGen == texCoordGen_t::TCGEN_LIGHTMAP && shader.lightmapIndex >= 0)
 			{
 				for (n = bundle.numTexMods; n > 0; --n)
 				{
 					bundle.texMods[n] = bundle.texMods[n - 1];
 				}
 				texModInfo_t &tmi = bundle.texMods[0];
-				tmi.type = TMOD_OFFSET_SCALE;
+				tmi.type = texMod_t::TMOD_OFFSET_SCALE;
 				tmi.offset[0] = -tr.lightmapOffset[0];
 				tmi.offset[1] = -tr.lightmapOffset[1];
 				tmi.scale[0] = 1.0f / tr.lightmapScale[0];
@@ -2142,11 +2142,11 @@ static bool ParseShader(const char **text)
 
 			if (!Q_stricmp_cpp(token, "none") || !Q_stricmp_cpp(token, "twosided") || !Q_stricmp_cpp(token, "disable"))
 			{
-				shader.cullType = CT_TWO_SIDED;
+				shader.cullType = cullType_t::CT_TWO_SIDED;
 			}
 			else if (!Q_stricmp_cpp(token, "back") || !Q_stricmp_cpp(token, "backside") || !Q_stricmp_cpp(token, "backsided"))
 			{
-				shader.cullType = CT_BACK_SIDED;
+				shader.cullType = cullType_t::CT_BACK_SIDED;
 			}
 			else
 			{
@@ -2481,7 +2481,7 @@ static const textureBundle_t *lightingBundle(const int stageIndex, const texture
 		{
 			continue;
 		}
-		if (bundle->tcGen != TCGEN_TEXTURE)
+		if (bundle->tcGen != texCoordGen_t::TCGEN_TEXTURE)
 		{
 			continue;
 		}
@@ -2747,7 +2747,7 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 		return false;
 	}
 
-	if (b1.tcGen == TCGEN_VECTOR)
+	if (b1.tcGen == texCoordGen_t::TCGEN_VECTOR)
 	{
 		if (memcmp(b1.tcGenVectors, b2.tcGenVectors, sizeof(b1.tcGenVectors)) != 0)
 		{
@@ -2755,13 +2755,13 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 		}
 	}
 
-	// if ( b1.tcGen == TCGEN_ENVIRONMENT_MAPPED_FP ) {
+	// if ( b1.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP ) {
 	//	if ( b1.isScreenMap != b2.isScreenMap ) {
 	//		return false;
 	//	}
 	// }
 
-	// if ( b1.tcGen != TCGEN_LIGHTMAP && b1.lightmap != b2.lightmap && r_mergeLightmaps->integer ) {
+	// if ( b1.tcGen != texCoordGen_t::TCGEN_LIGHTMAP && b1.lightmap != b2.lightmap && r_mergeLightmaps->integer ) {
 	//	return false;
 	// }
 
@@ -2780,7 +2780,7 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 			return false;
 		}
 
-		if (tm1.type == TMOD_TURBULENT || tm1.type == TMOD_STRETCH)
+		if (tm1.type == texMod_t::TMOD_TURBULENT || tm1.type == texMod_t::TMOD_STRETCH)
 		{
 			if (memcmp(&tm1.wave, &tm2.wave, sizeof(tm1.wave)) != 0)
 			{
@@ -2789,7 +2789,7 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 			continue;
 		}
 
-		if (tm1.type == TMOD_SCROLL)
+		if (tm1.type == texMod_t::TMOD_SCROLL)
 		{
 			if (memcmp(tm1.scroll, tm2.scroll, sizeof(tm1.scroll)) != 0)
 			{
@@ -2798,7 +2798,7 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 			continue;
 		}
 
-		if (tm1.type == TMOD_SCALE)
+		if (tm1.type == texMod_t::TMOD_SCALE)
 		{
 			if (memcmp(tm1.scale, tm2.scale, sizeof(tm1.scale)) != 0)
 			{
@@ -2807,7 +2807,7 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 			continue;
 		}
 
-		if (tm1.type == TMOD_OFFSET)
+		if (tm1.type == texMod_t::TMOD_OFFSET)
 		{
 			if (memcmp(tm1.offset, tm2.offset, sizeof(tm1.offset)) != 0)
 			{
@@ -2816,7 +2816,7 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 			continue;
 		}
 
-		if (tm1.type == TMOD_SCALE_OFFSET)
+		if (tm1.type == texMod_t::TMOD_SCALE_OFFSET)
 		{
 			if (memcmp(tm1.scale, tm2.scale, sizeof(tm1.scale)) != 0)
 			{
@@ -2829,7 +2829,7 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 			continue;
 		}
 
-		if (tm1.type == TMOD_TRANSFORM)
+		if (tm1.type == texMod_t::TMOD_TRANSFORM)
 		{
 			if (memcmp(tm1.matrix, tm2.matrix, sizeof(tm1.matrix)) != 0)
 			{
@@ -2842,7 +2842,7 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 			continue;
 		}
 
-		if (tm1.type == TMOD_ROTATE && tm1.rotateSpeed != tm2.rotateSpeed)
+		if (tm1.type == texMod_t::TMOD_ROTATE && tm1.rotateSpeed != tm2.rotateSpeed)
 		{
 			return false;
 		}
@@ -2986,7 +2986,7 @@ static void VertexLightingCollapse(void)
 			{
 				rank -= 100;
 			}
-			if (pStage.bundle[0].tcGen != TCGEN_TEXTURE)
+			if (pStage.bundle[0].tcGen != texCoordGen_t::TCGEN_TEXTURE)
 			{
 				rank -= 5;
 			}
@@ -3006,7 +3006,7 @@ static void VertexLightingCollapse(void)
 			}
 
 			// detect missing vertex colors on ojfc-17 for green/dark pink flags
-			if (pStage.bundle[0].rgbGen != colorGen_t::CGEN_IDENTITY || pStage.bundle[0].tcGen == TCGEN_LIGHTMAP || pStage.stateBits & GLS_ATEST_BITS)
+			if (pStage.bundle[0].rgbGen != colorGen_t::CGEN_IDENTITY || pStage.bundle[0].tcGen == texCoordGen_t::TCGEN_LIGHTMAP || pStage.stateBits & GLS_ATEST_BITS)
 			{
 				vertexColors = true;
 			}
@@ -3045,11 +3045,11 @@ static void VertexLightingCollapse(void)
 		{
 			stages[0].bundle[0].rgbGen = colorGen_t::CGEN_IDENTITY_LIGHTING;
 		}
-		if ((stages[0].bundle[0].rgbGen == colorGen_t::CGEN_WAVEFORM && stages[0].bundle[0].rgbWave.func == GF_SAWTOOTH) && (stages[1].bundle[0].rgbGen == colorGen_t::CGEN_WAVEFORM && stages[1].bundle[0].rgbWave.func == GF_INVERSE_SAWTOOTH))
+		if ((stages[0].bundle[0].rgbGen == colorGen_t::CGEN_WAVEFORM && stages[0].bundle[0].rgbWave.func == genFunc_t::GF_SAWTOOTH) && (stages[1].bundle[0].rgbGen == colorGen_t::CGEN_WAVEFORM && stages[1].bundle[0].rgbWave.func == genFunc_t::GF_INVERSE_SAWTOOTH))
 		{
 			stages[0].bundle[0].rgbGen = colorGen_t::CGEN_IDENTITY_LIGHTING;
 		}
-		if ((stages[0].bundle[0].rgbGen == colorGen_t::CGEN_WAVEFORM && stages[0].bundle[0].rgbWave.func == GF_INVERSE_SAWTOOTH) && (stages[1].bundle[0].rgbGen == colorGen_t::CGEN_WAVEFORM && stages[1].bundle[0].rgbWave.func == GF_SAWTOOTH))
+		if ((stages[0].bundle[0].rgbGen == colorGen_t::CGEN_WAVEFORM && stages[0].bundle[0].rgbWave.func == genFunc_t::GF_INVERSE_SAWTOOTH) && (stages[1].bundle[0].rgbGen == colorGen_t::CGEN_WAVEFORM && stages[1].bundle[0].rgbWave.func == genFunc_t::GF_SAWTOOTH))
 		{
 			stages[0].bundle[0].rgbGen = colorGen_t::CGEN_IDENTITY_LIGHTING;
 		}
@@ -3107,11 +3107,11 @@ static void DetectNeeds(void)
 		for (n = 0; n < NUM_TEXTURE_BUNDLES; n++)
 		{
 			const texCoordGen_t t = stages[i].bundle[n].tcGen;
-			if (t == TCGEN_LIGHTMAP)
+			if (t == texCoordGen_t::TCGEN_LIGHTMAP)
 			{
 				shader.needsST2 = true;
 			}
-			if (t == TCGEN_ENVIRONMENT_MAPPED || t == TCGEN_ENVIRONMENT_MAPPED_FP)
+			if (t == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED || t == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP)
 			{
 				shader.needsNormal = true;
 			}
@@ -3124,15 +3124,15 @@ static void DetectNeeds(void)
 		t1 = stages[i].bundle[0].tcGen;
 		t2 = stages[i].bundle[1].tcGen;
 
-		if (t1 == TCGEN_LIGHTMAP || t2 == TCGEN_LIGHTMAP)
+		if (t1 == texCoordGen_t::TCGEN_LIGHTMAP || t2 == texCoordGen_t::TCGEN_LIGHTMAP)
 		{
 			shader.needsST2 = true;
 		}
-		if (t1 == TCGEN_ENVIRONMENT_MAPPED || t1 == TCGEN_ENVIRONMENT_MAPPED_FP)
+		if (t1 == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED || t1 == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP)
 		{
 			shader.needsNormal = true;
 		}
-		if (t2 == TCGEN_ENVIRONMENT_MAPPED || t2 == TCGEN_ENVIRONMENT_MAPPED_FP)
+		if (t2 == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED || t2 == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP)
 		{
 			shader.needsNormal = true;
 		}
@@ -3283,17 +3283,17 @@ static shader_t *FinishShader(void)
 		//
 		if (pStage->bundle[0].lightmap != LIGHTMAP_INDEX_NONE)
 		{
-			if (pStage->bundle[0].tcGen == TCGEN_BAD)
+			if (pStage->bundle[0].tcGen == texCoordGen_t::TCGEN_BAD)
 			{
-				pStage->bundle[0].tcGen = TCGEN_LIGHTMAP;
+				pStage->bundle[0].tcGen = texCoordGen_t::TCGEN_LIGHTMAP;
 			}
 			hasLightmapStage = true;
 		}
 		else
 		{
-			if (pStage->bundle[0].tcGen == TCGEN_BAD)
+			if (pStage->bundle[0].tcGen == texCoordGen_t::TCGEN_BAD)
 			{
-				pStage->bundle[0].tcGen = TCGEN_TEXTURE;
+				pStage->bundle[0].tcGen = texCoordGen_t::TCGEN_TEXTURE;
 			}
 		}
 
@@ -3707,7 +3707,7 @@ static shader_t *FinishShader(void)
 				{
 					continue;
 				}
-				if (pStage.bundle[n].tcGen == TCGEN_ENVIRONMENT_MAPPED && (pStage.bundle[n].lightmap == LIGHTMAP_INDEX_NONE || !tr.mergeLightmaps))
+				if (pStage.bundle[n].tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED && (pStage.bundle[n].lightmap == LIGHTMAP_INDEX_NONE || !tr.mergeLightmaps))
 				{
 					env_mask |= (1 << n);
 				}
@@ -3722,7 +3722,7 @@ static shader_t *FinishShader(void)
 					shader.tessFlags |= TESS_NNN | TESS_VPOS;
 					pStage.tessFlags &= ~TESS_ST0;
 					pStage.tessFlags |= TESS_ENV;
-					pStage.bundle[0].tcGen = TCGEN_BAD;
+					pStage.bundle[0].tcGen = texCoordGen_t::TCGEN_BAD;
 				}
 			}
 
@@ -3795,7 +3795,7 @@ static shader_t *FinishShader(void)
 	}
 #endif
 
-	// make sure that amplitude for TMOD_STRETCH is not zero
+	// make sure that amplitude for texMod_t::TMOD_STRETCH is not zero
 	for (i = 0; i < shader.numUnfoggedPasses; i++)
 	{
 		if (!stages[i].active)
@@ -3806,7 +3806,7 @@ static shader_t *FinishShader(void)
 		{
 			for (m = 0; m < stages[i].bundle[n].numTexMods; m++)
 			{
-				if (stages[i].bundle[n].texMods[m].type == TMOD_STRETCH)
+				if (stages[i].bundle[n].texMods[m].type == texMod_t::TMOD_STRETCH)
 				{
 					if (fabsf(stages[i].bundle[n].texMods[m].wave.amplitude) < 1e-6f)
 					{
@@ -3921,7 +3921,7 @@ static void R_CreateDefaultShading(image_t &image)
 		// dynamic colors at vertexes
 		stages[0].bundle[0].image[0] = &image;
 		stages[0].active = true;
-		stages[0].bundle[0].tcGen = TCGEN_TEXTURE;
+		stages[0].bundle[0].tcGen = texCoordGen_t::TCGEN_TEXTURE;
 		stages[0].bundle[0].rgbGen = colorGen_t::CGEN_LIGHTING_DIFFUSE;
 		stages[0].stateBits = GLS_DEFAULT;
 	}
@@ -3930,7 +3930,7 @@ static void R_CreateDefaultShading(image_t &image)
 		// explicit colors at vertexes
 		stages[0].bundle[0].image[0] = &image;
 		stages[0].active = true;
-		stages[0].bundle[0].tcGen = TCGEN_TEXTURE;
+		stages[0].bundle[0].tcGen = texCoordGen_t::TCGEN_TEXTURE;
 		stages[0].bundle[0].rgbGen = colorGen_t::CGEN_EXACT_VERTEX;
 		stages[0].bundle[0].alphaGen = alphaGen_t::AGEN_SKIP;
 		stages[0].stateBits = GLS_DEFAULT;
@@ -3940,7 +3940,7 @@ static void R_CreateDefaultShading(image_t &image)
 		// GUI elements
 		stages[0].bundle[0].image[0] = &image;
 		stages[0].active = true;
-		stages[0].bundle[0].tcGen = TCGEN_TEXTURE;
+		stages[0].bundle[0].tcGen = texCoordGen_t::TCGEN_TEXTURE;
 		stages[0].bundle[0].rgbGen = colorGen_t::CGEN_VERTEX;
 		stages[0].bundle[0].alphaGen = alphaGen_t::AGEN_VERTEX;
 		stages[0].stateBits = GLS_DEPTHTEST_DISABLE |
@@ -3952,7 +3952,7 @@ static void R_CreateDefaultShading(image_t &image)
 		// fullbright level
 		stages[0].active = true;
 		stages[0].bundle[0].image[0] = &image;
-		stages[0].bundle[0].tcGen = TCGEN_TEXTURE;
+		stages[0].bundle[0].tcGen = texCoordGen_t::TCGEN_TEXTURE;
 		stages[0].bundle[0].rgbGen = colorGen_t::CGEN_IDENTITY_LIGHTING;
 		stages[0].stateBits = GLS_DEFAULT;
 	}
@@ -3962,14 +3962,14 @@ static void R_CreateDefaultShading(image_t &image)
 		stages[0].bundle[0].image[0] = tr.lightmaps[shader.lightmapIndex];
 		stages[0].bundle[0].lightmap = LIGHTMAP_INDEX_SHADER;
 		stages[0].active = true;
-		stages[0].bundle[0].tcGen = TCGEN_LIGHTMAP;
+		stages[0].bundle[0].tcGen = texCoordGen_t::TCGEN_LIGHTMAP;
 		stages[0].bundle[0].rgbGen = colorGen_t::CGEN_IDENTITY; // lightmaps are scaled on creation
 		// for identitylight
 		stages[0].stateBits = GLS_DEFAULT;
 
 		stages[1].bundle[0].image[0] = &image;
 		stages[1].active = true;
-		stages[1].bundle[0].tcGen = TCGEN_TEXTURE;
+		stages[1].bundle[0].tcGen = texCoordGen_t::TCGEN_TEXTURE;
 		stages[1].bundle[0].rgbGen = colorGen_t::CGEN_IDENTITY;
 		stages[1].stateBits |= GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO;
 	}
@@ -4646,14 +4646,14 @@ static void CreateInternalShaders(void)
 	// init the default shader
 	InitShader("<default>", LIGHTMAP_NONE);
 	stages[0].bundle[0].image[0] = tr.defaultImage;
-	stages[0].bundle[0].tcGen = TCGEN_TEXTURE;
+	stages[0].bundle[0].tcGen = texCoordGen_t::TCGEN_TEXTURE;
 	stages[0].active = true;
 	stages[0].stateBits = GLS_DEFAULT;
 	tr.defaultShader = FinishShader();
 
 	InitShader("<white>", LIGHTMAP_NONE);
 	stages[0].bundle[0].image[0] = tr.whiteImage;
-	stages[0].bundle[0].tcGen = TCGEN_TEXTURE;
+	stages[0].bundle[0].tcGen = texCoordGen_t::TCGEN_TEXTURE;
 	stages[0].active = true;
 	stages[0].bundle[0].rgbGen = colorGen_t::CGEN_EXACT_VERTEX;
 	stages[0].stateBits = GLS_DEPTHTEST_DISABLE | GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
@@ -4662,7 +4662,7 @@ static void CreateInternalShaders(void)
 	// shadow shader is just a marker
 	InitShader("<stencil shadow>", LIGHTMAP_NONE);
 	stages[0].bundle[0].image[0] = tr.defaultImage;
-	stages[0].bundle[0].tcGen = TCGEN_TEXTURE;
+	stages[0].bundle[0].tcGen = texCoordGen_t::TCGEN_TEXTURE;
 	stages[0].active = true;
 	stages[0].stateBits = GLS_DEFAULT;
 	shader.sort = static_cast<float>(shaderSort_t::SS_STENCIL_SHADOW);
@@ -4670,7 +4670,7 @@ static void CreateInternalShaders(void)
 
 	InitShader("<cinematic>", LIGHTMAP_NONE);
 	stages[0].bundle[0].image[0] = tr.defaultImage; // will be updated by specific cinematic images
-	stages[0].bundle[0].tcGen = TCGEN_TEXTURE;
+	stages[0].bundle[0].tcGen = texCoordGen_t::TCGEN_TEXTURE;
 	stages[0].active = true;
 	stages[0].bundle[0].rgbGen = colorGen_t::CGEN_IDENTITY_LIGHTING;
 	stages[0].stateBits = GLS_DEPTHTEST_DISABLE;

@@ -16,13 +16,17 @@
 
 #include "vulkan/vulkan.hpp"
 
+#ifndef _DEBUG
+#define USE_DEDICATED_ALLOCATION
+#endif
+
 constexpr int VK_NUM_BLOOM_PASSES = 4;
 constexpr int MAX_VK_SAMPLERS = 32;
 constexpr int MAX_IMAGE_CHUNKS = 56;
 constexpr int MAX_SWAPCHAIN_IMAGES = 8;
 constexpr int MAX_ATTACHMENTS_IN_POOL(8 + VK_NUM_BLOOM_PASSES * 2); // depth + msaa + msaa-resolve + depth-resolve + screenmap.msaa + screenmap.resolve + screenmap.depth + bloom_extract + blur pairs
 constexpr int NUM_COMMAND_BUFFERS = 2;                              // number of command buffers / render semaphores / framebuffer sets
-constexpr int MAX_VK_PIPELINES = (1024 + 128);
+constexpr int MAX_VK_PIPELINES = ((1024 + 128) * 2);
 
 typedef unsigned char byte;
 
@@ -69,6 +73,7 @@ typedef struct
     vk::Buffer staging_buffer;
     vk::DeviceMemory staging_buffer_memory;
     vk::DeviceSize staging_buffer_size;
+
     byte *staging_buffer_ptr; // pointer to mapped staging buffer
 
     //
@@ -88,8 +93,8 @@ typedef struct
 
 enum class renderPass_t : uint8_t
 {
-    RENDER_PASS_SCREENMAP = 0,
-    RENDER_PASS_MAIN,
+    RENDER_PASS_MAIN = 0,
+    RENDER_PASS_SCREENMAP,
     RENDER_PASS_POST_BLOOM,
     RENDER_PASS_COUNT
 };
@@ -532,6 +537,8 @@ typedef struct
     uint32_t image_chunk_size;
 
     uint32_t maxBoundDescriptorSets;
+
+    vk::Fence aux_fence;
 
 } Vk_Instance;
 

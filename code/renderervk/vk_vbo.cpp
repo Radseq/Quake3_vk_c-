@@ -123,16 +123,16 @@ constexpr static bool isStaticTCgen(const shaderStage_t &stage, const int bundle
 {
 	switch (stage.bundle[bundle].tcGen)
 	{
-	case TCGEN_BAD:
-	case TCGEN_IDENTITY: // clear to 0,0
-	case TCGEN_LIGHTMAP:
-	case TCGEN_TEXTURE:
-	// case TCGEN_ENVIRONMENT_MAPPED:
-	// case TCGEN_ENVIRONMENT_MAPPED_FP:
-	// case TCGEN_FOG:
-	case TCGEN_VECTOR: // S and T from world coordinates
+	case texCoordGen_t::TCGEN_BAD:
+	case texCoordGen_t::TCGEN_IDENTITY: // clear to 0,0
+	case texCoordGen_t::TCGEN_LIGHTMAP:
+	case texCoordGen_t::TCGEN_TEXTURE:
+	// case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
+	// case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP:
+	// case texCoordGen_t::TCGEN_FOG:
+	case texCoordGen_t::TCGEN_VECTOR: // S and T from world coordinates
 		return true;
-	case TCGEN_ENVIRONMENT_MAPPED:
+	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
 		if (bundle == 0 && (stage.tessFlags & TESS_ENV))
 			return true;
 		else
@@ -148,12 +148,12 @@ constexpr static bool isStaticTCmod(const textureBundle_t &bundle)
 	{
 		switch (bundle.texMods[i].type)
 		{
-		case TMOD_NONE:
-		case TMOD_SCALE:
-		case TMOD_TRANSFORM:
-		case TMOD_OFFSET:
-		case TMOD_SCALE_OFFSET:
-		case TMOD_OFFSET_SCALE:
+		case texMod_t::TMOD_NONE:
+		case texMod_t::TMOD_SCALE:
+		case texMod_t::TMOD_TRANSFORM:
+		case texMod_t::TMOD_OFFSET:
+		case texMod_t::TMOD_SCALE_OFFSET:
+		case texMod_t::TMOD_OFFSET_SCALE:
 			break;
 		default:
 			return false;

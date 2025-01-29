@@ -133,32 +133,32 @@ void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 	//
 	switch (bundle.tcGen)
 	{
-	case TCGEN_IDENTITY:
+	case texCoordGen_t::TCGEN_IDENTITY:
 		src = tess.texCoords00;
 		break;
-	case TCGEN_TEXTURE:
+	case texCoordGen_t::TCGEN_TEXTURE:
 		src = tess.texCoords[0];
 		break;
-	case TCGEN_LIGHTMAP:
+	case texCoordGen_t::TCGEN_LIGHTMAP:
 		src = tess.texCoords[1];
 		break;
-	case TCGEN_VECTOR:
+	case texCoordGen_t::TCGEN_VECTOR:
 		for (i = 0; i < tess.numVertexes; i++)
 		{
 			dst[i][0] = DotProduct(tess.xyz[i], bundle.tcGenVectors[0]);
 			dst[i][1] = DotProduct(tess.xyz[i], bundle.tcGenVectors[1]);
 		}
 		break;
-	case TCGEN_FOG:
+	case texCoordGen_t::TCGEN_FOG:
 		RB_CalcFogTexCoords((float *)dst);
 		break;
-	case TCGEN_ENVIRONMENT_MAPPED:
+	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
 		RB_CalcEnvironmentTexCoords((float *)dst);
 		break;
-	case TCGEN_ENVIRONMENT_MAPPED_FP:
+	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP:
 		RB_CalcEnvironmentTexCoordsFP((float *)dst, bundle.isScreenMap);
 		break;
-	case TCGEN_BAD:
+	case texCoordGen_t::TCGEN_BAD:
 		return;
 	}
 
@@ -169,31 +169,31 @@ void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 	{
 		switch (bundle.texMods[tm].type)
 		{
-		case TMOD_NONE:
+		case texMod_t::TMOD_NONE:
 			tm = TR_MAX_TEXMODS; // break out of for loop
 			break;
 
-		case TMOD_TURBULENT:
+		case texMod_t::TMOD_TURBULENT:
 			RB_CalcTurbulentTexCoords(bundle.texMods[tm].wave, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
-		case TMOD_ENTITY_TRANSLATE:
+		case texMod_t::TMOD_ENTITY_TRANSLATE:
 			RB_CalcScrollTexCoords(backEnd.currentEntity->e.shaderTexCoord, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
-		case TMOD_SCROLL:
+		case texMod_t::TMOD_SCROLL:
 			RB_CalcScrollTexCoords(bundle.texMods[tm].scroll, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
-		case TMOD_SCALE:
+		case texMod_t::TMOD_SCALE:
 			RB_CalcScaleTexCoords(bundle.texMods[tm].scale, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
-		case TMOD_OFFSET:
+		case texMod_t::TMOD_OFFSET:
 			for (i = 0; i < tess.numVertexes; i++)
 			{
 				dst[i][0] = src[i][0] + bundle.texMods[tm].offset[0];
@@ -202,7 +202,7 @@ void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 			src = dst;
 			break;
 
-		case TMOD_SCALE_OFFSET:
+		case texMod_t::TMOD_SCALE_OFFSET:
 			for (i = 0; i < tess.numVertexes; i++)
 			{
 				dst[i][0] = (src[i][0] * bundle.texMods[tm].scale[0]) + bundle.texMods[tm].offset[0];
@@ -211,7 +211,7 @@ void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 			src = dst;
 			break;
 
-		case TMOD_OFFSET_SCALE:
+		case texMod_t::TMOD_OFFSET_SCALE:
 			for (i = 0; i < tess.numVertexes; i++)
 			{
 				dst[i][0] = (src[i][0] + bundle.texMods[tm].offset[0]) * bundle.texMods[tm].scale[0];
@@ -220,23 +220,23 @@ void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 			src = dst;
 			break;
 
-		case TMOD_STRETCH:
+		case texMod_t::TMOD_STRETCH:
 			RB_CalcStretchTexCoords(bundle.texMods[tm].wave, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
-		case TMOD_TRANSFORM:
+		case texMod_t::TMOD_TRANSFORM:
 			RB_CalcTransformTexCoords(bundle.texMods[tm], (float *)src, (float *)dst);
 			src = dst;
 			break;
 
-		case TMOD_ROTATE:
+		case texMod_t::TMOD_ROTATE:
 			RB_CalcRotateTexCoords(bundle.texMods[tm].rotateSpeed, (float *)src, (float *)dst);
 			src = dst;
 			break;
 
 		default:
-			ri.Error(ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'", bundle.texMods[tm].type, tess.shader->name);
+			ri.Error(ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'", static_cast<int>(bundle.texMods[tm].type), tess.shader->name);
 			break;
 		}
 	}
@@ -585,26 +585,26 @@ void VK_LightingPass(void)
 	{
 		switch (cull)
 		{
-		case CT_FRONT_SIDED:
-			cull = CT_BACK_SIDED;
+		case cullType_t::CT_FRONT_SIDED:
+			cull = cullType_t::CT_BACK_SIDED;
 			break;
-		case CT_BACK_SIDED:
-			cull = CT_FRONT_SIDED;
+		case cullType_t::CT_BACK_SIDED:
+			cull = cullType_t::CT_FRONT_SIDED;
 			break;
 		default:
 			break;
 		}
 	}
 
-	abs_light = /* (pStage->stateBits & GLS_ATEST_BITS) && */ (cull == CT_TWO_SIDED) ? 1 : 0;
+	abs_light = /* (pStage->stateBits & GLS_ATEST_BITS) && */ (cull == cullType_t::CT_TWO_SIDED) ? 1 : 0;
 
 	if (fog_stage)
 		vk_update_descriptor(VK_DESC_FOG_DLIGHT, tr.fogImage->descriptor);
 
 	if (tess.light->linear)
-		pipeline = vk_inst.dlight1_pipelines_x[cull][tess.shader->polygonOffset][fog_stage][abs_light];
+		pipeline = vk_inst.dlight1_pipelines_x[static_cast<int>(cull)][tess.shader->polygonOffset][fog_stage][abs_light];
 	else
-		pipeline = vk_inst.dlight_pipelines_x[cull][tess.shader->polygonOffset][fog_stage][abs_light];
+		pipeline = vk_inst.dlight_pipelines_x[static_cast<int>(cull)][tess.shader->polygonOffset][fog_stage][abs_light];
 
 	SelectTexture(0);
 	R_BindAnimatedImage(pStage->bundle[tess.shader->lightingBundle]);
@@ -904,7 +904,7 @@ static bool ProjectDlightTexture(void)
 			// re-bind index buffer for later fog pass
 			rebindIndex = true;
 		}
-		pipeline = vk_inst.dlight_pipelines[dl.additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
+		pipeline = vk_inst.dlight_pipelines[dl.additive > 0 ? 1 : 0][static_cast<int>(tess.shader->cullType)][tess.shader->polygonOffset];
 		vk_bind_pipeline(pipeline);
 		vk_bind_index_ext(numIndexes, hitIndexes);
 		vk_bind_geometry(TESS_RGBA0 | TESS_ST0);
@@ -927,7 +927,7 @@ Blends a fog texture on top of everything else
 */
 static void RB_FogPass(bool rebindIndex)
 {
-	uint32_t pipeline = vk_inst.fog_pipelines[static_cast<int>(tess.shader->fogPass) - 1][tess.shader->cullType][tess.shader->polygonOffset];
+	uint32_t pipeline = vk_inst.fog_pipelines[static_cast<int>(tess.shader->fogPass) - 1][static_cast<int>(tess.shader->cullType)][tess.shader->polygonOffset];
 #ifdef USE_FOG_ONLY
 	int fog_stage;
 

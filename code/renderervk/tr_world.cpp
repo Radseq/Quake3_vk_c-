@@ -142,7 +142,7 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 		return false;
 	}
 
-	if (shader.cullType == CT_TWO_SIDED)
+	if (shader.cullType == cullType_t::CT_TWO_SIDED)
 	{
 		return false;
 	}
@@ -159,7 +159,7 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 	// don't cull exactly on the plane, because there are levels of rounding
 	// through the BSP, ICD, and hardware that may cause pixel gaps if an
 	// epsilon isn't allowed here
-	if (shader.cullType == CT_FRONT_SIDED)
+	if (shader.cullType == cullType_t::CT_FRONT_SIDED)
 	{
 		if (d < sface->plane.dist - 8)
 		{

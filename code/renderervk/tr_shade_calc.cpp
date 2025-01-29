@@ -31,27 +31,26 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // -EC-: avoid using ri.ftol
 #define WAVEVALUE(table, base, amplitude, phase, freq) ((base) + table[(int64_t)((((phase) + tess.shaderTime * (freq)) * FUNCTABLE_SIZE)) & FUNCTABLE_MASK] * (amplitude))
 
-static float *TableForFunc(genFunc_t func)
+static constexpr float *TableForFunc(genFunc_t func)
 {
 	switch (func)
 	{
-	case GF_SIN:
+	case genFunc_t::GF_SIN:
 		return tr.sinTable;
-	case GF_TRIANGLE:
+	case genFunc_t::GF_TRIANGLE:
 		return tr.triangleTable;
-	case GF_SQUARE:
+	case genFunc_t::GF_SQUARE:
 		return tr.squareTable;
-	case GF_SAWTOOTH:
+	case genFunc_t::GF_SAWTOOTH:
 		return tr.sawToothTable;
-	case GF_INVERSE_SAWTOOTH:
+	case genFunc_t::GF_INVERSE_SAWTOOTH:
 		return tr.inverseSawToothTable;
-	case GF_NONE:
+	case genFunc_t::GF_NONE:
 	default:
-		break;
+		return nullptr;
 	}
 
-	ri.Error(ERR_DROP, "TableForFunc called with invalid function '%d' in shader '%s'", func, tess.shader->name);
-	return NULL;
+	return nullptr;
 }
 
 /*
@@ -64,7 +63,10 @@ static float EvalWaveForm(const waveForm_t &wf)
 	float *table;
 
 	table = TableForFunc(wf.func);
-
+	if (table == nullptr)
+	{
+		ri.Error(ERR_DROP, "TableForFunc called with invalid function '%d' in shader '%s'", static_cast<int>(wf.func), tess.shader->name);
+	}
 	return WAVEVALUE(table, wf.base, wf.amplitude, wf.phase, wf.frequency);
 }
 
@@ -144,7 +146,10 @@ static void RB_CalcDeformVertexes(deformStage_t &ds)
 	else
 	{
 		table = TableForFunc(ds.deformationWave.func);
-
+		if (table == nullptr)
+		{
+			ri.Error(ERR_DROP, "TableForFunc called with invalid function '%d' in shader '%s'", static_cast<int>(ds.deformationWave.func), tess.shader->name);
+		}
 		for (i = 0; i < tess.numVertexes; i++, xyz += 4, normal += 4)
 		{
 			float off = (xyz[0] + xyz[1] + xyz[2]) * ds.deformationSpread;
@@ -244,6 +249,10 @@ static void RB_CalcMoveVertexes(deformStage_t &ds)
 	vec3_t offset{};
 
 	table = TableForFunc(ds.deformationWave.func);
+	if (table == nullptr)
+	{
+		ri.Error(ERR_DROP, "TableForFunc called with invalid function '%d' in shader '%s'", static_cast<int>(ds.deformationWave.func), tess.shader->name);
+	}
 
 	scale = WAVEVALUE(table, ds.deformationWave.base,
 					  ds.deformationWave.amplitude,
@@ -705,7 +714,7 @@ void RB_CalcWaveColor(const waveForm_t &wf, unsigned char *dstColors)
 	uint32_t *colors = (uint32_t *)dstColors;
 	color4ub_t color{};
 
-	if (wf.func == GF_NOISE)
+	if (wf.func == genFunc_t::GF_NOISE)
 	{
 		glow = wf.base + R_NoiseGet4f(0, 0, 0, (tess.shaderTime + wf.phase) * wf.frequency) * wf.amplitude;
 	}
