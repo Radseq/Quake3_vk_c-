@@ -136,7 +136,7 @@ void VBO_PrepareQueues(void);
 void VBO_RenderIBOItems(void);
 void VBO_ClearQueue(void);
 
-vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t renderPassIndex);
+vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t renderPassIndex, uint32_t def_index);
 
 #ifdef USE_VBO
 void vk_release_vbo(void);

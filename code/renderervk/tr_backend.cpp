@@ -115,10 +115,12 @@ static void RB_Hyperspace(void)
 
 	RB_SetGL2D();
 
-	if (r_teleporterFlash->integer == 0) {
+	if (r_teleporterFlash->integer == 0)
+	{
 		c.rgba[0] = c.rgba[1] = c.rgba[2] = 0; // fade to black
 	}
-	else {
+	else
+	{
 		c.rgba[0] = c.rgba[1] = c.rgba[2] = (backEnd.refdef.time & 255); // fade to white
 	}
 	c.rgba[3] = 255;
@@ -1158,10 +1160,7 @@ void RB_ExecuteRenderCommands(const void *data)
 		case renderCommand_t::RC_END_OF_LIST:
 		default:
 			// stop rendering
-			if (vk_inst.frame_count)
-			{
-				vk_end_frame();
-			}
+			vk_end_frame();
 			return;
 		}
 	}

@@ -193,7 +193,7 @@ static vk::CommandBuffer begin_command_buffer(void)
 	return command_buffer;
 }
 
-static void end_command_buffer(const vk::CommandBuffer &command_buffer)
+static void end_command_buffer(const vk::CommandBuffer &command_buffer, const char *location)
 {
 	VK_CHECK(command_buffer.end());
 
@@ -206,13 +206,23 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer)
 							   nullptr,
 							   nullptr};
 
-	// VK_CHECK(vk_inst.queue.submit(1, &submit_info, nullptr));
-	vk::Fence fence;
-	VK_CHECK_ASSIGN(fence, vk_inst.device.createFence(vk::FenceCreateInfo{}));
+	VK_CHECK(vk_inst.queue.submit(1, &submit_info, vk_inst.aux_fence));
+	// 2 seconds should be more than enough to finish the job in normal conditions:
+	auto res = vk_inst.device.waitForFences(1, &vk_inst.aux_fence, VK_TRUE, 2 * 1000000000ULL);
+	if (res != vk::Result::eSuccess)
+	{
+		ri.Error(ERR_FATAL, "waitForFences() failed with %s at %s", vk::to_string(res).data(), location);
+	}
 
-	VK_CHECK(vk_inst.queue.submit(1, &submit_info, fence));
-	VK_CHECK(vk_inst.device.waitForFences(1, &fence, vk::True, UINT64_MAX));
-	vk_inst.device.destroyFence(fence);
+	vk_inst.device.resetFences(1, &vk_inst.aux_fence);
+
+	// VK_CHECK(vk_inst.queue.submit(1, &submit_info, nullptr));
+	//  vk::Fence fence;
+	//  VK_CHECK_ASSIGN(fence, vk_inst.device.createFence(vk::FenceCreateInfo{}));
+
+	// VK_CHECK(vk_inst.queue.submit(1, &submit_info, fence));
+	// VK_CHECK(vk_inst.device.waitForFences(1, &fence, vk::True, UINT64_MAX));
+	// vk_inst.device.destroyFence(fence);
 
 	// VK_CHECK(vk_inst.queue.waitIdle());
 
@@ -301,7 +311,7 @@ static constexpr vk::AccessFlags get_dst_access_mask(const vk::ImageLayout new_l
 }
 
 static void record_image_layout_transition(const vk::CommandBuffer &command_buffer, const vk::Image &image,
-										   const vk::ImageAspectFlags image_aspect_flags, const vk::ImageLayout old_layout, const vk::ImageLayout new_layout)
+										   const vk::ImageAspectFlags image_aspect_flags, const vk::ImageLayout old_layout, const vk::ImageLayout new_layout, uint32_t src_stage_override, uint32_t dst_stage_override)
 {
 	vk::ImageMemoryBarrier barrier{get_src_access_mask(old_layout),
 								   get_dst_access_mask(new_layout),
@@ -320,6 +330,12 @@ static void record_image_layout_transition(const vk::CommandBuffer &command_buff
 	auto stageFlag = get_src_stage(old_layout);
 	if (stageFlag == vk::PipelineStageFlagBits::eAllCommands)
 		ri.Error(ERR_DROP, "unsupported old layout %i", (int)old_layout);
+
+	if (old_layout == vk::ImageLayout::eUndefined)
+	{
+		if (src_stage_override != 0)
+			stageFlag = static_cast<vk::PipelineStageFlagBits>(src_stage_override);
+	}
 
 	auto destFlag = get_dst_stage(new_layout);
 	if (destFlag == vk::PipelineStageFlagBits::eAllCommands)
@@ -518,10 +534,10 @@ static void vk_create_swapchain(const vk::PhysicalDevice &physical_device, const
 		{
 			record_image_layout_transition(command_buffer, vk_inst.swapchain_images[i],
 										   vk::ImageAspectFlagBits::eColor,
-										   vk::ImageLayout::eUndefined, vk_inst.initSwapchainLayout);
+										   vk::ImageLayout::eUndefined, vk_inst.initSwapchainLayout, 0, 0);
 		}
 
-		end_command_buffer(command_buffer);
+		end_command_buffer(command_buffer, __func__);
 	}
 }
 
@@ -963,6 +979,23 @@ static void allocate_and_bind_image_memory(const vk::Image &image)
 	VK_CHECK(vk_inst.device.bindImageMemory(image, chunk->memory, chunk->used - memory_requirements.size));
 }
 
+static vk::CommandBuffer staging_command_buffer = nullptr;
+
+static void vk_clean_staging_buffer(void)
+{
+	if (vk_world.staging_buffer != nullptr)
+	{
+		vk_inst.device.destroyBuffer(vk_world.staging_buffer, nullptr);
+		vk_world.staging_buffer = nullptr;
+	}
+	if (vk_world.staging_buffer_memory != nullptr)
+	{
+		vk_inst.device.freeMemory(vk_world.staging_buffer_memory, nullptr);
+		vk_world.staging_buffer_memory = nullptr;
+	}
+	vk_world.staging_buffer_size = 0;
+}
+
 static void ensure_staging_buffer_allocation(const vk::DeviceSize size)
 {
 	void *data;
@@ -970,13 +1003,15 @@ static void ensure_staging_buffer_allocation(const vk::DeviceSize size)
 	if (vk_world.staging_buffer_size >= size)
 		return;
 
+	vk_clean_staging_buffer();
+
+	vk_world.staging_buffer_size = MAX(size, 2 * 1024 * 1024);
+
 	if (vk_world.staging_buffer)
 		vk_inst.device.destroyBuffer(vk_world.staging_buffer);
 
 	if (vk_world.staging_buffer_memory)
 		vk_inst.device.freeMemory(vk_world.staging_buffer_memory);
-
-	vk_world.staging_buffer_size = MAX(size, 1024 * 1024);
 
 	vk::BufferCreateInfo buffer_desc{{},
 									 vk_world.staging_buffer_size,
@@ -1111,6 +1146,10 @@ static void create_instance(void)
 		vk::makeApiVersion(0, 1, 0, 0),
 		vk::makeApiVersion(0, 1, 0, 0),
 		nullptr};
+
+#ifdef USE_VK_VALIDATION
+	appInfo.apiVersion = vk::makeApiVersion(0, 1, 1, 0);
+#endif
 
 	// create instance
 	vk::InstanceCreateInfo desc{flags,
@@ -1376,6 +1415,13 @@ static const char *renderer_name(const vk::PhysicalDeviceProperties &props)
 static bool vk_create_device(const vk::PhysicalDevice &physical_device, const int device_index)
 {
 
+#ifdef USE_VK_VALIDATION
+	vk::PhysicalDeviceTimelineSemaphoreFeatures timeline_semaphore;
+	vk::PhysicalDeviceVulkanMemoryModelFeatures memory_model;
+	vk::PhysicalDeviceBufferDeviceAddressFeatures devaddr_features;
+	vk::PhysicalDevice8BitStorageFeatures storage_8bit_features;
+#endif
+
 	ri.Printf(PRINT_ALL, "...selected physical device: %i\n", device_index);
 
 	// select surface format
@@ -1429,7 +1475,13 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, const in
 		bool memoryRequirements2 = false;
 #ifdef USE_VK_VALIDATION
 		bool debugMarker = false;
+		bool timelineSemaphore = false;
+		bool memoryModel = false;
+		bool devAddrFeat = false;
+		bool storage8bit = false;
+		const void **pNextPtr;
 #endif
+
 		uint32_t i, len;
 
 		std::vector<vk::ExtensionProperties> extension_properties;
@@ -1482,6 +1534,22 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, const in
 			{
 				debugMarker = true;
 			}
+			else if (ext == vk::KHRTimelineSemaphoreExtensionName)
+			{
+				timelineSemaphore = true;
+			}
+			else if (ext == vk::KHRVulkanMemoryModelExtensionName)
+			{
+				memoryModel = true;
+			}
+			else if (ext == vk::KHRBufferDeviceAddressExtensionName)
+			{
+				devAddrFeat = true;
+			}
+			else if (ext == vk::KHR8BitStorageExtensionName)
+			{
+				storage8bit = true;
+			}
 #endif
 		}
 
@@ -1508,7 +1576,24 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, const in
 			device_extension_list.push_back(vk::EXTDebugUtilsExtensionName);
 			vk_inst.debugMarkers = true;
 		}
-#endif
+		if (timelineSemaphore)
+		{
+			device_extension_list.push_back(vk::KHRTimelineSemaphoreExtensionName);
+		}
+
+		if (memoryModel)
+		{
+			device_extension_list.push_back(vk::KHRVulkanMemoryModelExtensionName);
+		}
+		if (devAddrFeat)
+		{
+			device_extension_list.push_back(vk::KHRBufferDeviceAddressExtensionName);
+		}
+		if (storage8bit)
+		{
+			device_extension_list.push_back(vk::KHR8BitStorageExtensionName);
+		}
+#endif // _DEBUG
 
 		vk::PhysicalDeviceFeatures device_features;
 		device_features = physical_device.getFeatures();
@@ -1525,6 +1610,14 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, const in
 											 nullptr};
 
 		vk::PhysicalDeviceFeatures features{};
+
+#ifdef USE_VK_VALIDATION
+		if (device_features.shaderInt64)
+		{
+			features.shaderInt64 = vk::True;
+		}
+#endif
+
 		features.fillModeNonSolid = vk::True;
 
 		if (device_features.wideLines)
@@ -1555,6 +1648,48 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, const in
 										 device_extension_list.data(),
 										 &features,
 										 nullptr};
+
+#ifdef USE_VK_VALIDATION
+		pNextPtr = (const void **)&device_desc.pNext;
+		if (timelineSemaphore)
+		{
+			*pNextPtr = &timeline_semaphore;
+			timeline_semaphore.pNext = nullptr;
+			timeline_semaphore.sType = vk::StructureType::ePhysicalDeviceTimelineSemaphoreFeatures;
+			timeline_semaphore.timelineSemaphore = vk::True;
+			pNextPtr = (const void **)&timeline_semaphore.pNext;
+		}
+		if (memoryModel)
+		{
+			*pNextPtr = &memory_model;
+			memory_model.pNext = nullptr;
+			memory_model.sType = vk::StructureType::ePhysicalDeviceVulkanMemoryModelFeatures;
+			memory_model.vulkanMemoryModel = VK_TRUE;
+			memory_model.vulkanMemoryModelAvailabilityVisibilityChains = VK_FALSE;
+			memory_model.vulkanMemoryModelDeviceScope = VK_TRUE;
+			pNextPtr = (const void **)&memory_model.pNext;
+		}
+		if (devAddrFeat)
+		{
+			*pNextPtr = &devaddr_features;
+			devaddr_features.pNext = nullptr;
+			devaddr_features.sType = vk::StructureType::ePhysicalDeviceBufferDeviceAddressFeatures;
+			devaddr_features.bufferDeviceAddress = VK_TRUE;
+			devaddr_features.bufferDeviceAddressCaptureReplay = VK_FALSE;
+			devaddr_features.bufferDeviceAddressMultiDevice = VK_FALSE;
+			pNextPtr = (const void **)&devaddr_features.pNext;
+		}
+		if (storage8bit)
+		{
+			*pNextPtr = &storage_8bit_features;
+			storage_8bit_features.pNext = nullptr;
+			storage_8bit_features.sType = vk::StructureType::ePhysicalDevice8BitStorageFeatures;
+			storage_8bit_features.storageBuffer8BitAccess = VK_TRUE;
+			storage_8bit_features.storagePushConstant8 = VK_FALSE;
+			storage_8bit_features.uniformAndStorageBuffer8BitAccess = VK_TRUE;
+			pNextPtr = (const void **)&storage_8bit_features.pNext;
+		}
+#endif
 
 		VK_CHECK_ASSIGN(vk_inst.device, physical_device.createDevice(device_desc));
 	}
@@ -2245,7 +2380,7 @@ bool vk_alloc_vbo(const byte *vbo_data, const uint32_t vbo_size)
 	copyRegion[0].size = vbo_size;
 	command_buffer.copyBuffer(staging_vertex_buffer, vk_inst.vbo.vertex_buffer, copyRegion[0]);
 
-	end_command_buffer(command_buffer);
+	end_command_buffer(command_buffer, __func__);
 
 	vk_inst.device.destroyBuffer(staging_vertex_buffer);
 	vk_inst.device.freeMemory(staging_buffer_memory);
@@ -3046,9 +3181,9 @@ static void vk_alloc_attachments(void)
 									   attachments[i].descriptor,
 									   vk::ImageAspectFlags(attachments[i].aspect_flags),
 									   vk::ImageLayout::eUndefined, // old_layout
-									   vk::ImageLayout(attachments[i].image_layout));
+									   vk::ImageLayout(attachments[i].image_layout), 0, 0);
 	}
-	end_command_buffer(command_buffer);
+	end_command_buffer(command_buffer, __func__);
 
 	num_attachments = 0;
 }
@@ -3400,16 +3535,23 @@ static void vk_create_sync_primitives(void)
 
 		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished, vk_inst.device.createSemaphore(desc));
 
-		vk::FenceCreateInfo fence_desc{vk::FenceCreateFlagBits::eSignaled};
+		vk::FenceCreateInfo fence_desc{};
 
 		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished_fence, vk_inst.device.createFence(fence_desc));
-		vk_inst.tess[i].waitForFence = true;
+		vk_inst.tess[i].waitForFence = false;
 #ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkSemaphore(vk_inst.tess[i].image_acquired), va("image_acquired semaphore %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT);
 		SET_OBJECT_NAME(VkSemaphore(vk_inst.tess[i].rendering_finished), va("rendering_finished semaphore %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT);
 		SET_OBJECT_NAME(VkFence(vk_inst.tess[i].rendering_finished_fence), va("rendering_finished fence %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT);
 #endif
 	}
+	vk::FenceCreateInfo fence_desc{};
+
+	VK_CHECK_ASSIGN(vk_inst.aux_fence, vk_inst.device.createFence(fence_desc));
+
+#ifdef USE_VK_VALIDATION
+	SET_OBJECT_NAME(VkFence(vk_inst.aux_fence), "aux fence", VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT);
+#endif
 }
 
 static void vk_destroy_sync_primitives(void)
@@ -3423,6 +3565,8 @@ static void vk_destroy_sync_primitives(void)
 		vk_inst.device.destroyFence(vk_inst.tess[i].rendering_finished_fence);
 		vk_inst.tess[i].waitForFence = false;
 	}
+
+	vk_inst.device.destroyFence(vk_inst.aux_fence);
 }
 
 static void vk_destroy_framebuffers(void)
@@ -4345,19 +4489,7 @@ void vk_release_resources(void)
 		vk_inst.device.freeMemory(vk_world.image_chunks[i].memory);
 	}
 
-	// Destroy staging buffer if it exists
-	if (vk_world.staging_buffer)
-	{
-		vk_inst.device.destroyBuffer(vk_world.staging_buffer);
-		vk_world.staging_buffer = nullptr;
-	}
-
-	// Free staging buffer memory if it exists
-	if (vk_world.staging_buffer_memory)
-	{
-		vk_inst.device.freeMemory(vk_world.staging_buffer_memory);
-		vk_world.staging_buffer_memory = nullptr;
-	}
+	vk_clean_staging_buffer();
 
 	// Destroy samplers
 	for (i = 0; i < static_cast<uint32_t>(vk_world.num_samplers); ++i)
@@ -4415,8 +4547,9 @@ void vk_release_resources(void)
 	vk_inst.stats = {};
 }
 
+#if 0
 static void record_buffer_memory_barrier(const vk::CommandBuffer &cb, const vk::Buffer &buffer,
-										 vk::DeviceSize size, vk::PipelineStageFlags src_stages,
+										 vk::DeviceSize size, vk::DeviceSize offset, vk::PipelineStageFlags src_stages,
 										 vk::PipelineStageFlags dst_stages, vk::AccessFlags src_access,
 										 vk::AccessFlags dst_access)
 {
@@ -4425,7 +4558,7 @@ static void record_buffer_memory_barrier(const vk::CommandBuffer &cb, const vk::
 									   vk::QueueFamilyIgnored,
 									   vk::QueueFamilyIgnored,
 									   buffer,
-									   0,
+									   offset,
 									   size,
 									   nullptr};
 
@@ -4438,6 +4571,7 @@ static void record_buffer_memory_barrier(const vk::CommandBuffer &cb, const vk::
 		{}					   // No image memory barriers
 	);
 }
+#endif
 
 void vk_create_image(image_t &image, const int width, const int height, const int mip_levels)
 {
@@ -4631,19 +4765,22 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 	}
 
 	ensure_staging_buffer_allocation(buffer_size);
+
 	std::memcpy(vk_world.staging_buffer_ptr, buf, buffer_size);
 
 	command_buffer = begin_command_buffer();
 
-	record_buffer_memory_barrier(command_buffer, vk_world.staging_buffer, vk::WholeSize, vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eHostWrite, vk::AccessFlagBits::eTransferRead);
+	// ecord_buffer_memory_barrier(command_buffer, vk_world.staging_buffer, vk::WholeSize, vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eHostWrite, vk::AccessFlagBits::eTransferRead);
 
 	if (update)
 	{
-		record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eTransferDstOptimal);
+		record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor,
+									   vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eTransferDstOptimal, 0, 0);
 	}
 	else
 	{
-		record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+		record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor,
+									   vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, static_cast<uint32_t>(vk::PipelineStageFlagBits::eHost), 0);
 	}
 
 	command_buffer.copyBufferToImage(
@@ -4653,8 +4790,8 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 		num_regions,
 		regions.data());
 
-	record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
-	end_command_buffer(command_buffer);
+	record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, 0, 0);
+	end_command_buffer(command_buffer, __func__);
 
 	if (buf != pixels)
 	{
@@ -5179,7 +5316,7 @@ static vk::PipelineColorBlendAttachmentState createBlendAttachmentState(const ui
 	return attachmentBlendState;
 }
 
-vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t renderPassIndex)
+vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t renderPassIndex, uint32_t def_index)
 {
 	vk::ShaderModule *vs_module = nullptr;
 	vk::ShaderModule *fs_module = nullptr;
@@ -5901,7 +6038,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	}
 
 	vk::PipelineMultisampleStateCreateInfo multisample_state{{},
-															 (vk_inst.renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP) ? vk_inst.screenMapSamples : vkSamples,
+															 (renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP) ? vk_inst.screenMapSamples : vkSamples,
 															 vk::False,
 															 1.0f,
 															 nullptr,
@@ -6009,6 +6146,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	try
 	{
 		auto createGraphicsPipelineResult = vk_inst.device.createGraphicsPipeline(vk_inst.pipelineCache, create_info);
+
 		if (static_cast<int>(createGraphicsPipelineResult.result) < 0)
 		{
 			ri.Error(ERR_FATAL, "Vulkan: %s returned %s", "create_pipeline -> createGraphicsPipeline", vk::to_string(createGraphicsPipelineResult.result).data());
@@ -6016,6 +6154,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		else
 		{
 			resultPipeline = createGraphicsPipelineResult.value;
+			SET_OBJECT_NAME(VkPipeline(&resultPipeline), va("pipeline def#%i, pass#%i", def_index, static_cast<int>(renderPassIndex)), VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
 			SET_OBJECT_NAME(VkPipeline(&resultPipeline), "create_pipeline -> createGraphicsPipeline", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
 		}
 	}
@@ -6036,10 +6175,10 @@ vk::Pipeline vk_gen_pipeline(const uint32_t index)
 {
 	if (index < vk_inst.pipelines_count)
 	{
-		uint8_t renderPassIndex = static_cast<uint8_t>(vk_inst.renderPassIndex);
 		VK_Pipeline_t *pipeline = vk_inst.pipelines + index;
+		const uint8_t renderPassIndex = static_cast<uint8_t>(vk_inst.renderPassIndex);
 		if (!pipeline->handle[renderPassIndex])
-			pipeline->handle[renderPassIndex] = create_pipeline(pipeline->def, vk_inst.renderPassIndex);
+			pipeline->handle[renderPassIndex] = create_pipeline(pipeline->def, vk_inst.renderPassIndex, index);
 		return pipeline->handle[renderPassIndex];
 	}
 	else
@@ -6125,36 +6264,56 @@ static void get_viewport_rect(vk::Rect2D &r)
 	}
 }
 
-constexpr float get_min_depth(const Vk_Depth_Range depth_range) {
-    switch (depth_range) {
-    #ifdef USE_REVERSED_DEPTH
-        case Vk_Depth_Range::DEPTH_RANGE_ZERO: return 1.0f;
-        case Vk_Depth_Range::DEPTH_RANGE_ONE: return 0.0f;
-        case Vk_Depth_Range::DEPTH_RANGE_WEAPON: return 0.6f;
-        default: return 0.0f; // DEPTH_RANGE_NORMAL
-    #else
-        case Vk_Depth_Range::DEPTH_RANGE_ZERO: return 0.0f;
-        case Vk_Depth_Range::DEPTH_RANGE_ONE: return 1.0f;
-        case Vk_Depth_Range::DEPTH_RANGE_WEAPON: return 0.0f;
-        default: return 0.0f; // DEPTH_RANGE_NORMAL
-    #endif
-    }
+constexpr float get_min_depth(const Vk_Depth_Range depth_range)
+{
+	switch (depth_range)
+	{
+#ifdef USE_REVERSED_DEPTH
+	case Vk_Depth_Range::DEPTH_RANGE_ZERO:
+		return 1.0f;
+	case Vk_Depth_Range::DEPTH_RANGE_ONE:
+		return 0.0f;
+	case Vk_Depth_Range::DEPTH_RANGE_WEAPON:
+		return 0.6f;
+	default:
+		return 0.0f; // DEPTH_RANGE_NORMAL
+#else
+	case Vk_Depth_Range::DEPTH_RANGE_ZERO:
+		return 0.0f;
+	case Vk_Depth_Range::DEPTH_RANGE_ONE:
+		return 1.0f;
+	case Vk_Depth_Range::DEPTH_RANGE_WEAPON:
+		return 0.0f;
+	default:
+		return 0.0f; // DEPTH_RANGE_NORMAL
+#endif
+	}
 }
 
-constexpr float get_max_depth(const Vk_Depth_Range depth_range) {
-    switch (depth_range) {
-    #ifdef USE_REVERSED_DEPTH
-        case Vk_Depth_Range::DEPTH_RANGE_ZERO: return 1.0f;
-        case Vk_Depth_Range::DEPTH_RANGE_ONE: return 0.0f;
-        case Vk_Depth_Range::DEPTH_RANGE_WEAPON: return 1.0f;
-        default: return 1.0f; // DEPTH_RANGE_NORMAL
-    #else
-        case Vk_Depth_Range::DEPTH_RANGE_ZERO: return 0.0f;
-        case Vk_Depth_Range::DEPTH_RANGE_ONE: return 1.0f;
-        case Vk_Depth_Range::DEPTH_RANGE_WEAPON: return 0.3f;
-        default: return 1.0f; // DEPTH_RANGE_NORMAL
-    #endif
-    }
+constexpr float get_max_depth(const Vk_Depth_Range depth_range)
+{
+	switch (depth_range)
+	{
+#ifdef USE_REVERSED_DEPTH
+	case Vk_Depth_Range::DEPTH_RANGE_ZERO:
+		return 1.0f;
+	case Vk_Depth_Range::DEPTH_RANGE_ONE:
+		return 0.0f;
+	case Vk_Depth_Range::DEPTH_RANGE_WEAPON:
+		return 1.0f;
+	default:
+		return 1.0f; // DEPTH_RANGE_NORMAL
+#else
+	case Vk_Depth_Range::DEPTH_RANGE_ZERO:
+		return 0.0f;
+	case Vk_Depth_Range::DEPTH_RANGE_ONE:
+		return 1.0f;
+	case Vk_Depth_Range::DEPTH_RANGE_WEAPON:
+		return 0.3f;
+	default:
+		return 1.0f; // DEPTH_RANGE_NORMAL
+#endif
+	}
 }
 
 static void get_viewport(vk::Viewport &viewport, const Vk_Depth_Range depth_range)
@@ -6248,8 +6407,7 @@ static void get_mvp_transform(float *mvp)
 void vk_clear_color(const vec4_t &color)
 {
 
-	vk::ClearRect clear_rect[2]{};
-	uint32_t rect_count;
+	vk::ClearRect clear_rect{};
 
 	if (!vk_inst.active)
 		return;
@@ -6258,28 +6416,11 @@ void vk_clear_color(const vec4_t &color)
 								   0,
 								   vk::ClearColorValue{color[0], color[1], color[2], color[3]}};
 
-	get_scissor_rect(clear_rect[0].rect);
-	clear_rect[0].baseArrayLayer = 0;
-	clear_rect[0].layerCount = 1;
-	rect_count = 1;
+	get_scissor_rect(clear_rect.rect);
+	clear_rect.baseArrayLayer = 0;
+	clear_rect.layerCount = 1;
 
-#ifdef DEBUG
-	// Split viewport rectangle into two non-overlapping rectangles.
-	// It's a HACK to prevent Vulkan validation layer's performance warning:
-	//		"vkCmdClearAttachments() issued on command buffer object XXX prior to any Draw Cmds.
-	//		 It is recommended you use RenderPass LOAD_OP_CLEAR on Attachments prior to any Draw."
-	//
-	// NOTE: we don't use LOAD_OP_CLEAR for color attachment when we begin renderpass
-	// since at that point we don't know whether we need collor buffer clear (usually we don't).
-	{
-		uint32_t h = clear_rect[0].rect.extent.height / 2;
-		clear_rect[0].rect.extent.height = h;
-		clear_rect[1] = clear_rect[0];
-		clear_rect[1].rect.offset.y = h;
-		rect_count = 2;
-	}
-#endif
-	vk_inst.cmd->command_buffer.clearAttachments(1, &attachment, rect_count, clear_rect);
+	vk_inst.cmd->command_buffer.clearAttachments(1, &attachment, 1, &clear_rect);
 }
 
 void vk_clear_depth(const bool clear_stencil)
@@ -6829,19 +6970,18 @@ static bool vk_find_screenmap_drawsurfs(void)
 
 void vk_begin_frame(void)
 {
-
-	// VkFramebuffer frameBuffer;
+	vk::Result res;
 
 	if (vk_inst.frame_count++) // might happen during stereo rendering
 		return;
 
+	vk_inst.cmd = &vk_inst.tess[vk_inst.cmd_index];
+
 	if (vk_inst.cmd->waitForFence)
 	{
-		vk_inst.cmd = &vk_inst.tess[vk_inst.cmd_index++];
-		vk_inst.cmd_index %= NUM_COMMAND_BUFFERS;
-
 		vk_inst.cmd->waitForFence = false;
-		vk::Result res = vk_inst.device.waitForFences(vk_inst.cmd->rendering_finished_fence, vk::False, 1e10);
+
+		res = vk_inst.device.waitForFences(vk_inst.cmd->rendering_finished_fence, vk::False, 1e10);
 		if (res != vk::Result::eSuccess)
 		{
 			if (res == vk::Result::eErrorDeviceLost)
@@ -6854,39 +6994,35 @@ void vk_begin_frame(void)
 				ri.Error(ERR_FATAL, "Vulkan: %s returned %s", "vkWaitForfences", vk::to_string(res).data());
 			}
 		}
+		VK_CHECK(vk_inst.device.resetFences(vk_inst.cmd->rendering_finished_fence));
+	}
 
-		if (!ri.CL_IsMinimized())
+	if (!ri.CL_IsMinimized())
+	{
+		res = vk_inst.device.acquireNextImageKHR(vk_inst.swapchain,
+												 1 * 1000000000ULL,
+												 vk_inst.cmd->image_acquired,
+												 nullptr,
+												 &vk_inst.swapchain_image_index);
+		// when running via RDP: "Application has already acquired the maximum number of images (0x2)"
+		// probably caused by "device lost" errors
+		if (res < vk::Result::eSuccess)
 		{
-			res = vk_inst.device.acquireNextImageKHR(vk_inst.swapchain,
-													 5 * 1000000000ULL,
-													 vk_inst.cmd->image_acquired,
-													 nullptr,
-													 &vk_inst.swapchain_image_index);
-			// when running via RDP: "Application has already acquired the maximum number of images (0x2)"
-			// probably caused by "device lost" errors
-			if (res < vk::Result::eSuccess)
+			if (res == vk::Result::eErrorOutOfDateKHR)
 			{
-				if (res == vk::Result::eErrorOutOfDateKHR)
-				{
-					// swapchain re-creation needed
-					vk_restart_swapchain(__func__);
-				}
-				else
-				{
-					ri.Error(ERR_FATAL, "vkAcquireNextImageKHR returned %s", vk::to_string(res).data());
-				}
+				// swapchain re-creation needed
+				vk_restart_swapchain(__func__);
 			}
-		}
-		else
-		{
-			vk_inst.swapchain_image_index++;
-			vk_inst.swapchain_image_index %= vk_inst.swapchain_image_count;
+			else
+			{
+				ri.Error(ERR_FATAL, "vkAcquireNextImageKHR returned %s", vk::to_string(res).data());
+			}
 		}
 	}
 	else
 	{
-		// current command buffer has been reset due to geometry buffer overflow/update
-		// so we will reuse it with current swapchain image as well
+		vk_inst.swapchain_image_index++;
+		vk_inst.swapchain_image_index %= vk_inst.swapchain_image_count;
 	}
 
 	VK_CHECK(vk_inst.device.resetFences(vk_inst.cmd->rendering_finished_fence));
@@ -6898,22 +7034,19 @@ void vk_begin_frame(void)
 	VK_CHECK(vk_inst.cmd->command_buffer.begin(begin_info));
 
 	// Ensure visibility of geometry buffers writes.
-	// record_buffer_memory_barrier( vk_inst.cmd->command_buffer, vk_inst.cmd->vertex_buffer, vk_inst.cmd->vertex_buffer_offset, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT );
+	// record_buffer_memory_barrier( vk_inst.cmd->command_buffer, vk_inst.cmd->vertex_buffer, vk_inst.cmd->geometry_buffer_size, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT );
 
 #if 0
-	// add explicit layout transition dependency
-	if (vk_inst.fboActive) {
-		record_image_layout_transition(vk_inst.cmd->command_buffer,
-			vk_inst.color_image, VK_IMAGE_ASPECT_COLOR_BIT,
-			vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite, VK_IMAGE_LAYOUT_UNDEFINED,
-			vk::AccessFlagBits::eShaderRead, vk::ImageLayout::eShaderReadOnlyOptimal);
-
+	//  add explicit layout transition dependency
+	if (vk_inst.fboActive)
+	{
+		record_image_layout_transition(vk_inst.cmd->command_buffer, vk_inst.color_image, vk::ImageAspectFlagBits::eColor,
+									   vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal, 0, 0);
 	}
-	else {
-		record_image_layout_transition(vk_inst.cmd->command_buffer,
-			vk_inst.swapchain_images[vk_inst.swapchain_image_index], VK_IMAGE_ASPECT_COLOR_BIT,
-			vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite, VK_IMAGE_LAYOUT_UNDEFINED,
-			VK_ACCESS_MEMORY_READ_BIT, vk::ImageLayout::ePresentSrcKHR);
+	else
+	{
+		record_image_layout_transition(vk_inst.cmd->command_buffer, vk_inst.swapchain_images[vk_inst.swapchain_image_index], vk::ImageAspectFlagBits::eColor,
+									   vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, 0, 0);
 	}
 #endif
 
@@ -7003,6 +7136,8 @@ void vk_end_frame(void)
 	if (vk_inst.geometry_buffer_size_new)
 	{
 		vk_resize_geometry_buffer();
+		// issue: one frame may be lost during video recording
+		// solution: re-record all commands again? (might be complicated though)
 		return;
 	}
 
@@ -7074,12 +7209,12 @@ void vk_end_frame(void)
 	// presentation may take undefined time to complete, we can't measure it in a reliable way
 	backEnd.pc.msec = ri.Milliseconds() - backEnd.pc.msec;
 
+	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_MAIN;
 	// vk_present_frame();
 }
 
 void vk_present_frame(void)
 {
-
 	if (ri.CL_IsMinimized())
 		return;
 
@@ -7145,6 +7280,11 @@ void vk_present_frame(void)
 		ri.Error(ERR_FATAL, "vkQueuePresentKHR returned %s", vk::to_string(res).data());
 	}
 #endif
+
+	// pickup next command buffer for rendering
+	vk_inst.cmd_index++;
+	vk_inst.cmd_index %= NUM_COMMAND_BUFFERS;
+	vk_inst.cmd = &vk_inst.tess[vk_inst.cmd_index];
 }
 
 static constexpr bool is_bgr(const vk::Format format)
@@ -7251,13 +7391,13 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 		record_image_layout_transition(command_buffer, srcImage,
 									   vk::ImageAspectFlagBits::eColor,
 									   srcImageLayout,
-									   vk::ImageLayout::eTransferSrcOptimal);
+									   vk::ImageLayout::eTransferSrcOptimal, 0, 0);
 	}
 
 	record_image_layout_transition(command_buffer, dstImage,
 								   vk::ImageAspectFlagBits::eColor,
 								   vk::ImageLayout::eUndefined,
-								   vk::ImageLayout::eTransferDstOptimal);
+								   vk::ImageLayout::eTransferDstOptimal, 0, 0);
 
 	// end_command_buffer( command_buffer );
 
@@ -7294,7 +7434,7 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 		command_buffer.copyImage(srcImage, vk::ImageLayout::eTransferSrcOptimal, dstImage, vk::ImageLayout::eTransferDstOptimal, region);
 	}
 
-	end_command_buffer(command_buffer);
+	end_command_buffer(command_buffer, __func__);
 
 	// Copy data from destination image to memory buffer.
 	vk::ImageSubresource subresource{vk::ImageAspectFlagBits::eColor, 0, 0};
@@ -7395,9 +7535,9 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 		record_image_layout_transition(command_buffer, srcImage,
 									   vk::ImageAspectFlagBits::eColor,
 									   vk::ImageLayout::eTransferSrcOptimal,
-									   srcImageLayout);
+									   srcImageLayout, 0, 0);
 
-		end_command_buffer(command_buffer);
+		end_command_buffer(command_buffer, "restore layout");
 	}
 }
 
