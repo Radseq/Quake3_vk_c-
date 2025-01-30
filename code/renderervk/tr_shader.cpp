@@ -671,16 +671,16 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			}
 			else
 			{
-				imgFlags_t flags = IMGFLAG_NONE;
+				imgFlags_t flags = imgFlags_t::IMGFLAG_NONE;
 
 				if (!shader.noMipMaps)
-					flags = static_cast<imgFlags_t>(flags | IMGFLAG_MIPMAP);
+					flags = static_cast<imgFlags_t>(flags | imgFlags_t::IMGFLAG_MIPMAP);
 
 				if (!shader.noPicMip)
-					flags = static_cast<imgFlags_t>(flags | IMGFLAG_PICMIP);
+					flags = static_cast<imgFlags_t>(flags | imgFlags_t::IMGFLAG_PICMIP);
 
 				if (shader.noLightScale)
-					flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
+					flags = static_cast<imgFlags_t>(flags | imgFlags_t::IMGFLAG_NOLIGHTSCALE);
 
 				stage.bundle[0].image[0] = R_FindImageFile(token, flags);
 
@@ -700,7 +700,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 
 			if (!Q_stricmp_cpp(token, "screenMap"))
 			{
-				flags = IMGFLAG_NONE;
+				flags = imgFlags_t::IMGFLAG_NONE;
 				if (vk_inst.fboActive)
 				{
 					stage.bundle[0].isScreenMap = 1;
@@ -709,7 +709,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			}
 			else
 			{
-				flags = IMGFLAG_CLAMPTOEDGE;
+				flags = imgFlags_t::IMGFLAG_CLAMPTOEDGE;
 			}
 
 			token = COM_ParseExt_cpp(text, false);
@@ -721,13 +721,13 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			}
 
 			if (!shader.noMipMaps)
-				flags = static_cast<imgFlags_t>(flags | IMGFLAG_MIPMAP);
+				flags = static_cast<imgFlags_t>(flags | imgFlags_t::IMGFLAG_MIPMAP);
 
 			if (!shader.noPicMip)
-				flags = static_cast<imgFlags_t>(flags | IMGFLAG_PICMIP);
+				flags = static_cast<imgFlags_t>(flags | imgFlags_t::IMGFLAG_PICMIP);
 
 			if (shader.noLightScale)
-				flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
+				flags = static_cast<imgFlags_t>(flags | imgFlags_t::IMGFLAG_NOLIGHTSCALE);
 
 			stage.bundle[0].image[0] = R_FindImageFile(token, flags);
 
@@ -753,16 +753,16 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			}
 			stage.bundle[0].imageAnimationSpeed = Q_atof_cpp(token);
 
-			imgFlags_t flags = IMGFLAG_NONE;
+			imgFlags_t flags = imgFlags_t::IMGFLAG_NONE;
 
 			if (!shader.noMipMaps)
-				flags = static_cast<imgFlags_t>(flags | IMGFLAG_MIPMAP);
+				flags = static_cast<imgFlags_t>(flags | imgFlags_t::IMGFLAG_MIPMAP);
 
 			if (!shader.noPicMip)
-				flags = static_cast<imgFlags_t>(flags | IMGFLAG_PICMIP);
+				flags = static_cast<imgFlags_t>(flags | imgFlags_t::IMGFLAG_PICMIP);
 
 			if (shader.noLightScale)
-				flags = static_cast<imgFlags_t>(flags | IMGFLAG_NOLIGHTSCALE);
+				flags = static_cast<imgFlags_t>(flags | imgFlags_t::IMGFLAG_NOLIGHTSCALE);
 
 			// parse up to MAX_IMAGE_ANIMATIONS animations
 			while (1)
@@ -808,7 +808,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			{
 				if (!tr.scratchImage[handle])
 				{
-					tr.scratchImage[handle] = R_CreateImage(va_cpp("*scratch%i", handle), {}, NULL, 256, 256, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
+					tr.scratchImage[handle] = R_CreateImage(va_cpp("*scratch%i", handle), {}, NULL, 256, 256, static_cast<imgFlags_t>(imgFlags_t::IMGFLAG_CLAMPTOEDGE | imgFlags_t::IMGFLAG_RGB | imgFlags_t::IMGFLAG_NOSCALE));
 				}
 				stage.bundle[0].isVideoMap = true;
 				stage.bundle[0].videoMapHandle = handle;
@@ -1413,11 +1413,11 @@ static void ParseSkyParms(const char **text)
 	static const char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
 	char pathname[MAX_QPATH];
 	int i;
-	imgFlags_t imgFlags = static_cast<imgFlags_t>(IMGFLAG_MIPMAP | IMGFLAG_PICMIP);
+	imgFlags_t imgFlags = static_cast<imgFlags_t>(imgFlags_t::IMGFLAG_MIPMAP | imgFlags_t::IMGFLAG_PICMIP);
 
 	if (r_neatsky->integer)
 	{
-		imgFlags = IMGFLAG_NONE;
+		imgFlags = imgFlags_t::IMGFLAG_NONE;
 	}
 
 	// outerbox
@@ -1432,7 +1432,7 @@ static void ParseSkyParms(const char **text)
 		for (i = 0; i < 6; i++)
 		{
 			Com_sprintf(pathname, sizeof(pathname), "%s_%s.tga", token.data(), suf[i]);
-			shader.sky.outerbox[i] = R_FindImageFile(pathname, static_cast<imgFlags_t>(imgFlags | IMGFLAG_CLAMPTOEDGE));
+			shader.sky.outerbox[i] = R_FindImageFile(pathname, static_cast<imgFlags_t>(imgFlags | imgFlags_t::IMGFLAG_CLAMPTOEDGE));
 
 			if (!shader.sky.outerbox[i])
 			{
@@ -4086,15 +4086,15 @@ shader_t *R_FindShader(std::string_view name, int lightmapIndex, const bool mipR
 	{
 		imgFlags_t flags;
 
-		flags = IMGFLAG_NONE;
+		flags = imgFlags_t::IMGFLAG_NONE;
 
 		if (mipRawImage)
 		{
-			flags = static_cast<imgFlags_t>(flags | IMGFLAG_MIPMAP | IMGFLAG_PICMIP);
+			flags = static_cast<imgFlags_t>(flags | imgFlags_t::IMGFLAG_MIPMAP | imgFlags_t::IMGFLAG_PICMIP);
 		}
 		else
 		{
-			flags = static_cast<imgFlags_t>(flags | IMGFLAG_CLAMPTOEDGE);
+			flags = static_cast<imgFlags_t>(flags | imgFlags_t::IMGFLAG_CLAMPTOEDGE);
 		}
 
 		image = R_FindImageFile(name, flags);

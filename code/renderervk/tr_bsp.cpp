@@ -41,8 +41,12 @@ constexpr int LIGHTMAP_SIZE = 128;
 constexpr int LIGHTMAP_BORDER = 2;
 constexpr int LIGHTMAP_LEN = LIGHTMAP_SIZE + LIGHTMAP_BORDER * 2;
 
-static constexpr int lightmapFlags = IMGFLAG_NOLIGHTSCALE | IMGFLAG_NO_COMPRESSION | IMGFLAG_LIGHTMAP | IMGFLAG_NOSCALE;
-
+static constexpr imgFlags_t lightmapFlags =
+    imgFlags_t::IMGFLAG_NOLIGHTSCALE |
+    imgFlags_t::IMGFLAG_NO_COMPRESSION |
+    imgFlags_t::IMGFLAG_LIGHTMAP |
+    imgFlags_t::IMGFLAG_NOSCALE;
+	
 static int lightmapWidth;
 static int lightmapHeight;
 static int lightmapCountX;
@@ -376,7 +380,7 @@ static void R_LoadMergedLightmaps(const lump_t &l, byte *image)
 
 	for (offs = 0, i = 0; i < tr.numLightmaps; i++)
 	{
-		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOBORDER);
+		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | imgFlags_t::IMGFLAG_CLAMPTOBORDER);
 		tr.lightmaps[i] = R_CreateImage(va_cpp("*mergedLightmap%d", i), {}, NULL,
 										lightmapWidth, lightmapHeight, flag);
 
@@ -461,7 +465,7 @@ static void R_LoadLightmaps(const lump_t &l)
 
 	for (i = 0; i < tr.numLightmaps; i++)
 	{
-		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | IMGFLAG_CLAMPTOEDGE);
+		imgFlags_t flag = static_cast<imgFlags_t>(lightmapFlags | imgFlags_t::IMGFLAG_CLAMPTOEDGE);
 		maxIntensity = R_ProcessLightmap(image, buf + i * LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3, maxIntensity);
 		tr.lightmaps[i] = R_CreateImage(va_cpp("*lightmap%d", i), {}, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
 										flag);

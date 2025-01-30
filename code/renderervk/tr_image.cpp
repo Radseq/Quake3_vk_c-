@@ -371,7 +371,7 @@ void TextureMode(std::string_view sv_mode)
 	for (i = 0; i < tr.numImages; i++)
 	{
 		img = tr.images[i];
-		if (img->flags & IMGFLAG_MIPMAP)
+		if (HasFlag(img->flags, imgFlags_t::IMGFLAG_MIPMAP))
 		{
 			vk_update_descriptor_set(*img, true);
 		}
@@ -424,7 +424,7 @@ void R_ImageList_f(void)
 		}
 
 		// mipmap adds about 50%
-		if (image->flags & IMGFLAG_MIPMAP)
+		if (HasFlag(image->flags, imgFlags_t::IMGFLAG_MIPMAP))
 			estSize += estSize / 2;
 
 		sizeSuffix = "b ";
@@ -710,8 +710,8 @@ static void R_MipMap(byte *out, byte *in, int width, int height)
 static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_Data *upload_data)
 {
 
-	bool mipmap = image->flags & IMGFLAG_MIPMAP;
-	bool picmip = image->flags & IMGFLAG_PICMIP;
+	bool mipmap = HasFlag(image->flags, imgFlags_t::IMGFLAG_MIPMAP);
+	bool picmip = HasFlag(image->flags, imgFlags_t::IMGFLAG_PICMIP);
 	byte *resampled_buffer = NULL;
 	int scaled_width, scaled_height;
 	int width = image->width;
@@ -722,7 +722,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 
 	Com_Memset(upload_data, 0, sizeof(*upload_data));
 
-	if (image->flags & IMGFLAG_NOSCALE)
+	if (HasFlag(image->flags, imgFlags_t::IMGFLAG_NOSCALE))
 	{
 		//
 		// keep original dimensions
@@ -779,7 +779,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 	}
 	else
 	{
-		if (image->flags & IMGFLAG_COLORSHIFT)
+		if (HasFlag(image->flags, imgFlags_t::IMGFLAG_COLORSHIFT))
 		{
 			byte *p = data;
 			int i, n = width * height;
@@ -853,7 +853,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 	scaled_buffer = (unsigned int *)ri.Hunk_AllocateTempMemory(sizeof(unsigned) * scaled_width * scaled_height);
 	Com_Memcpy(scaled_buffer, data, scaled_width * scaled_height * 4);
 
-	if (!(image->flags & IMGFLAG_NOLIGHTSCALE))
+	if (!HasFlag(image->flags, imgFlags_t::IMGFLAG_NOLIGHTSCALE))
 	{
 		R_LightScaleTexture((byte *)scaled_buffer, scaled_width, scaled_height, !mipmap);
 	}
@@ -910,7 +910,7 @@ static void upload_vk_image(image_t *image, byte *pic)
 	w = upload_data.base_level_width;
 	h = upload_data.base_level_height;
 
-	if (r_texturebits->integer > 16 || r_texturebits->integer == 0 || (image->flags & IMGFLAG_LIGHTMAP))
+	if (r_texturebits->integer > 16 || r_texturebits->integer == 0 || (HasFlag(image->flags, imgFlags_t::IMGFLAG_LIGHTMAP)))
 	{
 		image->internalFormat = vk::Format::eR8G8B8A8Unorm;
 		// image->internalFormat = VK_FORMAT_B8G8R8A8_UNORM;
@@ -1002,13 +1002,13 @@ image_t *R_CreateImage(std::string_view name, std::string_view name2, byte *pic,
 	if (namelen > 6 && Q_stristr(image->imgName, "maps/") == image->imgName && Q_stristr(image->imgName + 6, "/lm_") != NULL)
 	{
 		// external lightmap atlases stored in maps/<mapname>/lm_XXXX textures
-		// image->flags = IMGFLAG_NOLIGHTSCALE | IMGFLAG_NO_COMPRESSION | IMGFLAG_NOSCALE | IMGFLAG_COLORSHIFT;
-		image->flags = static_cast<imgFlags_t>(image->flags | IMGFLAG_NO_COMPRESSION | IMGFLAG_NOSCALE);
+		// image->flags = imgFlags_t::IMGFLAG_NOLIGHTSCALE | imgFlags_t::IMGFLAG_NO_COMPRESSION | imgFlags_t::IMGFLAG_NOSCALE | imgFlags_t::IMGFLAG_COLORSHIFT;
+		image->flags = static_cast<imgFlags_t>(image->flags | imgFlags_t::IMGFLAG_NO_COMPRESSION | imgFlags_t::IMGFLAG_NOSCALE);
 	}
 
-	if (flags & IMGFLAG_CLAMPTOBORDER)
+	if (HasFlag(flags, imgFlags_t::IMGFLAG_CLAMPTOBORDER))
 		image->wrapClampMode = vk::SamplerAddressMode::eClampToBorder;
-	else if (flags & IMGFLAG_CLAMPTOEDGE)
+	else if (static_cast<int>(flags & imgFlags_t::IMGFLAG_CLAMPTOEDGE))
 		image->wrapClampMode = vk::SamplerAddressMode::eClampToEdge;
 	else
 		image->wrapClampMode = vk::SamplerAddressMode::eRepeat;
@@ -1140,7 +1140,7 @@ image_t *R_FindImageFile(std::string_view name, imgFlags_t flags)
 			{
 				if (image->flags != flags)
 				{
-					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name.data(), image->flags, flags);
+					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name.data(), static_cast<int>(image->flags), static_cast<int>(flags));
 				}
 			}
 			return image;
@@ -1158,7 +1158,7 @@ image_t *R_FindImageFile(std::string_view name, imgFlags_t flags)
 				// if ( strcmp( strippedName, "*white" ) ) {
 				if (image->flags != flags)
 				{
-					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", strippedName.data(), image->flags, flags);
+					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", strippedName.data(), static_cast<int>(image->flags), static_cast<int>(flags));
 				}
 				//}
 				return image;
@@ -1224,7 +1224,7 @@ static void R_CreateFogImage(void)
 			data[(y * FOG_S + x) * 4 + 3] = 255 * d;
 		}
 	}
-	tr.fogImage = R_CreateImage("*fog", {}, data, FOG_S, FOG_T, IMGFLAG_CLAMPTOEDGE);
+	tr.fogImage = R_CreateImage("*fog", {}, data, FOG_S, FOG_T, imgFlags_t::IMGFLAG_CLAMPTOEDGE);
 	ri.Hunk_FreeTempMemory(data);
 }
 
@@ -1258,7 +1258,7 @@ static void R_CreateDlightImage(void)
 			data[y][x][3] = 255;
 		}
 	}
-	tr.dlightImage = R_CreateImage("*dlight", {}, (byte *)data, DLIGHT_SIZE, DLIGHT_SIZE, IMGFLAG_CLAMPTOEDGE);
+	tr.dlightImage = R_CreateImage("*dlight", {}, (byte *)data, DLIGHT_SIZE, DLIGHT_SIZE, imgFlags_t::IMGFLAG_CLAMPTOEDGE);
 }
 
 static int Hex(char c)
@@ -1344,7 +1344,7 @@ static bool R_BuildDefaultImage(const char *format)
 		}
 	}
 
-	tr.defaultImage = R_CreateImage("*default", {}, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, IMGFLAG_MIPMAP);
+	tr.defaultImage = R_CreateImage("*default", {}, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, imgFlags_t::IMGFLAG_MIPMAP);
 
 	return true;
 }
@@ -1360,7 +1360,7 @@ static void R_CreateDefaultImage(void)
 		if (R_BuildDefaultImage(r_defaultImage->string))
 			return;
 		// load from external file
-		tr.defaultImage = R_FindImageFile(r_defaultImage->string, static_cast<imgFlags_t>(IMGFLAG_MIPMAP | IMGFLAG_PICMIP));
+		tr.defaultImage = R_FindImageFile(r_defaultImage->string, static_cast<imgFlags_t>(imgFlags_t::IMGFLAG_MIPMAP | imgFlags_t::IMGFLAG_PICMIP));
 		if (tr.defaultImage)
 			return;
 	}
@@ -1390,7 +1390,7 @@ static void R_CreateDefaultImage(void)
 					data[x][DEFAULT_SIZE - 1][3] = 255;
 	}
 
-	tr.defaultImage = R_CreateImage("*default", {}, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, IMGFLAG_MIPMAP);
+	tr.defaultImage = R_CreateImage("*default", {}, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, imgFlags_t::IMGFLAG_MIPMAP);
 }
 
 static void R_CreateBuiltinImages(void)
@@ -1401,11 +1401,11 @@ static void R_CreateBuiltinImages(void)
 	R_CreateDefaultImage();
 
 	Com_Memset(data, 0, sizeof(data));
-	tr.blackImage = R_CreateImage("*black", {}, (byte *)data, 8, 8, IMGFLAG_NONE);
+	tr.blackImage = R_CreateImage("*black", {}, (byte *)data, 8, 8, imgFlags_t::IMGFLAG_NONE);
 
 	// we use a solid white image instead of disabling texturing
 	Com_Memset(data, 255, sizeof(data));
-	tr.whiteImage = R_CreateImage("*white", {}, (byte *)data, 8, 8, IMGFLAG_NONE);
+	tr.whiteImage = R_CreateImage("*white", {}, (byte *)data, 8, 8, imgFlags_t::IMGFLAG_NONE);
 
 	// with overbright bits active, we need an image which is some fraction of full color,
 	// for default lightmaps, etc
@@ -1420,12 +1420,12 @@ static void R_CreateBuiltinImages(void)
 		}
 	}
 
-	tr.identityLightImage = R_CreateImage("*identityLight", {}, (byte *)data, 8, 8, IMGFLAG_NONE);
+	tr.identityLightImage = R_CreateImage("*identityLight", {}, (byte *)data, 8, 8, imgFlags_t::IMGFLAG_NONE);
 
 	// for ( x = 0; x < arrayLen2( tr.scratchImage ); x++ ) {
 	//  scratchimage is usually used for cinematic drawing
 	// tr.scratchImage[x] = R_CreateImage( "*scratch", (byte*)data, DEFAULT_SIZE, DEFAULT_SIZE,
-	//	IMGFLAG_PICMIP | IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB );
+	//	imgFlags_t::IMGFLAG_PICMIP | imgFlags_t::IMGFLAG_CLAMPTOEDGE | imgFlags_t::IMGFLAG_RGB );
 	//}
 
 	R_CreateDlightImage();

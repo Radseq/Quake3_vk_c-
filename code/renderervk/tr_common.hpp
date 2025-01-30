@@ -39,7 +39,7 @@ constexpr int LIGHTMAP_BY_VERTEX = -3; // pre-lit triangle models
 constexpr int LIGHTMAP_WHITEIMAGE = -2;
 constexpr int LIGHTMAP_NONE = -1;
 
-typedef enum
+enum class imgFlags_t : uint16_t
 {
 	IMGFLAG_NONE = 0x0000,
 	IMGFLAG_MIPMAP = 0x0001,
@@ -52,7 +52,37 @@ typedef enum
 	IMGFLAG_NOSCALE = 0x0080,
 	IMGFLAG_RGB = 0x0100,
 	IMGFLAG_COLORSHIFT = 0x0200,
-} imgFlags_t;
+};
+
+constexpr imgFlags_t operator|(imgFlags_t lhs, imgFlags_t rhs) {
+    using underlying = std::underlying_type_t<imgFlags_t>;
+    return static_cast<imgFlags_t>(static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
+}
+
+constexpr imgFlags_t operator&(imgFlags_t lhs, imgFlags_t rhs) {
+    using underlying = std::underlying_type_t<imgFlags_t>;
+    return static_cast<imgFlags_t>(static_cast<underlying>(lhs) & static_cast<underlying>(rhs));
+}
+
+constexpr imgFlags_t operator~(imgFlags_t flag) {
+    using underlying = std::underlying_type_t<imgFlags_t>;
+    return static_cast<imgFlags_t>(~static_cast<underlying>(flag));
+}
+
+constexpr imgFlags_t& operator|=(imgFlags_t& lhs, imgFlags_t rhs) {
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+constexpr imgFlags_t& operator&=(imgFlags_t& lhs, imgFlags_t rhs) {
+    lhs = lhs & rhs;
+    return lhs;
+}
+
+constexpr bool HasFlag(imgFlags_t mask, imgFlags_t flag) {
+    return (static_cast<std::underlying_type_t<imgFlags_t>>(mask) & 
+            static_cast<std::underlying_type_t<imgFlags_t>>(flag)) != 0;
+}
 
 enum class cullType_t : uint8_t
 {

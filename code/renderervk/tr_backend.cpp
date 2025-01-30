@@ -585,7 +585,7 @@ void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client
 
 	if (!tr.scratchImage[client])
 	{
-		tr.scratchImage[client] = R_CreateImage(va_cpp("*scratch%i", client), {}, data, cols, rows, static_cast<imgFlags_t>(IMGFLAG_CLAMPTOEDGE | IMGFLAG_RGB | IMGFLAG_NOSCALE));
+		tr.scratchImage[client] = R_CreateImage(va_cpp("*scratch%i", client), {}, data, cols, rows, static_cast<imgFlags_t>(imgFlags_t::IMGFLAG_CLAMPTOEDGE | imgFlags_t::IMGFLAG_RGB | imgFlags_t::IMGFLAG_NOSCALE));
 	}
 
 	image = tr.scratchImage[client];
