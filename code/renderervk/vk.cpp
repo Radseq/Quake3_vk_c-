@@ -214,7 +214,7 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer, const ch
 		ri.Error(ERR_FATAL, "waitForFences() failed with %s at %s", vk::to_string(res).data(), location);
 	}
 
-	vk_inst.device.resetFences(1, &vk_inst.aux_fence);
+	VK_CHECK(vk_inst.device.resetFences(1, &vk_inst.aux_fence));
 
 	// VK_CHECK(vk_inst.queue.submit(1, &submit_info, nullptr));
 	//  vk::Fence fence;
@@ -328,7 +328,7 @@ static void record_image_layout_transition(const vk::CommandBuffer &command_buff
 								   nullptr};
 
 	auto stageFlag = get_src_stage(old_layout);
-	if (stageFlag == vk::PipelineStageFlagBits::eAllCommands)
+	if (stageFlag & vk::PipelineStageFlagBits::eAllCommands)
 		ri.Error(ERR_DROP, "unsupported old layout %i", (int)old_layout);
 
 	if (old_layout == vk::ImageLayout::eUndefined)
@@ -338,7 +338,7 @@ static void record_image_layout_transition(const vk::CommandBuffer &command_buff
 	}
 
 	auto destFlag = get_dst_stage(new_layout);
-	if (destFlag == vk::PipelineStageFlagBits::eAllCommands)
+	if (destFlag & vk::PipelineStageFlagBits::eAllCommands)
 		ri.Error(ERR_DROP, "unsupported new layout %i", (int)new_layout);
 
 	command_buffer.pipelineBarrier(stageFlag,
@@ -6264,7 +6264,7 @@ static void get_viewport_rect(vk::Rect2D &r)
 	}
 }
 
-constexpr float get_min_depth(const Vk_Depth_Range depth_range)
+static constexpr float get_min_depth(const Vk_Depth_Range depth_range)
 {
 	switch (depth_range)
 	{
@@ -6290,7 +6290,7 @@ constexpr float get_min_depth(const Vk_Depth_Range depth_range)
 	}
 }
 
-constexpr float get_max_depth(const Vk_Depth_Range depth_range)
+static constexpr float get_max_depth(const Vk_Depth_Range depth_range)
 {
 	switch (depth_range)
 	{
