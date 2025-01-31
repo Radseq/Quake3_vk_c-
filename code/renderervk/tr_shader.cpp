@@ -1411,7 +1411,7 @@ static void ParseSkyParms(const char **text)
 {
 	std::string_view token;
 	static const char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
-	char pathname[MAX_QPATH];
+	std::array<char, MAX_QPATH> pathname{};
 	int i;
 	imgFlags_t imgFlags = static_cast<imgFlags_t>(imgFlags_t::IMGFLAG_MIPMAP | imgFlags_t::IMGFLAG_PICMIP);
 
@@ -1431,8 +1431,8 @@ static void ParseSkyParms(const char **text)
 	{
 		for (i = 0; i < 6; i++)
 		{
-			Com_sprintf(pathname, sizeof(pathname), "%s_%s.tga", token.data(), suf[i]);
-			shader.sky.outerbox[i] = R_FindImageFile(pathname, static_cast<imgFlags_t>(imgFlags | imgFlags_t::IMGFLAG_CLAMPTOEDGE));
+			Com_sprintf_cpp(pathname, "%s_%s.tga", token.data(), suf[i]);
+			shader.sky.outerbox[i] = R_FindImageFile(pathname.data(), static_cast<imgFlags_t>(imgFlags | imgFlags_t::IMGFLAG_CLAMPTOEDGE));
 
 			if (!shader.sky.outerbox[i])
 			{
@@ -1466,8 +1466,8 @@ static void ParseSkyParms(const char **text)
 	{
 		for (i = 0; i < 6; i++)
 		{
-			Com_sprintf(pathname, sizeof(pathname), "%s_%s.tga", token.data(), suf[i]);
-			shader.sky.innerbox[i] = R_FindImageFile(pathname, imgFlags);
+			Com_sprintf_cpp(pathname, "%s_%s.tga", token.data(), suf[i]);
+			shader.sky.innerbox[i] = R_FindImageFile(pathname.data(), imgFlags);
 			if (!shader.sky.innerbox[i])
 			{
 				shader.sky.innerbox[i] = tr.defaultImage;
@@ -4380,7 +4380,7 @@ constexpr int MAX_SHADER_FILES = 16384;
 
 static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char **buffers)
 {
-	char filename[MAX_QPATH + 8];
+	std::array<char, MAX_QPATH + 8> filename{};
 	std::array<char, MAX_QPATH> shaderName;
 	const char *p;
 	std::string_view token;
@@ -4393,9 +4393,9 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 	// load and parse shader files
 	for (i = 0; i < numShaderFiles; i++)
 	{
-		Com_sprintf(filename, sizeof(filename), "scripts/%s", shaderFiles[i]);
+		Com_sprintf_cpp(filename, "scripts/%s", shaderFiles[i]);
 		// ri.Printf( PRINT_DEVELOPER, "...loading '%s'\n", filename );
-		summand = ri.FS_ReadFile(filename, (void **)&buffers[i]);
+		summand = ri.FS_ReadFile(filename.data(), (void**)&buffers[i]);
 
 		if (!buffers[i])
 			ri.Error(ERR_DROP, "Couldn't load %s", filename);
@@ -4422,7 +4422,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 		}
 
 		p = buffers[i];
-		COM_BeginParseSession(filename);
+		COM_BeginParseSession(filename.data());
 
 		shaderStart = NULL;
 		denyErrors = false;

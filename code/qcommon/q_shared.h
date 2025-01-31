@@ -312,6 +312,10 @@ typedef enum {
 #undef ERR_FATAL			// this is be defined in malloc.h
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // parameters to the main Error routine
 typedef enum {
 	ERR_FATAL,					// exit the entire game with a popup window
@@ -321,6 +325,10 @@ typedef enum {
 	ERR_NEED_CD					// pop up the need-cd dialog
 } errorParm_t;
 
+
+#ifdef __cplusplus
+}
+#endif
 
 // font rendering values used by ui and cgame
 

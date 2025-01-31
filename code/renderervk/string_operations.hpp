@@ -7,7 +7,64 @@
 #include <format>
 #include <vector>
 #include <cstdarg>
+
+#if	defined(_DEBUG) && defined(_WIN32)
+#include <windows.h>
+#else
 #include <algorithm> // For std::min
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "../qcommon/q_shared.h" // Include the C header
+
+#ifdef __cplusplus
+}
+#endif
+
+template <std::size_t N>
+int Com_sprintf_cpp(std::array<char, N>& dest, std::string_view fmt, ...)
+{
+    static_assert(N > 0, "Destination array must have a size greater than 0");
+
+    // Use a stack buffer for performance (adjust size as needed)
+    constexpr int bufferSize = 32000;
+    char buffer[bufferSize];
+
+    // Process variadic arguments
+    va_list args;
+    va_start(args, fmt);
+
+    // Use vsnprintf for safety and performance
+    int len = std::vsnprintf(buffer, bufferSize, fmt.data(), args);
+    va_end(args);
+
+    if (len >= bufferSize || len < 0)
+    {
+        Com_Error(ERR_FATAL, "Com_sprintf: overflowed buffer");
+#if defined(_DEBUG) && defined(_WIN32)
+        DebugBreak();
+#endif
+        return 0;
+    }
+
+    if (len >= N)
+    {
+        Com_Printf(std::format("Com_sprintf: overflow of {} in {}\n", len, N).c_str());
+#if defined(_DEBUG) && defined(_WIN32)
+        DebugBreak();
+#endif
+        len = N - 1;
+    }
+
+    // Copy the formatted string to the destination
+    std::memcpy(dest.data(), buffer, len);
+    dest[len] = '\0';
+
+    return len;
+}
 
 char *Q_stradd_large_cpp(char *dst, std::string_view src);
 char *Q_stradd_small(char *dst, std::string_view src);

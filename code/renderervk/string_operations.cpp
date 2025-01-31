@@ -127,7 +127,11 @@ unsigned long Com_GenerateHashValue_cpp(std::string_view fname, const unsigned i
 
 int Q_strncmp_cpp(std::string_view s1, std::string_view s2, size_t n)
 {
+#if defined(_DEBUG) && defined(_WIN32)
+    size_t min_length = min(n, min(s1.size(), s2.size()));
+#else
     size_t min_length = std::min(n, std::min(s1.size(), s2.size()));
+#endif
 
     for (size_t i = 0; i < min_length; ++i)
     {
@@ -288,7 +292,14 @@ std::string_view COM_ParseExt_cpp(const char **text, bool allowLineBreaks)
 int Q_stricmpn_cpp(std::string_view s1, std::string_view s2, int n)
 {
     // Ensure the comparison length does not exceed the actual string lengths
+
+#if defined(_DEBUG) && defined(_WIN32)
+    n = min(n, static_cast<int>(min(s1.size(), s2.size())));
+#else
     n = std::min(n, static_cast<int>(std::min(s1.size(), s2.size())));
+#endif
+
+   
 
     for (int i = 0; i < n; ++i)
     {

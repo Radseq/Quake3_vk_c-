@@ -1919,7 +1919,7 @@ static void R_LoadSubmodels(const lump_t *l)
 
 		model->type = modtype_t::MOD_BRUSH;
 		model->bmodel = out;
-		Com_sprintf(model->name.data(), sizeof(model->name), "*%d", i);
+		Com_sprintf_cpp(model->name, "*%d", i);
 
 		for (j = 0; j < 3; j++)
 		{

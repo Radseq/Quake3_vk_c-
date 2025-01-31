@@ -607,7 +607,7 @@ void RB_TakeScreenshotBMP(const int x, const int y, const int width, const int h
 R_ScreenshotFilename
 ==================
 */
-static void R_ScreenshotFilename(char *fileName, const char *fileExt)
+static void R_ScreenshotFilename(std::array<char, MAX_OSPATH> fileName, const char *fileExt)
 {
 	qtime_t t;
 	int count;
@@ -615,13 +615,13 @@ static void R_ScreenshotFilename(char *fileName, const char *fileExt)
 	count = 0;
 	ri.Com_RealTime(&t);
 
-	Com_sprintf(fileName, MAX_OSPATH, "screenshots/shot-%04d%02d%02d-%02d%02d%02d.%s",
+	Com_sprintf_cpp(fileName, "screenshots/shot-%04d%02d%02d-%02d%02d%02d.%s",
 				1900 + t.tm_year, 1 + t.tm_mon, t.tm_mday,
 				t.tm_hour, t.tm_min, t.tm_sec, fileExt);
 
-	while (ri.FS_FileExists(fileName) && ++count < 1000)
+	while (ri.FS_FileExists(fileName.data()) && ++count < 1000)
 	{
-		Com_sprintf(fileName, MAX_OSPATH, "screenshots/shot-%04d%02d%02d-%02d%02d%02d-%d.%s",
+		Com_sprintf_cpp(fileName, "screenshots/shot-%04d%02d%02d-%02d%02d%02d-%d.%s",
 					1900 + t.tm_year, 1 + t.tm_mon, t.tm_mday,
 					t.tm_hour, t.tm_min, t.tm_sec, count, fileExt);
 	}
@@ -637,7 +637,7 @@ the menu system, sampled down from full screen distorted images
 */
 static void R_LevelShot(void)
 {
-	char checkname[MAX_OSPATH];
+	std::array<char, MAX_OSPATH> checkname{};
 	byte *buffer;
 	byte *source, *allsource;
 	byte *src, *dst;
@@ -648,7 +648,7 @@ static void R_LevelShot(void)
 	float xScale, yScale;
 	int xx, yy;
 
-	Com_sprintf(checkname, sizeof(checkname), "levelshots/%s.tga", tr.world->baseName);
+	Com_sprintf_cpp(checkname, "levelshots/%s.tga", tr.world->baseName);
 
 	allsource = RB_ReadPixels(gls.captureWidth, gls.captureHeight, &offset, padlen);
 	source = allsource + offset;
@@ -689,7 +689,7 @@ static void R_LevelShot(void)
 	// gamma correction
 	R_GammaCorrect(buffer + 18, 128 * 128 * 3);
 
-	ri.FS_WriteFile(checkname, buffer, 128 * 128 * 3 + 18);
+	ri.FS_WriteFile(checkname.data(), buffer, 128 * 128 * 3 + 18);
 
 	ri.Hunk_FreeTempMemory(buffer);
 	ri.Hunk_FreeTempMemory(allsource);
@@ -711,7 +711,7 @@ Doesn't print the pacifier message if there is a second arg
 */
 static void R_ScreenShot_f(void)
 {
-	char checkname[MAX_OSPATH];
+	std::array<char, MAX_OSPATH> checkname{};
 	bool silent;
 	int typeMask;
 	const char *ext;
@@ -765,7 +765,7 @@ static void R_ScreenShot_f(void)
 	if (ri.Cmd_Argc() == 2 && !silent)
 	{
 		// explicit filename
-		Com_sprintf(checkname, MAX_OSPATH, "screenshots/%s.%s", ri.Cmd_Argv(1), ext);
+		Com_sprintf_cpp(checkname, "screenshots/%s.%s", ri.Cmd_Argv(1), ext);
 	}
 	else
 	{
@@ -786,17 +786,17 @@ static void R_ScreenShot_f(void)
 	if (typeMask == SCREENSHOT_JPG)
 	{
 		backEnd.screenShotJPGsilent = silent;
-		Q_strncpyz(backEnd.screenshotJPG, checkname, sizeof(backEnd.screenshotJPG));
+		Q_strncpyz(backEnd.screenshotJPG, checkname.data(), sizeof(backEnd.screenshotJPG));
 	}
 	else if (typeMask == SCREENSHOT_BMP)
 	{
 		backEnd.screenShotBMPsilent = silent;
-		Q_strncpyz(backEnd.screenshotBMP, checkname, sizeof(backEnd.screenshotBMP));
+		Q_strncpyz(backEnd.screenshotBMP, checkname.data(), sizeof(backEnd.screenshotBMP));
 	}
 	else
 	{
 		backEnd.screenShotTGAsilent = silent;
-		Q_strncpyz(backEnd.screenshotTGA, checkname, sizeof(backEnd.screenshotTGA));
+		Q_strncpyz(backEnd.screenshotTGA, checkname.data(), sizeof(backEnd.screenshotTGA));
 	}
 }
 

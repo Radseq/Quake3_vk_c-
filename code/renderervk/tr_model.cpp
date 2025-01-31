@@ -56,14 +56,15 @@ static qhandle_t R_RegisterMD3(std::string_view name, model_t &mod)
 	bool loaded = false;
 	int numLoaded;
 	std::size_t fileSize;
-	char filename[MAX_QPATH], namebuf[MAX_QPATH + 20];
+	std::array<char, MAX_QPATH> filename{};
+	std::array<char, MAX_QPATH + 20> namebuf{};
 	char *fext, defex[] = "md3";
 
 	numLoaded = 0;
 
-	strcpy(filename, name.data());
+	strcpy(filename.data(), name.data());
 
-	fext = strchr(filename, '.');
+	fext = strchr(filename.data(), '.');
 	if (!fext)
 		fext = defex;
 	else
@@ -75,11 +76,11 @@ static qhandle_t R_RegisterMD3(std::string_view name, model_t &mod)
 	for (lod = MD3_MAX_LODS - 1; lod >= 0; lod--)
 	{
 		if (lod)
-			Com_sprintf(namebuf, sizeof(namebuf), "%s_%d.%s", filename, lod, fext);
+			Com_sprintf_cpp(namebuf, "%s_%d.%s", filename, lod, fext);
 		else
-			Com_sprintf(namebuf, sizeof(namebuf), "%s.%s", filename, fext);
+			Com_sprintf_cpp(namebuf, "%s.%s", filename, fext);
 
-		fileSize = static_cast<std::size_t>(ri.FS_ReadFile(namebuf, &buf.v));
+		fileSize = static_cast<std::size_t>(ri.FS_ReadFile(namebuf.data(), &buf.v));
 		if (!buf.v)
 			continue;
 
@@ -374,7 +375,7 @@ qhandle_t RE_RegisterModel(const char *name)
 		if (i == orgLoader)
 			continue;
 
-		Com_sprintf(altName.data(), sizeof(altName), "%s.%s", localName.data(), modelLoaders[i].ext.data());
+		Com_sprintf_cpp(altName, "%s.%s", localName.data(), modelLoaders[i].ext.data());
 
 		// Load
 		hModel = modelLoaders[i].ModelLoader(std::string_view(altName.data(), altName.size()), *mod);

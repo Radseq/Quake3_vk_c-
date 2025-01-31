@@ -1376,10 +1376,10 @@ static void setup_surface_formats(const vk::PhysicalDevice &physical_device)
 	}
 }
 
-static const char *renderer_name(const vk::PhysicalDeviceProperties &props)
+static std::array<char, sizeof(vk::ArrayWrapper1D<char, VK_MAX_PHYSICAL_DEVICE_NAME_SIZE>) + 64> renderer_name(const vk::PhysicalDeviceProperties &props)
 {
-	static char buf[sizeof(props.deviceName) + 64];
-	const char *device_type;
+	std::array<char, sizeof(props.deviceName) + 64> buf;
+	std::string_view device_type;
 
 	switch (props.deviceType)
 	{
@@ -1403,10 +1403,10 @@ static const char *renderer_name(const vk::PhysicalDeviceProperties &props)
 	// Com_sprintf(buf, sizeof(buf), "%s %s, 0x%04x",
 	// 			device_type, props.deviceName, props.deviceID);
 
-	char charArray[256];
-	std::memcpy(charArray, props.deviceName.data(), 256);
+	std::array<char, 256> charArray;
+	std::memcpy(charArray.data(), props.deviceName.data(), 256);
 
-	Com_sprintf(buf, sizeof(buf), "%s %s, 0x%04x",
+	Com_sprintf_cpp(buf, "%s %s, 0x%04x",
 				device_type, charArray, props.deviceID);
 
 	return buf;
@@ -1813,7 +1813,7 @@ static void init_vulkan_library(void)
 	for (i = 0; i < device_count; i++)
 	{
 		vk::PhysicalDeviceProperties props = physical_devices[i].getProperties();
-		ri.Printf(PRINT_ALL, " %i: %s\n", i, renderer_name(props));
+		ri.Printf(PRINT_ALL, " %i: %s\n", i, renderer_name(props).data());
 
 		if (device_index == -1 && props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
 		{
@@ -3734,8 +3734,9 @@ static constexpr int sampleCountFlagsToInt(vk::SampleCountFlags sampleCountFlags
 
 void vk_initialize(void)
 {
-	char buf[64], driver_version[64];
-	const char *vendor_name;
+	std::array<char, 64> buf;
+	std::array<char, 64> driver_version;
+	std::string_view vendor_name;
 	vk::PhysicalDeviceProperties props;
 	uint32_t major;
 	uint32_t minor;
@@ -3843,7 +3844,7 @@ void vk_initialize(void)
 	switch (props.vendorID)
 	{
 	case 0x10DE: // NVidia
-		Com_sprintf(driver_version, sizeof(driver_version), "%i.%i.%i.%i",
+		Com_sprintf_cpp(driver_version, "%i.%i.%i.%i",
 					(props.driverVersion >> 22) & 0x3FF,
 					(props.driverVersion >> 14) & 0x0FF,
 					(props.driverVersion >> 6) & 0x0FF,
@@ -3851,13 +3852,13 @@ void vk_initialize(void)
 		break;
 #ifdef _WIN32
 	case 0x8086: // Intel
-		Com_sprintf(driver_version, sizeof(driver_version), "%i.%i",
+		Com_sprintf_cpp(driver_version, "%i.%i",
 					(props.driverVersion >> 14),
 					(props.driverVersion >> 0) & 0x3FFF);
 		break;
 #endif
 	default:
-		Com_sprintf(driver_version, sizeof(driver_version), "%i.%i.%i",
+		Com_sprintf_cpp(driver_version, "%i.%i.%i",
 					(props.driverVersion >> 22),
 					(props.driverVersion >> 12) & 0x3FF,
 					(props.driverVersion >> 0) & 0xFFF);
@@ -3901,12 +3902,12 @@ void vk_initialize(void)
 	}
 	else
 	{
-		Com_sprintf(buf, sizeof(buf), "VendorID: %04x", props.vendorID);
-		vendor_name = buf;
+		Com_sprintf_cpp(buf, "VendorID: %04x", props.vendorID);
+		vendor_name = buf.data();
 	}
 
-	Q_strncpyz(glConfig.vendor_string, vendor_name, sizeof(glConfig.vendor_string));
-	Q_strncpyz(glConfig.renderer_string, renderer_name(props), sizeof(glConfig.renderer_string));
+	Q_strncpyz(glConfig.vendor_string, vendor_name.data(), sizeof(glConfig.vendor_string));
+	Q_strncpyz(glConfig.renderer_string, renderer_name(props).data(), sizeof(glConfig.renderer_string));
 #ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME((intptr_t) static_cast<VkDevice>(vk_inst.device), glConfig.renderer_string, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT);
 #endif

@@ -382,7 +382,8 @@ void R_ImageList_f(void)
 {
 	const image_t *image;
 	int i, estTotalSize = 0;
-	char *name, buf[MAX_QPATH * 2 + 5];
+	char* name;
+	std::array<char, MAX_QPATH * 2 + 5> buf{};
 
 	ri.Printf(PRINT_ALL, "\n -n- --w-- --h-- type  -size- --name-------\n");
 
@@ -454,9 +455,9 @@ void R_ImageList_f(void)
 		}
 		else
 		{
-			Com_sprintf(buf, sizeof(buf), "%s => " S_COLOR_YELLOW "%s",
+			Com_sprintf_cpp(buf, "%s => " S_COLOR_YELLOW "%s",
 						image->imgName, image->imgName2);
-			name = buf;
+			name = buf.data();
 		}
 
 		ri.Printf(PRINT_ALL, " %3i %5i %5i %s %4i%s %s\n", i, image->uploadWidth, image->uploadHeight, format, displaySize, sizeSuffix, name);
