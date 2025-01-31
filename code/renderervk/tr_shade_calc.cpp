@@ -223,7 +223,7 @@ static void RB_CalcBulgeVertexes(deformStage_t &ds)
 		int64_t off;
 		float scale;
 
-		off = (float)(FUNCTABLE_SIZE / (M_PI * 2)) * (st[0] * ds.bulgeWidth + now);
+		off = (float)(FUNCTABLE_SIZE / (PI_cpp * 2)) * (st[0] * ds.bulgeWidth + now);
 
 		scale = tr.sinTable[off & FUNCTABLE_MASK] * ds.bulgeHeight;
 

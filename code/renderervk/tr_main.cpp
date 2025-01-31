@@ -637,10 +637,10 @@ void R_SetupProjection(viewParms_t &dest, const float zProj, const bool computeF
 			stereoSep = 0;
 	}
 
-	ymax = zProj * tan(dest.fovY * M_PI / 360.0f);
+	ymax = zProj * tan(dest.fovY * PI_cpp / 360.0f);
 	ymin = -ymax;
 
-	xmax = zProj * tan(dest.fovX * M_PI / 360.0f);
+	xmax = zProj * tan(dest.fovX * PI_cpp / 360.0f);
 	xmin = -xmax;
 
 	width = xmax - xmin;

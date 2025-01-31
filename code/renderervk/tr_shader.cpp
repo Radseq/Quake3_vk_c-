@@ -2011,11 +2011,11 @@ static bool ParseShader(const char **text)
 
 			token = COM_ParseExt_cpp(text, false);
 			a = Q_atof_cpp(token);
-			a = a / 180 * M_PI;
+			a = a / 180 * PI_cpp;
 
 			token = COM_ParseExt_cpp(text, false);
 			b = Q_atof_cpp(token);
-			b = b / 180 * M_PI;
+			b = b / 180 * PI_cpp;
 
 			tr.sunDirection[0] = cos(a) * cos(b);
 			tr.sunDirection[1] = sin(a) * cos(b);

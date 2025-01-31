@@ -460,7 +460,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	{
 // 		if (value1[0])
 // 		{
-// 			yaw = (atan2(value1[1], value1[0]) * 180 / M_PI);
+// 			yaw = (atan2(value1[1], value1[0]) * 180 / PI_cpp);
 // 		}
 // 		else if (value1[1] > 0)
 // 		{
@@ -476,7 +476,7 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 		}
 
 // 		forward = sqrt(value1[0] * value1[0] + value1[1] * value1[1]);
-// 		pitch = (atan2(value1[2], forward) * 180 / M_PI);
+// 		pitch = (atan2(value1[2], forward) * 180 / PI_cpp);
 // 		if (pitch < 0)
 // 		{
 // 			pitch += 360;
@@ -884,13 +884,13 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 // 	static float sr, sp, sy, cr, cp, cy;
 // 	// static to help MS compiler fp bugs
 
-// 	angle = angles[YAW] * (M_PI * 2 / 360);
+// 	angle = angles[YAW] * (PI_cpp * 2 / 360);
 // 	sy = sin(angle);
 // 	cy = cos(angle);
-// 	angle = angles[PITCH] * (M_PI * 2 / 360);
+// 	angle = angles[PITCH] * (PI_cpp * 2 / 360);
 // 	sp = sin(angle);
 // 	cp = cos(angle);
-// 	angle = angles[ROLL] * (M_PI * 2 / 360);
+// 	angle = angles[ROLL] * (PI_cpp * 2 / 360);
 // 	sr = sin(angle);
 // 	cr = cos(angle);
 
@@ -1048,13 +1048,13 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 
 // 	angle = acos(c);
 
-// 	if (angle > M_PI)
+// 	if (angle > PI_cpp)
 // 	{
-// 		return (float)M_PI;
+// 		return (float)PI_cpp;
 // 	}
-// 	if (angle < -M_PI)
+// 	if (angle < -PI_cpp)
 // 	{
-// 		return (float)M_PI;
+// 		return (float)PI_cpp;
 // 	}
 // 	return angle;
 // }

@@ -27,10 +27,12 @@ int Q_strncmp_cpp(std::string_view s1, std::string_view s2, size_t n);
 template <std::size_t Size>
 void Q_strncpyz_cpp(std::array<char, Size> &dest, std::string_view src, std::size_t max_cpy_size)
 {
+#ifdef DEBUG
     if (Size < 1)
     {
         throw std::invalid_argument("Q_strncpyz_cpp: dest size < 1");
     }
+#endif // DEBUG
 
     // Determine the number of characters to copy
     std::size_t length = std::min<std::size_t>({Size - 1, max_cpy_size, src.size()}); // Leave room for null-terminator
@@ -127,10 +129,12 @@ std::string_view COM_GetExtension_cpp(const std::array<char, Size> &name)
 template <std::size_t Size>
 void COM_StripExtension_cpp(std::string_view in, std::array<char, Size> &dest)
 {
+#ifdef DEBUG
     if (Size < 1)
     {
         throw std::invalid_argument("COM_StripExtension_cpp: dest size < 1");
     }
+#endif // DEBUG
 
     // Find the last '.' and '/'
     auto dot = in.find_last_of('.');

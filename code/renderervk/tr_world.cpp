@@ -127,6 +127,16 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 		return false;
 	}
 
+	if (shader.cullType == cullType_t::CT_TWO_SIDED)
+	{
+		return false;
+	}
+
+	if (*surface != surfaceType_t::SF_FACE)
+	{
+		return false;
+	}
+
 	if (*surface == surfaceType_t::SF_GRID)
 	{
 		return R_CullGrid((srfGridMesh_t *)surface);
@@ -135,16 +145,6 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 	if (*surface == surfaceType_t::SF_TRIANGLES)
 	{
 		return R_CullTriSurf((srfTriangles_t *)surface);
-	}
-
-	if (*surface != surfaceType_t::SF_FACE)
-	{
-		return false;
-	}
-
-	if (shader.cullType == cullType_t::CT_TWO_SIDED)
-	{
-		return false;
 	}
 
 	// face culling
@@ -364,15 +364,15 @@ static int R_DlightSurface(msurface_t &surf, int dlightBits)
 {
 	if (*surf.data == surfaceType_t::SF_FACE)
 	{
-		dlightBits = R_DlightFace(reinterpret_cast<srfSurfaceFace_t&>(*surf.data), dlightBits);
+		dlightBits = R_DlightFace(reinterpret_cast<srfSurfaceFace_t &>(*surf.data), dlightBits);
 	}
 	else if (*surf.data == surfaceType_t::SF_GRID)
 	{
-		dlightBits = R_DlightGrid(reinterpret_cast<srfGridMesh_t&>(*surf.data), dlightBits);
+		dlightBits = R_DlightGrid(reinterpret_cast<srfGridMesh_t &>(*surf.data), dlightBits);
 	}
 	else if (*surf.data == surfaceType_t::SF_TRIANGLES)
 	{
-		dlightBits = R_DlightTrisurf(reinterpret_cast<srfTriangles_t&>(*surf.data), dlightBits);
+		dlightBits = R_DlightTrisurf(reinterpret_cast<srfTriangles_t &>(*surf.data), dlightBits);
 	}
 	else
 	{
@@ -726,7 +726,7 @@ static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, un
 				{
 					if (dlightBits & (1 << i))
 					{
-						const dlight_t& dl = tr.refdef.dlights[i];
+						const dlight_t &dl = tr.refdef.dlights[i];
 						float dist = DotProduct(dl.origin, node->plane->normal) - node->plane->dist;
 
 						if (dist > -dl.radius)
@@ -880,17 +880,17 @@ cluster
 */
 static void R_MarkLeaves(void)
 {
-	const byte *vis;
-	mnode_t *leaf, *parent;
-	int i;
-	int cluster;
-
 	// lockpvs lets designers walk around to determine the
 	// extent of the current pvs
 	if (r_lockpvs->integer)
 	{
 		return;
 	}
+
+	const byte *vis;
+	mnode_t *leaf, *parent;
+	int i;
+	int cluster;
 
 	// current viewcluster
 	leaf = R_PointInLeaf(tr.viewParms.pvsOrigin);
