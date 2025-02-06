@@ -4380,7 +4380,7 @@ constexpr int MAX_SHADER_FILES = 16384;
 
 static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char **buffers)
 {
-	char filename[MAX_QPATH + 8];
+	std::array<char, MAX_QPATH + 8> filename;
 	std::array<char, MAX_QPATH> shaderName;
 	const char *p;
 	std::string_view token;
@@ -4393,12 +4393,12 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 	// load and parse shader files
 	for (i = 0; i < numShaderFiles; i++)
 	{
-		Com_sprintf(filename, sizeof(filename), "scripts/%s", shaderFiles[i]);
+		Com_sprintf(filename.data(), sizeof(filename), "scripts/%s", shaderFiles[i]);
 		// ri.Printf( PRINT_DEVELOPER, "...loading '%s'\n", filename );
-		summand = ri.FS_ReadFile(filename, (void **)&buffers[i]);
+		summand = ri.FS_ReadFile(filename.data(), (void **)&buffers[i]);
 
 		if (!buffers[i])
-			ri.Error(ERR_DROP, "Couldn't load %s", filename);
+			ri.Error(ERR_DROP, "Couldn't load %s", filename.data());
 
 		// comment some buggy shaders from pak0
 		if (summand == 35910 && strcmp(shaderFiles[i], "sky.shader") == 0)
@@ -4422,7 +4422,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 		}
 
 		p = buffers[i];
-		COM_BeginParseSession(filename);
+		COM_BeginParseSession(filename.data());
 
 		shaderStart = NULL;
 		denyErrors = false;
@@ -4442,7 +4442,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 			{
 				ri.Printf(PRINT_DEVELOPER, "File %s: shader \"%s\" "
 										   "on line %d missing opening brace",
-						  filename, shaderName.data(), shaderLine);
+						  filename.data(), shaderName.data(), shaderLine);
 				if (token.empty())
 					ri.Printf(PRINT_DEVELOPER, " (found \"%s\" on line %d)\n", token.data(), COM_GetCurrentParseLine());
 				else
@@ -4450,7 +4450,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 
 				if (denyErrors || !p)
 				{
-					ri.Printf(PRINT_WARNING, "Ignoring entire file '%s' due to error.\n", filename);
+					ri.Printf(PRINT_WARNING, "Ignoring entire file '%s' due to error.\n", filename.data());
 					ri.FS_FreeFile(buffers[i]);
 					buffers[i] = NULL;
 					break;
@@ -4465,7 +4465,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: Ignoring shader file %s. Shader \"%s\" "
 										 "on line %d missing closing brace.\n",
-						  filename, shaderName.data(), shaderLine);
+						  filename.data(), shaderName.data(), shaderLine);
 				ri.FS_FreeFile(buffers[i]);
 				buffers[i] = NULL;
 				break;
