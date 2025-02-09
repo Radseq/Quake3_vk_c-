@@ -196,6 +196,7 @@ int max_polys;
 int max_polyverts;
 
 #include "vk.hpp"
+#include "math.hpp"
 Vk_Instance vk_inst;
 Vk_World vk_world;
 
@@ -1426,7 +1427,7 @@ void R_Init(void)
 		}
 		else
 		{
-			tr.sinTable[i] = sin(DEG2RAD(i * 360.0f / ((float)(FUNCTABLE_SIZE - 1))));
+			tr.sinTable[i] = sin(DegreesToRadians(i * 360.0f / ((float)(FUNCTABLE_SIZE - 1))));
 		}
 		tr.squareTable[i] = (i < FUNCTABLE_SIZE / 2) ? 1.0f : -1.0f;
 		if (i == 0)

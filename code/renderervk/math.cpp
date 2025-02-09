@@ -34,6 +34,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cmath>
 #include <assert.h>
 
+constexpr float DegreesToRadians(float degrees) {
+	return degrees * (PI_cpp / 180.0f);
+}
+
 /*
 ==================
 BoxOnPlaneSide

@@ -5,6 +5,8 @@
 
 constexpr double PI_cpp = 3.14159265358979323846;
 
+constexpr float DegreesToRadians(float degrees);
+
 int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p);
 
 // vec_t VectorNormalize(vec3_t v);
