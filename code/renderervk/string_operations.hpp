@@ -8,6 +8,7 @@
 #include <vector>
 #include <cstdarg>
 #include <algorithm> // For std::min
+#include <cstring>
 
 char *Q_stradd_large_cpp(char *dst, std::string_view src);
 char *Q_stradd_small(char *dst, std::string_view src);
