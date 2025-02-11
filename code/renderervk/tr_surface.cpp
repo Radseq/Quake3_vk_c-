@@ -449,7 +449,7 @@ static void RB_SurfaceBeam(void)
 
 	for (i = 0; i <= NUM_BEAM_SEGS; i++)
 	{
-		RotatePointAroundVector(points[i][0], normalized_direction, perpvec, (360.0 / NUM_BEAM_SEGS) * i);
+		RotatePointAroundVector_cpp(points[i][0], normalized_direction, perpvec, (360.0 / NUM_BEAM_SEGS) * i);
 		VectorAdd(points[i][0], direction, points[i][1]);
 	}
 
@@ -552,8 +552,8 @@ static void DoRailDiscs(int numSegs, const vec3_t &start, const vec3_t &dir, con
 
 	for (i = 0; i < 4; i++)
 	{
-		c = cos(DegreesToRadians(45 + i * 90));
-		s = sin(DegreesToRadians(45 + i * 90));
+		c = cos(DEG_TO_RAD_LUT[45 + (i * 90)]);
+		s = sin(DEG_TO_RAD_LUT[45 + (i * 90)]);
 		vec3_t v{
 			(right[0] * c + up[0] * s) * scale * spanWidth,
 			(right[1] * c + up[1] * s) * scale * spanWidth,
@@ -685,7 +685,7 @@ static void RB_SurfaceLightningBolt(void)
 		vec3_t temp;
 
 		DoRailCore(start, end, right, len, 8);
-		RotatePointAroundVector(temp, vec, right, 45);
+		RotatePointAroundVector_cpp(temp, vec, right, 45);
 		VectorCopy(temp, right);
 	}
 }

@@ -901,7 +901,6 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 		// an origin point we can rotate around
 		d = DotProduct(tre.e.origin, plane.normal) - plane.dist;
 		VectorMA(tre.e.origin, -d, surface.axis[0], surface.origin);
-
 		// now get the camera origin and orientation
 		VectorCopy(tre.e.oldorigin, camera.origin);
 		AxisCopy(tre.e.axis, camera.axis);
@@ -917,7 +916,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 				// continuous rotate
 				d = (tr.refdef.time / 1000.0f) * tre.e.frame;
 				VectorCopy(camera.axis[1], transformed);
-				RotatePointAroundVector(camera.axis[1], camera.axis[0], transformed, d);
+				RotatePointAroundVector_cpp(camera.axis[1], camera.axis[0], transformed, d);
 				CrossProduct(camera.axis[0], camera.axis[1], camera.axis[2]);
 			}
 			else
@@ -926,7 +925,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 				d = sin(tr.refdef.time * 0.003f);
 				d = tre.e.skinNum + d * 4;
 				VectorCopy(camera.axis[1], transformed);
-				RotatePointAroundVector(camera.axis[1], camera.axis[0], transformed, d);
+				RotatePointAroundVector_cpp(camera.axis[1], camera.axis[0], transformed, d);
 				CrossProduct(camera.axis[0], camera.axis[1], camera.axis[2]);
 			}
 		}
@@ -934,7 +933,7 @@ static bool R_GetPortalOrientations(const drawSurf_t &drawSurf, int entityNum,
 		{
 			d = tre.e.skinNum;
 			VectorCopy(camera.axis[1], transformed);
-			RotatePointAroundVector(camera.axis[1], camera.axis[0], transformed, d);
+			RotatePointAroundVector_cpp(camera.axis[1], camera.axis[0], transformed, d);
 			CrossProduct(camera.axis[0], camera.axis[1], camera.axis[2]);
 		}
 

@@ -2,12 +2,23 @@
 #define MATH_HPP
 
 #include "tr_local.hpp"
-
+#include <numbers> // For std::numbers::pi
 constexpr double PI_cpp = 3.14159265358979323846;
 
-constexpr float DegreesToRadians(float degrees);
+constexpr size_t DegreeToRadiansTableSize = 361;
+
+consteval auto generateDegreeToRadiansLookupTable() {
+    std::array<float, DegreeToRadiansTableSize> table{};
+    for (size_t i = 0; i < DegreeToRadiansTableSize; ++i)
+        table[i] = static_cast<float>(i) * PI_cpp / 180.0f;
+    return table;
+}
+
+constexpr auto DEG_TO_RAD_LUT = generateDegreeToRadiansLookupTable();
 
 int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p);
+
+void RotatePointAroundVector_cpp(vec3_t& dst, const vec3_t& dir, const vec3_t& point, float degrees);
 
 // vec_t VectorNormalize(vec3_t v);
 // void PerpendicularVector(vec3_t dst, const vec3_t src);

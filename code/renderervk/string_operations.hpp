@@ -58,48 +58,62 @@ inline constexpr bool strrchr_sv(std::string_view sv, char character)
     return false;
 }
 
+constexpr std::size_t CHAR_TABLE_SIZE = 256;//std::numeric_limits<unsigned char>::max() + 1;
+constexpr auto generate_tolower_table() {
+    std::array<unsigned char, CHAR_TABLE_SIZE> table{};
+    for (size_t i = 0; i < CHAR_TABLE_SIZE; ++i) {
+        table[i] = (i >= 'A' && i <= 'Z') ? (i + ('a' - 'A')) : i;
+    }
+    return table;
+}
+
+constexpr std::array<unsigned char, CHAR_TABLE_SIZE> tolower_table = generate_tolower_table();
+
 // portable case insensitive compare
-inline constexpr int Q_stricmp_cpp(std::string_view s1, std::string_view s2)
-{
-    // // Compare lengths first for a quick check
-    // if (s1.size() != s2.size())
-    //     return s1.size() < s2.size() ? -1 : 1;
+constexpr int Q_stricmp_cpp(std::string_view s1, std::string_view s2) noexcept {
+    for (; !s1.empty() && !s2.empty(); s1.remove_prefix(1), s2.remove_prefix(1)) {
+        unsigned char c1 = tolower_table[static_cast<unsigned char>(s1.front())];
+        unsigned char c2 = tolower_table[static_cast<unsigned char>(s2.front())];
 
-    // // Compare characters one by one
-    // for (size_t i = 0; i < s1.size(); ++i)
-    // {
-    //     char c1 = s1[i];
-    //     char c2 = s2[i];
-
-    //     // Convert to lowercase if uppercase
-    //     if (c1 >= 'A' && c1 <= 'Z')
-    //         c1 += 'a' - 'A';
-    //     if (c2 >= 'A' && c2 <= 'Z')
-    //         c2 += 'a' - 'A';
-
-    //     // Compare characters
-    //     if (c1 != c2)
-    //         return c1 < c2 ? -1 : 1;
-    // }
-    // return 0; // Strings are equal
-
-    auto to_lower = [](char c)
-    { return std::tolower(static_cast<unsigned char>(c)); };
-
-    auto it1 = s1.begin(), it2 = s2.begin();
-    while (it1 != s1.end() && it2 != s2.end())
-    {
-        char c1 = to_lower(*it1++);
-        char c2 = to_lower(*it2++);
         if (c1 != c2)
-        {
             return c1 < c2 ? -1 : 1;
+    }
+
+    return (s1.empty() && s2.empty()) ? 0 : (s1.empty() ? -1 : 1);
+}
+
+constexpr int Q_stricmpn_cpp(std::string_view s1, std::string_view s2, int n) noexcept {
+    // Clamp `n` to the length of the shortest string
+    s1 = s1.substr(0, n);
+    s2 = s2.substr(0, n);
+
+    for (; !s1.empty() && !s2.empty(); s1.remove_prefix(1), s2.remove_prefix(1)) {
+        unsigned char c1 = tolower_table[static_cast<unsigned char>(s1.front())];
+        unsigned char c2 = tolower_table[static_cast<unsigned char>(s2.front())];
+
+        if (c1 != c2)
+            return c1 < c2 ? -1 : 1;
+    }
+
+    return 0; // Strings are equal up to `n` characters
+}
+
+constexpr const char* Q_stristr_cpp(const char* s, const char* find) noexcept {
+    if (!s || !find || !*find) return nullptr;
+
+    unsigned char first = tolower_table[static_cast<unsigned char>(*find)];
+    size_t find_len = std::strlen(find + 1);  // Remaining part length
+
+    for (; *s; ++s) {
+        if (tolower_table[static_cast<unsigned char>(*s)] == first) {
+            if (std::strncmp(s + 1, find + 1, find_len) == 0) {
+                return s;
+            }
         }
     }
-    if (it1 == s1.end() && it2 == s2.end())
-        return 0;
-    return it1 == s1.end() ? -1 : 1;
+    return nullptr;
 }
+
 
 std::string_view COM_GetExtension_cpp(std::string_view name);
 template <std::size_t Size>
@@ -155,7 +169,6 @@ void COM_StripExtension_cpp(std::string_view in, std::array<char, Size> &dest)
 }
 
 std::string_view COM_ParseExt_cpp(const char **text, bool allowLineBreaks);
-int Q_stricmpn_cpp(std::string_view s1, std::string_view s2, int n);
 float Q_atof_cpp(std::string_view str);
 int atoi_from_view(std::string_view sv);
 

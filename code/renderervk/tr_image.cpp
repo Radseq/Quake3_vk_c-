@@ -999,7 +999,7 @@ image_t *R_CreateImage(std::string_view name, std::string_view name2, byte *pic,
 	image->width = width;
 	image->height = height;
 
-	if (namelen > 6 && Q_stristr(image->imgName, "maps/") == image->imgName && Q_stristr(image->imgName + 6, "/lm_") != NULL)
+	if (namelen > 6 && Q_stristr_cpp(image->imgName, "maps/") == image->imgName && Q_stristr_cpp(image->imgName + 6, "/lm_") != NULL)
 	{
 		// external lightmap atlases stored in maps/<mapname>/lm_XXXX textures
 		// image->flags = imgFlags_t::IMGFLAG_NOLIGHTSCALE | imgFlags_t::IMGFLAG_NO_COMPRESSION | imgFlags_t::IMGFLAG_NOSCALE | imgFlags_t::IMGFLAG_COLORSHIFT;

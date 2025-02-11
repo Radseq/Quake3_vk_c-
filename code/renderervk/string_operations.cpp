@@ -285,44 +285,24 @@ std::string_view COM_ParseExt_cpp(const char **text, bool allowLineBreaks)
     return std::string_view(com_token, len);
 }
 
-int Q_stricmpn_cpp(std::string_view s1, std::string_view s2, int n)
+//static inline bool Q_isfinite(float f)
+//{
+//    return !(std::isinf(f) || std::isnan(f));
+//}
+
+static int Q_isfinite(float f)
 {
-    // Ensure the comparison length does not exceed the actual string lengths
-    n = std::min(n, static_cast<int>(std::min(s1.size(), s2.size())));
+    floatint_t fi;
+    fi.f = f;
 
-    for (int i = 0; i < n; ++i)
-    {
-        char c1 = s1[i];
-        char c2 = s2[i];
+    if (fi.u == 0xFF800000 || fi.u == 0x7F800000)
+        return 0; // -INF or +INF
 
-        // Convert to uppercase if lowercase
-        if (c1 >= 'a' && c1 <= 'z')
-        {
-            c1 -= ('a' - 'A');
-        }
-        if (c2 >= 'a' && c2 <= 'z')
-        {
-            c2 -= ('a' - 'A');
-        }
+    fi.u = 0x7F800000 - (fi.u & 0x7FFFFFFF);
+    if ((int)(fi.u >> 31))
+        return 0; // -NAN or +NAN
 
-        if (c1 != c2)
-        {
-            return c1 < c2 ? -1 : 1;
-        }
-
-        // If we've reached the end of either string, exit
-        if (c1 == '\0')
-        {
-            break;
-        }
-    }
-
-    return 0; // Strings are equal up to n characters
-}
-
-static inline bool Q_isfinite(float f)
-{
-    return !(std::isinf(f) || std::isnan(f));
+    return 1;
 }
 
 float Q_atof_cpp(std::string_view str)

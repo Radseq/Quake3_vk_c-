@@ -34,10 +34,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cmath>
 #include <assert.h>
 
-constexpr float DegreesToRadians(float degrees) {
-	return degrees * (PI_cpp / 180.0f);
-}
-
 /*
 ==================
 BoxOnPlaneSide
@@ -46,7 +42,7 @@ Returns 1, 2, or 1 + 2
 ==================
 */
 
-int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
+int BoxOnPlaneSide_cpp(const vec3_t& emins, const vec3_t& emaxs, cplane_s& p)
 {
 	float dist[2]{};
 	int sides, b, i;
@@ -80,6 +76,117 @@ int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 
 	return sides;
 }
+
+using mat3_t = std::array<std::array<float, 3>, 3>;
+
+// Helper function to create a rotation matrix around an arbitrary axis
+static mat3_t CreateRotationMatrix(const vec3_t& axis, float angle) {
+	//const float rad = angle * (std::numbers::pi / 180.0f);
+	const float rad = DEG_TO_RAD_LUT[angle];
+	const float c = std::cos(rad);
+	const float s = std::sin(rad);
+	const float t = 1.0f - c;
+
+	const float x = axis[0];
+	const float y = axis[1];
+	const float z = axis[2];
+
+	return { {
+		{t * x * x + c,      t * x * y - s * z,  t * x * z + s * y},
+		{t * x * y + s * z,  t * y * y + c,      t * y * z - s * x},
+		{t * x * z - s * y,  t * y * z + s * x,  t * z * z + c}
+	} };
+}
+
+static void Normalize(vec3_t& v) {
+	const float length = std::sqrt(DotProduct(v, v));
+	if (length > 0.0f) {
+		v[0] /= length;
+		v[1] /= length;
+		v[2] /= length;
+	}
+}
+
+static void MatrixMultiply(const mat3_t m, const vec3_t v, vec3_t& result) {
+	result[0] = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
+	result[1] = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
+	result[2] = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
+}
+
+void RotatePointAroundVector_cpp(vec3_t& dst, const vec3_t& dir, const vec3_t& point, float degrees) {
+	RotatePointAroundVector(dst, dir, point, degrees);
+	//// Normalize the direction vector
+	//vec3_t axis{ dir[0], dir[1], dir[2] };
+	//Normalize(axis);
+
+	//// Create the rotation matrix
+	//const mat3_t rot = CreateRotationMatrix(axis, degrees);
+
+	//// Apply the rotation to the point
+	//MatrixMultiply(rot, point, dst);
+}
+
+/*
+===============
+RotatePointAroundVector
+
+This is not implemented very well...
+===============
+*/
+//void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point,
+//	float degrees) {
+//	float	m[3][3];
+//	float	im[3][3];
+//	float	zrot[3][3];
+//	float	tmpmat[3][3];
+//	float	rot[3][3];
+//	int	i;
+//	vec3_t vr, vup, vf;
+//
+//	vf[0] = dir[0];
+//	vf[1] = dir[1];
+//	vf[2] = dir[2];
+//
+//	PerpendicularVector(vr, dir);
+//	CrossProduct(vr, vf, vup);
+//
+//	m[0][0] = vr[0];
+//	m[1][0] = vr[1];
+//	m[2][0] = vr[2];
+//
+//	m[0][1] = vup[0];
+//	m[1][1] = vup[1];
+//	m[2][1] = vup[2];
+//
+//	m[0][2] = vf[0];
+//	m[1][2] = vf[1];
+//	m[2][2] = vf[2];
+//
+//	memcpy(im, m, sizeof(im));
+//
+//	im[0][1] = m[1][0];
+//	im[0][2] = m[2][0];
+//	im[1][0] = m[0][1];
+//	im[1][2] = m[2][1];
+//	im[2][0] = m[0][2];
+//	im[2][1] = m[1][2];
+//
+//	memset(zrot, 0, sizeof(zrot));
+//	zrot[0][0] = zrot[1][1] = zrot[2][2] = 1.0F;
+//
+//	float rad = DEG_TO_RAD_LUT[degrees];
+//	zrot[0][0] = cos(rad);
+//	zrot[0][1] = sin(rad);
+//	zrot[1][0] = -sin(rad);
+//	zrot[1][1] = cos(rad);
+//
+//	MatrixMultiply(m, zrot, tmpmat);
+//	MatrixMultiply(tmpmat, im, rot);
+//
+//	for (i = 0; i < 3; i++) {
+//		dst[i] = rot[i][0] * point[0] + rot[i][1] * point[1] + rot[i][2] * point[2];
+//	}
+//}
 
 // int ColorIndexFromChar(char ccode)
 // {
