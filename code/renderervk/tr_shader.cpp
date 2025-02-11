@@ -44,10 +44,10 @@ static shader_t shader;
 static texModInfo_t texMods[MAX_SHADER_STAGES][TR_MAX_TEXMODS + 1]; // reserve one additional texmod for lightmap atlas correction
 
 constexpr int FILE_HASH_SIZE = 1024;
-static shader_t *shaderHashTable[FILE_HASH_SIZE];
+static std::array<shader_t *, FILE_HASH_SIZE> shaderHashTable;
 
 constexpr int MAX_SHADERTEXT_HASH = 2048;
-static const char **shaderTextHashTable[MAX_SHADERTEXT_HASH];
+static std::array<const char **, MAX_SHADERTEXT_HASH> shaderTextHashTable;
 
 // tr_shader.c -- this file deals with the parsing and definition of shaders
 
@@ -2036,7 +2036,7 @@ static bool ParseShader(const char **text)
 		}
 		else if (!Q_stricmp_cpp(token, "clampTime"))
 		{
-			token = COM_ParseExt(text, false);
+			token = COM_ParseExt_cpp(text, false);
 			if (token[0])
 			{
 				shader.clampTime = Q_atof_cpp(token);
@@ -4511,7 +4511,8 @@ static void ScanAndLoadShaderFiles(void)
 	std::string_view token;
 	char *textEnd;
 	const char *p, *oldp;
-	int shaderTextHashTableSizes[MAX_SHADERTEXT_HASH], hash, size;
+	int hash, size;
+	std::array<int, MAX_SHADERTEXT_HASH> shaderTextHashTableSizes;
 
 	long sum = 0;
 
@@ -4588,7 +4589,7 @@ static void ScanAndLoadShaderFiles(void)
 		ri.FS_FreeFileList(shaderFiles);
 
 	// COM_Compress( s_shaderText );
-	Com_Memset(shaderTextHashTableSizes, 0, sizeof(shaderTextHashTableSizes));
+	shaderTextHashTableSizes.fill(0);
 	size = 0;
 
 	p = s_shaderText;
@@ -4712,7 +4713,7 @@ void R_InitShaders(void)
 {
 	ri.Printf(PRINT_ALL, "Initializing Shaders\n");
 
-	Com_Memset(shaderHashTable, 0, sizeof(shaderHashTable));
+	shaderHashTable.fill(nullptr);
 
 	CreateInternalShaders();
 
