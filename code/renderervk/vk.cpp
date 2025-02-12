@@ -983,12 +983,12 @@ static vk::CommandBuffer staging_command_buffer = nullptr;
 
 static void vk_clean_staging_buffer(void)
 {
-	if (vk_world.staging_buffer != nullptr)
+	if (vk_world.staging_buffer)
 	{
 		vk_inst.device.destroyBuffer(vk_world.staging_buffer, nullptr);
 		vk_world.staging_buffer = nullptr;
 	}
-	if (vk_world.staging_buffer_memory != nullptr)
+	if (vk_world.staging_buffer_memory)
 	{
 		vk_inst.device.freeMemory(vk_world.staging_buffer_memory, nullptr);
 		vk_world.staging_buffer_memory = nullptr;
