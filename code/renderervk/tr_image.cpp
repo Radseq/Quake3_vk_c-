@@ -143,15 +143,15 @@ void R_SkinList_f()
 	{
 		const skin_t &skin = *tr.skins[i]; // Use reference instead of pointer
 
-		ri.Printf(PRINT_ALL, "%3i:%s (%d surfaces)\n", i, skin.name, skin.numSurfaces);
+		ri.Printf(PRINT_ALL, "%3i:%s (%d surfaces)\n", i, skin.name.data(), skin.numSurfaces);
 		for (int j = 0; j < skin.numSurfaces; ++j)
 		{
 			const skinSurface_t &surface = skin.surfaces[j]; // Use reference instead of pointer
 
 			// Check if shader is valid before printing
-			const char *shaderName = surface.shader ? surface.shader->name : "Unknown";
+			std::string_view shaderName = surface.shader ? std::string_view(surface.shader->name.data(), surface.shader->name.size()) : "Unknown";
 
-			ri.Printf(PRINT_ALL, "       %s = %s\n", surface.name, shaderName);
+			ri.Printf(PRINT_ALL, "       %s = %s\n", surface.name.data(), shaderName.data());
 		}
 	}
 
@@ -1622,7 +1622,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 	for (hSkin = 1; hSkin < tr.numSkins; hSkin++)
 	{
 		skin = tr.skins[hSkin];
-		if (!Q_stricmp_cpp(skin->name, name))
+		if (!Q_stricmp_cpp(std::string_view(skin->name.data(), skin->name.size()), name))
 		{
 			if (skin->numSurfaces == 0)
 			{
@@ -1641,7 +1641,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 	tr.numSkins++;
 	skin = reinterpret_cast<skin_t *>(ri.Hunk_Alloc(sizeof(skin_t), h_low));
 	tr.skins[hSkin] = skin;
-	Q_strncpyz(skin->name, name, sizeof(skin->name));
+	Q_strncpyz_cpp(skin->name, name, sizeof(skin->name));
 	skin->numSurfaces = 0;
 
 	// If not a .skin file, load as a single shader
@@ -1692,7 +1692,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 		if (skin->numSurfaces < MAX_SKIN_SURFACES)
 		{
 			surf = &parseSurfaces[skin->numSurfaces];
-			Q_strncpyz(surf->name, surfName, sizeof(surf->name));
+			Q_strncpyz_cpp(surf->name, surfName, sizeof(surf->name));
 			surf->shader = R_FindShader(token, LIGHTMAP_NONE, true);
 			skin->numSurfaces++;
 		}
@@ -1729,7 +1729,7 @@ void R_InitSkins(void)
 
 	// make the default skin have all default shaders
 	skin = tr.skins[0] = reinterpret_cast<skin_t *>(ri.Hunk_Alloc(sizeof(skin_t), h_low));
-	Q_strncpyz(skin->name, "<default skin>", sizeof(skin->name));
+	Q_strncpyz_cpp(skin->name, "<default skin>", sizeof(skin->name));
 	skin->numSurfaces = 1;
 	skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
 	skin->surfaces[0].shader = tr.defaultShader;
