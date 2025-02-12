@@ -292,7 +292,7 @@ std::string_view COM_ParseExt_cpp(const char **text, bool allowLineBreaks)
 
 static int Q_isfinite(float f)
 {
-    floatint_t fi;
+    floatint_t fi{};
     fi.f = f;
 
     if (fi.u == 0xFF800000 || fi.u == 0x7F800000)
@@ -328,4 +328,226 @@ int atoi_from_view(std::string_view sv)
     int result = 0;
     std::from_chars(sv.data(), sv.data() + sv.size(), result);
     return result;
+}
+
+/*
+==============
+COM_ParseComplex
+==============
+*/
+char* COM_ParseComplex_cpp(const char** data_p, bool allowLineBreaks)
+{
+    static constexpr std::array<std::byte, 256> is_separator = {
+        // \0 . . . . . . .\b\t\n . .\r . .
+        std::byte{1}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{1}, std::byte{1}, std::byte{0}, std::byte{0}, std::byte{1}, std::byte{0}, std::byte{0},
+        //  . . . . . . . . . . . . . . . .
+        std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0},
+        //    ! " # $ % & ' ( ) * + , - . /
+        std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{0}, std::byte{0}, std::byte{0},
+        std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1},
+        //  @ A B C D E F G H I J K L M N O
+        std::byte{1}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0},
+        //  P Q R S T U V W X Y Z [ \ ] ^ _
+        std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{1}, std::byte{0}, std::byte{1}, std::byte{1}, std::byte{0},
+        std::byte{1}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0},
+        //  p q r s t u v w x y z { | } ~
+        std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}
+    };
+
+    int c, len, shift;
+    const byte* str;
+
+    str = (byte*)*data_p;
+    len = 0;
+    shift = 0; // token line shift relative to com_lines
+    com_tokentype = TK_GENEGIC;
+
+__reswitch:
+    switch (*str)
+    {
+    case '\0':
+        com_tokentype = TK_EOF;
+        break;
+
+        // whitespace
+    case ' ':
+    case '\t':
+        str++;
+        while ((c = *str) == ' ' || c == '\t')
+            str++;
+        goto __reswitch;
+
+        // newlines
+    case '\n':
+    case '\r':
+        com_lines++;
+        if (*str == '\r' && str[1] == '\n')
+            str += 2; // CR+LF
+        else
+            str++;
+        if (!allowLineBreaks) {
+            com_tokentype = TK_NEWLINE;
+            break;
+        }
+        goto __reswitch;
+
+        // comments, single slash
+    case '/':
+        // until end of line
+        if (str[1] == '/') {
+            str += 2;
+            while ((c = *str) != '\0' && c != '\n' && c != '\r')
+                str++;
+            goto __reswitch;
+        }
+
+        // comment
+        if (str[1] == '*') {
+            str += 2;
+            while ((c = *str) != '\0' && (c != '*' || str[1] != '/')) {
+                if (c == '\n' || c == '\r') {
+                    com_lines++;
+                    if (c == '\r' && str[1] == '\n') // CR+LF?
+                        str++;
+                }
+                str++;
+            }
+            if (c != '\0' && str[1] != '\0') {
+                str += 2;
+            }
+            else {
+                // FIXME: unterminated comment?
+            }
+            goto __reswitch;
+        }
+
+        // single slash
+        com_token[len++] = *str++;
+        break;
+
+        // quoted string?
+    case '"':
+        str++; // skip leading '"'
+        //com_tokenline = com_lines;
+        while ((c = *str) != '\0' && c != '"') {
+            if (c == '\n' || c == '\r') {
+                com_lines++; // FIXME: unterminated quoted string?
+                shift++;
+            }
+            if (len < MAX_TOKEN_CHARS - 1) // overflow check
+                com_token[len++] = c;
+            str++;
+        }
+        if (c != '\0') {
+            str++; // skip ending '"'
+        }
+        else {
+            // FIXME: unterminated quoted string?
+        }
+        com_tokentype = TK_QUOTED;
+        break;
+
+        // single tokens:
+    case '+': case '`':
+    /*case '*':*/ case '~':
+    case '{': case '}':
+    case '[': case ']':
+    case '?': case ',':
+    case ':': case ';':
+    case '%': case '^':
+        com_token[len++] = *str++;
+        break;
+
+    case '*':
+        com_token[len++] = *str++;
+        com_tokentype = TK_MATCH;
+        break;
+
+    case '(':
+        com_token[len++] = *str++;
+        com_tokentype = TK_SCOPE_OPEN;
+        break;
+
+    case ')':
+        com_token[len++] = *str++;
+        com_tokentype = TK_SCOPE_CLOSE;
+        break;
+
+        // !, !=
+    case '!':
+        com_token[len++] = *str++;
+        if (*str == '=') {
+            com_token[len++] = *str++;
+            com_tokentype = TK_NEQ;
+        }
+        break;
+
+        // =, ==
+    case '=':
+        com_token[len++] = *str++;
+        if (*str == '=') {
+            com_token[len++] = *str++;
+            com_tokentype = TK_EQ;
+        }
+        break;
+
+        // >, >=
+    case '>':
+        com_token[len++] = *str++;
+        if (*str == '=') {
+            com_token[len++] = *str++;
+            com_tokentype = TK_GTE;
+        }
+        else {
+            com_tokentype = TK_GT;
+        }
+        break;
+
+        //  <, <=
+    case '<':
+        com_token[len++] = *str++;
+        if (*str == '=') {
+            com_token[len++] = *str++;
+            com_tokentype = TK_LTE;
+        }
+        else {
+            com_tokentype = TK_LT;
+        }
+        break;
+
+        // |, ||
+    case '|':
+        com_token[len++] = *str++;
+        if (*str == '|') {
+            com_token[len++] = *str++;
+            com_tokentype = TK_OR;
+        }
+        break;
+
+        // &, &&
+    case '&':
+        com_token[len++] = *str++;
+        if (*str == '&') {
+            com_token[len++] = *str++;
+            com_tokentype = TK_AND;
+        }
+        break;
+
+        // rest of the charset
+    default:
+        com_token[len++] = *str++;
+        while (is_separator[static_cast<unsigned char>(c = *str)] != std::byte{ 0 }) {
+            if (len < MAX_TOKEN_CHARS - 1)
+                com_token[len++] = c;
+            str++;
+        }
+        com_tokentype = TK_STRING;
+        break;
+
+    } // switch ( *str )
+
+    com_tokenline = com_lines - shift;
+    com_token[len] = '\0';
+    *data_p = (char*)str;
+    return com_token;
 }

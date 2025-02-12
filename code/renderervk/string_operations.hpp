@@ -13,6 +13,8 @@
 char *Q_stradd_large_cpp(char *dst, std::string_view src);
 char *Q_stradd_small(char *dst, std::string_view src);
 
+char* COM_ParseComplex_cpp(const char** data_p, bool allowLineBreaks);
+
 bool SkipBracedSection_cpp(const char **program, int depth);
 
 unsigned long Com_GenerateHashValue_cpp(std::string_view fname, const unsigned int size);

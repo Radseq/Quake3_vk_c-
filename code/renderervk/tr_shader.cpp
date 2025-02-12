@@ -1679,7 +1679,7 @@ static bool ParseCondition(const char **text, resultType *res)
 		rval_type = TK_GENEGIC;
 
 		// expect l-value at least
-		token = COM_ParseComplex(text, false);
+		token = COM_ParseComplex_cpp(text, false);
 		if (token[0] == '\0')
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: expecting lvalue for condition in shader %s\n", shader.name);
@@ -1690,13 +1690,13 @@ static bool ParseCondition(const char **text, resultType *res)
 		lval_type = com_tokentype;
 
 		// get operator
-		token = COM_ParseComplex(text, false);
+		token = COM_ParseComplex_cpp(text, false);
 		if (com_tokentype >= TK_EQ && com_tokentype <= TK_LTE)
 		{
 			op = com_tokentype;
 
 			// expect r-value
-			token = COM_ParseComplex(text, false);
+			token = COM_ParseComplex_cpp(text, false);
 			if (token[0] == '\0')
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: expecting rvalue for condition in shader %s\n", shader.name);
@@ -1707,7 +1707,7 @@ static bool ParseCondition(const char **text, resultType *res)
 			rval_type = com_tokentype;
 
 			// read next token, expect '||', '&&' or ')', allow newlines
-			/*token =*/COM_ParseComplex(text, true);
+			/*token =*/COM_ParseComplex_cpp(text, true);
 		}
 		else if (com_tokentype == TK_SCOPE_CLOSE || com_tokentype == TK_OR || com_tokentype == TK_AND)
 		{
@@ -1956,7 +1956,7 @@ static bool ParseShader(const char **text)
 	while (1)
 	{
 		// token = COM_ParseExt( text, true );
-		token = COM_ParseComplex(text, true);
+		token = COM_ParseComplex_cpp(text, true);
 		if (token.empty())
 		{
 			ri.Printf(PRINT_WARNING, "WARNING: no concluding '}' in shader %s\n", shader.name);
@@ -2183,7 +2183,7 @@ static bool ParseShader(const char **text)
 
 			if (branch != branchType::brELSE)
 			{ // we can set/update result
-				token = COM_ParseComplex(text, false);
+				token = COM_ParseComplex_cpp(text, false);
 				if (com_tokentype != TK_SCOPE_OPEN)
 				{
 					ri.Printf(PRINT_WARNING, "WARNING: expecting '(' in '%s'\n", shader.name);
