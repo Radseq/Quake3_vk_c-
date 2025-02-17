@@ -396,7 +396,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 			for (j = 0; j < skin->numSurfaces; j++)
 			{
 				// the names have both been lowercased
-				if (!strcmp(skin->surfaces[j].name.data(), surface->name))
+				if (!strcmp(skin->surfaces[j].name, surface->name))
 				{
 					shader = skin->surfaces[j].shader;
 					break;
@@ -404,11 +404,11 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 			}
 			if (shader == tr.defaultShader)
 			{
-				ri.Printf(PRINT_DEVELOPER, "WARNING: no shader for surface %s in skin %s\n", surface->name, skin->name.data());
+				ri.Printf(PRINT_DEVELOPER, "WARNING: no shader for surface %s in skin %s\n", surface->name, skin->name);
 			}
 			else if (shader->defaultShader)
 			{
-				ri.Printf(PRINT_DEVELOPER, "WARNING: shader %s in skin %s not found\n", shader->name.data(), skin->name.data());
+				ri.Printf(PRINT_DEVELOPER, "WARNING: shader %s in skin %s not found\n", shader->name, skin->name);
 			}
 		}
 		else if (surface->numShaders <= 0)

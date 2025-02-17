@@ -442,9 +442,9 @@ typedef struct
 
 typedef struct shader_s
 {
-	std::array<char, MAX_QPATH> name; // game path, including extension
-	int lightmapSearchIndex;		  // for a shader to match, both name and lightmapIndex must match
-	int lightmapIndex;				  // for rendering
+	char name[MAX_QPATH];	 // game path, including extension
+	int lightmapSearchIndex; // for a shader to match, both name and lightmapIndex must match
+	int lightmapIndex;		 // for rendering
 
 	int index;		 // this shader == tr.shaders[index]
 	int sortedIndex; // this shader == tr.sortedShaders[sortedIndex]
@@ -609,13 +609,13 @@ constexpr int MAX_SKIN_SURFACES = 256;
 // skins allow models to be retextured without modifying the model file
 typedef struct
 {
-	std::array<char, MAX_QPATH> name;
+	char name[MAX_QPATH];
 	shader_t *shader;
 } skinSurface_t;
 
 typedef struct skin_s
 {
-	std::array<char, MAX_QPATH> name; // game path, including extension
+	char name[MAX_QPATH]; // game path, including extension
 	int numSurfaces;
 	skinSurface_t *surfaces; // dynamically allocated array of surfaces
 } skin_t;
@@ -942,8 +942,8 @@ typedef struct
 
 typedef struct
 {
-	std::array<char, MAX_QPATH> name;	  // ie: maps/tim_dm2.bsp
-	std::array<char, MAX_QPATH> baseName; // ie: tim_dm2
+	char name[MAX_QPATH];	  // ie: maps/tim_dm2.bsp
+	char baseName[MAX_QPATH]; // ie: tim_dm2
 
 	int dataSize;
 

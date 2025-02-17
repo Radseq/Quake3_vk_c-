@@ -1833,16 +1833,16 @@ static void R_LoadSurfaces(const lump_t *surfs, const lump_t *verts, const lump_
 
 	in = reinterpret_cast<dsurface_t *>((fileBase + surfs->fileofs));
 	if (surfs->filelen % sizeof(*in))
-		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name.data());
+		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name);
 	count = surfs->filelen / sizeof(*in);
 
 	dv = reinterpret_cast<drawVert_t *>((fileBase + verts->fileofs));
 	if (verts->filelen % sizeof(*dv))
-		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name.data());
+		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name);
 
 	indexes = reinterpret_cast<int *>(fileBase + indexLump->fileofs);
 	if (indexLump->filelen % sizeof(*indexes))
-		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name.data());
+		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name);
 
 	out = static_cast<msurface_t *>(ri.Hunk_Alloc(count * sizeof(*out), h_low));
 
@@ -1901,7 +1901,7 @@ static void R_LoadSubmodels(const lump_t *l)
 
 	in = reinterpret_cast<dmodel_t *>((fileBase + l->fileofs));
 	if (l->filelen % sizeof(*in))
-		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name.data());
+		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name);
 	count = l->filelen / sizeof(*in);
 
 	s_worldData.bmodels = out = static_cast<bmodel_t *>(ri.Hunk_Alloc(count * sizeof(*out), h_low));
@@ -1965,7 +1965,7 @@ static void R_LoadNodesAndLeafs(const lump_t *nodeLump, const lump_t *leafLump)
 	if (nodeLump->filelen % sizeof(dnode_t) ||
 		leafLump->filelen % sizeof(dleaf_t))
 	{
-		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name.data());
+		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name);
 	}
 	numNodes = nodeLump->filelen / sizeof(dnode_t);
 	numLeafs = leafLump->filelen / sizeof(dleaf_t);
@@ -2038,7 +2038,7 @@ replaces some buggy map shaders
 */
 static void R_ReplaceMapShaders(dshader_t *out, int count)
 {
-	if (Q_stricmp_cpp(std::string_view(s_worldData.baseName.data(), s_worldData.baseName.size()), "mapel4b") == 0 && count == 86)
+	if (Q_stricmp_cpp(s_worldData.baseName, "mapel4b") == 0 && count == 86)
 	{
 		if (crc32_buffer((const byte *)out, count * sizeof(*out)) == 0x1593623C)
 		{
@@ -2062,7 +2062,7 @@ static void R_LoadShaders(const lump_t *l)
 
 	in = reinterpret_cast<dshader_t *>((fileBase + l->fileofs));
 	if (l->filelen % sizeof(*in))
-		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name.data());
+		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name);
 	count = l->filelen / sizeof(*in);
 	out = reinterpret_cast<dshader_t *>(ri.Hunk_Alloc(count * sizeof(*out), h_low));
 
@@ -2093,7 +2093,7 @@ static void R_LoadMarksurfaces(const lump_t *l)
 
 	in = reinterpret_cast<int *>((fileBase + l->fileofs));
 	if (l->filelen % sizeof(*in))
-		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name.data());
+		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name);
 	count = l->filelen / sizeof(*in);
 	out = reinterpret_cast<msurface_t **>(ri.Hunk_Alloc(count * sizeof(*out), h_low));
 
@@ -2122,7 +2122,7 @@ static void R_LoadPlanes(const lump_t *l)
 
 	in = reinterpret_cast<const dplane_t *>((fileBase + l->fileofs));
 	if (l->filelen % sizeof(*in))
-		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name.data());
+		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name);
 	count = l->filelen / sizeof(*in);
 	out = reinterpret_cast<cplane_t *>(ri.Hunk_Alloc(count * 2 * sizeof(*out), h_low));
 
@@ -2187,7 +2187,7 @@ static void R_LoadFogs(const lump_t *l, const lump_t *brushesLump, const lump_t 
 	fogs = reinterpret_cast<const dfog_t *>((fileBase + l->fileofs));
 	if (l->filelen % sizeof(*fogs))
 	{
-		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name.data());
+		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name);
 	}
 	count = l->filelen / sizeof(*fogs);
 
@@ -2204,14 +2204,14 @@ static void R_LoadFogs(const lump_t *l, const lump_t *brushesLump, const lump_t 
 	brushes = reinterpret_cast<const dbrush_t *>((fileBase + brushesLump->fileofs));
 	if (brushesLump->filelen % sizeof(*brushes))
 	{
-		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name.data());
+		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name);
 	}
 	brushesCount = brushesLump->filelen / sizeof(*brushes);
 
 	sides = reinterpret_cast<const dbrushside_t *>((fileBase + sidesLump->fileofs));
 	if (sidesLump->filelen % sizeof(*sides))
 	{
-		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name.data());
+		ri.Error(ERR_DROP, "%s(): funny lump size in %s", __func__, s_worldData.name);
 	}
 	sidesCount = sidesLump->filelen / sizeof(*sides);
 
@@ -2529,10 +2529,10 @@ void RE_LoadWorldMap(const char *name)
 	tr.world = NULL;
 
 	Com_Memset(&s_worldData, 0, sizeof(s_worldData));
-	Q_strncpyz_cpp(s_worldData.name, name, sizeof(s_worldData.name));
+	Q_strncpyz(s_worldData.name, name, sizeof(s_worldData.name));
 
-	Q_strncpyz_cpp(s_worldData.baseName, COM_SkipPath(s_worldData.name.data()), sizeof(s_worldData.name));
-	COM_StripExtension_cpp(std::string_view(s_worldData.baseName.data(), s_worldData.baseName.size()), s_worldData.baseName);
+	Q_strncpyz(s_worldData.baseName, COM_SkipPath(s_worldData.name), sizeof(s_worldData.name));
+	COM_StripExtension(s_worldData.baseName, s_worldData.baseName, sizeof(s_worldData.baseName));
 
 	startMarker = static_cast<byte *>(ri.Hunk_Alloc(0, h_low));
 	c_gridVerts = 0;

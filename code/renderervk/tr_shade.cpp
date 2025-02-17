@@ -236,7 +236,7 @@ void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 			break;
 
 		default:
-			ri.Error(ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'", static_cast<int>(bundle.texMods[tm].type), tess.shader->name.data());
+			ri.Error(ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'", static_cast<int>(bundle.texMods[tm].type), tess.shader->name);
 			break;
 		}
 	}
