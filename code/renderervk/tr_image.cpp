@@ -160,12 +160,12 @@ void R_SkinList_f()
 
 void R_GammaCorrect(byte *buffer, const int bufSize)
 {
-	int i;
 	if (vk_inst.capture.image)
 		return;
 	if (!gls.deviceSupportsGamma)
 		return;
-	for (i = 0; i < bufSize; i++)
+
+	for (int i = 0; i < bufSize; i++)
 	{
 		buffer[i] = s_gammatable[buffer[i]];
 	}
@@ -173,17 +173,17 @@ void R_GammaCorrect(byte *buffer, const int bufSize)
 
 void R_SetColorMappings()
 {
-	int i, j;
-	float g;
-	int inf;
-	int shift;
-	bool applyGamma;
-
 	if (!tr.inited)
 	{
 		// it may be called from window handling functions where gamma flags is now yet known/set
 		return;
 	}
+
+	int i, j;
+	float g;
+	int inf;
+	int shift;
+	bool applyGamma;
 
 	// setup the overbright lighting
 	// negative value will force gamma in windowed mode
@@ -344,11 +344,10 @@ static void R_LightScaleTexture(byte *in, int inwidth, int inheight, bool only_g
 
 void TextureMode(std::string_view sv_mode)
 {
-	const textureMode_t *mode;
+	const textureMode_t *mode{};
 	image_t *img;
 	int i;
 
-	mode = nullptr;
 	for (i = 0; i < static_cast<int>(arrayLen(modes)); i++)
 	{
 		if (!Q_stricmp_cpp(modes[i].name, sv_mode))
@@ -380,7 +379,6 @@ void TextureMode(std::string_view sv_mode)
 
 void R_ImageList_f(void)
 {
-	const image_t *image;
 	int i, estTotalSize = 0;
 	char *name, buf[MAX_QPATH * 2 + 5];
 
@@ -393,7 +391,7 @@ void R_ImageList_f(void)
 		int estSize;
 		int displaySize;
 
-		image = tr.images[i];
+		const image_t *image = tr.images[i];
 		estSize = image->uploadHeight * image->uploadWidth;
 
 		switch (image->internalFormat)
@@ -470,12 +468,10 @@ void R_ImageList_f(void)
 
 static bool RawImage_HasAlpha(const byte *scan, const int numPixels)
 {
-	int i;
-
 	if (!scan)
 		return true;
 
-	for (i = 0; i < numPixels; i++)
+	for (int i = 0; i < numPixels; i++)
 	{
 		if (scan[i * 4 + 3] != 255)
 		{
@@ -545,11 +541,11 @@ static void ResampleTexture(unsigned *in, int inwidth, int inheight, unsigned *o
 	int i, j;
 	unsigned *inrow, *inrow2;
 	unsigned frac, fracstep;
-	unsigned p1[MAX_TEXTURE_SIZE]{};
-	unsigned p2[MAX_TEXTURE_SIZE]{};
+	std::array<unsigned, MAX_TEXTURE_SIZE> p1{};
+	std::array<unsigned, MAX_TEXTURE_SIZE> p2{};
 	byte *pix1, *pix2, *pix3, *pix4;
 
-	if (outwidth > static_cast<int>(arrayLen(p1)))
+	if (outwidth > static_cast<int>(p1.size()))
 		ri.Error(ERR_DROP, "ResampleTexture: max width");
 
 	fracstep = inwidth * 0x10000 / outwidth;
@@ -1261,22 +1257,39 @@ static void R_CreateDlightImage(void)
 	tr.dlightImage = R_CreateImage("*dlight", {}, (byte *)data, DLIGHT_SIZE, DLIGHT_SIZE, imgFlags_t::IMGFLAG_CLAMPTOEDGE);
 }
 
-static int Hex(char c)
+// Lookup table for hexadecimal characters
+constexpr std::array<int, 256> CreateHexLookupTable()
 {
-	if (c >= '0' && c <= '9')
+	std::array<int, 256> table{};
+	for (int i = 0; i < 256; ++i)
 	{
-		return c - '0';
+		if (i >= '0' && i <= '9')
+		{
+			table[i] = i - '0';
+		}
+		else if (i >= 'A' && i <= 'F')
+		{
+			table[i] = 10 + i - 'A';
+		}
+		else if (i >= 'a' && i <= 'f')
+		{
+			table[i] = 10 + i - 'a';
+		}
+		else
+		{
+			table[i] = -1; // Invalid character
+		}
 	}
-	if (c >= 'A' && c <= 'F')
-	{
-		return 10 + c - 'A';
-	}
-	if (c >= 'a' && c <= 'f')
-	{
-		return 10 + c - 'a';
-	}
+	return table;
+}
 
-	return -1;
+// Static lookup table initialized at compile time
+static constexpr auto HexLookupTable = CreateHexLookupTable();
+
+// Hex function using the lookup table
+constexpr int Hex_cpp(char c)
+{
+	return HexLookupTable[static_cast<unsigned char>(c)];
 }
 
 /*
@@ -1308,7 +1321,7 @@ static bool R_BuildDefaultImage(const char *format)
 
 	for (i = 0; i < len; i++)
 	{
-		hex[i] = Hex(format[i]);
+		hex[i] = Hex_cpp(format[i]);
 		if (hex[i] == -1)
 		{
 			return false;

@@ -337,22 +337,25 @@ COM_ParseComplex
 */
 char* COM_ParseComplex_cpp(const char** data_p, bool allowLineBreaks)
 {
-    static constexpr std::array<std::byte, 256> is_separator = {
+	static constexpr byte is_separator[ 256 ] =
+	{
         // \0 . . . . . . .\b\t\n . .\r . .
-        std::byte{1}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{1}, std::byte{1}, std::byte{0}, std::byte{0}, std::byte{1}, std::byte{0}, std::byte{0},
+            1,0,0,0,0,0,0,0,0,1,1,0,0,1,0,0,
         //  . . . . . . . . . . . . . . . .
-        std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0},
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
         //    ! " # $ % & ' ( ) * + , - . /
-        std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{0}, std::byte{0}, std::byte{0},
-        std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1},
+            1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0, // excl. '-' '.' '/'
+        //  0 1 2 3 4 5 6 7 8 9 : ; < = > ?
+            0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,
         //  @ A B C D E F G H I J K L M N O
-        std::byte{1}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0},
+            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
         //  P Q R S T U V W X Y Z [ \ ] ^ _
-        std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{1}, std::byte{0}, std::byte{1}, std::byte{1}, std::byte{0},
-        std::byte{1}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0},
-        //  p q r s t u v w x y z { | } ~
-        std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}, std::byte{1}
-    };
+            0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0, // excl. '\\' '_'
+        //  ` a b c d e f g h i j k l m n o
+            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        //  p q r s t u v w x y z { | } ~ 
+            0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1
+	};
 
     int c, len, shift;
     const byte* str;
@@ -536,7 +539,7 @@ __reswitch:
         // rest of the charset
     default:
         com_token[len++] = *str++;
-        while (is_separator[static_cast<unsigned char>(c = *str)] != std::byte{ 0 }) {
+        while ( !is_separator[ (c = *str) ] ) {
             if (len < MAX_TOKEN_CHARS - 1)
                 com_token[len++] = c;
             str++;
