@@ -1988,7 +1988,7 @@ static bool ParseShader(const char **text)
 		// skip stuff that only the QuakeEdRadient needs
 		else if (!Q_stricmpn_cpp(token, "qer", 3))
 		{
-			SkipRestOfLine(text);
+			SkipRestOfLine_cpp(text);
 			continue;
 		}
 		// sun parms
@@ -2021,7 +2021,7 @@ static bool ParseShader(const char **text)
 			tr.sunDirection[1] = sin(a) * cos(b);
 			tr.sunDirection[2] = sin(b);
 
-			SkipRestOfLine(text);
+			SkipRestOfLine_cpp(text);
 			continue;
 		}
 		else if (!Q_stricmp_cpp(token, "deformVertexes"))
@@ -2031,7 +2031,7 @@ static bool ParseShader(const char **text)
 		}
 		else if (!Q_stricmp_cpp(token, "tesssize"))
 		{
-			SkipRestOfLine(text);
+			SkipRestOfLine_cpp(text);
 			continue;
 		}
 		else if (!Q_stricmp_cpp(token, "clampTime"))
@@ -2045,7 +2045,7 @@ static bool ParseShader(const char **text)
 		// skip stuff that only the q3map needs
 		else if (!Q_stricmpn_cpp(token, "q3map", 5))
 		{
-			SkipRestOfLine(text);
+			SkipRestOfLine_cpp(text);
 			continue;
 		}
 		// skip stuff that only q3map or the server needs
@@ -2104,7 +2104,7 @@ static bool ParseShader(const char **text)
 			shader.fogParms.depthForOpaque = Q_atof_cpp(token);
 
 			// skip any old gradient directions
-			SkipRestOfLine(text);
+			SkipRestOfLine_cpp(text);
 			continue;
 		}
 		// portal
@@ -2203,7 +2203,7 @@ static bool ParseShader(const char **text)
 				if (token[0] == '{')
 					SkipBracedSection_cpp(text, 1 /* depth */);
 				else
-					SkipRestOfLine(text);
+					SkipRestOfLine_cpp(text);
 			}
 			else
 			{
@@ -4422,7 +4422,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 		}
 
 		p = buffers[i];
-		COM_BeginParseSession(filename.data());
+		COM_BeginParseSession_cpp(filename.data());
 
 		shaderStart = NULL;
 		denyErrors = false;
@@ -4435,7 +4435,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 				break;
 
 			Q_strncpyz_cpp(shaderName, token, sizeof(shaderName));
-			shaderLine = COM_GetCurrentParseLine();
+			shaderLine = COM_GetCurrentParseLine_cpp();
 
 			token = COM_ParseExt_cpp(&p, true);
 			if (token[0] != '{' || (token.size() > 1 && token[1] != '\0'))
@@ -4444,7 +4444,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 										   "on line %d missing opening brace",
 						  filename.data(), shaderName.data(), shaderLine);
 				if (token.empty())
-					ri.Printf(PRINT_DEVELOPER, " (found \"%s\" on line %d)\n", token.data(), COM_GetCurrentParseLine());
+					ri.Printf(PRINT_DEVELOPER, " (found \"%s\" on line %d)\n", token.data(), COM_GetCurrentParseLine_cpp());
 				else
 					ri.Printf(PRINT_DEVELOPER, "\n");
 
@@ -4456,7 +4456,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 					break;
 				}
 
-				SkipRestOfLine(&p);
+				SkipRestOfLine_cpp(&p);
 				shaderStart = p;
 				continue;
 			}

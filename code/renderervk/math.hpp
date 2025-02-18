@@ -7,7 +7,8 @@ constexpr double PI_cpp = 3.14159265358979323846;
 
 constexpr size_t DegreeToRadiansTableSize = 361;
 
-consteval auto generateDegreeToRadiansLookupTable() {
+consteval auto generateDegreeToRadiansLookupTable()
+{
     std::array<float, DegreeToRadiansTableSize> table{};
     for (size_t i = 0; i < DegreeToRadiansTableSize; ++i)
         table[i] = static_cast<float>(i) * PI_cpp / 180.0f;
@@ -16,9 +17,14 @@ consteval auto generateDegreeToRadiansLookupTable() {
 
 constexpr auto DEG_TO_RAD_LUT = generateDegreeToRadiansLookupTable();
 
+constexpr float deg2rad(float degrees) noexcept
+{
+    return (degrees * PI_cpp) / 180.0f;
+}
+
 int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p);
 
-void RotatePointAroundVector_cpp(vec3_t& dst, const vec3_t& dir, const vec3_t& point, float degrees);
+void RotatePointAroundVector_cpp(vec3_t &dst, const vec3_t &dir, const vec3_t &point, float degrees);
 
 // vec_t VectorNormalize(vec3_t v);
 // void PerpendicularVector(vec3_t dst, const vec3_t src);
@@ -39,7 +45,6 @@ void RotatePointAroundVector_cpp(vec3_t& dst, const vec3_t& dir, const vec3_t& p
 
 // // fast vector normalize routine that does not check to make sure
 // // that length != 0, nor does it return length, uses rsqrt approximation
-
 
 // vec_t VectorNormalize2(const vec3_t v, vec3_t out);
 // void MakeNormalVectors(const vec3_t forward, vec3_t right, vec3_t up);

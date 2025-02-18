@@ -77,8 +77,7 @@ cvar_t *r_presentBits;
 
 static cvar_t *r_ignorehwgamma;
 
-cvar_t* r_teleporterFlash;
-
+cvar_t *r_teleporterFlash;
 
 cvar_t *r_fastsky;
 cvar_t *r_neatsky;
@@ -1427,7 +1426,7 @@ void R_Init(void)
 		}
 		else
 		{
-			tr.sinTable[i] = sin(DEG_TO_RAD_LUT[i * 360.0f / ((float)(FUNCTABLE_SIZE - 1))]);
+			tr.sinTable[i] = sin(deg2rad(i * 360.0f / ((float)(FUNCTABLE_SIZE - 1))));
 		}
 		tr.squareTable[i] = (i < FUNCTABLE_SIZE / 2) ? 1.0f : -1.0f;
 		if (i == 0)
