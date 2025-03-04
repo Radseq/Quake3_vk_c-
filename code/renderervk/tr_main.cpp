@@ -776,34 +776,33 @@ R_PlaneForSurface
 */
 static void R_PlaneForSurface(const surfaceType_t *surfType, cplane_t &plane)
 {
-	srfTriangles_t *tri;
-	srfPoly_t *poly;
-	drawVert_t *v1, *v2, *v3;
-	vec4_t plane4;
-
 	if (!surfType)
 	{
 		plane = {};
 		plane.normal[0] = 1;
 		return;
 	}
+
+	drawVert_t *v1, *v2, *v3;
+	vec4_t plane4;
+
 	switch (*surfType)
 	{
 	case surfaceType_t::SF_FACE:
-		plane = ((srfSurfaceFace_t *)surfType)->plane;
+		plane = ((srfSurfaceFace_t &)surfType).plane;
 		return;
 	case surfaceType_t::SF_TRIANGLES:
-		tri = (srfTriangles_t *)surfType;
-		v1 = tri->verts + tri->indexes[0];
-		v2 = tri->verts + tri->indexes[1];
-		v3 = tri->verts + tri->indexes[2];
+		auto tri = (srfTriangles_t &)surfType;
+		v1 = tri.verts + tri.indexes[0];
+		v2 = tri.verts + tri.indexes[1];
+		v3 = tri.verts + tri.indexes[2];
 		PlaneFromPoints(plane4, v1->xyz, v2->xyz, v3->xyz);
 		VectorCopy(plane4, plane.normal);
 		plane.dist = plane4[3];
 		return;
 	case surfaceType_t::SF_POLY:
-		poly = (srfPoly_t *)surfType;
-		PlaneFromPoints(plane4, poly->verts[0].xyz, poly->verts[1].xyz, poly->verts[2].xyz);
+		auto poly = (srfPoly_t &)surfType;
+		PlaneFromPoints(plane4, poly.verts[0].xyz, poly.verts[1].xyz, poly.verts[2].xyz);
 		VectorCopy(plane4, plane.normal);
 		plane.dist = plane4[3];
 		return;
