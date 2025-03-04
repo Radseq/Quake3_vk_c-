@@ -714,7 +714,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 	int height = image->height;
 	unsigned *scaled_buffer;
 	int mip_level_size;
-	int miplevel;
+	int miplevel = 0;
 
 	Com_Memset(upload_data, 0, sizeof(*upload_data));
 
@@ -854,7 +854,6 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 		R_LightScaleTexture((byte *)scaled_buffer, scaled_width, scaled_height, !mipmap);
 	}
 
-	miplevel = 0;
 	mip_level_size = scaled_width * scaled_height * 4;
 
 	Com_Memcpy(upload_data->buffer, scaled_buffer, mip_level_size);
@@ -1025,7 +1024,6 @@ static std::array<char, MAX_QPATH> R_LoadImage(std::string_view name, byte **pic
 {
 	static std::array<char, MAX_QPATH> localName;
 	std::string_view altName;
-	std::string_view ext;
 	// bool orgNameFailed = false;
 	int orgLoader = -1;
 	int i;
@@ -1036,7 +1034,7 @@ static std::array<char, MAX_QPATH> R_LoadImage(std::string_view name, byte **pic
 
 	Q_strncpyz_cpp(localName, name, localName.size());
 
-	ext = COM_GetExtension_cpp(localName);
+	std::string_view ext = COM_GetExtension_cpp(localName);
 	if (!ext.empty())
 	{
 		// Look for the correct loader and use it
@@ -1258,7 +1256,7 @@ static void R_CreateDlightImage(void)
 }
 
 // Lookup table for hexadecimal characters
-constexpr std::array<int, 256> CreateHexLookupTable()
+static constexpr std::array<int, 256> CreateHexLookupTable()
 {
 	std::array<int, 256> table{};
 	for (int i = 0; i < 256; ++i)
@@ -1287,7 +1285,7 @@ constexpr std::array<int, 256> CreateHexLookupTable()
 static constexpr auto HexLookupTable = CreateHexLookupTable();
 
 // Hex function using the lookup table
-constexpr int Hex_cpp(char c)
+static constexpr int Hex_cpp(char c)
 {
 	return HexLookupTable[static_cast<unsigned char>(c)];
 }
