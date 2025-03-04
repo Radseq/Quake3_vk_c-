@@ -231,7 +231,8 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 		}
 
 		R_DecomposeSort(drawSurf->sort, entityNum, &shader, fogNum, dlighted);
-		if (vk_inst.renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP && entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
+		if (vk_inst.renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP && 
+			entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
 		{
 			continue;
 		}
