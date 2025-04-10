@@ -912,7 +912,7 @@ static void ParseTriSurf(const dsurface_t &ds, const drawVert_t *verts, msurface
 	surf.data = (surfaceType_t *)tri;
 
 	// copy vertexes
-	ClearBounds(tri->bounds[0], tri->bounds[1]);
+	ClearBounds_cpp(tri->bounds[0], tri->bounds[1]);
 	verts += LittleLong(ds.firstVert);
 	for (i = 0; i < numVerts; i++)
 	{

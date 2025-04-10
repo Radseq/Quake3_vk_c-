@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "math.hpp"
 #include "utils.hpp"
 #include "string_operations.hpp"
+#include <span>
 
 #define LL(x) x = LittleLong(x)
 
@@ -1386,7 +1387,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, const int filesize, std::string_view 
 		{
 			surface->surfaceType = surfaceType_t::SF_IQM;
 			Q_strncpyz(surface->name, str + mesh->name, sizeof(surface->name));
-			Q_strlwr(surface->name); // lowercase the surface name so skin compares are faster
+			//Q_strlwr(surface->name); // lowercase the surface name so skin compares are faster
+			q_strlwr_cpp(std::span(surface->name));
 			surface->shader = R_FindShader(str + mesh->material, LIGHTMAP_NONE, true);
 			if (surface->shader->defaultShader)
 				surface->shader = tr.defaultShader;

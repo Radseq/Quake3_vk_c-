@@ -41,7 +41,10 @@ void RotatePointAroundVector_cpp(vec3_t &dst, const vec3_t &dir, const vec3_t &p
 
 // bool PlaneFromPoints(vec4_t plane, const vec3_t a, const vec3_t b, const vec3_t c);
 
-// void ClearBounds(vec3_t mins, vec3_t maxs);
+inline void ClearBounds_cpp(vec3_t &mins, vec3_t &maxs) {
+    mins[0] = mins[1] = mins[2] = 99999.f;
+    maxs[0] = maxs[1] = maxs[2] = -99999.f;
+}
 
 // // fast vector normalize routine that does not check to make sure
 // // that length != 0, nor does it return length, uses rsqrt approximation

@@ -9,6 +9,30 @@
 #include <cstdarg>
 #include <algorithm> // For std::min
 #include <cstring>
+#include <span>
+
+// Create a constexpr lookup table for all 256 possible char values.
+constexpr std::array<char, 256> locaseTable = []() constexpr {
+    std::array<char, 256> table{};
+    for (std::size_t i = 0; i < table.size(); ++i) {
+        // Default: map each character to itself.
+        table[i] = static_cast<char>(i);
+        // If the character is uppercase, map it to lowercase.
+        if (i >= static_cast<std::size_t>('A') && i <= static_cast<std::size_t>('Z'))
+            table[i] = static_cast<char>(i - 'A' + 'a');
+    }
+    return table;
+}();
+
+// A constexpr function that converts a mutable span<char> in place to lowercase.
+// It stops when it encounters the null terminator.
+constexpr std::span<char> q_strlwr_cpp(std::span<char> s) noexcept {
+    for (char &c : s) {
+        if (c == '\0') break;
+        c = locaseTable[static_cast<unsigned char>(c)];
+    }
+    return s;
+}
 
 void COM_BeginParseSession_cpp(const char *name);
 int COM_GetCurrentParseLine_cpp(void);

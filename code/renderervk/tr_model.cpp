@@ -580,7 +580,8 @@ static bool R_LoadMD3(model_t &mod, const int lod, void *buffer, const std::size
 		surf->name[sizeof(surf->name) - 1] = '\0';
 
 		// lowercase the surface name so skin compares are faster
-		Q_strlwr(surf->name);
+		//Q_strlwr(surf->name);
+		q_strlwr_cpp(std::span(surf->name));
 
 		// strip off a trailing _1 or _2
 		// this is a crutch for q3data being a mess
@@ -864,7 +865,7 @@ static bool R_LoadMDR(model_t &mod, void *buffer, const int filesize, std::strin
 				return false;
 			}
 			// lowercase the surface name so skin compares are faster
-			Q_strlwr(surf->name);
+			q_strlwr_cpp(std::span(surf->name));
 
 			// register the shaders
 			sh = R_FindShader(surf->shader, LIGHTMAP_NONE, true);

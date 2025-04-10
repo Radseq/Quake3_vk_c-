@@ -986,7 +986,7 @@ void R_AddWorldSurfaces(void)
 	R_MarkLeaves();
 
 	// clear out the visible min/max
-	ClearBounds(tr.viewParms.visBounds[0], tr.viewParms.visBounds[1]);
+	ClearBounds_cpp(tr.viewParms.visBounds[0], tr.viewParms.visBounds[1]);
 
 	// perform frustum culling and add all the potentially visible surfaces
 	if (tr.refdef.num_dlights > MAX_DLIGHTS)

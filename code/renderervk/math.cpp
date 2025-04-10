@@ -825,11 +825,7 @@ This is not implemented very well...
 // 	return VectorLength(corner);
 // }
 
-// void ClearBounds(vec3_t mins, vec3_t maxs)
-// {
-// 	mins[0] = mins[1] = mins[2] = 99999;
-// 	maxs[0] = maxs[1] = maxs[2] = -99999;
-// }
+
 
 // bool BoundsIntersect(const vec3_t mins, const vec3_t maxs,
 // 					 const vec3_t mins2, const vec3_t maxs2)

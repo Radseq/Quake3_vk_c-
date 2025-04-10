@@ -222,7 +222,7 @@ static void R_AddMarkFragments(int numClipPoints, vec3_t clipPoints[2][MAX_VERTS
 							   int maxPoints, vec3_t pointBuffer,
 							   int maxFragments, markFragment_t *fragmentBuffer,
 							   int *returnedPoints, int *returnedFragments,
-							   const vec3_t& mins, const vec3_t& maxs)
+							   const vec3_t &mins, const vec3_t &maxs)
 {
 	int pingPong, i;
 	markFragment_t *mf;
@@ -287,7 +287,7 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 	int numsurfaces, numPlanes;
 	int i, j, k, m, n;
 	surfaceType_t *surfaces[64];
-	vec3_t mins, maxs;
+	vec3_t mins{99999.f, 99999.f, 99999.f}, maxs{-99999.f, -99999.f, -99999.f};
 	int returnedFragments;
 	int returnedPoints;
 	vec3_t normals[MAX_VERTS_ON_POLY + 2]{};
@@ -313,7 +313,6 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 	//
 	VectorNormalize2(projection, projectionDir);
 	// find all the brushes that are to be considered
-	ClearBounds(mins, maxs);
 	for (i = 0; i < numPoints; i++)
 	{
 		vec3_t temp{};

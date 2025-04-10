@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <algorithm>
 #include "string_operations.hpp"
 #include <string>
+#include <span>
 
 // Note that the ordering indicates the order of preference used
 // when there are multiple images of different formats available
@@ -1685,7 +1686,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 			break;
 		}
 		// lowercase the surface name so skin compares are faster
-		Q_strlwr(surfName);
+		q_strlwr_cpp(std::span(surfName));
 
 		if (*text_p == ',')
 		{
