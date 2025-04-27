@@ -218,5 +218,8 @@
     <ClInclude Include="..\..\renderervk\math.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\renderervk\compiler_defines.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

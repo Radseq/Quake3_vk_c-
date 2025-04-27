@@ -256,6 +256,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\renderercommon\tr_public.h" />
     <ClInclude Include="..\..\renderercommon\tr_types.h" />
+    <ClInclude Include="..\..\renderervk\compiler_defines.hpp" />
     <ClInclude Include="..\..\renderervk\definitions.hpp" />
     <ClInclude Include="..\..\renderervk\iqm.hpp" />
     <ClInclude Include="..\..\renderervk\math.hpp" />
