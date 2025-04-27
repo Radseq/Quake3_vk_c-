@@ -50,9 +50,7 @@ static int facing[SHADER_MAX_INDEXES / 3];
 
 static void R_AddEdgeDef(const int i1, const int i2, const int f)
 {
-	int c;
-
-	c = numEdgeDefs[i1];
+	int c = numEdgeDefs[i1];
 	if (c == MAX_EDGE_DEFS)
 	{
 		return; // overflow
