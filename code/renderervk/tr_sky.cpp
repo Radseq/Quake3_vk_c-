@@ -399,54 +399,81 @@ static bool CullSkySide(const int mins[2], const int maxs[2])
 	return false;
 }
 
-static void FillSkySide(const int mins[2], const int maxs[2], float skyTexCoords[SKY_SUBDIVISIONS + 1][SKY_SUBDIVISIONS + 1][2])
-{
-	const int vertexStart = tess.numVertexes;
-	const int tHeight = maxs[1] - mins[1] + 1;
-	const int sWidth = maxs[0] - mins[0] + 1;
-	int s, t;
-
-	if (CullSkySide(mins, maxs))
+static void FillSkySide(const int mins[2], const int maxs[2], float skyTexCoords[SKY_SUBDIVISIONS + 1][SKY_SUBDIVISIONS + 1][2]) {
+	// Early cull: likely false, so help branch predictor
+	if (__builtin_expect(CullSkySide(mins, maxs), 0)) {
 		return;
+	}
 
-#if ((SKY_SUBDIVISIONS + 1) * (SKY_SUBDIVISIONS + 1) * 6 > SHADER_MAX_VERTEXES)
-	if (tess.numVertexes + tHeight * sWidth > SHADER_MAX_VERTEXES)
+	const int vertexStart = tess.numVertexes;
+	const int tHeight     = maxs[1] - mins[1] + 1;
+	const int sWidth      = maxs[0] - mins[0] + 1;
+
+	const int s0 = mins[0] + HALF_SKY_SUBDIVISIONS;
+	const int s1 = maxs[0] + HALF_SKY_SUBDIVISIONS;
+	const int t0 = mins[1] + HALF_SKY_SUBDIVISIONS;
+	const int t1 = maxs[1] + HALF_SKY_SUBDIVISIONS;
+
+	#if ((SKY_SUBDIVISIONS + 1) * (SKY_SUBDIVISIONS + 1) * 6 > SHADER_MAX_VERTEXES)
+	constexpr int maxVertices = SHADER_MAX_VERTEXES;
+	const int vertCount = tHeight * sWidth;
+
+	if (tess.numVertexes + vertCount > maxVertices) {
 		ri.Error(ERR_DROP, "SHADER_MAX_VERTEXES hit in %s()", __func__);
+	}
 #endif
 
 #if (SKY_SUBDIVISIONS * SKY_SUBDIVISIONS * 6 * 6 > SHADER_MAX_INDEXES)
-	if (tess.numIndexes + (tHeight - 1) * (sWidth - 1) * 6 > SHADER_MAX_INDEXES)
+	constexpr int maxIndexes = SHADER_MAX_INDEXES;
+	const int indexCount = (tHeight - 1) * (sWidth - 1) * 6;
+
+	if (tess.numIndexes + indexCount > maxIndexes) {
 		ri.Error(ERR_DROP, "SHADER_MAX_INDEXES hit in %s()", __func__);
+	}
 #endif
 
-	for (t = mins[1] + HALF_SKY_SUBDIVISIONS; t <= maxs[1] + HALF_SKY_SUBDIVISIONS; t++)
-	{
-		for (s = mins[0] + HALF_SKY_SUBDIVISIONS; s <= maxs[0] + HALF_SKY_SUBDIVISIONS; s++)
-		{
-			VectorAdd(s_skyPoints[t][s], backEnd.viewParms.ort.origin, tess.xyz[tess.numVertexes]);
-			tess.texCoords[0][tess.numVertexes][0] = skyTexCoords[t][s][0];
-			tess.texCoords[0][tess.numVertexes][1] = skyTexCoords[t][s][1];
+	// ===== VERTEX GENERATION =====
+	for (int t = t0; t <= t1; ++t) {
+		for (int s = s0; s <= s1; ++s) {
+			const int idx = tess.numVertexes;
+
+			// Inline VectorAdd for performance
+			const float* skyPt = s_skyPoints[t][s];
+			const float* camPt = backEnd.viewParms.ort.origin;
+
+			float* dst = tess.xyz[idx];
+			dst[0] = skyPt[0] + camPt[0];
+			dst[1] = skyPt[1] + camPt[1];
+			dst[2] = skyPt[2] + camPt[2];
+
+			// Copy texture coordinates
+			float* tex = tess.texCoords[0][idx];
+			tex[0] = skyTexCoords[t][s][0];
+			tex[1] = skyTexCoords[t][s][1];
+
 			tess.numVertexes++;
 		}
 	}
 
-	for (t = 0; t < tHeight - 1; t++)
-	{
-		for (s = 0; s < sWidth - 1; s++)
-		{
-			tess.indexes[tess.numIndexes] = vertexStart + s + t * (sWidth);
-			tess.numIndexes++;
-			tess.indexes[tess.numIndexes] = vertexStart + s + (t + 1) * (sWidth);
-			tess.numIndexes++;
-			tess.indexes[tess.numIndexes] = vertexStart + s + 1 + t * (sWidth);
-			tess.numIndexes++;
+	// ===== INDEX GENERATION =====
+	const int rowSize = sWidth;
+	for (int t = 0; t < tHeight - 1; ++t) {
+		for (int s = 0; s < sWidth - 1; ++s) {
+			const int i0 = vertexStart + s     + t     * rowSize;
+			const int i1 = vertexStart + s     + (t+1) * rowSize;
+			const int i2 = vertexStart + s + 1 + t     * rowSize;
+			const int i3 = vertexStart + s + 1 + (t+1) * rowSize;
 
-			tess.indexes[tess.numIndexes] = vertexStart + s + (t + 1) * (sWidth);
-			tess.numIndexes++;
-			tess.indexes[tess.numIndexes] = vertexStart + s + 1 + (t + 1) * (sWidth);
-			tess.numIndexes++;
-			tess.indexes[tess.numIndexes] = vertexStart + s + 1 + t * (sWidth);
-			tess.numIndexes++;
+			auto& idx = tess.indexes;
+			int& ni = tess.numIndexes;
+
+			idx[ni++] = i0;
+			idx[ni++] = i1;
+			idx[ni++] = i2;
+
+			idx[ni++] = i1;
+			idx[ni++] = i3;
+			idx[ni++] = i2;
 		}
 	}
 }

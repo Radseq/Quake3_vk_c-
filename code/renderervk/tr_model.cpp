@@ -39,6 +39,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 static bool R_LoadMD3(model_t &mod, int lod, void *buffer, std::size_t fileSize, std::string_view name);
 static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, std::string_view name);
 
+constexpr std::string_view extract_base_and_ext(std::string_view name, std::string_view &extOut, std::string_view fallbackExt)
+{
+	auto dot = name.find('.');
+	if (dot == std::string_view::npos)
+	{
+		extOut = fallbackExt;
+		return name;
+	}
+	extOut = name.substr(dot + 1);
+	return name.substr(0, dot);
+}
+
 /*
 ====================
 R_RegisterMD3
@@ -46,57 +58,51 @@ R_RegisterMD3
 */
 static qhandle_t R_RegisterMD3(std::string_view name, model_t &mod)
 {
-	union
-	{
-		uint32_t *u;
-		void *v;
-	} buf{};
-	int lod;
-	uint32_t ident;
+	constexpr std::string_view defaultExt = std::string_view("md3", 3);
+
+	std::string_view ext;
+	std::string_view baseName = extract_base_and_ext(name, ext, defaultExt);
+
+	std::array<char, MAX_QPATH + 20> namebuf{};
 	bool loaded = false;
-	int numLoaded;
-	std::size_t fileSize;
-	char filename[MAX_QPATH], namebuf[MAX_QPATH + 20];
-	char *fext, defex[] = "md3";
+	int numLoaded = 0;
+	int lod = 0;
 
-	numLoaded = 0;
-
-	strcpy(filename, name.data());
-
-	fext = strchr(filename, '.');
-	if (!fext)
-		fext = defex;
-	else
+	for (lod = MD3_MAX_LODS - 1; lod >= 0; --lod)
 	{
-		*fext = '\0';
-		fext++;
-	}
-
-	for (lod = MD3_MAX_LODS - 1; lod >= 0; lod--)
-	{
-		if (lod)
-			Com_sprintf(namebuf, sizeof(namebuf), "%s_%d.%s", filename, lod, fext);
+		if (lod > 0)
+			Com_sprintf(namebuf.data(), namebuf.size(), "%.*s_%d.%.*s",
+						static_cast<int>(baseName.size()), baseName.data(),
+						lod,
+						static_cast<int>(ext.size()), ext.data());
 		else
-			Com_sprintf(namebuf, sizeof(namebuf), "%s.%s", filename, fext);
+			Com_sprintf(namebuf.data(), namebuf.size(), "%.*s.%.*s",
+						static_cast<int>(baseName.size()), baseName.data(),
+						static_cast<int>(ext.size()), ext.data());
 
-		fileSize = static_cast<std::size_t>(ri.FS_ReadFile(namebuf, &buf.v));
-		if (!buf.v)
+		void *fileBuffer = nullptr;
+		std::size_t fileSize = static_cast<std::size_t>(ri.FS_ReadFile(namebuf.data(), &fileBuffer));
+		if (!fileBuffer)
 			continue;
 
 		if (fileSize < sizeof(md3Header_t))
 		{
 			ri.Printf(PRINT_WARNING, "%s: truncated header for %s\n", __func__, name.data());
-			ri.FS_FreeFile(buf.v);
+			ri.FS_FreeFile(fileBuffer);
 			break;
 		}
 
-		ident = LittleLong(*buf.u);
+		uint32_t ident = LittleLong(*reinterpret_cast<uint32_t *>(fileBuffer));
 		if (ident == MD3_IDENT)
-			loaded = R_LoadMD3(mod, lod, buf.v, fileSize, name);
+		{
+			loaded = R_LoadMD3(mod, lod, fileBuffer, fileSize, name);
+		}
 		else
+		{
 			ri.Printf(PRINT_WARNING, "%s: unknown fileid for %s\n", __func__, name.data());
+		}
 
-		ri.FS_FreeFile(buf.v);
+		ri.FS_FreeFile(fileBuffer);
 
 		if (loaded)
 		{
@@ -104,24 +110,24 @@ static qhandle_t R_RegisterMD3(std::string_view name, model_t &mod)
 			numLoaded++;
 		}
 		else
+		{
 			break;
+		}
 	}
 
-	if (numLoaded)
+	if (numLoaded > 0)
 	{
 		// duplicate into higher lod spots that weren't
 		// loaded, in case the user changes r_lodbias on the fly
-		for (lod--; lod >= 0; lod--)
+		for (--lod; lod >= 0; --lod)
 		{
 			mod.numLods++;
 			mod.md3[lod] = mod.md3[lod + 1];
 		}
-
 		return mod.index;
 	}
 
 	ri.Printf(PRINT_DEVELOPER, S_COLOR_YELLOW "%s: couldn't load %s\n", __func__, name.data());
-
 	mod.type = modtype_t::MOD_BAD;
 	return 0;
 }
@@ -377,7 +383,7 @@ qhandle_t RE_RegisterModel(const char *name)
 		Com_sprintf(altName.data(), sizeof(altName), "%s.%s", localName.data(), modelLoaders[i].ext.data());
 
 		// Load
-		hModel = modelLoaders[i].ModelLoader(std::string_view(altName.data(), altName.size()), *mod);
+		hModel = modelLoaders[i].ModelLoader(to_str_view(altName), *mod);
 
 		if (hModel)
 		{
@@ -580,7 +586,7 @@ static bool R_LoadMD3(model_t &mod, const int lod, void *buffer, const std::size
 		surf->name[sizeof(surf->name) - 1] = '\0';
 
 		// lowercase the surface name so skin compares are faster
-		//Q_strlwr(surf->name);
+		// Q_strlwr(surf->name);
 		q_strlwr_cpp(std::span(surf->name));
 
 		// strip off a trailing _1 or _2

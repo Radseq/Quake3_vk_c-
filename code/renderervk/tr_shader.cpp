@@ -105,7 +105,7 @@ void RE_RemapShader(const char *shaderName, const char *newShaderName, const cha
 	// remap all the shaders with the given name
 	// even tho they might have different lightmaps
 	COM_StripExtension_cpp(shaderName, strippedName);
-	hash = generateHashValue(std::string_view(strippedName.data(), strippedName.size()), FILE_HASH_SIZE);
+	hash = generateHashValue(to_str_view(strippedName), FILE_HASH_SIZE);
 	for (sh = shaderHashTable[hash]; sh; sh = sh->next)
 	{
 		if (Q_stricmp_cpp(sh->name, strippedName.data()) == 0)
@@ -3888,7 +3888,7 @@ shader_t *R_FindShaderByName(std::string_view name)
 
 	COM_StripExtension_cpp(name, strippedName);
 
-	hash = generateHashValue(std::string_view(strippedName.data(), strippedName.size()), FILE_HASH_SIZE);
+	hash = generateHashValue(to_str_view(strippedName), FILE_HASH_SIZE);
 
 	//
 	// see if the shader is already loaded
@@ -3899,7 +3899,7 @@ shader_t *R_FindShaderByName(std::string_view name)
 		// then a default shader is created with lightmapIndex == LIGHTMAP_NONE, so we
 		// have to check all default shaders otherwise for every call to R_FindShader
 		// with that same strippedName a new default shader is created.
-		if (Q_stricmp_cpp(sh->name, std::string_view(strippedName.data(), strippedName.size())) == 0)
+		if (Q_stricmp_cpp(sh->name, to_str_view(strippedName)) == 0)
 		{
 			// match found
 			return sh;
@@ -4031,7 +4031,7 @@ shader_t *R_FindShader(std::string_view name, int lightmapIndex, const bool mipR
 
 	COM_StripExtension_cpp(name, strippedName);
 
-	hash = generateHashValue(std::string_view(strippedName.data(), strippedName.size()), FILE_HASH_SIZE);
+	hash = generateHashValue(to_str_view(strippedName), FILE_HASH_SIZE);
 
 	//
 	// see if the shader is already loaded

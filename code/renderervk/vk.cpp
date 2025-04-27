@@ -1494,7 +1494,7 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, const in
 
 		for (i = 0; i < extension_properties.size(); i++)
 		{
-			auto ext = std::string_view(extension_properties[i].extensionName);
+			auto ext = to_str_view(extension_properties[i].extensionName);
 
 			// add this device extension to glConfig
 			if (i != 0)

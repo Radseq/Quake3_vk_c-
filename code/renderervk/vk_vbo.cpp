@@ -487,13 +487,6 @@ void VBO_UnBind(void)
 	tess.vboIndex = 0;
 }
 
-static int surfSortFunc(const void *a, const void *b)
-{
-	const msurface_t **sa = (const msurface_t **)a;
-	const msurface_t **sb = (const msurface_t **)b;
-	return (*sa)->shader - (*sb)->shader;
-}
-
 static void initItem(vbo_item_t *item)
 {
 	item->num_vertexes = 0;
@@ -502,7 +495,7 @@ static void initItem(vbo_item_t *item)
 	item->index_offset = -1;
 	item->soft_offset = -1;
 }
-
+#include <cstdlib>
 void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 {
 	vbo_t &vbo = world_vbo;
@@ -619,19 +612,19 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 	for (i = 0, n = 0; i < surfCount; i++)
 	{
 		msurface_t &sf = surf;
-		face = (srfSurfaceFace_t *)sf.data;
+		face = reinterpret_cast<srfSurfaceFace_t *>(sf.data);
 		if (face->surfaceType == surfaceType_t::SF_FACE && face->vboItemIndex)
 		{
 			surfList[n++] = &sf;
 			continue;
 		}
-		tris = (srfTriangles_t *)sf.data;
+		tris = reinterpret_cast<srfTriangles_t *>(sf.data);
 		if (tris->surfaceType == surfaceType_t::SF_TRIANGLES && tris->vboItemIndex)
 		{
 			surfList[n++] = &sf;
 			continue;
 		}
-		grid = (srfGridMesh_t *)sf.data;
+		grid = reinterpret_cast<srfGridMesh_t *>(sf.data);
 		if (grid->surfaceType == surfaceType_t::SF_GRID && grid->vboItemIndex)
 		{
 			surfList[n++] = &sf;
@@ -645,7 +638,8 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 	}
 
 	// sort surfaces by shader
-	qsort(surfList, numStaticSurfaces, sizeof(surfList[0]), surfSortFunc);
+	std::sort(surfList, surfList + numStaticSurfaces, [](const msurface_t *a, const msurface_t *b)
+			  { return a->shader < b->shader; });
 
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
@@ -655,7 +649,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 
 	for (i = 0; i < numStaticSurfaces; i++)
 	{
-		msurface_t& sf = surf;
+		msurface_t &sf = surf;
 		face = (srfSurfaceFace_t *)sf.data;
 		tris = (srfTriangles_t *)sf.data;
 		grid = (srfGridMesh_t *)sf.data;
@@ -684,6 +678,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 #endif
 		// tesselate
 		rb_surfaceTable[static_cast<uint32_t>(*sf.data)](sf.data); // VBO_PushData() may be called multiple times there
+
 		// setup colors and texture coordinates
 		VBO_PushData(i + 1, tess);
 		if (grid->surfaceType == surfaceType_t::SF_GRID)

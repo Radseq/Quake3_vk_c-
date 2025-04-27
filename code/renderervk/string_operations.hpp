@@ -11,10 +11,93 @@
 #include <cstring>
 #include <span>
 
+template <size_t N>
+int Com_Split_cpp(std::array<char, N>& buffer, std::span<char*> out, char delim) {
+    char* in = buffer.data();
+
+    if (out.empty()) return 0;
+
+    auto it = out.begin();
+    const auto end = out.end();
+
+    // Skip leading whitespace (if delim is printable)
+    if (delim >= ' ') {
+        while (*in && std::isspace(static_cast<unsigned char>(*in))) ++in;
+    }
+
+    *it++ = in;
+
+    while (it < end) {
+        // Find next delimiter
+        while (*in && *in != delim) ++in;
+
+        if (*in == '\0') {
+            // Don't count trailing empty value
+            if ((*(it - 1))[0] == '\0') --it;
+            break;
+        }
+
+        *in++ = '\0'; // terminate current token
+
+        // Skip whitespace before next token
+        if (delim >= ' ') {
+            while (*in && std::isspace(static_cast<unsigned char>(*in))) ++in;
+        }
+
+        *it++ = in;
+    }
+
+    // Sanitize: null the rest of the token
+    while (*in && *in != delim) ++in;
+    *in = '\0';
+
+    std::fill(it, end, in);
+
+    return static_cast<int>(it - out.begin());
+}
+
+[[nodiscard]]
+constexpr std::string_view COM_SkipPath_cpp(std::string_view path) noexcept
+{
+    const size_t pos = path.find_last_of('/');
+    return pos == std::string_view::npos ? path : path.substr(pos + 1);
+}
+
+template <size_t N>
+constexpr std::string_view to_str_viewNT(const std::array<char, N>& arr, size_t length) noexcept {
+#ifndef NDEBUG
+    // Debug-only: ensure null-terminator exists within specified length
+    if (std::memchr(arr.data(), '\0', length) == nullptr) {
+        throw std::runtime_error("to_str_viewNT: null terminator not found within specified length");
+    }
+#endif
+
+    return std::string_view{arr.data(), length};
+}
+
+template <size_t N>
+constexpr std::string_view to_str_view(const std::array<char, N> &arr) noexcept
+{
+#ifndef NDEBUG
+    // Debug-only check: ensure array is null-terminated somewhere in bounds
+    if constexpr (N > 0)
+    {
+        if (std::memchr(arr.data(), '\0', N) == nullptr)
+        {
+            throw std::runtime_error("to_str_view: array is not null-terminated");
+        }
+    }
+#endif
+
+    return std::string_view{arr.data()};
+}
+
 // Create a constexpr lookup table for all 256 possible char values.
-constexpr std::array<char, 256> locaseTable = []() constexpr {
+constexpr std::array<char, 256> locaseTable = []() constexpr
+{
     std::array<char, 256> table{};
-    for (std::size_t i = 0; i < table.size(); ++i) {
+    for (std::size_t i = 0; i < table.size(); ++i)
+    {
         // Default: map each character to itself.
         table[i] = static_cast<char>(i);
         // If the character is uppercase, map it to lowercase.
@@ -26,9 +109,12 @@ constexpr std::array<char, 256> locaseTable = []() constexpr {
 
 // A constexpr function that converts a mutable span<char> in place to lowercase.
 // It stops when it encounters the null terminator.
-constexpr std::span<char> q_strlwr_cpp(std::span<char> s) noexcept {
-    for (char &c : s) {
-        if (c == '\0') break;
+constexpr std::span<char> q_strlwr_cpp(std::span<char> s) noexcept
+{
+    for (char &c : s)
+    {
+        if (c == '\0')
+            break;
         c = locaseTable[static_cast<unsigned char>(c)];
     }
     return s;
@@ -46,12 +132,6 @@ char *COM_ParseComplex_cpp(const char **data_p, bool allowLineBreaks);
 bool SkipBracedSection_cpp(const char **program, int depth);
 
 unsigned long Com_GenerateHashValue_cpp(std::string_view fname, const unsigned int size);
-
-template <std::size_t Size>
-constexpr std::string_view ArrToStringView(std::array<char, Size> &src)
-{
-    return std::string_view(src.data(), Size);
-}
 
 int Q_strncmp_cpp(std::string_view s1, std::string_view s2, size_t n);
 

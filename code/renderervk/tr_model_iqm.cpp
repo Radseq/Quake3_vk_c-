@@ -43,15 +43,15 @@ static constexpr float identityMatrix[12] = {
 
 static int R_CullIQM(const iqmData_t &data, const trRefEntity_t &ent)
 {
-	vec3_t bounds[2]{};
-	vec_t *oldBounds, *newBounds;
-	int i;
-
 	if (!data.bounds)
 	{
 		tr.pc.c_box_cull_md3_clip++;
 		return CULL_CLIP;
 	}
+
+	vec3_t bounds[2]{};
+	vec_t *oldBounds, *newBounds;
+	int i;
 
 	// compute bounds pointers
 	oldBounds = data.bounds + 6 * ent.e.oldframe;
@@ -1387,7 +1387,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, const int filesize, std::string_view 
 		{
 			surface->surfaceType = surfaceType_t::SF_IQM;
 			Q_strncpyz(surface->name, str + mesh->name, sizeof(surface->name));
-			//Q_strlwr(surface->name); // lowercase the surface name so skin compares are faster
+			// Q_strlwr(surface->name); // lowercase the surface name so skin compares are faster
 			q_strlwr_cpp(std::span(surface->name));
 			surface->shader = R_FindShader(str + mesh->material, LIGHTMAP_NONE, true);
 			if (surface->shader->defaultShader)

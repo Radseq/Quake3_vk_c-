@@ -942,8 +942,8 @@ typedef struct
 
 typedef struct
 {
-	char name[MAX_QPATH];	  // ie: maps/tim_dm2.bsp
-	char baseName[MAX_QPATH]; // ie: tim_dm2
+	std::array<char, MAX_QPATH> name;	  // ie: maps/tim_dm2.bsp
+	std::array<char, MAX_QPATH> baseName; // ie: tim_dm2
 
 	int dataSize;
 

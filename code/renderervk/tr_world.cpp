@@ -178,45 +178,30 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 }
 
 #ifdef USE_PMLIGHT
-bool R_LightCullBounds(const dlight_t &dl, const vec3_t &mins, const vec3_t &maxs)
-{
-	if (dl.linear)
-	{
-		if (dl.transformed[0] - dl.radius > maxs[0] && dl.transformed2[0] - dl.radius > maxs[0])
-			return true;
-		if (dl.transformed[0] + dl.radius < mins[0] && dl.transformed2[0] + dl.radius < mins[0])
-			return true;
+// Checks whether a dynamic light (dl) is completely outside a bounding box defined by mins and maxs.
+// Returns true if the light does not affect the bounding box (i.e., it can be culled).
+bool R_LightCullBounds(const dlight_t& dl, const vec3_t& mins, const vec3_t& maxs) {
+    // Lambda that tests if a light position + radius is outside the bounding box on any axis.
+    auto isCulled = [&](const vec3_t& pos) {
+        bool result = false;
+        for (int i = 0; i < 3; ++i) {
+            // Check if the light sphere is entirely outside along axis `i`.
+            // Bitwise OR is used to avoid short-circuiting (branchless behavior).
+            const bool axisCulled =
+                (pos[i] - dl.radius > maxs[i]) |   // Light's left edge is right of the box
+                (pos[i] + dl.radius < mins[i]);    // Light's right edge is left of the box
+            result |= axisCulled;
+        }
+        return result;  // True if any axis culls the light completely.
+    };
 
-		if (dl.transformed[1] - dl.radius > maxs[1] && dl.transformed2[1] - dl.radius > maxs[1])
-			return true;
-		if (dl.transformed[1] + dl.radius < mins[1] && dl.transformed2[1] + dl.radius < mins[1])
-			return true;
-
-		if (dl.transformed[2] - dl.radius > maxs[2] && dl.transformed2[2] - dl.radius > maxs[2])
-			return true;
-		if (dl.transformed[2] + dl.radius < mins[2] && dl.transformed2[2] + dl.radius < mins[2])
-			return true;
-
-		return false;
-	}
-
-	if (dl.transformed[0] - dl.radius > maxs[0])
-		return true;
-	if (dl.transformed[0] + dl.radius < mins[0])
-		return true;
-
-	if (dl.transformed[1] - dl.radius > maxs[1])
-		return true;
-	if (dl.transformed[1] + dl.radius < mins[1])
-		return true;
-
-	if (dl.transformed[2] - dl.radius > maxs[2])
-		return true;
-	if (dl.transformed[2] + dl.radius < mins[2])
-		return true;
-
-	return false;
+    // For linear lights (like a beam or elongated light), cull only if both endpoints are outside.
+    // For point lights, cull if the single center position is outside.
+    return dl.linear
+        ? (isCulled(dl.transformed) & isCulled(dl.transformed2)) // both endpoints outside
+        : isCulled(dl.transformed);                              // single point outside
 }
+
 
 static bool R_LightCullFace(const srfSurfaceFace_t &face, const dlight_t &dl)
 {
@@ -301,7 +286,12 @@ static int R_DlightGrid(srfGridMesh_t &grid, int dlightBits)
 			continue;
 		}
 		const dlight_t &dl = tr.refdef.dlights[i];
-		if (dl.origin[0] - dl.radius > grid.meshBounds[1][0] || dl.origin[0] + dl.radius < grid.meshBounds[0][0] || dl.origin[1] - dl.radius > grid.meshBounds[1][1] || dl.origin[1] + dl.radius < grid.meshBounds[0][1] || dl.origin[2] - dl.radius > grid.meshBounds[1][2] || dl.origin[2] + dl.radius < grid.meshBounds[0][2])
+		if (dl.origin[0] - dl.radius > grid.meshBounds[1][0] ||
+			dl.origin[0] + dl.radius < grid.meshBounds[0][0] ||
+			dl.origin[1] - dl.radius > grid.meshBounds[1][1] ||
+			dl.origin[1] + dl.radius < grid.meshBounds[0][1] ||
+			dl.origin[2] - dl.radius > grid.meshBounds[1][2] ||
+			dl.origin[2] + dl.radius < grid.meshBounds[0][2])
 		{
 			// dlight doesn't reach the bounds
 			dlightBits &= ~(1 << i);
