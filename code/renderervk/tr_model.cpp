@@ -1097,7 +1097,7 @@ static md3Tag_t *R_GetTag(md3Header_t *mod, int frame, std::string_view tagName)
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 static md3Tag_t *R_GetAnimTag(mdrHeader_t *mod, int framenum, std::string_view tagName, md3Tag_t &dest)

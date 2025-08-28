@@ -180,28 +180,30 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 #ifdef USE_PMLIGHT
 // Checks whether a dynamic light (dl) is completely outside a bounding box defined by mins and maxs.
 // Returns true if the light does not affect the bounding box (i.e., it can be culled).
-bool R_LightCullBounds(const dlight_t& dl, const vec3_t& mins, const vec3_t& maxs) {
-    // Lambda that tests if a light position + radius is outside the bounding box on any axis.
-    auto isCulled = [&](const vec3_t& pos) {
-        bool result = false;
-        for (int i = 0; i < 3; ++i) {
-            // Check if the light sphere is entirely outside along axis `i`.
-            // Bitwise OR is used to avoid short-circuiting (branchless behavior).
-            const bool axisCulled =
-                (pos[i] - dl.radius > maxs[i]) |   // Light's left edge is right of the box
-                (pos[i] + dl.radius < mins[i]);    // Light's right edge is left of the box
-            result |= axisCulled;
-        }
-        return result;  // True if any axis culls the light completely.
-    };
+bool R_LightCullBounds(const dlight_t &dl, const vec3_t &mins, const vec3_t &maxs)
+{
+	// Lambda that tests if a light position + radius is outside the bounding box on any axis.
+	auto isCulled = [&](const vec3_t &pos)
+	{
+		bool result = false;
+		for (int i = 0; i < 3; ++i)
+		{
+			// Check if the light sphere is entirely outside along axis `i`.
+			// Bitwise OR is used to avoid short-circuiting (branchless behavior).
+			const bool axisCulled =
+				(pos[i] - dl.radius > maxs[i]) | // Light's left edge is right of the box
+				(pos[i] + dl.radius < mins[i]);	 // Light's right edge is left of the box
+			result |= axisCulled;
+		}
+		return result; // True if any axis culls the light completely.
+	};
 
-    // For linear lights (like a beam or elongated light), cull only if both endpoints are outside.
-    // For point lights, cull if the single center position is outside.
-    return dl.linear
-        ? (isCulled(dl.transformed) & isCulled(dl.transformed2)) // both endpoints outside
-        : isCulled(dl.transformed);                              // single point outside
+	// For linear lights (like a beam or elongated light), cull only if both endpoints are outside.
+	// For point lights, cull if the single center position is outside.
+	return dl.linear
+			   ? (isCulled(dl.transformed) & isCulled(dl.transformed2)) // both endpoints outside
+			   : isCulled(dl.transformed);								// single point outside
 }
-
 
 static bool R_LightCullFace(const srfSurfaceFace_t &face, const dlight_t &dl)
 {
@@ -747,31 +749,16 @@ static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, un
 		tr.pc.c_leafs++;
 
 		// add to z buffer bounds
-		if (node->mins[0] < tr.viewParms.visBounds[0][0])
-		{
-			tr.viewParms.visBounds[0][0] = node->mins[0];
-		}
-		if (node->mins[1] < tr.viewParms.visBounds[0][1])
-		{
-			tr.viewParms.visBounds[0][1] = node->mins[1];
-		}
-		if (node->mins[2] < tr.viewParms.visBounds[0][2])
-		{
-			tr.viewParms.visBounds[0][2] = node->mins[2];
-		}
+		auto &visMin = tr.viewParms.visBounds[0];
+		auto &visMax = tr.viewParms.visBounds[1];
 
-		if (node->maxs[0] > tr.viewParms.visBounds[1][0])
-		{
-			tr.viewParms.visBounds[1][0] = node->maxs[0];
-		}
-		if (node->maxs[1] > tr.viewParms.visBounds[1][1])
-		{
-			tr.viewParms.visBounds[1][1] = node->maxs[1];
-		}
-		if (node->maxs[2] > tr.viewParms.visBounds[1][2])
-		{
-			tr.viewParms.visBounds[1][2] = node->maxs[2];
-		}
+		visMin[0] = std::min(visMin[0], node->mins[0]);
+		visMin[1] = std::min(visMin[1], node->mins[1]);
+		visMin[2] = std::min(visMin[2], node->mins[2]);
+
+		visMax[0] = std::max(visMax[0], node->maxs[0]);
+		visMax[1] = std::max(visMax[1], node->maxs[1]);
+		visMax[2] = std::max(visMax[2], node->maxs[2]);
 
 		// add the individual surfaces
 		msurface_t **mark = node->firstmarksurface;

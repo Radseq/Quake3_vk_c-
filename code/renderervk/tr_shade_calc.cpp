@@ -842,93 +842,52 @@ doesn't fit our shader data.
 */
 void RB_CalcFogTexCoords(float *st)
 {
-	int i;
-	float *v;
-	float s, t;
-	float eyeT;
-	bool eyeOutside;
-	const fog_t *fog;
-	vec3_t local{};
-	vec4_t fogDepthVector{};
+	const fog_t *fog = tr.world->fogs + tess.fogNum;
 
-	fog = tr.world->fogs + tess.fogNum;
+	vec3_t local;
+	VectorSubtract(backEnd.ort.origin, backEnd.viewParms.ort.origin, local);
 
 	// all fogging distance is based on world Z units
-	VectorSubtract(backEnd.ort.origin, backEnd.viewParms.ort.origin, local);
-	vec4_t fogDistanceVector{
+	vec4_t fogDistanceVector = {
 		-backEnd.ort.modelMatrix[2],
 		-backEnd.ort.modelMatrix[6],
 		-backEnd.ort.modelMatrix[10],
 		DotProduct(local, backEnd.viewParms.ort.axis[0])};
-
 	// scale the fog vectors based on the fog's thickness
-	fogDistanceVector[0] *= fog->tcScale;
-	fogDistanceVector[1] *= fog->tcScale;
-	fogDistanceVector[2] *= fog->tcScale;
-	fogDistanceVector[3] *= fog->tcScale;
+	VectorScale4(fogDistanceVector, fog->tcScale, fogDistanceVector);
+	fogDistanceVector[3] += 1.0f / 512.0f;
 
 	// rotate the gradient vector for this orientation
+	vec4_t fogDepthVector{};
+	float eyeT = 1.0f;
+	bool eyeOutside = false;
+
 	if (fog->hasSurface)
 	{
-		fogDepthVector[0] = fog->surface[0] * backEnd.ort.axis[0][0] +
-							fog->surface[1] * backEnd.ort.axis[0][1] + fog->surface[2] * backEnd.ort.axis[0][2];
-		fogDepthVector[1] = fog->surface[0] * backEnd.ort.axis[1][0] +
-							fog->surface[1] * backEnd.ort.axis[1][1] + fog->surface[2] * backEnd.ort.axis[1][2];
-		fogDepthVector[2] = fog->surface[0] * backEnd.ort.axis[2][0] +
-							fog->surface[1] * backEnd.ort.axis[2][1] + fog->surface[2] * backEnd.ort.axis[2][2];
+		fogDepthVector[0] = DotProduct(fog->surface, backEnd.ort.axis[0]);
+		fogDepthVector[1] = DotProduct(fog->surface, backEnd.ort.axis[1]);
+		fogDepthVector[2] = DotProduct(fog->surface, backEnd.ort.axis[2]);
 		fogDepthVector[3] = -fog->surface[3] + DotProduct(backEnd.ort.origin, fog->surface);
 
 		eyeT = DotProduct(backEnd.ort.viewOrigin, fogDepthVector) + fogDepthVector[3];
-	}
-	else
-	{
-		eyeT = 1; // non-surface fog always has eye inside
-	}
 
-	// see if the viewpoint is outside
-	// this is needed for clipping distance even for constant fog
-
-	if (eyeT < 0)
-	{
-		eyeOutside = true;
+		// see if the viewpoint is outside
+		// this is needed for clipping distance even for constant fog
+		eyeOutside = (eyeT < 0.0f);
 	}
-	else
-	{
-		eyeOutside = false;
-	}
-
-	fogDistanceVector[3] += 1.0 / 512;
 
 	// calculate density for each point
-	for (i = 0, v = tess.xyz[0]; i < tess.numVertexes; i++, v += 4)
+	float *v = tess.xyz[0];
+	for (int i = 0; i < tess.numVertexes; ++i, v += 4)
 	{
 		// calculate the length in fog
-		s = DotProduct(v, fogDistanceVector) + fogDistanceVector[3];
-		t = DotProduct(v, fogDepthVector) + fogDepthVector[3];
+		const float s = DotProduct(v, fogDistanceVector) + fogDistanceVector[3];
+		float t = DotProduct(v, fogDepthVector) + fogDepthVector[3];
 
 		// partially clipped fogs use the T axis
-		if (eyeOutside)
-		{
-			if (t < 1.0)
-			{
-				t = 1.0 / 32; // point is outside, so no fogging
-			}
-			else
-			{
-				t = 1.0 / 32 + 30.0 / 32 * t / (t - eyeT); // cut the distance at the fog plane
-			}
-		}
-		else
-		{
-			if (t < 0)
-			{
-				t = 1.0 / 32; // point is outside, so no fogging
-			}
-			else
-			{
-				t = 31.0 / 32;
-			}
-		}
+		t = eyeOutside
+				? (t < 1.0f ? 1.0f / 32.0f : 1.0f / 32.0f + (30.0f / 32.0f) * t / (t - eyeT))
+				: (t < 0.0f ? 1.0f / 32.0f : 31.0f / 32.0f);
 
 		st[0] = s;
 		st[1] = t;
@@ -943,60 +902,53 @@ RB_CalcFogProgramParms
 */
 void RB_CalcFogProgramParms(fogProgramParms_t &parm)
 {
-	// const fog_t *fog;
-	vec3_t local{};
+	// Get fog definition
+	const fog_t &fog = tr.world->fogs[tess.fogNum];
 
-	Com_Memset(parm.fogDepthVector, 0, sizeof(parm.fogDepthVector));
-
-	fog_t &fog = *(tr.world->fogs + tess.fogNum);
-
-	// all fogging distance is based on world Z units
+	// Compute vector from view origin to object
+	vec3_t local;
 	VectorSubtract(backEnd.ort.origin, backEnd.viewParms.ort.origin, local);
+
+	// All fogging distance is based on world Z units
 	parm.fogDistanceVector[0] = -backEnd.ort.modelMatrix[2];
 	parm.fogDistanceVector[1] = -backEnd.ort.modelMatrix[6];
 	parm.fogDistanceVector[2] = -backEnd.ort.modelMatrix[10];
 	parm.fogDistanceVector[3] = DotProduct(local, backEnd.viewParms.ort.axis[0]);
 
-	// scale the fog vectors based on the fog's thickness
-	parm.fogDistanceVector[0] *= fog.tcScale;
-	parm.fogDistanceVector[1] *= fog.tcScale;
-	parm.fogDistanceVector[2] *= fog.tcScale;
-	parm.fogDistanceVector[3] *= fog.tcScale;
+	// Scale the fog vectors based on the fog's thickness
+	VectorScale4(parm.fogDistanceVector, fog.tcScale, parm.fogDistanceVector);
 
-	// rotate the gradient vector for this orientation
+	// Clear fog depth vector
+	parm.fogDepthVector[0] = parm.fogDepthVector[1] = parm.fogDepthVector[2] = parm.fogDepthVector[3] = 0.0f;
+
+	// Rotate the gradient vector for this orientation
 	if (fog.hasSurface)
 	{
-		parm.fogDepthVector[0] = fog.surface[0] * backEnd.ort.axis[0][0] +
-								 fog.surface[1] * backEnd.ort.axis[0][1] + fog.surface[2] * backEnd.ort.axis[0][2];
-		parm.fogDepthVector[1] = fog.surface[0] * backEnd.ort.axis[1][0] +
-								 fog.surface[1] * backEnd.ort.axis[1][1] + fog.surface[2] * backEnd.ort.axis[1][2];
-		parm.fogDepthVector[2] = fog.surface[0] * backEnd.ort.axis[2][0] +
-								 fog.surface[1] * backEnd.ort.axis[2][1] + fog.surface[2] * backEnd.ort.axis[2][2];
+		parm.fogDepthVector[0] = DotProduct(fog.surface, backEnd.ort.axis[0]);
+		parm.fogDepthVector[1] = DotProduct(fog.surface, backEnd.ort.axis[1]);
+		parm.fogDepthVector[2] = DotProduct(fog.surface, backEnd.ort.axis[2]);
 		parm.fogDepthVector[3] = -fog.surface[3] + DotProduct(backEnd.ort.origin, fog.surface);
 
+		// Calculate view-space T distance
 		parm.eyeT = DotProduct(backEnd.ort.viewOrigin, parm.fogDepthVector) + parm.fogDepthVector[3];
+
+		// See if the viewpoint is outside
+		// This is needed for clipping distance even for constant fog
+		parm.eyeOutside = (parm.eyeT < 0.0f);
 	}
 	else
 	{
-		parm.eyeT = 1.0f; // non-surface fog always has eye inside
-	}
-
-	// see if the viewpoint is outside
-	// this is needed for clipping distance even for constant fog
-
-	if (parm.eyeT < 0)
-	{
-		parm.eyeOutside = true;
-	}
-	else
-	{
+		// Non-surface fog always has eye inside
+		parm.eyeT = 1.0f;
 		parm.eyeOutside = false;
 	}
 
-	parm.fogDistanceVector[3] += 1.0 / 512;
+	// Adjust fog distance bias
+	parm.fogDistanceVector[3] += 1.0f / 512.0f;
+
+	// Copy fog color
 	parm.fogColor = fog.color;
 }
-
 /*
 ========================
 RB_CalcEnvironmentTexCoordsFPscr
@@ -1004,27 +956,22 @@ RB_CalcEnvironmentTexCoordsFPscr
 */
 static void RB_CalcEnvironmentTexCoordsFPscr(float *st)
 {
-	int i;
-	const float *v, *normal;
-	vec3_t viewer{};
-	float d;
+	const float *v = tess.xyz[0];
+	const float *normal = tess.normal[0];
 
-	v = tess.xyz[0];
-	normal = tess.normal[0];
-
-	for (i = 0; i < tess.numVertexes; i++, v += 4, normal += 4, st += 2)
+	for (int i = 0; i < tess.numVertexes; ++i, v += 4, normal += 4, st += 2)
 	{
+		vec3_t viewer;
 		VectorSubtract(backEnd.ort.viewOrigin, v, viewer);
 		VectorNormalizeFast(viewer);
 
-		d = DotProduct(normal, viewer);
-		vec3_t reflected{
-			0,
-			normal[1] * 2 * d - viewer[1],
-			normal[2] * 2 * d - viewer[2]};
+		const float d = DotProduct(normal, viewer);
 
-		st[0] = 0.5 - reflected[1] * 0.5;
-		st[1] = 0.5 + reflected[2] * 0.5;
+		const float ry = normal[1] * (2.0f * d) - viewer[1];
+		const float rz = normal[2] * (2.0f * d) - viewer[2];
+
+		st[0] = 0.5f - 0.5f * ry;
+		st[1] = 0.5f + 0.5f * rz;
 	}
 }
 

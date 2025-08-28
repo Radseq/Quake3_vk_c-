@@ -291,10 +291,10 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 {
 	vec3_t bounds[2];
 	int i;
-	md3Header_t *header = NULL;
-	md3Surface_t *surface = NULL;
-	md3Shader_t *md3Shader = NULL;
-	shader_t *shader = NULL;
+	md3Header_t *header = nullptr;
+	md3Surface_t *surface = nullptr;
+	md3Shader_t *md3Shader = nullptr;
+	shader_t *shader = nullptr;
 	int cull;
 	int lod;
 	int fogNum;

@@ -92,6 +92,8 @@ typedef enum
 #define GLuint unsigned int
 #define GLboolean VkBool32
 
+#define USE_BUFFER_CLEAR	/* clear attachments on render pass begin */
+
 typedef uint32_t glIndex_t;
 
 constexpr int REFENTITYNUM_BITS = 12; // as we actually using only 1 bit for dlight mask in opengl1 renderer

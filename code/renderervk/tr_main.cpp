@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_main.hpp"
 #include "tr_animation.hpp"
+#include "tr_local.hpp"
 #include "tr_mesh.hpp"
 #include "tr_model_iqm.hpp"
 #include "tr_scene.hpp"
@@ -1275,7 +1276,7 @@ static bool R_MirrorViewBySurface(const drawSurf_t &drawSurf, const int entityNu
 	}
 #endif
 
-	if (tess.numVertexes > 2 && r_fastsky->integer && vk_inst.fastSky)
+	if (tess.numVertexes > 2 && r_fastsky->integer && vk_inst.clearAttachment)
 	{
 		std::array<int, 2> mins;
 		std::array<int, 2> maxs;
@@ -1634,12 +1635,16 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, const int numDrawSurfs)
 			{
 				return;
 			}
-			if (r_fastsky->integer == 0 || !vk_inst.fastSky)
-			{
-				break; // only one mirror view at a time
+		#ifndef USE_BUFFER_CLEAR
+			if (r_fastsky->integer == 0 || !vk.clearAttachment) {
+		#else
+			if (r_fastsky->integer == 0) {
+		#endif
+					break;	// only one mirror view at a time
+				}
 			}
 		}
-	}
+
 
 #ifdef USE_PMLIGHT
 #ifdef USE_LEGACY_DLIGHTS

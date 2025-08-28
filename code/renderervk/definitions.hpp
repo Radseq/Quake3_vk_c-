@@ -14,6 +14,7 @@
 // #define VULKAN_HPP_HAS_NOEXCEPT
 #endif
 
+//#define VULKAN_HPP_DISABLE_ENHANCED_MODE
 #include "vulkan/vulkan.hpp"
 
 #ifndef _DEBUG
@@ -237,6 +238,8 @@ typedef struct vk_tess_s
     vk::CommandBuffer command_buffer;
 
     vk::Semaphore image_acquired;
+    uint32_t	swapchain_image_index;
+	bool	swapchain_image_acquired;
     vk::Semaphore rendering_finished;
     vk::Fence rendering_finished_fence;
     bool waitForFence;
@@ -256,8 +259,8 @@ typedef struct vk_tess_s
     struct
     {
         uint32_t start, end;
-        vk::DescriptorSet current[6]; // 0:storage, 1:uniform, 2:color0, 3:color1, 4:color2, 5:fog
-        uint32_t offset[2];           // 0 (uniform) and 5 (storage)
+        vk::DescriptorSet	current[5]; // 0:uniform, 1:color0, 2:color1, 3:color2, 4:fog
+		uint32_t		offset[1]; // 0 (uniform)
     } descriptor_set;
 
     Vk_Depth_Range depth_range;
@@ -285,7 +288,7 @@ typedef struct
     uint32_t swapchain_image_count;
     vk::Image swapchain_images[MAX_SWAPCHAIN_IMAGES];
     vk::ImageView swapchain_image_views[MAX_SWAPCHAIN_IMAGES];
-    uint32_t swapchain_image_index;
+    //uint32_t swapchain_image_index;
 
     vk::CommandPool command_pool;
 
@@ -309,7 +312,7 @@ typedef struct
     vk::DescriptorSetLayout set_layout_storage; // feedback bufvk::r
 
     vk::PipelineLayout pipeline_layout; // default shaders
-    // VkPipelineLayout pipeline_layout_storage;	// flare test shader layout
+    vk::PipelineLayout pipeline_layout_storage;	// flare test shader layout
     vk::PipelineLayout pipeline_layout_post_process; // post-processing
     vk::PipelineLayout pipeline_layout_blend;        // post-processing
 
@@ -482,6 +485,7 @@ typedef struct
     uint32_t surface_debug_pipeline_solid;
     uint32_t surface_debug_pipeline_outline;
     uint32_t images_debug_pipeline;
+    uint32_t images_debug_pipeline2;
     uint32_t surface_beam_pipeline;
     uint32_t surface_axis_pipeline;
     uint32_t dot_pipeline;
@@ -510,7 +514,7 @@ typedef struct
 
     vk::ImageLayout initSwapchainLayout;
 
-    bool fastSky; // requires VK_IMAGE_USAGE_TRANSFER_DST_BIT
+    bool clearAttachment;		// requires VK_IMAGE_USAGE_TRANSFER_DST_BIT for swapchains
     bool fboActive;
     bool blitEnabled;
     bool msaaActive;

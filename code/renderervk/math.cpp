@@ -42,12 +42,9 @@ Returns 1, 2, or 1 + 2
 ==================
 */
 
-int BoxOnPlaneSide_cpp(const vec3_t& emins, const vec3_t& emaxs, cplane_s& p)
+int BoxOnPlaneSide_cpp(const vec3_t &emins, const vec3_t &emaxs, cplane_s &p)
 {
-	float dist[2]{};
-	int sides, b, i;
-
-	// fast axial cases
+	// Fast axial planes
 	if (p.type < 3)
 	{
 		if (p.dist <= emins[p.type])
@@ -57,31 +54,36 @@ int BoxOnPlaneSide_cpp(const vec3_t& emins, const vec3_t& emaxs, cplane_s& p)
 		return 3;
 	}
 
-	// general case
-	if (p.signbits < 8) // >= 8: default case is original code (dist[0]=dist[1]=0)
+	float dist0 = 0.0f, dist1 = 0.0f;
+
+	// Avoid branching when signbits >= 8 (fallback case)
+	if (p.signbits < 8)
 	{
-		for (i = 0; i < 3; i++)
-		{
-			b = (p.signbits >> i) & 1;
-			dist[b] += p.normal[i] * emaxs[i];
-			dist[!b] += p.normal[i] * emins[i];
-		}
+		const int sx = (p.signbits >> 0) & 1;
+		const int sy = (p.signbits >> 1) & 1;
+		const int sz = (p.signbits >> 2) & 1;
+
+		dist0 = p.normal[0] * (sx ? emaxs[0] : emins[0]) +
+				p.normal[1] * (sy ? emaxs[1] : emins[1]) +
+				p.normal[2] * (sz ? emaxs[2] : emins[2]);
+
+		dist1 = p.normal[0] * (sx ? emins[0] : emaxs[0]) +
+				p.normal[1] * (sy ? emins[1] : emaxs[1]) +
+				p.normal[2] * (sz ? emins[2] : emaxs[2]);
 	}
 
-	sides = 0;
-	if (dist[0] >= p.dist)
-		sides = 1;
-	if (dist[1] < p.dist)
-		sides |= 2;
-
-	return sides;
+	// Branchless version of sides calculation
+	const int side0 = dist0 >= p.dist ? 1 : 0;
+	const int side1 = dist1 < p.dist ? 2 : 0;
+	return side0 | side1;
 }
 
 using mat3_t = std::array<std::array<float, 3>, 3>;
 
 // Helper function to create a rotation matrix around an arbitrary axis
-static mat3_t CreateRotationMatrix(const vec3_t& axis, float angle) {
-	//const float rad = angle * (std::numbers::pi / 180.0f);
+static mat3_t CreateRotationMatrix(const vec3_t &axis, float angle)
+{
+	// const float rad = angle * (std::numbers::pi / 180.0f);
 	const float rad = DEG_TO_RAD_LUT[angle];
 	const float c = std::cos(rad);
 	const float s = std::sin(rad);
@@ -91,39 +93,41 @@ static mat3_t CreateRotationMatrix(const vec3_t& axis, float angle) {
 	const float y = axis[1];
 	const float z = axis[2];
 
-	return { {
-		{t * x * x + c,      t * x * y - s * z,  t * x * z + s * y},
-		{t * x * y + s * z,  t * y * y + c,      t * y * z - s * x},
-		{t * x * z - s * y,  t * y * z + s * x,  t * z * z + c}
-	} };
+	return {{{t * x * x + c, t * x * y - s * z, t * x * z + s * y},
+			 {t * x * y + s * z, t * y * y + c, t * y * z - s * x},
+			 {t * x * z - s * y, t * y * z + s * x, t * z * z + c}}};
 }
 
-static void Normalize(vec3_t& v) {
+static void Normalize(vec3_t &v)
+{
 	const float length = std::sqrt(DotProduct(v, v));
-	if (length > 0.0f) {
+	if (length > 0.0f)
+	{
 		v[0] /= length;
 		v[1] /= length;
 		v[2] /= length;
 	}
 }
 
-static void MatrixMultiply(const mat3_t m, const vec3_t v, vec3_t& result) {
+static void MatrixMultiply(const mat3_t m, const vec3_t v, vec3_t &result)
+{
 	result[0] = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
 	result[1] = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
 	result[2] = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
 }
 
-void RotatePointAroundVector_cpp(vec3_t& dst, const vec3_t& dir, const vec3_t& point, float degrees) {
+void RotatePointAroundVector_cpp(vec3_t &dst, const vec3_t &dir, const vec3_t &point, float degrees)
+{
 	RotatePointAroundVector(dst, dir, point, degrees);
 	//// Normalize the direction vector
-	//vec3_t axis{ dir[0], dir[1], dir[2] };
-	//Normalize(axis);
+	// vec3_t axis{ dir[0], dir[1], dir[2] };
+	// Normalize(axis);
 
 	//// Create the rotation matrix
-	//const mat3_t rot = CreateRotationMatrix(axis, degrees);
+	// const mat3_t rot = CreateRotationMatrix(axis, degrees);
 
 	//// Apply the rotation to the point
-	//MatrixMultiply(rot, point, dst);
+	// MatrixMultiply(rot, point, dst);
 }
 
 /*
@@ -133,7 +137,7 @@ RotatePointAroundVector
 This is not implemented very well...
 ===============
 */
-//void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point,
+// void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point,
 //	float degrees) {
 //	float	m[3][3];
 //	float	im[3][3];
@@ -186,7 +190,7 @@ This is not implemented very well...
 //	for (i = 0; i < 3; i++) {
 //		dst[i] = rot[i][0] * point[0] + rot[i][1] * point[1] + rot[i][2] * point[2];
 //	}
-//}
+// }
 
 // int ColorIndexFromChar(char ccode)
 // {
@@ -824,8 +828,6 @@ This is not implemented very well...
 
 // 	return VectorLength(corner);
 // }
-
-
 
 // bool BoundsIntersect(const vec3_t mins, const vec3_t maxs,
 // 					 const vec3_t mins2, const vec3_t maxs2)

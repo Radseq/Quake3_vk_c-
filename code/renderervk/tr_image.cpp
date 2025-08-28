@@ -862,7 +862,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 
 	if (mipmap)
 	{
-		while (scaled_width > 1 || scaled_height > 1)
+		while (scaled_width > 1 && scaled_height > 1)
 		{
 			R_MipMap((byte *)scaled_buffer, (byte *)scaled_buffer, scaled_width, scaled_height);
 
@@ -916,10 +916,6 @@ static void upload_vk_image(image_t *image, byte *pic)
 		bool has_alpha = RawImage_HasAlpha(upload_data.buffer, w * h);
 		image->internalFormat = has_alpha ? vk::Format::eB4G4R4A4UnormPack16 : vk::Format::eA1R5G5B5UnormPack16;
 	}
-
-	image->handle = nullptr;
-	image->view = nullptr;
-	image->descriptor = nullptr;
 
 	image->uploadWidth = w;
 	image->uploadHeight = h;
@@ -1008,6 +1004,10 @@ image_t *R_CreateImage(std::string_view name, std::string_view name2, byte *pic,
 		image->wrapClampMode = vk::SamplerAddressMode::eClampToEdge;
 	else
 		image->wrapClampMode = vk::SamplerAddressMode::eRepeat;
+
+	image->handle = nullptr;
+	image->view = nullptr;
+	image->descriptor = nullptr;
 
 	upload_vk_image(image, pic);
 	return image;

@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include "math.hpp"
+#include "tr_local.hpp"
 #include "utils.hpp"
 
 #if defined(_DEBUG)
@@ -28,7 +29,9 @@ static int vulkanApiVersion = defaultVulkanApiVersion;
 
 constexpr int MIN_SWAPCHAIN_IMAGES = 2;
 constexpr int MIN_SWAPCHAIN_IMAGES_FIFO = 3;
-constexpr int VERTEX_BUFFER_SIZE = (4 * 1024 * 1024);
+constexpr int VERTEX_BUFFER_SIZE = (4 * 1024 * 1024);	/* by default */
+constexpr int STAGING_BUFFER_SIZE = (2 * 1024 * 1024);	/* by default */
+
 constexpr int IMAGE_CHUNK_SIZE = (32 * 1024 * 1024);
 
 #ifdef USE_VK_VALIDATION
@@ -207,8 +210,8 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer, const ch
 							   nullptr};
 
 	VK_CHECK(vk_inst.queue.submit(1, &submit_info, vk_inst.aux_fence));
-	// 2 seconds should be more than enough to finish the job in normal conditions:
-	auto res = vk_inst.device.waitForFences(1, &vk_inst.aux_fence, VK_TRUE, 2 * 1000000000ULL);
+	// 5 seconds should be more than enough to finish the job in normal conditions:
+	auto res = vk_inst.device.waitForFences(1, &vk_inst.aux_fence, vk::True, 5 * 1000000000ULL);
 	if (res != vk::Result::eSuccess)
 	{
 		ri.Error(ERR_FATAL, "waitForFences() failed with %s at %s", vk::to_string(res).data(), location);
@@ -393,15 +396,15 @@ static void vk_create_swapchain(const vk::PhysicalDevice &physical_device, const
 		image_extent.height = MIN(surface_caps.maxImageExtent.height, MAX(surface_caps.minImageExtent.height, (uint32_t)glConfig.vidHeight));
 	}
 
-	vk_inst.fastSky = true;
+	vk_inst.clearAttachment = true;
 
 	if (!vk_inst.fboActive)
 	{
 		// vk::ImageUsageFlagBits::eTransferDst is required by image clear operations.
 		if ((surface_caps.supportedUsageFlags & vk::ImageUsageFlagBits::eTransferDst) == vk::ImageUsageFlags{})
 		{
-			vk_inst.fastSky = false;
-			ri.Printf(PRINT_WARNING, "vk::ImageUsageFlagBits::eTransferDst is not supported by the swapchain\n");
+			vk_inst.clearAttachment = false;
+			ri.Printf(PRINT_WARNING, "vk::ImageUsageFlagBits::eTransferDst is not supported by the swapchain, \\r_clear might not work\n" );
 		}
 
 		// vk::ImageUsageFlagBits::eTransferSrc is required in order to take screenshots.
@@ -573,10 +576,10 @@ static void vk_create_render_passes(void)
 		// resolve/color buffer
 		attachments[0].format = vk_inst.color_format;
 		attachments[0].samples = vk::SampleCountFlagBits::e1;
-		;
+		
 
 #ifdef USE_BUFFER_CLEAR
-		if (vk.msaaActive)
+		if (vk_inst.msaaActive)
 			attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare; // Assuming this will be completely overwritten
 		else
 			attachments[0].loadOp = vk::AttachmentLoadOp::eClear;
@@ -848,7 +851,7 @@ static void vk_create_render_passes(void)
 	attachments[0].format = vk_inst.color_format;
 	attachments[0].samples = vk::SampleCountFlagBits::e1;
 #ifdef USE_BUFFER_CLEAR
-	if (vk.screenMapSamples > vk::SampleCountFlagBits::e1)
+	if (vk_inst.screenMapSamples > vk::SampleCountFlagBits::e1)
 		attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare;
 	else
 		attachments[0].loadOp = vk::AttachmentLoadOp::eClear;
@@ -1005,7 +1008,8 @@ static void ensure_staging_buffer_allocation(const vk::DeviceSize size)
 
 	vk_clean_staging_buffer();
 
-	vk_world.staging_buffer_size = MAX(size, 2 * 1024 * 1024);
+	vk_world.staging_buffer_size = MAX( size, STAGING_BUFFER_SIZE );
+	vk_world.staging_buffer_size = PAD( vk_world.staging_buffer_size, 1024 * 1024 );
 
 	if (vk_world.staging_buffer)
 		vk_inst.device.destroyBuffer(vk_world.staging_buffer);
@@ -2690,7 +2694,10 @@ static void vk_alloc_persistent_pipelines(void)
 			GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHFUNC_EQUAL		 // additive
 		};
 		bool polygon_offset[2] = {false, true};
-		int i, j, k, l;
+		int i, j, k;
+		#ifdef USE_PMLIGHT
+		int l;
+		#endif
 
 		def = {};
 		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
@@ -2863,6 +2870,11 @@ static void vk_alloc_persistent_pipelines(void)
 		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 		def.primitives = Vk_Primitive_Topology::TRIANGLE_STRIP;
 		vk_inst.images_debug_pipeline = vk_find_pipeline_ext(0, def, false);
+
+		def.state_bits = GLS_DEPTHTEST_DISABLE;
+		def.shader_type = Vk_Shader_Type::TYPE_COLOR_BLACK;
+		def.primitives = Vk_Primitive_Topology::TRIANGLE_STRIP;
+		vk_inst.images_debug_pipeline2 = vk_find_pipeline_ext( 0, def, false );
 	}
 }
 
@@ -3212,7 +3224,7 @@ static void vk_add_attachment_desc(const vk::Image &desc, vk::ImageView &image_v
 
 static void vk_get_image_memory_requirements(const vk::Image &image, vk::MemoryRequirements *memory_requirements)
 {
-	vk::DispatchLoaderDynamic dldi;
+	vk::detail::DispatchLoaderDynamic dldi;
 
 	// Correct way to initialize DispatchLoaderDynamic
 	dldi.init(vk_instance, vk_inst.device);
@@ -3535,10 +3547,10 @@ static void vk_create_sync_primitives(void)
 
 		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished, vk_inst.device.createSemaphore(desc));
 
-		vk::FenceCreateInfo fence_desc{};
+		vk::FenceCreateInfo fence_desc{vk::FenceCreateFlagBits::eSignaled};
 
 		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished_fence, vk_inst.device.createFence(fence_desc));
-		vk_inst.tess[i].waitForFence = false;
+		vk_inst.tess[i].waitForFence = true;
 #ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkSemaphore(vk_inst.tess[i].image_acquired), va("image_acquired semaphore %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT);
 		SET_OBJECT_NAME(VkSemaphore(vk_inst.tess[i].rendering_finished), va("rendering_finished semaphore %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT);
@@ -3832,7 +3844,11 @@ void vk_initialize(void)
 
 	vk_inst.maxBoundDescriptorSets = props.limits.maxBoundDescriptorSets;
 
-	glConfig.textureEnvAddAvailable = true;
+	if ( r_ext_texture_env_add->integer != 0 )
+		glConfig.textureEnvAddAvailable = true;
+	else
+		glConfig.textureEnvAddAvailable = false;
+
 	glConfig.textureCompression = TC_NONE;
 
 	major = VK_VERSION_MAJOR(props.apiVersion);
@@ -4000,8 +4016,8 @@ void vk_initialize(void)
 	// Pipeline layouts.
 	//
 	{
-		std::array<vk::DescriptorSetLayout, 6> set_layouts = {
-			vk_inst.set_layout_storage, // storage for testing flare visibility
+		std::array<vk::DescriptorSetLayout, 5> set_layouts = {
+			//vk_inst.set_layout_storage, // storage for testing flare visibility
 			vk_inst.set_layout_uniform, // fog/dlight parameters
 			vk_inst.set_layout_sampler, // diffuse
 			vk_inst.set_layout_sampler, // lightmap / fog-only
@@ -4028,16 +4044,22 @@ void vk_initialize(void)
 		// Create the pipeline layout
 		VK_CHECK_ASSIGN(vk_inst.pipeline_layout, vk_inst.device.createPipelineLayout(desc));
 
+
+
+
 		// flare test pipeline
-#if 0
 		set_layouts[0] = vk_inst.set_layout_storage; // dynamic storage buffer
 
 		desc.setLayoutCount = 1;
-		vk_inst.pipeline_layout_storage = vk_inst.device.createPipelineLayout(desc);
+		desc.pushConstantRangeCount = 1;
+
+		//VK_CHECK( qvkCreatePipelineLayout( vk_inst.device, &desc, nullptr, &vk_inst.pipeline_layout_storage ) );
+		VK_CHECK_ASSIGN(vk_inst.pipeline_layout_storage, vk_inst.device.createPipelineLayout(desc));
 
 
-		//	VK_CHECK( qvkCreatePipelineLayout( vk_inst.device, &desc, nullptr, &vk_inst.pipeline_layout_storage ) );
-#endif
+
+
+
 
 		// post-processing pipeline
 		set_layouts = {
@@ -4329,6 +4351,7 @@ void vk_shutdown(const refShutdownCode_t code)
 	vk_inst.device.destroyDescriptorSetLayout(vk_inst.set_layout_storage);
 
 	vk_inst.device.destroyPipelineLayout(vk_inst.pipeline_layout);
+	vk_inst.device.destroyPipelineLayout(vk_inst.pipeline_layout_storage);
 	vk_inst.device.destroyPipelineLayout(vk_inst.pipeline_layout_post_process);
 	vk_inst.device.destroyPipelineLayout(vk_inst.pipeline_layout_blend);
 
@@ -4474,6 +4497,11 @@ __cleanup:
 void vk_wait_idle(void)
 {
 	VK_CHECK(vk_inst.device.waitIdle());
+}
+
+void vk_queue_wait_idle( void )
+{
+	VK_CHECK(vk_inst.queue.waitIdle());
 }
 
 void vk_release_resources(void)
@@ -6132,7 +6160,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 											   &depth_stencil_state,
 											   &blend_state,
 											   &dynamic_state,
-											   vk_inst.pipeline_layout,
+											   (def.shader_type == Vk_Shader_Type::TYPE_DOT) ? vk_inst.pipeline_layout_storage : vk_inst.pipeline_layout,
 											   (renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP) ? vk_inst.render_pass.screenmap : vk_inst.render_pass.main,
 											   0,
 											   nullptr,
@@ -6183,11 +6211,12 @@ vk::Pipeline vk_gen_pipeline(const uint32_t index)
 	}
 	else
 	{
+		ri.Error( ERR_FATAL, "%s(%i): NULL pipeline", __func__, index );
 		return nullptr;
 	}
 }
 
-uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def)
+static uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def)
 {
 	VK_Pipeline_t *pipeline;
 	if (vk_inst.pipelines_count >= MAX_VK_PIPELINES)
@@ -6530,10 +6559,12 @@ void vk_bind_index_buffer(const vk::Buffer &buffer, const uint32_t offset)
 	vk_inst.cmd->curr_index_offset = offset;
 }
 
+#ifdef USE_VBO
 void vk_draw_indexed(const uint32_t indexCount, const uint32_t firstIndex)
 {
 	vk_inst.cmd->command_buffer.drawIndexed(indexCount, 1, firstIndex, 0, 0);
 }
+#endif
 
 void vk_bind_index(void)
 {
@@ -6735,17 +6766,23 @@ void vk_bind_descriptor_sets(void)
 		return;
 
 	uint32_t offsets[2]{}, offset_count;
-	uint32_t end, count;
+	uint32_t end, count, i;
 
 	end = vk_inst.cmd->descriptor_set.end;
 
 	offset_count = 0;
-	if (start == VK_DESC_STORAGE || start == VK_DESC_UNIFORM)
-	{ // uniform offset or storage offset
+	if ( /*start == VK_DESC_STORAGE || */ start == VK_DESC_UNIFORM ) { // uniform offset or storage offset
 		offsets[offset_count++] = vk_inst.cmd->descriptor_set.offset[start];
 	}
 
 	count = end - start + 1;
+
+	// fill NULL descriptor gaps
+	for ( i = start + 1; i < end; i++ ) {
+		if ( vk_inst.cmd->descriptor_set.current[i] == VK_NULL_HANDLE ) {
+			vk_inst.cmd->descriptor_set.current[i] = tr.whiteImage->descriptor;
+		}
+	}
 
 	// vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout, start, vk_inst.cmd->descriptor_set.current + start, offsets);
 	vk_inst.cmd->command_buffer.bindDescriptorSets(
@@ -6776,18 +6813,44 @@ void vk_bind_pipeline(const uint32_t pipeline)
 	vk_world.dirty_depth_attachment |= (vk_inst.pipelines[pipeline].def.state_bits & GLS_DEPTHMASK_TRUE);
 }
 
+static void vk_update_depth_range(const Vk_Depth_Range depth_range)
+{
+	// configure pipeline's dynamic state
+	if (vk_inst.cmd->depth_range != depth_range)
+	{
+		vk::Rect2D scissor_rect;
+		vk::Viewport viewport;
+
+		vk_inst.cmd->depth_range = depth_range;
+
+		get_scissor_rect(scissor_rect);
+
+		if (memcmp(&vk_inst.cmd->scissor_rect, &scissor_rect, sizeof(scissor_rect)) != 0)
+		{
+			vk_inst.cmd->command_buffer.setScissor(0, scissor_rect);
+			vk_inst.cmd->scissor_rect = scissor_rect;
+		}
+
+		get_viewport(viewport, depth_range);
+		vk_inst.cmd->command_buffer.setViewport(0, viewport);
+	}
+}
+
 void vk_draw_geometry(const Vk_Depth_Range depth_range, const bool indexed)
 {
-	vk::Rect2D scissor_rect;
-	vk::Viewport viewport;
-
 	if (vk_inst.geometry_buffer_size_new)
 	{
 		// geometry buffer overflow happened this frame
 		return;
 	}
 
+	vk::Rect2D scissor_rect;
+	vk::Viewport viewport;
+
 	vk_bind_descriptor_sets();
+
+	// configure pipeline's dynamic state
+	vk_update_depth_range( depth_range );
 
 	// configure pipeline's dynamic state
 	if (vk_inst.cmd->depth_range != depth_range)
@@ -6823,6 +6886,22 @@ void vk_draw_geometry(const Vk_Depth_Range depth_range, const bool indexed)
 	}
 }
 
+void vk_draw_dot( uint32_t storage_offset )
+{
+	if ( vk_inst.geometry_buffer_size_new ) {
+		// geometry buffer overflow happened this frame
+		return;
+	}
+
+	vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_storage, VK_DESC_STORAGE, 1,
+		&vk_inst.storage.descriptor, 1,  &storage_offset );
+
+	// configure pipeline's dynamic state
+	vk_update_depth_range( Vk_Depth_Range::DEPTH_RANGE_NORMAL );
+
+	vk_inst.cmd->command_buffer.draw(tess.numVertexes, 1, 0, 0);
+}
+
 static void vk_begin_render_pass(const vk::RenderPass &renderPass, const vk::Framebuffer &frameBuffer, const bool clearValues, const uint32_t width, const uint32_t height)
 {
 	vk::ClearValue clear_values[3]{};
@@ -6852,11 +6931,15 @@ static void vk_begin_render_pass(const vk::RenderPass &renderPass, const vk::Fra
 	}
 
 	vk_inst.cmd->command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
+
+	vk_inst.cmd->last_pipeline = VK_NULL_HANDLE;
+	vk_inst.cmd->depth_range = Vk_Depth_Range::DEPTH_RANGE_COUNT;
 }
 
 void vk_begin_main_render_pass(void)
 {
-	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
+	//vk::Framebuffer &frameBuffer =  vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
+	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.main[vk_inst.cmd->swapchain_image_index];
 
 	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_MAIN;
 
@@ -6872,7 +6955,7 @@ void vk_begin_main_render_pass(void)
 
 void vk_begin_post_bloom_render_pass(void)
 {
-	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
+	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.main[vk_inst.cmd->swapchain_image_index];
 
 	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_POST_BLOOM;
 
@@ -6970,10 +7053,10 @@ static bool vk_find_screenmap_drawsurfs(void)
 
 void vk_begin_frame(void)
 {
-	vk::Result res;
-
 	if (vk_inst.frame_count++) // might happen during stereo rendering
 		return;
+
+	vk::Result res;
 
 	vk_inst.cmd = &vk_inst.tess[vk_inst.cmd_index];
 
@@ -6999,19 +7082,23 @@ void vk_begin_frame(void)
 
 	if (!ri.CL_IsMinimized())
 	{
+		bool retry = false;
+_retry:
 		res = vk_inst.device.acquireNextImageKHR(vk_inst.swapchain,
 												 1 * 1000000000ULL,
 												 vk_inst.cmd->image_acquired,
 												 nullptr,
-												 &vk_inst.swapchain_image_index);
+												 &vk_inst.cmd->swapchain_image_index);
 		// when running via RDP: "Application has already acquired the maximum number of images (0x2)"
 		// probably caused by "device lost" errors
 		if (res < vk::Result::eSuccess)
 		{
-			if (res == vk::Result::eErrorOutOfDateKHR)
+			if (res == vk::Result::eErrorOutOfDateKHR && retry == false)
 			{
+				retry = true;
 				// swapchain re-creation needed
 				vk_restart_swapchain(__func__);
+				goto _retry;
 			}
 			else
 			{
@@ -7019,10 +7106,9 @@ void vk_begin_frame(void)
 			}
 		}
 	}
-	else
+	else 
 	{
-		vk_inst.swapchain_image_index++;
-		vk_inst.swapchain_image_index %= vk_inst.swapchain_image_count;
+		vk_inst.cmd->swapchain_image_acquired = true;
 	}
 
 	VK_CHECK(vk_inst.device.resetFences(vk_inst.cmd->rendering_finished_fence));
@@ -7173,7 +7259,7 @@ void vk_end_frame(void)
 			vk_inst.renderScaleX = 1.0;
 			vk_inst.renderScaleY = 1.0;
 
-			vk_begin_render_pass(vk_inst.render_pass.gamma, vk_inst.framebuffers.gamma[vk_inst.swapchain_image_index], false, vk_inst.renderWidth, vk_inst.renderHeight);
+			vk_begin_render_pass(vk_inst.render_pass.gamma, vk_inst.framebuffers.gamma[vk_inst.cmd->swapchain_image_index], false, vk_inst.renderWidth, vk_inst.renderHeight);
 			vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_inst.gamma_pipeline);
 
 			vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, vk_inst.color_descriptor, nullptr);
@@ -7210,22 +7296,24 @@ void vk_end_frame(void)
 	backEnd.pc.msec = ri.Milliseconds() - backEnd.pc.msec;
 
 	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_MAIN;
-	// vk_present_frame();
 }
 
 void vk_present_frame(void)
 {
-	if (ri.CL_IsMinimized())
+	if ( ri.CL_IsMinimized() || !vk_inst.cmd->swapchain_image_acquired )
 		return;
 
 	if (!vk_inst.cmd->waitForFence)
+		// nothing has been submitted this frame due to geometry buffer overflow?
 		return;
+
+	vk_inst.cmd->swapchain_image_acquired = false;
 
 	vk::PresentInfoKHR present_info{1,
 									&vk_inst.cmd->rendering_finished,
 									1,
 									&vk_inst.swapchain,
-									&vk_inst.swapchain_image_index,
+									&vk_inst.cmd->swapchain_image_index,
 									nullptr,
 									nullptr};
 
@@ -7334,7 +7422,7 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 	else
 	{
 		srcImageLayout = vk::ImageLayout::ePresentSrcKHR;
-		srcImage = vk_inst.swapchain_images[vk_inst.swapchain_image_index];
+		srcImage = vk_inst.swapchain_images[vk_inst.cmd->swapchain_image_index];
 	}
 
 	// Com_Memset(&desc, 0, sizeof(desc));
@@ -7629,7 +7717,7 @@ bool vk_bloom(void)
 		{
 			if (vk_inst.cmd->descriptor_set.current[i])
 			{
-				if (i == VK_DESC_UNIFORM || i == VK_DESC_STORAGE)
+				if ( i == VK_DESC_UNIFORM /*|| i == VK_DESC_STORAGE*/ )
 					vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout, i, vk_inst.cmd->descriptor_set.current[i], vk_inst.cmd->descriptor_set.offset[i]);
 				else
 					vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout, i, vk_inst.cmd->descriptor_set.current[i], nullptr);
