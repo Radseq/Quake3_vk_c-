@@ -4883,7 +4883,7 @@ void Com_RandomBytes( byte *string, int len )
 		string[i] = (unsigned char)( rand() % 256 );
 }
 
-
+#if 0
 static bool strgtr(const char *s0, const char *s1) {
 	int l0, l1, i;
 
@@ -4904,7 +4904,7 @@ static bool strgtr(const char *s0, const char *s1) {
 	}
 	return false;
 }
-
+#endif
 
 /*
 ==================
