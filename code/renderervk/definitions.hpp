@@ -237,6 +237,8 @@ typedef struct vk_tess_s
     vk::CommandBuffer command_buffer;
 
     vk::Semaphore image_acquired;
+    uint32_t	swapchain_image_index;
+	bool	swapchain_image_acquired;
     vk::Semaphore rendering_finished;
     vk::Fence rendering_finished_fence;
     bool waitForFence;
@@ -285,7 +287,7 @@ typedef struct
     uint32_t swapchain_image_count;
     vk::Image swapchain_images[MAX_SWAPCHAIN_IMAGES];
     vk::ImageView swapchain_image_views[MAX_SWAPCHAIN_IMAGES];
-    uint32_t swapchain_image_index;
+    //uint32_t swapchain_image_index;
 
     vk::CommandPool command_pool;
 

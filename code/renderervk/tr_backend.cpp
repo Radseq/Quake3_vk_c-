@@ -248,10 +248,10 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 		// entities merged into a single batch, like smoke and blood puff sprites
 		if (((oldSort ^ drawSurfs->sort) & ~QSORT_REFENTITYNUM_MASK) || !shader->entityMergable)
 		{
-			if (oldShader != NULL)
-			{
+			//if (oldShader != NULL)
+			//{
 				RB_EndSurface();
-			}
+			//}
 #ifdef USE_PMLIGHT
 #define INSERT_POINT shaderSort_t::SS_FOG
 			if (backEnd.refdef.numLitSurfs && oldShaderSort < static_cast<float>(INSERT_POINT) && shader->sort >= static_cast<float>(INSERT_POINT))
@@ -593,6 +593,7 @@ void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client
 	if (!tr.scratchImage[client])
 	{
 		tr.scratchImage[client] = R_CreateImage(va_cpp("*scratch%i", client), {}, data, cols, rows, static_cast<imgFlags_t>(imgFlags_t::IMGFLAG_CLAMPTOEDGE | imgFlags_t::IMGFLAG_RGB | imgFlags_t::IMGFLAG_NOSCALE));
+		return;
 	}
 
 	image = tr.scratchImage[client];

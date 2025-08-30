@@ -30,7 +30,8 @@ static int vulkanApiVersion = defaultVulkanApiVersion;
 
 constexpr int MIN_SWAPCHAIN_IMAGES = 2;
 constexpr int MIN_SWAPCHAIN_IMAGES_FIFO = 3;
-constexpr int VERTEX_BUFFER_SIZE = (4 * 1024 * 1024);
+constexpr int VERTEX_BUFFER_SIZE = (4 * 1024 * 1024);	/* by default */
+constexpr int STAGING_BUFFER_SIZE = (2 * 1024 * 1024);	/* by default */
 constexpr int IMAGE_CHUNK_SIZE = (32 * 1024 * 1024);
 
 #ifdef USE_VK_VALIDATION
@@ -1004,7 +1005,8 @@ static void ensure_staging_buffer_allocation(const vk::DeviceSize size)
 
 	vk_clean_staging_buffer();
 
-	vk_world.staging_buffer_size = MAX(size, 2 * 1024 * 1024);
+	vk_world.staging_buffer_size = MAX( size, STAGING_BUFFER_SIZE );
+	vk_world.staging_buffer_size = PAD( vk_world.staging_buffer_size, 1024 * 1024 );
 
 	if (vk_world.staging_buffer)
 		vk_inst.device.destroyBuffer(vk_world.staging_buffer);
@@ -6909,7 +6911,7 @@ static void vk_begin_render_pass(const vk::RenderPass &renderPass, const vk::Fra
 
 void vk_begin_main_render_pass(void)
 {
-	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
+	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.main[vk_inst.cmd->swapchain_image_index];
 
 	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_MAIN;
 
@@ -6925,7 +6927,7 @@ void vk_begin_main_render_pass(void)
 
 void vk_begin_post_bloom_render_pass(void)
 {
-	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.main[vk_inst.swapchain_image_index];
+	vk::Framebuffer &frameBuffer = vk_inst.framebuffers.main[vk_inst.cmd->swapchain_image_index];
 
 	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_POST_BLOOM;
 
@@ -7047,15 +7049,15 @@ void vk_begin_frame(void)
 			}
 		}
 		VK_CHECK(vk_inst.device.resetFences(vk_inst.cmd->rendering_finished_fence));
-	
+	}
 
-		if (!ri.CL_IsMinimized())
+		if (!ri.CL_IsMinimized() && !vk_inst.cmd->swapchain_image_acquired)
 		{
 			res = vk_inst.device.acquireNextImageKHR(vk_inst.swapchain,
 													1 * 1000000000ULL,
 													vk_inst.cmd->image_acquired,
 													nullptr,
-													&vk_inst.swapchain_image_index);
+													&vk_inst.cmd->swapchain_image_index);
 			// when running via RDP: "Application has already acquired the maximum number of images (0x2)"
 			// probably caused by "device lost" errors
 			if (res < vk::Result::eSuccess)
@@ -7070,10 +7072,7 @@ void vk_begin_frame(void)
 					ri.Error(ERR_FATAL, "vkAcquireNextImageKHR returned %s", vk::to_string(res).data());
 				}
 			}
-		} else {
-			vk_inst.swapchain_image_index++;
-			vk_inst.swapchain_image_index %= vk_inst.swapchain_image_count;
-		}
+		vk_inst.cmd->swapchain_image_acquired = true;
 	}
 
 	//VK_CHECK(vk_inst.device.resetFences(vk_inst.cmd->rendering_finished_fence));
@@ -7224,7 +7223,7 @@ void vk_end_frame(void)
 			vk_inst.renderScaleX = 1.0;
 			vk_inst.renderScaleY = 1.0;
 
-			vk_begin_render_pass(vk_inst.render_pass.gamma, vk_inst.framebuffers.gamma[vk_inst.swapchain_image_index], false, vk_inst.renderWidth, vk_inst.renderHeight);
+			vk_begin_render_pass(vk_inst.render_pass.gamma, vk_inst.framebuffers.gamma[vk_inst.cmd->swapchain_image_index], false, vk_inst.renderWidth, vk_inst.renderHeight);
 			vk_inst.cmd->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_inst.gamma_pipeline);
 
 			vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout_post_process, 0, vk_inst.color_descriptor, nullptr);
@@ -7266,7 +7265,7 @@ void vk_end_frame(void)
 
 void vk_present_frame(void)
 {
-	if (ri.CL_IsMinimized())
+	if (ri.CL_IsMinimized() || !vk_inst.cmd->swapchain_image_acquired )
 		return;
 
 	if ( !vk_inst.cmd->waitForFence ) {
@@ -7278,9 +7277,11 @@ void vk_present_frame(void)
 									&vk_inst.cmd->rendering_finished,
 									1,
 									&vk_inst.swapchain,
-									&vk_inst.swapchain_image_index,
+									&vk_inst.cmd->swapchain_image_index,
 									nullptr,
 									nullptr};
+
+	vk_inst.cmd->swapchain_image_acquired = false;
 
 #ifdef USE_VK_VALIDATION
 	try
@@ -7387,7 +7388,7 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 	else
 	{
 		srcImageLayout = vk::ImageLayout::ePresentSrcKHR;
-		srcImage = vk_inst.swapchain_images[vk_inst.swapchain_image_index];
+		srcImage = vk_inst.swapchain_images[vk_inst.cmd->swapchain_image_index];
 	}
 
 	// Com_Memset(&desc, 0, sizeof(desc));
@@ -7682,7 +7683,7 @@ bool vk_bloom(void)
 		{
 			if (vk_inst.cmd->descriptor_set.current[i])
 			{
-				if (i == VK_DESC_UNIFORM || i == VK_DESC_STORAGE)
+				if (i == VK_DESC_UNIFORM /*|| i == VK_DESC_STORAGE*/)
 					vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout, i, vk_inst.cmd->descriptor_set.current[i], vk_inst.cmd->descriptor_set.offset[i]);
 				else
 					vk_inst.cmd->command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vk_inst.pipeline_layout, i, vk_inst.cmd->descriptor_set.current[i], nullptr);
