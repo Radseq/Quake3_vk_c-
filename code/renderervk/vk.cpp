@@ -979,8 +979,6 @@ static void allocate_and_bind_image_memory(const vk::Image &image)
 	VK_CHECK(vk_inst.device.bindImageMemory(image, chunk->memory, chunk->used - memory_requirements.size));
 }
 
-static vk::CommandBuffer staging_command_buffer = nullptr;
-
 static void vk_clean_staging_buffer(void)
 {
 	if (vk_world.staging_buffer)
@@ -996,11 +994,32 @@ static void vk_clean_staging_buffer(void)
 	vk_world.staging_buffer_size = 0;
 }
 
+static vk::CommandBuffer staging_command_buffer = nullptr;
+
+void flush_staging_command_buffer( void )
+{
+	if ( staging_command_buffer != nullptr )
+	{
+		end_command_buffer( staging_command_buffer, __func__ );
+		staging_command_buffer = nullptr;
+	}
+	//if ( vk_world.staging_buffer_offset != 0 ) // TODO: use it instead of command buffer check?
+	// {
+		//
+	// }
+	vk_world.staging_buffer_offset = 0;
+}
+
 static void ensure_staging_buffer_allocation(const vk::DeviceSize size)
 {
 	void *data;
 
-	if (vk_world.staging_buffer_size >= size)
+	if ( vk_world.staging_buffer_size - vk_world.staging_buffer_offset >= size )
+		return;
+
+	flush_staging_command_buffer();
+
+	if ( vk_world.staging_buffer_size - vk_world.staging_buffer_offset >= size )
 		return;
 
 	vk_clean_staging_buffer();
@@ -1038,6 +1057,7 @@ static void ensure_staging_buffer_allocation(const vk::DeviceSize size)
 	VK_CHECK(vk_inst.device.mapMemory(vk_world.staging_buffer_memory, 0, vk::WholeSize, {}, &data));
 
 	vk_world.staging_buffer_ptr = (byte *)data;
+	vk_world.staging_buffer_offset = 0;
 #ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkBuffer(vk_world.staging_buffer), "staging buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
 	SET_OBJECT_NAME(VkDeviceMemory(vk_world.staging_buffer_memory), "staging buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
@@ -3212,7 +3232,7 @@ static void vk_add_attachment_desc(const vk::Image &desc, vk::ImageView &image_v
 
 static void vk_get_image_memory_requirements(const vk::Image &image, vk::MemoryRequirements *memory_requirements)
 {
-	vk::DispatchLoaderDynamic dldi;
+	vk::detail::DispatchLoaderDynamic dldi;
 
 	// Correct way to initialize DispatchLoaderDynamic
 	dldi.init(vk_instance, vk_inst.device);
@@ -3536,6 +3556,7 @@ static void vk_create_sync_primitives(void)
 		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished, vk_inst.device.createSemaphore(desc));
 
 		vk::FenceCreateInfo fence_desc{};
+		fence_desc.flags = vk::FenceCreateFlags{}; // so it can be used to start rendering
 
 		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished_fence, vk_inst.device.createFence(fence_desc));
 		vk_inst.tess[i].waitForFence = false;
@@ -4717,11 +4738,12 @@ static byte *resample_image_data(vk::Format target_format, byte *data, const int
 void vk_upload_image_data(image_t &image, int x, int y, int width, int height, int mipmaps, byte *pixels, int size, bool update)
 {
 
-	vk::CommandBuffer command_buffer;
+	//vk::CommandBuffer command_buffer;
 	constexpr std::size_t max_regions = 16; // Assuming a maximum of 16 regions
 	std::array<vk::BufferImageCopy, max_regions> regions;
 	byte *buf;
 	int bpp;
+	int i;
 	int buffer_size = 0;
 	uint32_t num_regions = 0;
 
@@ -4766,32 +4788,42 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 
 	ensure_staging_buffer_allocation(buffer_size);
 
-	std::memcpy(vk_world.staging_buffer_ptr, buf, buffer_size);
+	if ( staging_command_buffer == nullptr )	{
+		staging_command_buffer = begin_command_buffer();
+	}
 
-	command_buffer = begin_command_buffer();
+	for ( i = 0; i < num_regions; i++ ) {
+		regions[i].bufferOffset += vk_world.staging_buffer_offset;
+	}
+
+	Com_Memcpy( vk_world.staging_buffer_ptr + vk_world.staging_buffer_offset, buf, buffer_size );
+	vk_world.staging_buffer_offset += buffer_size;
+
+	//staging_command_buffer = begin_command_buffer();
+	//record_buffer_memory_barrier( staging_command_buffer, vk_world.staging_buffer, VK_WHOLE_SIZE, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT );
 
 	// ecord_buffer_memory_barrier(command_buffer, vk_world.staging_buffer, vk::WholeSize, vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eHostWrite, vk::AccessFlagBits::eTransferRead);
 
 	if (update)
 	{
-		record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor,
+		record_image_layout_transition(staging_command_buffer, image.handle, vk::ImageAspectFlagBits::eColor,
 									   vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eTransferDstOptimal, 0, 0);
 	}
 	else
 	{
-		record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor,
+		record_image_layout_transition(staging_command_buffer, image.handle, vk::ImageAspectFlagBits::eColor,
 									   vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, static_cast<uint32_t>(vk::PipelineStageFlagBits::eHost), 0);
 	}
 
-	command_buffer.copyBufferToImage(
+	staging_command_buffer.copyBufferToImage(
 		vk_world.staging_buffer,
 		image.handle,
 		vk::ImageLayout::eTransferDstOptimal,
 		num_regions,
 		regions.data());
 
-	record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, 0, 0);
-	end_command_buffer(command_buffer, __func__);
+	record_image_layout_transition(staging_command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, 0, 0);
+	// flush_staging_command_buffer(); // uncomment for old single-image sync behavior
 
 	if (buf != pixels)
 	{
@@ -6972,13 +7004,14 @@ void vk_begin_frame(void)
 {
 	vk::Result res;
 
+	flush_staging_command_buffer(); // finish any pending texture uploads
+
 	if (vk_inst.frame_count++) // might happen during stereo rendering
 		return;
 
 	vk_inst.cmd = &vk_inst.tess[vk_inst.cmd_index];
 
-	if (vk_inst.cmd->waitForFence)
-	{
+	if ( vk_inst.cmd->waitForFence ) {
 		vk_inst.cmd->waitForFence = false;
 
 		res = vk_inst.device.waitForFences(vk_inst.cmd->rendering_finished_fence, vk::False, 1e10);
@@ -6987,11 +7020,11 @@ void vk_begin_frame(void)
 			if (res == vk::Result::eErrorDeviceLost)
 			{
 				// silently discard previous command buffer
-				ri.Printf(PRINT_WARNING, "Vulkan: %s returned %s", "vkWaitForfences", vk::to_string(res).data());
+				ri.Printf(PRINT_WARNING, "Vulkan: %s returned %s", "vkWaitForFences", vk::to_string(res).data());
 			}
 			else
 			{
-				ri.Error(ERR_FATAL, "Vulkan: %s returned %s", "vkWaitForfences", vk::to_string(res).data());
+				ri.Error(ERR_FATAL, "Vulkan: %s returned %s", "vkWaitForFences", vk::to_string(res).data());
 			}
 		}
 		VK_CHECK(vk_inst.device.resetFences(vk_inst.cmd->rendering_finished_fence));
@@ -7018,14 +7051,12 @@ void vk_begin_frame(void)
 				ri.Error(ERR_FATAL, "vkAcquireNextImageKHR returned %s", vk::to_string(res).data());
 			}
 		}
-	}
-	else
-	{
+	} else {
 		vk_inst.swapchain_image_index++;
 		vk_inst.swapchain_image_index %= vk_inst.swapchain_image_count;
 	}
 
-	VK_CHECK(vk_inst.device.resetFences(vk_inst.cmd->rendering_finished_fence));
+	//VK_CHECK(vk_inst.device.resetFences(vk_inst.cmd->rendering_finished_fence));
 
 	vk::CommandBufferBeginInfo begin_info{vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
 										  nullptr,
@@ -7209,12 +7240,16 @@ void vk_end_frame(void)
 	// presentation may take undefined time to complete, we can't measure it in a reliable way
 	backEnd.pc.msec = ri.Milliseconds() - backEnd.pc.msec;
 
-	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_MAIN;
+	//vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_MAIN;
 	// vk_present_frame();
 }
 
 void vk_present_frame(void)
 {
+	// pickup next command buffer for rendering
+	vk_inst.cmd_index++;
+	vk_inst.cmd_index %= NUM_COMMAND_BUFFERS;
+
 	if (ri.CL_IsMinimized())
 		return;
 
