@@ -1636,7 +1636,7 @@ static void R_SortDrawSurfs(drawSurf_t &drawSurfs, const int numDrawSurfs)
 				return;
 			}
 		#ifndef USE_BUFFER_CLEAR
-			if (r_fastsky->integer == 0 || !vk.clearAttachment) {
+			if (r_fastsky->integer == 0 || !vk_inst.clearAttachment) {
 		#else
 			if (r_fastsky->integer == 0) {
 		#endif

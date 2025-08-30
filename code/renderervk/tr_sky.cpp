@@ -796,7 +796,7 @@ Other things could be stuck in here, like birds in the sky, etc
 void RB_StageIteratorSky(void)
 {
 #ifndef USE_BUFFER_CLEAR
-    if (r_fastsky->integer && vk.clearAttachment)
+    if (r_fastsky->integer && vk_inst.clearAttachment)
 #else
     if (r_fastsky->integer)
 #endif
