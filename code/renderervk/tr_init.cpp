@@ -1511,8 +1511,9 @@ static void RE_Shutdown(refShutdownCode_t code)
 	{
 		// R_IssuePendingRenderCommands();
 		R_DeleteTextures();
-		vk_release_resources();
 	}
+
+	vk_release_resources();
 
 	R_DoneFreeType();
 

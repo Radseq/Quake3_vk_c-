@@ -198,36 +198,33 @@ static vk::CommandBuffer begin_command_buffer(void)
 
 static void end_command_buffer(const vk::CommandBuffer &command_buffer, const char *location)
 {
+#ifdef USE_UPLOAD_QUEUE
+	const vk::PipelineStageFlags wait_dst_stage_mask = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
+	vk::Semaphore waits;
+#endif
+
+	std::array<vk::CommandBuffer, 1> cmdbuf{ command_buffer };
 	VK_CHECK(command_buffer.end());
 
-	vk::SubmitInfo submit_info{0,
-							   nullptr,
-							   nullptr,
-							   1,
-							   &command_buffer,
-							   0,
-							   nullptr,
-							   nullptr};
+    vk::SubmitInfo submitInfo{};
+#ifdef USE_UPLOAD_QUEUE
+    if (vk_inst.rendering_finished) {
+        vk::Semaphore waits = vk_inst.rendering_finished;
+        vk_inst.rendering_finished = vk::Semaphore{};   // clear to "null"
 
-	VK_CHECK(vk_inst.queue.submit(1, &submit_info, vk_inst.aux_fence));
-	// 5 seconds should be more than enough to finish the job in normal conditions:
-	auto res = vk_inst.device.waitForFences(1, &vk_inst.aux_fence, vk::True, 5 * 1000000000ULL);
-	if (res != vk::Result::eSuccess)
-	{
-		ri.Error(ERR_FATAL, "waitForFences() failed with %s at %s", vk::to_string(res).data(), location);
-	}
+        submitInfo
+            .setWaitSemaphores(waits)
+            .setWaitDstStageMask(wait_dst_stage_mask)
+            .setCommandBuffers(cmdbuf);
+    } else
+#endif
+    {
+        submitInfo.setCommandBuffers(cmdbuf);
+    }
 
-	VK_CHECK(vk_inst.device.resetFences(1, &vk_inst.aux_fence));
 
-	// VK_CHECK(vk_inst.queue.submit(1, &submit_info, nullptr));
-	//  vk::Fence fence;
-	//  VK_CHECK_ASSIGN(fence, vk_inst.device.createFence(vk::FenceCreateInfo{}));
-
-	// VK_CHECK(vk_inst.queue.submit(1, &submit_info, fence));
-	// VK_CHECK(vk_inst.device.waitForFences(1, &fence, vk::True, UINT64_MAX));
-	// vk_inst.device.destroyFence(fence);
-
-	// VK_CHECK(vk_inst.queue.waitIdle());
+	VK_CHECK(vk_inst.queue.submit(submitInfo, nullptr));
+	vk_queue_wait_idle();
 
 	vk_inst.device.freeCommandBuffers(vk_inst.command_pool,
 									  1,
@@ -993,15 +990,110 @@ static void vk_clean_staging_buffer(void)
 		vk_inst.device.freeMemory(vk_world.staging_buffer_memory, nullptr);
 		vk_world.staging_buffer_memory = nullptr;
 	}
+		vk_world.staging_buffer_ptr = NULL;
 	vk_world.staging_buffer_size = 0;
+#ifdef USE_UPLOAD_QUEUE
+	vk_world.staging_buffer_offset = 0;
+#endif
 }
+
+#ifdef USE_UPLOAD_QUEUE
+static void vk_wait_staging_buffer()
+{
+    if (vk_inst.aux_fence_wait)
+    {
+        const uint64_t timeout_ns = 5ull * 1000ull * 1000ull * 1000ull;
+
+        vk::Result res = vk_inst.device.waitForFences(vk_inst.aux_fence, /*waitAll*/ vk::True, timeout_ns);
+        if (res != vk::Result::eSuccess) {
+            ri.Error(ERR_FATAL, "vkWaitForFences() failed with %s at %s",
+                     vk::to_string(res).data(), __func__);
+        }
+
+        VK_CHECK(vk_inst.device.resetFences(vk_inst.aux_fence));
+        vk_inst.aux_fence_wait = false;
+
+        // flags==0 in C → empty Flags in hpp
+        VK_CHECK(vk_inst.staging_command_buffer.reset(vk::CommandBufferResetFlags{}));
+    }
+}
+
+static void vk_submit_staging_buffer(bool final)
+{
+    if (vk_world.staging_buffer_offset == 0) {
+        return;
+    }
+
+    constexpr vk::PipelineStageFlags waitDstStageMask =
+        vk::PipelineStageFlagBits::eColorAttachmentOutput;
+
+    vk_world.staging_buffer_offset = 0;
+
+    VK_CHECK(vk_inst.staging_command_buffer.end());
+
+    vk::SubmitInfo submitInfo{};
+    submitInfo.setCommandBuffers(vk_inst.staging_command_buffer);
+
+    if (vk_inst.rendering_finished) {
+        // first call after previous queue submission?
+        vk::Semaphore waits = vk_inst.rendering_finished;
+        vk_inst.rendering_finished = vk::Semaphore{}; // clear to null
+
+        submitInfo
+            .setWaitSemaphores(waits)
+            .setWaitDstStageMask(waitDstStageMask);
+    }
+
+    if (vk_inst.image_uploaded) {
+        ri.Error(ERR_FATAL, "Vulkan: incorrect state during image upload");
+    }
+
+    if (final)
+    {
+        // final submission before recording
+        submitInfo.setSignalSemaphores(vk_inst.image_uploaded2);
+        vk_inst.image_uploaded = vk_inst.image_uploaded2;
+
+        VK_CHECK(vk_inst.queue.submit(submitInfo, vk_inst.aux_fence));
+        vk_inst.aux_fence_wait = true;
+    }
+    else
+    {
+        // submit and block until it finishes, then reset fence/cmd buffer
+        VK_CHECK(vk_inst.queue.submit(submitInfo, vk_inst.aux_fence));
+
+        const uint64_t timeout_ns = 5ull * 1000ull * 1000ull * 1000ull;
+        vk::Result res = vk_inst.device.waitForFences(vk_inst.aux_fence, /*waitAll*/ vk::True, timeout_ns);
+        if (res != vk::Result::eSuccess) {
+            ri.Error(ERR_FATAL, "vkWaitForFences() failed with %s at %s",
+                     vk::to_string(res).data(), __func__);
+        }
+
+        VK_CHECK(vk_inst.device.resetFences(vk_inst.aux_fence));
+        VK_CHECK(vk_inst.staging_command_buffer.reset(vk::CommandBufferResetFlags{}));
+    }
+}
+#endif // USE_UPLOAD_QUEUE
 
 static void ensure_staging_buffer_allocation(const vk::DeviceSize size)
 {
 	void *data;
 
-	if ( vk_world.staging_buffer_size >= size )
+#ifdef USE_UPLOAD_QUEUE
+	if ( vk_world.staging_buffer_size - vk_world.staging_buffer_offset >= size ) {
 		return;
+	}
+
+	vk_submit_staging_buffer( false );
+
+	if ( vk_world.staging_buffer_size /* - vk_world.staging_buffer_offset */ >= size ) {
+		return;
+	}
+#else
+	if ( vk_world.staging_buffer_size >= size ) {
+		return;
+	}
+#endif
 
 	vk_clean_staging_buffer();
 
@@ -1039,6 +1131,9 @@ static void ensure_staging_buffer_allocation(const vk::DeviceSize size)
 	VK_CHECK(vk_inst.device.mapMemory(vk_world.staging_buffer_memory, 0, vk::WholeSize, {}, &data));
 
 	vk_world.staging_buffer_ptr = (byte *)data;
+#ifdef USE_UPLOAD_QUEUE
+	vk_world.staging_buffer_offset = 0;
+#endif
 #ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkBuffer(vk_world.staging_buffer), "staging buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
 	SET_OBJECT_NAME(VkDeviceMemory(vk_world.staging_buffer_memory), "staging buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
@@ -3544,20 +3639,32 @@ static void vk_create_sync_primitives(void)
 
 		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished, vk_inst.device.createSemaphore(desc));
 
+#ifdef USE_UPLOAD_QUEUE
+			VK_CHECK_ASSIGN(vk_inst.image_uploaded2, vk_inst.device.createSemaphore(desc));
+#endif
+
 		vk::FenceCreateInfo fence_desc{};
-		fence_desc.flags = vk::FenceCreateFlagBits::eSignaled; // so it can be used to start rendering
+		//fence_desc.flags = vk::FenceCreateFlagBits::eSignaled; // so it can be used to start rendering
 
 		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished_fence, vk_inst.device.createFence(fence_desc));
-		vk_inst.tess[i].waitForFence = true;
+		vk_inst.tess[i].waitForFence = false;
 #ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkSemaphore(vk_inst.tess[i].image_acquired), va("image_acquired semaphore %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT);
 		SET_OBJECT_NAME(VkSemaphore(vk_inst.tess[i].rendering_finished), va("rendering_finished semaphore %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT);
+#ifdef USE_UPLOAD_QUEUE
+		SET_OBJECT_NAME( VkSemaphore(vk.tess[i].rendering_finished2), va( "rendering_finished2 semaphore %i", i ), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT );
+#endif
 		SET_OBJECT_NAME(VkFence(vk_inst.tess[i].rendering_finished_fence), va("rendering_finished fence %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT);
 #endif
 	}
 	vk::FenceCreateInfo fence_desc{};
 
+#ifdef USE_UPLOAD_QUEUE
 	VK_CHECK_ASSIGN(vk_inst.aux_fence, vk_inst.device.createFence(fence_desc));
+	vk_inst.rendering_finished = nullptr;
+	vk_inst.image_uploaded = nullptr;
+	vk_inst.aux_fence_wait = false;
+#endif
 
 #ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkFence(vk_inst.aux_fence), "aux fence", VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT);
@@ -3568,15 +3675,26 @@ static void vk_destroy_sync_primitives(void)
 {
 	uint32_t i;
 
+#ifdef USE_UPLOAD_QUEUE
+	vk_inst.device.destroySemaphore(vk_inst.image_uploaded2);
+#endif
+
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++)
 	{
 		vk_inst.device.destroySemaphore(vk_inst.tess[i].image_acquired);
 		vk_inst.device.destroySemaphore(vk_inst.tess[i].rendering_finished);
+#ifdef USE_UPLOAD_QUEUE
+		vk_inst.device.destroySemaphore(vk_inst.tess[i].rendering_finished2);
+#endif
 		vk_inst.device.destroyFence(vk_inst.tess[i].rendering_finished_fence);
 		vk_inst.tess[i].waitForFence = false;
 	}
 
+#ifdef USE_UPLOAD_QUEUE
 	vk_inst.device.destroyFence(vk_inst.aux_fence);
+	vk_inst.rendering_finished = nullptr;
+	vk_inst.image_uploaded = nullptr;
+#endif
 }
 
 static void vk_destroy_framebuffers(void)
@@ -3659,6 +3777,12 @@ static void vk_restart_swapchain(const char *funcname)
 	{
 		vk_inst.tess[i].command_buffer.reset();
 	}
+
+#ifdef USE_UPLOAD_QUEUE
+	if ( vk_inst.staging_command_buffer != nullptr ) {
+		 vk_inst.staging_command_buffer.reset();
+	}
+#endif
 
 	vk_destroy_pipelines(false);
 	vk_destroy_framebuffers();
@@ -3939,6 +4063,13 @@ void vk_initialize(void)
 		SET_OBJECT_NAME(VkCommandPool(vk_inst.command_pool), "command pool", VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT);
 #endif
 	}
+
+#ifdef USE_UPLOAD_QUEUE
+{
+    vk::CommandBufferAllocateInfo allocInfo{vk_inst.command_pool,vk::CommandBufferLevel::ePrimary,1};
+	VK_CHECK(vk_inst.device.allocateCommandBuffers(&allocInfo, &vk_inst.staging_command_buffer));
+}
+#endif
 
 	//
 	// Command buffers and color attachments.
@@ -4739,6 +4870,9 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 	std::array<vk::BufferImageCopy, max_regions> regions;
 	byte *buf;
 	int bpp;
+#ifdef USE_UPLOAD_QUEUE
+	int i;
+#endif
 	int buffer_size = 0;
 	uint32_t num_regions = 0;
 
@@ -4781,11 +4915,33 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 			height = 1;
 	}
 
+#ifdef USE_UPLOAD_QUEUE
+	vk_wait_staging_buffer();
+
+	ensure_staging_buffer_allocation( buffer_size );
+
+	for ( i = 0; i < num_regions; i++ ) {
+		regions[i].bufferOffset += vk_world.staging_buffer_offset;
+	}
+
+	Com_Memcpy( vk_world.staging_buffer_ptr + vk_world.staging_buffer_offset, buf, buffer_size );
+
+	if (vk_world.staging_buffer_offset == 0) {
+		// pInheritanceInfo defaults to nullptr; only need the usage flag.
+		vk::CommandBufferBeginInfo beginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit };
+		VK_CHECK(vk_inst.staging_command_buffer.begin(beginInfo));
+	}
+	//ri.Printf( PRINT_WARNING, "batch @%6i + %i %s \n", (int)vk_world.staging_buffer_offset, (int)buffer_size, image->imgName );
+	vk_world.staging_buffer_offset += buffer_size;
+
+	command_buffer = vk_inst.staging_command_buffer;
+#else
 	ensure_staging_buffer_allocation(buffer_size);
 
 	Com_Memcpy( vk_world.staging_buffer_ptr, buf, buffer_size );
 
 	command_buffer = begin_command_buffer();
+#endif
 	//record_buffer_memory_barrier( staging_command_buffer, vk_world.staging_buffer, VK_WHOLE_SIZE, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT );
 
 	// ecord_buffer_memory_barrier(command_buffer, vk_world.staging_buffer, vk::WholeSize, vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eHostWrite, vk::AccessFlagBits::eTransferRead);
@@ -4809,7 +4965,9 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 		regions.data());
 
 	record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, 0, 0);
+#ifndef USE_UPLOAD_QUEUE
 	end_command_buffer( command_buffer, __func__ );
+#endif
 
 	if (buf != pixels)
 	{
@@ -7030,6 +7188,10 @@ void vk_begin_frame(void)
 	if (vk_inst.frame_count++) // might happen during stereo rendering
 		return;
 
+#ifdef USE_UPLOAD_QUEUE
+	vk_submit_staging_buffer( true );
+#endif
+
 	vk_inst.cmd = &vk_inst.tess[vk_inst.cmd_index];
 
 	if ( vk_inst.cmd->waitForFence ) {
@@ -7176,7 +7338,17 @@ static void vk_resize_geometry_buffer(void)
 
 void vk_end_frame(void)
 {
-	const vk::PipelineStageFlags wait_dst_stage_mask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+#ifdef USE_UPLOAD_QUEUE
+    std::array<vk::Semaphore, 2> waits{};
+    std::array<vk::Semaphore, 2> signals{};
+    constexpr std::array<vk::PipelineStageFlags, 2> wait_dst_stage_mask = {
+        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput
+    };
+#else
+    constexpr vk::PipelineStageFlags wait_dst_stage_mask =
+        vk::PipelineStageFlagBits::eColorAttachmentOutput;
+#endif
 
 	if (vk_inst.frame_count == 0)
 		return;
@@ -7246,11 +7418,52 @@ void vk_end_frame(void)
 
 	if (!ri.CL_IsMinimized())
 	{
+#ifdef USE_UPLOAD_QUEUE
+		if ( vk_inst.image_uploaded != VK_NULL_HANDLE ) {
+			waits[0] = vk_inst.cmd->image_acquired;
+			waits[1] = vk_inst.image_uploaded;
+			submit_info.waitSemaphoreCount = 2;
+			submit_info.pWaitSemaphores = &waits[0];
+			submit_info.pWaitDstStageMask = &wait_dst_stage_mask[0];
+			signals[0] = vk_inst.cmd->rendering_finished;
+			signals[1] = vk_inst.cmd->rendering_finished2;
+			submit_info.signalSemaphoreCount = 2;
+			submit_info.pSignalSemaphores = &signals[0];
+
+			vk_inst.rendering_finished = vk_inst.cmd->rendering_finished2;
+			vk_inst.image_uploaded = VK_NULL_HANDLE;
+		} else if ( vk_inst.rendering_finished != VK_NULL_HANDLE ) {
+			waits[0] = vk_inst.cmd->image_acquired;
+			waits[1] = vk_inst.rendering_finished;
+			submit_info.waitSemaphoreCount = 2;
+			submit_info.pWaitSemaphores = &waits[0];
+			submit_info.pWaitDstStageMask = &wait_dst_stage_mask[0];
+			signals[0] = vk_inst.cmd->rendering_finished;
+			signals[1] = vk_inst.cmd->rendering_finished2;
+			submit_info.signalSemaphoreCount = 2;
+			submit_info.pSignalSemaphores = &signals[0];
+
+			vk_inst.rendering_finished = vk_inst.cmd->rendering_finished2;
+		} else {
+			submit_info.waitSemaphoreCount = 1;
+			submit_info.pWaitSemaphores = &vk_inst.cmd->image_acquired;
+			submit_info.pWaitDstStageMask = &wait_dst_stage_mask[0];
+			submit_info.signalSemaphoreCount = 1;
+			submit_info.pSignalSemaphores = &vk_inst.cmd->rendering_finished;
+		}
+#else
 		submit_info.waitSemaphoreCount = 1;
 		submit_info.pWaitSemaphores = &vk_inst.cmd->image_acquired;
 		submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
 		submit_info.signalSemaphoreCount = 1;
 		submit_info.pSignalSemaphores = &vk_inst.cmd->rendering_finished;
+#endif
+	} else {
+		submit_info.waitSemaphoreCount = 0;
+		submit_info.pWaitSemaphores = nullptr;
+		submit_info.pWaitDstStageMask = nullptr;
+		submit_info.signalSemaphoreCount = 0;
+		submit_info.pSignalSemaphores = nullptr;
 	}
 
 	VK_CHECK(vk_inst.queue.submit(submit_info, vk_inst.cmd->rendering_finished_fence));

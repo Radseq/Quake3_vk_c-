@@ -20,6 +20,8 @@
 #define USE_DEDICATED_ALLOCATION
 #endif
 
+#define USE_UPLOAD_QUEUE
+
 constexpr int VK_NUM_BLOOM_PASSES = 4;
 constexpr int MAX_VK_SAMPLERS = 32;
 constexpr int MAX_IMAGE_CHUNKS = 56;
@@ -75,6 +77,9 @@ typedef struct
     vk::DeviceSize staging_buffer_size;
 
     byte *staging_buffer_ptr; // pointer to mapped staging buffer
+#ifdef USE_UPLOAD_QUEUE
+	vk::DeviceSize staging_buffer_offset;
+#endif
 
     //
     // State.
@@ -240,6 +245,9 @@ typedef struct vk_tess_s
     uint32_t	swapchain_image_index;
 	bool	swapchain_image_acquired;
     vk::Semaphore rendering_finished;
+    #ifdef USE_UPLOAD_QUEUE
+	vk::Semaphore rendering_finished2;
+    #endif
     vk::Fence rendering_finished_fence;
     bool waitForFence;
 
@@ -290,6 +298,9 @@ typedef struct
     //uint32_t swapchain_image_index;
 
     vk::CommandPool command_pool;
+#ifdef USE_UPLOAD_QUEUE
+	vk::CommandBuffer staging_command_buffer;
+#endif
 
     vk::DeviceMemory image_memory[MAX_ATTACHMENTS_IN_POOL];
     uint32_t image_memory_count;
@@ -361,6 +372,12 @@ typedef struct
         vk::Framebuffer screenmap;
         vk::Framebuffer capture;
     } framebuffers;
+
+#ifdef USE_UPLOAD_QUEUE
+	vk::Semaphore rendering_finished;	// reference to vk.cmd->rendering_finished2
+	vk::Semaphore image_uploaded2;
+	vk::Semaphore image_uploaded;		// reference to vk.image_uploaded2
+#endif
 
     vk_tess_t tess[NUM_COMMAND_BUFFERS], *cmd;
     int cmd_index;
@@ -541,7 +558,10 @@ typedef struct
 
     uint32_t maxBoundDescriptorSets;
 
-    vk::Fence aux_fence;
+#ifdef USE_UPLOAD_QUEUE
+	vk::Fence aux_fence;
+	bool aux_fence_wait;
+#endif
 
 } Vk_Instance;
 

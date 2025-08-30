@@ -1523,6 +1523,8 @@ void R_Init(void);
 
 const void *RB_TakeVideoFrameCmd(const void *data);
 
+float R_ClampDenorm( float v );
+
 //
 // tr_shader.c
 //

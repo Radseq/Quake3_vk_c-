@@ -238,6 +238,9 @@ static void MakeMeshNormals(const int width, const int height, drawVert_t ctrl[M
 			}
 
 			VectorNormalize2(sum, dv.normal);
+			for ( k = 0; k < 3; k++ ) {
+				dv.normal[k] = R_ClampDenorm( dv.normal[k] );
+			}
 		}
 	}
 }
