@@ -73,7 +73,6 @@ typedef struct
     vk::Buffer staging_buffer;
     vk::DeviceMemory staging_buffer_memory;
     vk::DeviceSize staging_buffer_size;
-    vk::DeviceSize staging_buffer_offset;
 
     byte *staging_buffer_ptr; // pointer to mapped staging buffer
 

@@ -1,6 +1,7 @@
 #include "vk.hpp"
 #include <stdexcept>
 #include <algorithm>
+#include <vulkan/vulkan.hpp>
 #include "math.hpp"
 #include "utils.hpp"
 
@@ -208,7 +209,7 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer, const ch
 
 	VK_CHECK(vk_inst.queue.submit(1, &submit_info, vk_inst.aux_fence));
 	// 2 seconds should be more than enough to finish the job in normal conditions:
-	auto res = vk_inst.device.waitForFences(1, &vk_inst.aux_fence, VK_TRUE, 2 * 1000000000ULL);
+	auto res = vk_inst.device.waitForFences(1, &vk_inst.aux_fence, vk::True, 2 * 1000000000ULL);
 	if (res != vk::Result::eSuccess)
 	{
 		ri.Error(ERR_FATAL, "waitForFences() failed with %s at %s", vk::to_string(res).data(), location);
@@ -994,32 +995,11 @@ static void vk_clean_staging_buffer(void)
 	vk_world.staging_buffer_size = 0;
 }
 
-static vk::CommandBuffer staging_command_buffer = nullptr;
-
-void flush_staging_command_buffer( void )
-{
-	if ( staging_command_buffer != nullptr )
-	{
-		end_command_buffer( staging_command_buffer, __func__ );
-		staging_command_buffer = nullptr;
-	}
-	//if ( vk_world.staging_buffer_offset != 0 ) // TODO: use it instead of command buffer check?
-	// {
-		//
-	// }
-	vk_world.staging_buffer_offset = 0;
-}
-
 static void ensure_staging_buffer_allocation(const vk::DeviceSize size)
 {
 	void *data;
 
-	if ( vk_world.staging_buffer_size - vk_world.staging_buffer_offset >= size )
-		return;
-
-	flush_staging_command_buffer();
-
-	if ( vk_world.staging_buffer_size - vk_world.staging_buffer_offset >= size )
+	if ( vk_world.staging_buffer_size >= size )
 		return;
 
 	vk_clean_staging_buffer();
@@ -1057,7 +1037,6 @@ static void ensure_staging_buffer_allocation(const vk::DeviceSize size)
 	VK_CHECK(vk_inst.device.mapMemory(vk_world.staging_buffer_memory, 0, vk::WholeSize, {}, &data));
 
 	vk_world.staging_buffer_ptr = (byte *)data;
-	vk_world.staging_buffer_offset = 0;
 #ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkBuffer(vk_world.staging_buffer), "staging buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
 	SET_OBJECT_NAME(VkDeviceMemory(vk_world.staging_buffer_memory), "staging buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
@@ -4738,12 +4717,11 @@ static byte *resample_image_data(vk::Format target_format, byte *data, const int
 void vk_upload_image_data(image_t &image, int x, int y, int width, int height, int mipmaps, byte *pixels, int size, bool update)
 {
 
-	//vk::CommandBuffer command_buffer;
+	vk::CommandBuffer command_buffer;
 	constexpr std::size_t max_regions = 16; // Assuming a maximum of 16 regions
 	std::array<vk::BufferImageCopy, max_regions> regions;
 	byte *buf;
 	int bpp;
-	int i;
 	int buffer_size = 0;
 	uint32_t num_regions = 0;
 
@@ -4788,42 +4766,33 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 
 	ensure_staging_buffer_allocation(buffer_size);
 
-	if ( staging_command_buffer == nullptr )	{
-		staging_command_buffer = begin_command_buffer();
-	}
+	Com_Memcpy( vk_world.staging_buffer_ptr, buf, buffer_size );
 
-	for ( i = 0; i < num_regions; i++ ) {
-		regions[i].bufferOffset += vk_world.staging_buffer_offset;
-	}
-
-	Com_Memcpy( vk_world.staging_buffer_ptr + vk_world.staging_buffer_offset, buf, buffer_size );
-	vk_world.staging_buffer_offset += buffer_size;
-
-	//staging_command_buffer = begin_command_buffer();
+	command_buffer = begin_command_buffer();
 	//record_buffer_memory_barrier( staging_command_buffer, vk_world.staging_buffer, VK_WHOLE_SIZE, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT );
 
 	// ecord_buffer_memory_barrier(command_buffer, vk_world.staging_buffer, vk::WholeSize, vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eHostWrite, vk::AccessFlagBits::eTransferRead);
 
 	if (update)
 	{
-		record_image_layout_transition(staging_command_buffer, image.handle, vk::ImageAspectFlagBits::eColor,
+		record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor,
 									   vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eTransferDstOptimal, 0, 0);
 	}
 	else
 	{
-		record_image_layout_transition(staging_command_buffer, image.handle, vk::ImageAspectFlagBits::eColor,
+		record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor,
 									   vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, static_cast<uint32_t>(vk::PipelineStageFlagBits::eHost), 0);
 	}
 
-	staging_command_buffer.copyBufferToImage(
+	command_buffer.copyBufferToImage(
 		vk_world.staging_buffer,
 		image.handle,
 		vk::ImageLayout::eTransferDstOptimal,
 		num_regions,
 		regions.data());
 
-	record_image_layout_transition(staging_command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, 0, 0);
-	// flush_staging_command_buffer(); // uncomment for old single-image sync behavior
+	record_image_layout_transition(command_buffer, image.handle, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, 0, 0);
+	end_command_buffer( command_buffer, __func__ );
 
 	if (buf != pixels)
 	{
@@ -6208,10 +6177,10 @@ vk::Pipeline vk_gen_pipeline(const uint32_t index)
 	if (index < vk_inst.pipelines_count)
 	{
 		VK_Pipeline_t *pipeline = vk_inst.pipelines + index;
-		const uint8_t renderPassIndex = static_cast<uint8_t>(vk_inst.renderPassIndex);
-		if (!pipeline->handle[renderPassIndex])
-			pipeline->handle[renderPassIndex] = create_pipeline(pipeline->def, vk_inst.renderPassIndex, index);
-		return pipeline->handle[renderPassIndex];
+		const uint8_t pass = static_cast<uint8_t>(vk_inst.renderPassIndex);
+		if (!pipeline->handle[pass])
+			pipeline->handle[pass] = create_pipeline(pipeline->def, vk_inst.renderPassIndex, index);
+		return pipeline->handle[pass];
 	}
 	else
 	{
@@ -7004,8 +6973,6 @@ void vk_begin_frame(void)
 {
 	vk::Result res;
 
-	flush_staging_command_buffer(); // finish any pending texture uploads
-
 	if (vk_inst.frame_count++) // might happen during stereo rendering
 		return;
 
@@ -7240,16 +7207,12 @@ void vk_end_frame(void)
 	// presentation may take undefined time to complete, we can't measure it in a reliable way
 	backEnd.pc.msec = ri.Milliseconds() - backEnd.pc.msec;
 
-	//vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_MAIN;
+	vk_inst.renderPassIndex = renderPass_t::RENDER_PASS_MAIN;
 	// vk_present_frame();
 }
 
 void vk_present_frame(void)
 {
-	// pickup next command buffer for rendering
-	vk_inst.cmd_index++;
-	vk_inst.cmd_index %= NUM_COMMAND_BUFFERS;
-
 	if (ri.CL_IsMinimized())
 		return;
 
