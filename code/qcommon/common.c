@@ -4911,7 +4911,7 @@ static bool strgtr(const char *s0, const char *s1) {
 Com_SortList
 ==================
 */
-static void Com_SortList( char **list, int n )
+void Com_SortList( char **list, int n )
 {
 	const char *m;
 	char *temp;
@@ -4937,7 +4937,7 @@ static void Com_SortList( char **list, int n )
 	if ( n > i ) Com_SortList( list+i, n-i );
 }
 
-
+#if 0
 /*
 ==================
 Com_SortFileList
@@ -4965,3 +4965,4 @@ void Com_SortFileList( char **list, int nfiles, int fastSort )
 		} while( flag );
 	}
 }
+#endif

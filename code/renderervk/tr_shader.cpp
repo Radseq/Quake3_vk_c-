@@ -2325,16 +2325,20 @@ static int CollapseMultitexture(unsigned int st0bits, shaderStage_t &st0, shader
 
 	mtEnv = collapse[i].multitextureEnv;
 
-	if (mtEnv == GL_ADD && st0.bundle[0].rgbGen != colorGen_t::CGEN_IDENTITY)
-	{
+	// GL_ADD is a separate extension
+	if ( mtEnv == GL_ADD && !glConfig.textureEnvAddAvailable ) {
+		return 0;
+	}
+
+	if ( mtEnv == GL_ADD && st0.bundle[0].rgbGen != colorGen_t::CGEN_IDENTITY ) {
 		mtEnv = GL_ADD_NONIDENTITY;
 	}
 
-	if (st0.mtEnv && st0.mtEnv != mtEnv)
-	{
+	if ( st0.mtEnv && st0.mtEnv != mtEnv ) {
 		// we don't support different blend modes in 3x mode, yet
 		return 0;
 	}
+
 	nonIdenticalColors = false;
 
 	// make sure waveforms have identical parameters

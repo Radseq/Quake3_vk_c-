@@ -309,7 +309,7 @@ typedef struct
     vk::DescriptorSetLayout set_layout_storage; // feedback bufvk::r
 
     vk::PipelineLayout pipeline_layout; // default shaders
-    // VkPipelineLayout pipeline_layout_storage;	// flare test shader layout
+    vk::PipelineLayout pipeline_layout_storage;	// flare test shader layout
     vk::PipelineLayout pipeline_layout_post_process; // post-processing
     vk::PipelineLayout pipeline_layout_blend;        // post-processing
 

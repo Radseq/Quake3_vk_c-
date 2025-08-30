@@ -917,10 +917,6 @@ static void upload_vk_image(image_t *image, byte *pic)
 		image->internalFormat = has_alpha ? vk::Format::eB4G4R4A4UnormPack16 : vk::Format::eA1R5G5B5UnormPack16;
 	}
 
-	image->handle = nullptr;
-	image->view = nullptr;
-	image->descriptor = nullptr;
-
 	image->uploadWidth = w;
 	image->uploadHeight = h;
 
@@ -1008,6 +1004,10 @@ image_t *R_CreateImage(std::string_view name, std::string_view name2, byte *pic,
 		image->wrapClampMode = vk::SamplerAddressMode::eClampToEdge;
 	else
 		image->wrapClampMode = vk::SamplerAddressMode::eRepeat;
+
+	image->handle = VK_NULL_HANDLE;
+	image->view = VK_NULL_HANDLE;
+	image->descriptor = VK_NULL_HANDLE;
 
 	upload_vk_image(image, pic);
 	return image;

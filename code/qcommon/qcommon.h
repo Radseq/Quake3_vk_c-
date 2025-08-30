@@ -1326,7 +1326,7 @@ const char *Sys_SteamPath(void);
 char *Sys_DefaultAppPath(void);
 #endif
 
-char **Sys_ListFiles(const char *directory, const char *extension, const char *filter, int *numfiles, bool wantsubs);
+char **Sys_ListFiles(const char *directory, const char *extension, const char *filter, int *numfiles, int subdirs);
 
 void Sys_FreeFileList(char **list);
 

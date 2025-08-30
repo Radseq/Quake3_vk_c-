@@ -12,12 +12,12 @@
 #define USE_DEDICATED_ALLOCATION
 
 constexpr int VK_DESC_STORAGE = 0;
-constexpr int VK_DESC_UNIFORM = 1;
-constexpr int VK_DESC_TEXTURE0 = 2;
-constexpr int VK_DESC_TEXTURE1 = 3;
-constexpr int VK_DESC_TEXTURE2 = 4;
-constexpr int VK_DESC_FOG_COLLAPSE = 5;
-constexpr int VK_DESC_COUNT = 6;
+constexpr int VK_DESC_UNIFORM = 0;
+constexpr int VK_DESC_TEXTURE0 = 1;
+constexpr int VK_DESC_TEXTURE1 = 2;
+constexpr int VK_DESC_TEXTURE2 = 3;
+constexpr int VK_DESC_FOG_COLLAPSE = 4;
+constexpr int VK_DESC_COUNT = 5;
 
 constexpr int VK_DESC_TEXTURE_BASE = VK_DESC_TEXTURE0;
 constexpr int VK_DESC_FOG_ONLY = VK_DESC_TEXTURE1;
@@ -115,6 +115,7 @@ void vk_bind_index_ext(const int numIndexes, const uint32_t *indexes);
 void vk_bind_geometry(const uint32_t flags);
 void vk_bind_lighting(const int stage, const int bundle);
 void vk_draw_geometry(const Vk_Depth_Range depth_range, const bool indexed);
+void vk_draw_dot( uint32_t storage_offset );
 
 void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height); // screenshots
 bool vk_bloom(void);
@@ -123,8 +124,9 @@ void vk_update_mvp(const float *m);
 
 uint32_t vk_tess_index(const uint32_t numIndexes, const void *src);
 void vk_bind_index_buffer(const vk::Buffer &buffer, const uint32_t offset);
+#ifdef USE_VBO
 void vk_draw_indexed(const uint32_t indexCount, const uint32_t firstIndex);
-
+#endif
 void vk_reset_descriptor(const int index);
 void vk_update_descriptor(const int index, const vk::DescriptorSet &descriptor);
 void vk_update_descriptor_offset(const int index, const uint32_t offset);
@@ -144,7 +146,7 @@ bool vk_alloc_vbo(const byte *vbo_data, const uint32_t vbo_size);
 #endif
 
 void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const uint32_t height, const bool horizontal_pass);
-uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def);
+//uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def);
 
 vk::Pipeline vk_gen_pipeline(const uint32_t index);
 void vk_bind_descriptor_sets(void);
