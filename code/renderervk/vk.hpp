@@ -81,6 +81,7 @@ void vk_shutdown(const refShutdownCode_t code);
 void vk_release_resources(void);
 
 void vk_wait_idle(void);
+void vk_queue_wait_idle( void );
 
 //
 // Resources allocation.

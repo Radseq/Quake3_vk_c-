@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_backend.hpp"
 #include "tr_image.hpp"
 #include "tr_light.hpp"
+#include "tr_local.hpp"
 #include "tr_main.hpp"
 #include "tr_shade.hpp"
 #include "tr_shadows.hpp"
@@ -152,8 +153,15 @@ Any mirrored ort portaled views have already been drawn, so prepare
 to actually render the visible surfaces for this view
 =================
 */
-static void RB_BeginDrawingView(void)
-{
+static void RB_BeginDrawingView( void ) {
+	// sync with gl if needed
+	if ( r_finish->integer == 1 && !glState.finishCalled ) {
+		vk_queue_wait_idle();
+		glState.finishCalled = true;
+	} else if ( r_finish->integer == 0 ) {
+		glState.finishCalled = true;
+	}
+
 	// we will need to change the projection matrix before drawing
 	// 2D images again
 	backEnd.projection2D = false;
@@ -163,20 +171,18 @@ static void RB_BeginDrawingView(void)
 	//
 	SetViewportAndScissor();
 
-	vk_clear_depth(true);
+	vk_clear_depth( true );
 
-	if (backEnd.refdef.rdflags & RDF_HYPERSPACE)
-	{
+	if ( backEnd.refdef.rdflags & RDF_HYPERSPACE ) {
 		RB_Hyperspace();
 		backEnd.projection2D = false;
 		SetViewportAndScissor();
-	}
-	else
-	{
+	} else {
 		backEnd.isHyperspace = false;
 	}
 
 	glState.faceCulling = static_cast<cullType_t>(-1); // force face culling to set next time
+		// force face culling to set next time
 
 	// we will only draw a sun if there was sky rendered in this view
 	backEnd.skyRenderedThisView = false;
@@ -591,8 +597,6 @@ void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client
 
 	image = tr.scratchImage[client];
 
-	Bind(image);
-
 	// if the scratchImage isn't in the format we want, specify it as a new texture
 	if (cols != image->width || rows != image->height)
 	{
@@ -889,7 +893,7 @@ static const void *RB_DrawBuffer(const void *data)
 	// force depth range and viewport/scissor updates
 	vk_inst.cmd->depth_range = Vk_Depth_Range::DEPTH_RANGE_COUNT;
 
-	if (r_clear->integer)
+	if ( r_clear->integer && vk_inst.clearAttachment )
 	{
 		constexpr vec4_t color = {1, 0, 0.5, 1};
 		backEnd.projection2D = true; // to ensure we have viewport that occupies entire window
@@ -919,7 +923,43 @@ void RB_ShowImages(void)
 		RB_SetGL2D();
 	}
 
-	vk_clear_color(colorBlackCxpr);
+	// draw full-screen quad
+	tess.numVertexes = 4;
+
+	tess.svars.colors[0][0].u32 = ~0U; // 255-255-255-255
+	tess.svars.colors[0][1].u32 = ~0U;
+	tess.svars.colors[0][2].u32 = ~0U;
+	tess.svars.colors[0][3].u32 = ~0U;
+
+	tess.svars.texcoords[0][0][0] = 0.0f;
+	tess.svars.texcoords[0][0][1] = 0.0f;
+
+	tess.svars.texcoords[0][1][0] = 1.0f;
+	tess.svars.texcoords[0][1][1] = 0.0f;
+
+	tess.svars.texcoords[0][2][0] = 0.0f;
+	tess.svars.texcoords[0][2][1] = 1.0f;
+
+	tess.svars.texcoords[0][3][0] = 1.0f;
+	tess.svars.texcoords[0][3][1] = 1.0f;
+
+	tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
+
+	tess.xyz[0][0] = 0.0f;
+	tess.xyz[0][1] = 0.0f;
+
+	tess.xyz[1][0] = (float)glConfig.vidWidth;
+	tess.xyz[1][1] = 0.0f;
+
+	tess.xyz[2][0] = 0.0f;
+	tess.xyz[2][1] = (float)glConfig.vidHeight;
+
+	tess.xyz[3][0] = (float)glConfig.vidWidth;
+	tess.xyz[3][1] = (float)glConfig.vidHeight;
+
+	vk_bind_pipeline( vk_inst.images_debug_pipeline2 );
+	vk_bind_geometry( TESS_XYZ | TESS_RGBA0 | TESS_ST0 );
+	vk_draw_geometry( Vk_Depth_Range::DEPTH_RANGE_NORMAL, false );
 
 	for (i = 0; i < tr.numImages; i++)
 	{
@@ -937,39 +977,22 @@ void RB_ShowImages(void)
 			h *= image->uploadHeight / 512.0f;
 		}
 
-		Bind(image);
-
-		tess.svars.colors[0][0].u32 = ~0U; // 255-255-255-255
-		tess.svars.colors[0][1].u32 = ~0U;
-		tess.svars.colors[0][2].u32 = ~0U;
-		tess.svars.colors[0][3].u32 = ~0U;
-
-		tess.numVertexes = 4;
-
 		tess.xyz[0][0] = x;
 		tess.xyz[0][1] = y;
-		tess.svars.texcoords[0][0][0] = 0;
-		tess.svars.texcoords[0][0][1] = 0;
 
 		tess.xyz[1][0] = x + w;
 		tess.xyz[1][1] = y;
-		tess.svars.texcoords[0][1][0] = 1;
-		tess.svars.texcoords[0][1][1] = 0;
 
 		tess.xyz[2][0] = x;
 		tess.xyz[2][1] = y + h;
-		tess.svars.texcoords[0][2][0] = 0;
-		tess.svars.texcoords[0][2][1] = 1;
 
 		tess.xyz[3][0] = x + w;
 		tess.xyz[3][1] = y + h;
-		tess.svars.texcoords[0][3][0] = 1;
-		tess.svars.texcoords[0][3][1] = 1;
 
-		tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
+		Bind( image );
 
 		vk_bind_pipeline(vk_inst.images_debug_pipeline);
-		vk_bind_geometry(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
+		vk_bind_geometry(TESS_XYZ);
 		vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, false);
 	}
 
@@ -1068,6 +1091,10 @@ static const void *RB_SwapBuffers(const void *data)
 	tr.needScreenMap = 0;
 
 	vk_end_frame();
+
+	if ( backEnd.doneSurfaces && !glState.finishCalled ) {
+		vk_queue_wait_idle();
+	}
 
 	if (backEnd.screenshotMask && vk_inst.cmd->waitForFence)
 	{

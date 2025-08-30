@@ -986,24 +986,24 @@ VarInfo
 Prints info that may change every R_Init() call
 ================
 */
-static void VarInfo(void)
+static void VarInfo( void )
 {
-	if (glConfig.deviceSupportsGamma)
-	{
-		ri.Printf(PRINT_ALL, "GAMMA: hardware w/ %d overbright bits\n", tr.overbrightBits);
-	}
-	else
-	{
-		ri.Printf(PRINT_ALL, "GAMMA: software w/ %d overbright bits\n", tr.overbrightBits);
+	if ( glConfig.deviceSupportsGamma ) {
+		ri.Printf( PRINT_ALL, "GAMMA: hardware w/ %d overbright bits\n", tr.overbrightBits );
+	} else {
+		ri.Printf( PRINT_ALL, "GAMMA: software w/ %d overbright bits\n", tr.overbrightBits );
 	}
 
-	ri.Printf(PRINT_ALL, "texturemode: %s\n", r_textureMode->string);
-	ri.Printf(PRINT_ALL, "texture bits: %d\n", r_texturebits->integer ? r_texturebits->integer : 32);
-	ri.Printf(PRINT_ALL, "picmip: %d%s\n", r_picmip->integer, r_nomip->integer ? ", worldspawn only" : "");
+	ri.Printf( PRINT_ALL, "texturemode: %s\n", r_textureMode->string );
+	ri.Printf( PRINT_ALL, "texture bits: %d\n", r_texturebits->integer ? r_texturebits->integer : 32 );
+	ri.Printf( PRINT_ALL, "picmip: %d%s\n", r_picmip->integer, r_nomip->integer ? ", worldspawn only" : "" );
 
-	if (r_vertexLight->integer)
-	{
-		ri.Printf(PRINT_ALL, "HACK: using vertex lightmap approximation\n");
+	if ( r_vertexLight->integer ) {
+		ri.Printf( PRINT_ALL, "HACK: using vertex lightmap approximation\n" );
+	}
+
+	if ( r_finish->integer ) {
+		ri.Printf( PRINT_ALL, "Forcing glFinish\n" );
 	}
 }
 

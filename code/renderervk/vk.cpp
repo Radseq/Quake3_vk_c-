@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <vulkan/vulkan.hpp>
 #include "math.hpp"
+#include "tr_local.hpp"
 #include "utils.hpp"
 
 #if defined(_DEBUG)
@@ -208,8 +209,8 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer, const ch
 							   nullptr};
 
 	VK_CHECK(vk_inst.queue.submit(1, &submit_info, vk_inst.aux_fence));
-	// 2 seconds should be more than enough to finish the job in normal conditions:
-	auto res = vk_inst.device.waitForFences(1, &vk_inst.aux_fence, vk::True, 2 * 1000000000ULL);
+	// 5 seconds should be more than enough to finish the job in normal conditions:
+	auto res = vk_inst.device.waitForFences(1, &vk_inst.aux_fence, vk::True, 5 * 1000000000ULL);
 	if (res != vk::Result::eSuccess)
 	{
 		ri.Error(ERR_FATAL, "waitForFences() failed with %s at %s", vk::to_string(res).data(), location);
@@ -394,15 +395,15 @@ static void vk_create_swapchain(const vk::PhysicalDevice &physical_device, const
 		image_extent.height = MIN(surface_caps.maxImageExtent.height, MAX(surface_caps.minImageExtent.height, (uint32_t)glConfig.vidHeight));
 	}
 
-	vk_inst.fastSky = true;
+	vk_inst.clearAttachment = true;
 
 	if (!vk_inst.fboActive)
 	{
 		// vk::ImageUsageFlagBits::eTransferDst is required by image clear operations.
 		if ((surface_caps.supportedUsageFlags & vk::ImageUsageFlagBits::eTransferDst) == vk::ImageUsageFlags{})
 		{
-			vk_inst.fastSky = false;
-			ri.Printf(PRINT_WARNING, "vk::ImageUsageFlagBits::eTransferDst is not supported by the swapchain\n");
+			vk_inst.clearAttachment = false;
+			ri.Printf(PRINT_WARNING, "vk::ImageUsageFlagBits::eTransferDst is not supported by the swapchain, \\r_clear might not work\n" );
 		}
 
 		// vk::ImageUsageFlagBits::eTransferSrc is required in order to take screenshots.
@@ -574,10 +575,9 @@ static void vk_create_render_passes(void)
 		// resolve/color buffer
 		attachments[0].format = vk_inst.color_format;
 		attachments[0].samples = vk::SampleCountFlagBits::e1;
-		;
 
 #ifdef USE_BUFFER_CLEAR
-		if (vk.msaaActive)
+		if (vk_inst.msaaActive)
 			attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare; // Assuming this will be completely overwritten
 		else
 			attachments[0].loadOp = vk::AttachmentLoadOp::eClear;
@@ -849,7 +849,7 @@ static void vk_create_render_passes(void)
 	attachments[0].format = vk_inst.color_format;
 	attachments[0].samples = vk::SampleCountFlagBits::e1;
 #ifdef USE_BUFFER_CLEAR
-	if (vk.screenMapSamples > vk::SampleCountFlagBits::e1)
+	if (vk_inst.screenMapSamples > vk::SampleCountFlagBits::e1)
 		attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare;
 	else
 		attachments[0].loadOp = vk::AttachmentLoadOp::eClear;
@@ -2866,6 +2866,10 @@ static void vk_alloc_persistent_pipelines(void)
 		def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 		def.primitives = Vk_Primitive_Topology::TRIANGLE_STRIP;
 		vk_inst.images_debug_pipeline = vk_find_pipeline_ext(0, def, false);
+		def.state_bits = GLS_DEPTHTEST_DISABLE;
+		def.shader_type = Vk_Shader_Type::TYPE_COLOR_BLACK;
+		def.primitives = Vk_Primitive_Topology::TRIANGLE_STRIP;
+		vk_inst.images_debug_pipeline2 = vk_find_pipeline_ext( 0, def, false );
 	}
 }
 
@@ -4480,6 +4484,11 @@ __cleanup:
 void vk_wait_idle(void)
 {
 	VK_CHECK(vk_inst.device.waitIdle());
+}
+
+void vk_queue_wait_idle( void )
+{
+	VK_CHECK(  vk_inst.queue.waitIdle() );
 }
 
 void vk_release_resources(void)

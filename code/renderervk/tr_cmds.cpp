@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_cmds.hpp"
 #include "tr_image.hpp"
 #include "tr_backend.hpp"
+#include "tr_local.hpp"
 #include "tr_shader.hpp"
 #include "tr_scene.hpp"
 #include "vk.hpp"
@@ -314,16 +315,16 @@ void RE_BeginFrame(stereoFrame_t stereoFrame)
 		cmd->buffer = 0;
 	}
 
-	if (r_fastsky->integer && vk_inst.fastSky)
-	{
-		if (stereoFrame != STEREO_RIGHT)
-		{
-			clearColorCommand_t *clrcmd;
-			if ((clrcmd = static_cast<clearColorCommand_t *>(R_GetCommandBuffer(sizeof(*clrcmd)))) == NULL)
+#ifndef USE_BUFFER_CLEAR
+	if ( r_fastsky->integer && vk_inst.clearAttachment ) {
+		if ( stereoFrame != STEREO_RIGHT ) {
+			clearColorCommand_t *clrcmd; 
+			if ( ( clrcmd = R_GetCommandBuffer( sizeof( *clrcmd ) ) ) == NULL )
 				return;
 			clrcmd->commandId = renderCommand_t::RC_CLEARCOLOR;
 		}
 	}
+#endif // USE_BUFFER_CLEAR
 
 	tr.refdef.stereoFrame = stereoFrame;
 }

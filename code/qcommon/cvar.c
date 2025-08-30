@@ -603,6 +603,12 @@ static void Cvar_Print( const cvar_t *v ) {
 			v->resetString );
 	}
 
+	#ifdef _DEBUG
+		if ( v->modified ) {
+			Com_Printf( " (modified)" );
+		}
+	#endif
+
 	Com_Printf ("\n");
 
 	if ( v->latchedString ) {
