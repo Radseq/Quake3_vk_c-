@@ -7229,6 +7229,9 @@ void vk_begin_frame(void)
 
 		if (!ri.CL_IsMinimized() && !vk_inst.cmd->swapchain_image_acquired)
 		{
+		bool retry = false;
+_retry:
+
 			res = vk_inst.device.acquireNextImageKHR(vk_inst.swapchain,
 													1 * 1000000000ULL,
 													vk_inst.cmd->image_acquired,
@@ -7238,10 +7241,12 @@ void vk_begin_frame(void)
 			// probably caused by "device lost" errors
 			if (res < vk::Result::eSuccess)
 			{
-				if (res == vk::Result::eErrorOutOfDateKHR)
+				if (res == vk::Result::eErrorOutOfDateKHR && retry == false)
 				{
 					// swapchain re-creation needed
+					retry = true;
 					vk_restart_swapchain(__func__);
+					goto _retry;
 				}
 				else
 				{
