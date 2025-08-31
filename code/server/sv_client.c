@@ -2269,7 +2269,29 @@ static bool SV_ClientCommand(client_t *cl, msg_t *msg)
 	cl->lastClientCommand = seq;
 	Q_strncpyz(cl->lastClientCommandString, s, sizeof(cl->lastClientCommandString));
 
-	return true; // continue procesing
+	return true; // continue processing
+}
+
+/*
+===================
+SV_AcknowledgeGamestate
+===================
+*/
+static bool SV_AcknowledgeGamestate( client_t *cl, int serverId )
+{
+	if ( serverId == sv.serverId ) {
+		const int messageDelta = cl->messageAcknowledge - cl->gamestateMessageNum;
+		// accept either exact message delta or any positive delta with known identical gamestate sent before
+		if ( messageDelta == 0 || ( messageDelta > 0 && cl->gamestateAck == GSA_SENT_ONCE ) ) {
+			cl->gamestateAck = GSA_ACKED;
+			// this client has acknowledged the new gamestate so it's
+			// safe to start sending it the real time again
+			Com_DPrintf( "%s acknowledged gamestate\n", cl->name );
+			cl->oldServerTime = 0;
+			return true;
+		}
+	}
+	return false;
 }
 
 //==================================================================================
@@ -2492,7 +2514,7 @@ void SV_ExecuteClientMessage(client_t *cl, msg_t *msg)
 		if (!cl->downloading)
 		{
 			// send initial gamestate, client may not acknowledge it in next command but start downloading after SV_ClientCommand()
-			if (!SVC_RateLimit(&cl->gamestate_rate, 2, 1000))
+			if (!SVC_RateLimit(&cl->gamestate_rate, 1, 1000))
 			{
 				SV_SendClientGameState(cl);
 			}
@@ -2502,18 +2524,7 @@ void SV_ExecuteClientMessage(client_t *cl, msg_t *msg)
 	else if (cl->gamestateAck != GSA_ACKED)
 	{
 		// early check for gamestate acknowledge
-		if (serverId == sv.serverId)
-		{
-			const int delta = cl->messageAcknowledge - cl->gamestateMessageNum;
-			if (delta == 0 || (delta > 0 && cl->gamestateAck == GSA_SENT_ONCE))
-			{
-				cl->gamestateAck = GSA_ACKED;
-				// this client has acknowledged the new gamestate so it's
-				// safe to start sending it the real time again
-				Com_DPrintf("%s acknowledged gamestate with delta %i\n", cl->name, delta);
-				cl->oldServerTime = 0;
-			}
-		}
+		SV_AcknowledgeGamestate( cl, serverId );
 	}
 	// else if ( cl->state == CS_PRIMED ) {
 	// in case of download intention client replies with (messageAcknowledge - gamestateMessageNum) >= 0 and (serverId == sv.serverId), sv.serverId can drift away later
@@ -2539,18 +2550,19 @@ void SV_ExecuteClientMessage(client_t *cl, msg_t *msg)
 		}
 	} while (1);
 
-	if (cl->gamestateAck != GSA_ACKED)
-	{
-		// late check for gamestate resend
-		if (cl->state == CS_PRIMED && cl->messageAcknowledge - cl->gamestateMessageNum > 0)
-		{
-			Com_DPrintf("%s: dropped gamestate, resending\n", cl->name);
-			if (!SVC_RateLimit(&cl->gamestate_rate, 2, 1000))
-			{
-				SV_SendClientGameState(cl);
+	if ( cl->gamestateAck != GSA_ACKED ) {
+		// late check for gamestate acknowledge & resend
+		if ( cl->state == CS_PRIMED ) {
+			if ( !SV_AcknowledgeGamestate( cl, serverId ) ) {
+				Com_DPrintf( "%s: dropped gamestate, resending\n", cl->name );
+				if ( !SVC_RateLimit( &cl->gamestate_rate, 1, 1000 ) ) {
+					SV_SendClientGameState( cl );
+				}
+				return; // message delta or serverId mismatch
 			}
+		} else {
+			return; // cl->state <= CS_CONNECTED
 		}
-		return;
 	}
 
 	// read the usercmd_t
