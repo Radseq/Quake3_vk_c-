@@ -200,7 +200,7 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer, const ch
 {
 #ifdef USE_UPLOAD_QUEUE
 	const vk::PipelineStageFlags wait_dst_stage_mask = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
-	vk::Semaphore waits;
+	vk::Semaphore waits{};
 #endif
 
 	VK_CHECK(command_buffer.end());
@@ -214,7 +214,7 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer, const ch
 							   nullptr};
 #ifdef USE_UPLOAD_QUEUE
     if (vk_inst.rendering_finished != vk::Semaphore{}) {
-        vk::Semaphore waits = vk_inst.rendering_finished;
+        waits = vk_inst.rendering_finished;
         vk_inst.rendering_finished = vk::Semaphore{};   // clear to "null"
 
 		submit_info.waitSemaphoreCount = 1;
@@ -1028,6 +1028,8 @@ static void vk_submit_staging_buffer(bool final)
         return;
     }
 
+	vk::Semaphore waits{};
+
     constexpr vk::PipelineStageFlags wait_dst_stage_mask =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
@@ -1045,7 +1047,7 @@ static void vk_submit_staging_buffer(bool final)
 
     if (vk_inst.rendering_finished != vk::Semaphore{}) {
         // first call after previous queue submission?
-        vk::Semaphore waits = vk_inst.rendering_finished;
+        waits = vk_inst.rendering_finished;
         vk_inst.rendering_finished = vk::Semaphore{}; // clear to null
 
 		submit_info.waitSemaphoreCount = 1;
@@ -3673,8 +3675,8 @@ static void vk_create_sync_primitives(void)
 
 #ifdef USE_UPLOAD_QUEUE
 	VK_CHECK_ASSIGN(vk_inst.aux_fence, vk_inst.device.createFence(fence_desc));
-	vk_inst.rendering_finished = nullptr;
-	vk_inst.image_uploaded = nullptr;
+	vk_inst.rendering_finished = vk::Semaphore{};
+	vk_inst.image_uploaded = vk::Semaphore{};
 	vk_inst.aux_fence_wait = false;
 #endif
 
