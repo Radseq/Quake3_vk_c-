@@ -116,21 +116,6 @@ static void HSVtoRGB(float h, const float s, float v, float rgb[3])
 
 /*
 ===============
-R_ClampDenorm
-
-Clamp fp values that may result in denormalization after further multiplication
-===============
-*/
-float R_ClampDenorm( float v ) {
-	if ( fabsf( v ) > 0.0f && fabsf( v ) < 1e-9f ) {
-		return 0.0f;
-	} else {
-		return v;
-	}
-}
-
-/*
-===============
 R_ColorShiftLightingBytes_plus
 ===============
 */
@@ -774,7 +759,7 @@ static void ParseFace(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 #ifdef USE_PMLIGHT
 	if (surf.shader->numUnfoggedPasses && surf.shader->lightingStage >= 0)
 	{
-		if (fabsf(cv->plane.normal[0]) < 0.01f && fabsf(cv->plane.normal[1]) < 0.01f && fabsf(cv->plane.normal[2]) < 0.01)
+		if ( fabsf( cv->plane.normal[0] ) < 0.01f && fabsf( cv->plane.normal[1] ) < 0.01f && fabsf( cv->plane.normal[2] ) < 0.01f )
 		{
 			// Zero-normals case:
 			// might happen if surface contains multiple non-coplanar faces for terrain simulation

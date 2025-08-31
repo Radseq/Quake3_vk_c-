@@ -203,27 +203,31 @@ static void end_command_buffer(const vk::CommandBuffer &command_buffer, const ch
 	vk::Semaphore waits;
 #endif
 
-	std::array<vk::CommandBuffer, 1> cmdbuf{ command_buffer };
 	VK_CHECK(command_buffer.end());
 
-    vk::SubmitInfo submitInfo{};
+	vk::SubmitInfo submit_info{0,
+							   nullptr,
+							   nullptr,
+							   1,
+							   &command_buffer,
+							   0,
+							   nullptr};
 #ifdef USE_UPLOAD_QUEUE
-    if (vk_inst.rendering_finished) {
+    if (vk_inst.rendering_finished != vk::Semaphore{}) {
         vk::Semaphore waits = vk_inst.rendering_finished;
         vk_inst.rendering_finished = vk::Semaphore{};   // clear to "null"
 
-        submitInfo
-            .setWaitSemaphores(waits)
-            .setWaitDstStageMask(wait_dst_stage_mask)
-            .setCommandBuffers(cmdbuf);
+		submit_info.waitSemaphoreCount = 1;
+		submit_info.pWaitSemaphores = &waits;
+		submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
     } else
 #endif
     {
-        submitInfo.setCommandBuffers(cmdbuf);
+        //submitInfo.setCommandBuffers(cmdbuf);
     }
 
-
-	VK_CHECK(vk_inst.queue.submit(submitInfo, nullptr));
+	VK_CHECK(vk_inst.queue.submit(submit_info, nullptr));
+	
 	vk_queue_wait_idle();
 
 	vk_inst.device.freeCommandBuffers(vk_inst.command_pool,
@@ -990,7 +994,7 @@ static void vk_clean_staging_buffer(void)
 		vk_inst.device.freeMemory(vk_world.staging_buffer_memory, nullptr);
 		vk_world.staging_buffer_memory = nullptr;
 	}
-		vk_world.staging_buffer_ptr = NULL;
+	vk_world.staging_buffer_ptr = nullptr;
 	vk_world.staging_buffer_size = 0;
 #ifdef USE_UPLOAD_QUEUE
 	vk_world.staging_buffer_offset = 0;
@@ -1024,24 +1028,29 @@ static void vk_submit_staging_buffer(bool final)
         return;
     }
 
-    constexpr vk::PipelineStageFlags waitDstStageMask =
+    constexpr vk::PipelineStageFlags wait_dst_stage_mask =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
     vk_world.staging_buffer_offset = 0;
 
     VK_CHECK(vk_inst.staging_command_buffer.end());
 
-    vk::SubmitInfo submitInfo{};
-    submitInfo.setCommandBuffers(vk_inst.staging_command_buffer);
+	vk::SubmitInfo submit_info{0,
+							   nullptr,
+							   nullptr,
+							   1,
+							   &vk_inst.staging_command_buffer,
+							   0,
+							   nullptr};
 
-    if (vk_inst.rendering_finished) {
+    if (vk_inst.rendering_finished != vk::Semaphore{}) {
         // first call after previous queue submission?
         vk::Semaphore waits = vk_inst.rendering_finished;
         vk_inst.rendering_finished = vk::Semaphore{}; // clear to null
 
-        submitInfo
-            .setWaitSemaphores(waits)
-            .setWaitDstStageMask(waitDstStageMask);
+		submit_info.waitSemaphoreCount = 1;
+		submit_info.pWaitSemaphores = &waits;
+		submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
     }
 
     if (vk_inst.image_uploaded) {
@@ -1051,19 +1060,19 @@ static void vk_submit_staging_buffer(bool final)
     if (final)
     {
         // final submission before recording
-        submitInfo.setSignalSemaphores(vk_inst.image_uploaded2);
+        submit_info.signalSemaphoreCount = 1;
+		submit_info.pSignalSemaphores = &vk_inst.image_uploaded2;
         vk_inst.image_uploaded = vk_inst.image_uploaded2;
 
-        VK_CHECK(vk_inst.queue.submit(submitInfo, vk_inst.aux_fence));
+        VK_CHECK(vk_inst.queue.submit(submit_info, vk_inst.aux_fence));
         vk_inst.aux_fence_wait = true;
     }
     else
     {
         // submit and block until it finishes, then reset fence/cmd buffer
-        VK_CHECK(vk_inst.queue.submit(submitInfo, vk_inst.aux_fence));
+        VK_CHECK(vk_inst.queue.submit(submit_info, vk_inst.aux_fence));
 
-        const uint64_t timeout_ns = 5ull * 1000ull * 1000ull * 1000ull;
-        vk::Result res = vk_inst.device.waitForFences(vk_inst.aux_fence, /*waitAll*/ vk::True, timeout_ns);
+        vk::Result res = vk_inst.device.waitForFences(vk_inst.aux_fence, vk::True, 5 * 1000000000ULL);
         if (res != vk::Result::eSuccess) {
             ri.Error(ERR_FATAL, "vkWaitForFences() failed with %s at %s",
                      vk::to_string(res).data(), __func__);
@@ -3626,8 +3635,11 @@ static void vk_create_framebuffers(void)
 
 static void vk_create_sync_primitives(void)
 {
-
 	uint32_t i;
+
+	#ifdef USE_UPLOAD_QUEUE
+		VK_CHECK_ASSIGN(vk_inst.image_uploaded2, vk_inst.device.createSemaphore({}));
+	#endif
 
 	// all commands submitted
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++)
@@ -3640,7 +3652,7 @@ static void vk_create_sync_primitives(void)
 		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished, vk_inst.device.createSemaphore(desc));
 
 #ifdef USE_UPLOAD_QUEUE
-			VK_CHECK_ASSIGN(vk_inst.image_uploaded2, vk_inst.device.createSemaphore(desc));
+		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished2 , vk_inst.device.createSemaphore(desc));
 #endif
 
 		vk::FenceCreateInfo fence_desc{};
@@ -7419,7 +7431,7 @@ void vk_end_frame(void)
 	if (!ri.CL_IsMinimized())
 	{
 #ifdef USE_UPLOAD_QUEUE
-		if ( vk_inst.image_uploaded != VK_NULL_HANDLE ) {
+		if ( vk_inst.image_uploaded != vk::Semaphore() ) {
 			waits[0] = vk_inst.cmd->image_acquired;
 			waits[1] = vk_inst.image_uploaded;
 			submit_info.waitSemaphoreCount = 2;
@@ -7431,8 +7443,8 @@ void vk_end_frame(void)
 			submit_info.pSignalSemaphores = &signals[0];
 
 			vk_inst.rendering_finished = vk_inst.cmd->rendering_finished2;
-			vk_inst.image_uploaded = VK_NULL_HANDLE;
-		} else if ( vk_inst.rendering_finished != VK_NULL_HANDLE ) {
+			vk_inst.image_uploaded = vk::Semaphore();
+		} else if ( vk_inst.rendering_finished != vk::Semaphore() ) {
 			waits[0] = vk_inst.cmd->image_acquired;
 			waits[1] = vk_inst.rendering_finished;
 			submit_info.waitSemaphoreCount = 2;
