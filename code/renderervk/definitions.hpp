@@ -56,7 +56,7 @@ typedef struct
     vk::DeviceSize used;
 } ImageChunk;
 
-typedef struct
+struct Vk_World
 {
     //
     // Resources.
@@ -93,7 +93,7 @@ typedef struct
     // cleared by render pass instance clear op (dirty_depth_attachment == 0).
     int dirty_depth_attachment{};
     float modelview_transform[16]{};   // zero; fill later
-} Vk_World;
+};
 
 enum class renderPass_t : uint8_t
 {
@@ -236,7 +236,7 @@ typedef struct VK_Pipeline
     vk::Pipeline handle[RENDER_PASS_COUNT];
 } VK_Pipeline_t;
 
-typedef struct vk_tess_s
+struct vk_tess_s
 {
     vk::CommandBuffer command_buffer{};          // <- null handle
     vk::Semaphore image_acquired{};              // ..
@@ -274,11 +274,13 @@ typedef struct vk_tess_s
     uint32_t num_indexes{};
 
     vk::Rect2D scissor_rect{};                   // {offset={0,0}, extent={0,0}}
-} vk_tess_t;
+};
+
+using vk_tess_t = vk_tess_s;
 
 // Vk_Instance contains engine-specific vulkan resources that persist entire renderer lifetime.
 // This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.
-typedef struct
+struct Vk_Instance
 {
     vk::PhysicalDevice physical_device{};
     vk::SurfaceFormatKHR base_format{};
@@ -538,6 +540,6 @@ typedef struct
 	bool aux_fence_wait{};
 #endif
 
-} Vk_Instance;
+};
 
 #endif // DEFINITIONS_HPP
