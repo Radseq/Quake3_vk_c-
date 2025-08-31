@@ -1857,7 +1857,7 @@ static void init_vulkan_library(void)
 	int device_index;
 	uint32_t i;
 
-	vk_inst = {};
+	vk_inst = Vk_Instance{};
 
 	if (!vk_instance)
 	{
@@ -4616,8 +4616,8 @@ __cleanup:
 
 	deinit_device_functions();
 
-	vk_inst = {};
-	vk_world = {};
+	vk_inst = Vk_Instance{};
+	vk_world = Vk_World{};
 
 	if (code != REF_KEEP_CONTEXT)
 	{
@@ -4690,7 +4690,7 @@ void vk_release_resources(void)
 		}
 	}
 
-	vk_world = {};
+	vk_world = Vk_World{};
 
 	// Reset geometry buffers offsets
 	for (i = 0; i < NUM_COMMAND_BUFFERS; ++i)
@@ -4883,7 +4883,7 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 	byte *buf;
 	int bpp;
 #ifdef USE_UPLOAD_QUEUE
-	int i;
+	uint32_t i;
 #endif
 	int buffer_size = 0;
 	uint32_t num_regions = 0;
@@ -7307,7 +7307,7 @@ void vk_begin_frame(void)
 	vk_inst.cmd->curr_index_buffer = nullptr;
 	vk_inst.cmd->curr_index_offset = 0;
 
-	vk_inst.cmd->descriptor_set = {};
+	vk_inst.cmd->descriptor_set = decltype(vk_inst.cmd->descriptor_set){};
 	vk_inst.cmd->descriptor_set.start = ~0U;
 	// vk_inst.cmd->descriptor_set.end = 0;
 
