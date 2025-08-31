@@ -14,12 +14,7 @@ R_ClampDenorm
 Clamp fp values that may result in denormalization after further multiplication
 ===============
 */
-[[nodiscard]] 
-constexpr float R_ClampDenorm(float v) noexcept {
-    const float av = std::abs(v);
-    // If 0 < av < 1e-9f → return 0, else return v
-    return (av > 0.0f && av < 1e-9f) ? 0.0f : v;
-}
+float R_ClampDenorm(float v);
 
 consteval auto generateDegreeToRadiansLookupTable()
 {

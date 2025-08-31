@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -33,6 +33,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <string.h>
 #include <cmath>
 #include <assert.h>
+
+float R_ClampDenorm(float v) {
+	const float av = std::abs(v);
+	// If 0 < av < 1e-9f → return 0, else return v
+	return (av > 0.0f && av < 1e-9f) ? 0.0f : v;
+}
 
 /*
 ==================
