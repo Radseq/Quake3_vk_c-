@@ -3702,6 +3702,7 @@ static void vk_destroy_sync_primitives(void)
 #endif
 		vk_inst.device.destroyFence(vk_inst.tess[i].rendering_finished_fence);
 		vk_inst.tess[i].waitForFence = false;
+		vk_inst.tess[i].swapchain_image_acquired = false;
 	}
 
 #ifdef USE_UPLOAD_QUEUE
@@ -3793,9 +3794,7 @@ static void vk_restart_swapchain(const char *funcname)
 	}
 
 #ifdef USE_UPLOAD_QUEUE
-	if ( vk_inst.staging_command_buffer != nullptr ) {
 		 vk_inst.staging_command_buffer.reset();
-	}
 #endif
 
 	vk_destroy_pipelines(false);
