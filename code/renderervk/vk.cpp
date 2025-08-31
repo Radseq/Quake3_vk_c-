@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_handles.hpp>
 #include "math.hpp"
 #include "tr_local.hpp"
 #include "utils.hpp"
@@ -532,6 +533,13 @@ static void vk_create_swapchain(const vk::PhysicalDevice &physical_device, const
 		SET_OBJECT_NAME(VkImage(vk_inst.swapchain_images[i]), va("swapchain image %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
 		SET_OBJECT_NAME(VkImageView(vk_inst.swapchain_image_views[i]), va("swapchain image %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 #endif
+	}
+
+	for ( i = 0; i < vk_inst.swapchain_image_count; i++ ) {
+		VK_CHECK_ASSIGN(vk_inst.swapchain_rendering_finished[i], vk_inst.device.createSemaphore({}));
+		#ifdef USE_VK_VALIDATION
+		SET_OBJECT_NAME( VkSemaphore() vk_inst.swapchain_rendering_finished[i]), va( "swapchain_rendering_finished semaphore %i", i ), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT );
+		#endif
 	}
 
 	if (vk_inst.initSwapchainLayout != vk::ImageLayout::eUndefined)
@@ -3655,8 +3663,6 @@ static void vk_create_sync_primitives(void)
 		// swapchain image acquired
 		VK_CHECK_ASSIGN(vk_inst.tess[i].image_acquired, vk_inst.device.createSemaphore(desc));
 
-		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished, vk_inst.device.createSemaphore(desc));
-
 #ifdef USE_UPLOAD_QUEUE
 		VK_CHECK_ASSIGN(vk_inst.tess[i].rendering_finished2 , vk_inst.device.createSemaphore(desc));
 #endif
@@ -3668,7 +3674,6 @@ static void vk_create_sync_primitives(void)
 		vk_inst.tess[i].waitForFence = false;
 #ifdef USE_VK_VALIDATION
 		SET_OBJECT_NAME(VkSemaphore(vk_inst.tess[i].image_acquired), va("image_acquired semaphore %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT);
-		SET_OBJECT_NAME(VkSemaphore(vk_inst.tess[i].rendering_finished), va("rendering_finished semaphore %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT);
 #ifdef USE_UPLOAD_QUEUE
 		SET_OBJECT_NAME(VkSemaphore(vk_inst.tess[i].rendering_finished2), va( "rendering_finished2 semaphore %i", i ), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT );
 #endif
@@ -3700,7 +3705,6 @@ static void vk_destroy_sync_primitives(void)
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++)
 	{
 		vk_inst.device.destroySemaphore(vk_inst.tess[i].image_acquired);
-		vk_inst.device.destroySemaphore(vk_inst.tess[i].rendering_finished);
 #ifdef USE_UPLOAD_QUEUE
 		vk_inst.device.destroySemaphore(vk_inst.tess[i].rendering_finished2);
 #endif
@@ -3775,6 +3779,10 @@ static void vk_destroy_swapchain(void)
 		{
 			vk_inst.device.destroyImageView(vk_inst.swapchain_image_views[i]);
 			vk_inst.swapchain_image_views[i] = nullptr;
+		}
+		if ( vk_inst.swapchain_rendering_finished[i] != vk::Semaphore() ) {
+			vk_inst.device.destroySemaphore(vk_inst.swapchain_rendering_finished[i]);
+			vk_inst.swapchain_rendering_finished[i] = nullptr;
 		}
 	}
 
@@ -7447,7 +7455,7 @@ void vk_end_frame(void)
 			submit_info.waitSemaphoreCount = 2;
 			submit_info.pWaitSemaphores = &waits[0];
 			submit_info.pWaitDstStageMask = &wait_dst_stage_mask[0];
-			signals[0] = vk_inst.cmd->rendering_finished;
+			signals[0] = vk_inst.swapchain_rendering_finished[ vk_inst.cmd->swapchain_image_index ];
 			signals[1] = vk_inst.cmd->rendering_finished2;
 			submit_info.signalSemaphoreCount = 2;
 			submit_info.pSignalSemaphores = &signals[0];
@@ -7460,7 +7468,7 @@ void vk_end_frame(void)
 			submit_info.waitSemaphoreCount = 2;
 			submit_info.pWaitSemaphores = &waits[0];
 			submit_info.pWaitDstStageMask = &wait_dst_stage_mask[0];
-			signals[0] = vk_inst.cmd->rendering_finished;
+			signals[0] = vk_inst.swapchain_rendering_finished[ vk_inst.cmd->swapchain_image_index ];
 			signals[1] = vk_inst.cmd->rendering_finished2;
 			submit_info.signalSemaphoreCount = 2;
 			submit_info.pSignalSemaphores = &signals[0];
@@ -7471,7 +7479,7 @@ void vk_end_frame(void)
 			submit_info.pWaitSemaphores = &vk_inst.cmd->image_acquired;
 			submit_info.pWaitDstStageMask = &wait_dst_stage_mask[0];
 			submit_info.signalSemaphoreCount = 1;
-			submit_info.pSignalSemaphores = &vk_inst.cmd->rendering_finished;
+			submit_info.pSignalSemaphores = &vk_inst.swapchain_rendering_finished[ vk_inst.cmd->swapchain_image_index ];
 		}
 #else
 		submit_info.waitSemaphoreCount = 1;
@@ -7479,6 +7487,7 @@ void vk_end_frame(void)
 		submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
 		submit_info.signalSemaphoreCount = 1;
 		submit_info.pSignalSemaphores = &vk_inst.cmd->rendering_finished;
+		submit_info.pSignalSemaphores = &vk_inst.swapchain_rendering_finished[ vk_inst.cmd->swapchain_image_index ];
 #endif
 	} else {
 		submit_info.waitSemaphoreCount = 0;
@@ -7509,7 +7518,7 @@ void vk_present_frame(void)
 	}
 
 	vk::PresentInfoKHR present_info{1,
-									&vk_inst.cmd->rendering_finished,
+									&vk_inst.swapchain_rendering_finished[ vk_inst.cmd->swapchain_image_index ],
 									1,
 									&vk_inst.swapchain,
 									&vk_inst.cmd->swapchain_image_index,

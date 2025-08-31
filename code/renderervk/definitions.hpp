@@ -242,7 +242,6 @@ struct vk_tess_s
     vk::Semaphore image_acquired{};              // ..
     uint32_t swapchain_image_index{};            // 0
     bool swapchain_image_acquired{};             // false
-    vk::Semaphore rendering_finished{};
 #ifdef USE_UPLOAD_QUEUE
     vk::Semaphore rendering_finished2{};
 #endif
@@ -294,6 +293,7 @@ struct Vk_Instance
     uint32_t swapchain_image_count{};
     vk::Image swapchain_images[MAX_SWAPCHAIN_IMAGES]{};
     vk::ImageView swapchain_image_views[MAX_SWAPCHAIN_IMAGES]{};
+    vk::Semaphore swapchain_rendering_finished[MAX_SWAPCHAIN_IMAGES];
 
     vk::CommandPool command_pool{};
 #ifdef USE_UPLOAD_QUEUE
