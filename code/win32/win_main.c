@@ -110,6 +110,8 @@ void NORETURN FORMAT_PRINTF(1, 2) QDECL Sys_Error(const char* error, ...) {
 		DispatchMessage(&msg);
 	}
 
+	SetUnhandledExceptionFilter( NULL );
+
 	Sys_DestroyConsole();
 
 	exit(1);
@@ -123,7 +125,9 @@ Sys_Quit
 */
 void NORETURN Sys_Quit(void) {
 
-	timeEndPeriod(1);
+	timeEndPeriod( 1 );
+
+	SetUnhandledExceptionFilter( NULL );
 
 	Sys_DestroyConsole();
 	exit(0);

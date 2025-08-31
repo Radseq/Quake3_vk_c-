@@ -1188,7 +1188,10 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			if (stage.bundle[0].alphaGen != alphaGen_t::AGEN_SKIP)
 			{
 				// q3wcp18 @ "textures/ctf_unified/floor_decal_blue" : alphaGen_t::AGEN_VERTEX, colorGen_t::CGEN_VERTEX
-				depthMaskBits &= ~GLS_DEPTHMASK_TRUE;
+				// check for grates on tscabdm3
+				if ( atestBits == 0 ) {
+					depthMaskBits &= ~GLS_DEPTHMASK_TRUE;
+				}
 			}
 			else
 			{
