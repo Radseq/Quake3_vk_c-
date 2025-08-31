@@ -426,18 +426,22 @@ static void vk_create_swapchain(const vk::PhysicalDevice &physical_device, const
 	// VK_CHECK(qvkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &present_mode_count, present_modes));
 
 	if ( verbose ) {
-		ri.Printf(PRINT_ALL, "...presentation modes:");
-		for (i = 0; i < present_mode_count; i++)
-		{
+		ri.Printf( PRINT_ALL, "...presentation modes:" );
+	}
+	for (i = 0; i < present_mode_count; i++)
+	{
+		if ( verbose ) {
 			ri.Printf(PRINT_ALL, " %s", vk::to_string(present_modes[i]).data());
-			if (present_modes[i] == vk::PresentModeKHR::eMailbox)
-				mailbox_supported = true;
-			else if (present_modes[i] == vk::PresentModeKHR::eImmediate)
-				immediate_supported = true;
-			else if (present_modes[i] == vk::PresentModeKHR::eFifoRelaxed)
-				fifo_relaxed_supported = true;
 		}
-		ri.Printf(PRINT_ALL, "\n");
+		if (present_modes[i] == vk::PresentModeKHR::eMailbox)
+			mailbox_supported = true;
+		else if (present_modes[i] == vk::PresentModeKHR::eImmediate)
+			immediate_supported = true;
+		else if (present_modes[i] == vk::PresentModeKHR::eFifoRelaxed)
+			fifo_relaxed_supported = true;
+	}
+	if ( verbose ) {
+		ri.Printf( PRINT_ALL, "\n" );
 	}
 
 	uint32_t image_count = MAX(MIN_SWAPCHAIN_IMAGES, surface_caps.minImageCount);
@@ -3793,10 +3797,14 @@ static void vk_destroy_attachments(void);
 static void vk_destroy_render_passes(void);
 static void vk_destroy_pipelines(bool resetCount);
 
-static void vk_restart_swapchain(const char *funcname)
+static void vk_restart_swapchain(const char *funcname, vk::Result res)
 {
 	uint32_t i;
-	ri.Printf(PRINT_WARNING, "%s(): restarting swapchain...\n", funcname);
+#ifdef _DEBUG
+	ri.Printf( PRINT_WARNING, "%s(%s): restarting swapchain...\n", funcname, vk_result_string( res ) );
+#else
+	ri.Printf(PRINT_WARNING, "%s(): restarting swapchain...\n", funcname );
+#endif
 
 	vk_wait_idle();
 
@@ -7256,7 +7264,7 @@ _retry:
 				{
 					// swapchain re-creation needed
 					retry = true;
-					vk_restart_swapchain(__func__);
+					vk_restart_swapchain(__func__, res);
 					goto _retry;
 				}
 				else
@@ -7538,7 +7546,7 @@ void vk_present_frame(void)
 		case vk::Result::eSuboptimalKHR:
 		case vk::Result::eErrorOutOfDateKHR:
 			// swapchain re-creation needed
-			vk_restart_swapchain(__func__);
+			vk_restart_swapchain(__func__, res);
 			break;
 		case vk::Result::eErrorDeviceLost:
 			// we can ignore that
@@ -7551,7 +7559,7 @@ void vk_present_frame(void)
 	}
 	catch (vk::OutOfDateKHRError &err)
 	{
-		vk_restart_swapchain(__func__);
+		vk_restart_swapchain(__func__, vk::Result::eErrorOutOfDateKHR);
 	}
 	catch (vk::SystemError &e)
 	{
@@ -7567,7 +7575,7 @@ void vk_present_frame(void)
 	case vk::Result::eSuboptimalKHR:
 	case vk::Result::eErrorOutOfDateKHR:
 		// swapchain re-creation needed
-		vk_restart_swapchain(__func__);
+		vk_restart_swapchain(__func__, res);
 		break;
 	case vk::Result::eErrorDeviceLost:
 		// we can ignore that
