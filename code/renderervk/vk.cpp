@@ -1172,8 +1172,8 @@ static void vk_alloc_staging_buffer(const vk::DeviceSize size)
 	vk_inst.staging_buffer.offset = 0;
 #endif
 #ifdef USE_VK_VALIDATION
-	SET_OBJECT_NAME(VkBuffer(vk.staging_buffer.handle), "staging buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
-	SET_OBJECT_NAME(VkDeviceMemory(vk.staging_buffer.memory), "staging buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
+	SET_OBJECT_NAME(VkBuffer(vk_inst.staging_buffer.handle), "staging buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
+	SET_OBJECT_NAME(VkDeviceMemory(vk_inst.staging_buffer.memory), "staging buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
 #endif
 }
 
