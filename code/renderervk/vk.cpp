@@ -143,42 +143,152 @@ static constexpr vk::SampleCountFlagBits convertToVkSampleCountFlagBits(const in
 
 ////////////////////////////////////////////////////////////////////////////
 
-static inline uint32_t find_memory_type(const uint32_t memory_type_bits, const vk::MemoryPropertyFlags properties)
-{
-	uint32_t i;
+static constexpr uint32_t BAD_INDEX = ~0u;
 
-	auto memory_properties = vk_inst.physical_device.getMemoryProperties();
+static constexpr vk::MemoryPropertyFlags kKnownBits =
+    vk::MemoryPropertyFlagBits::eDeviceLocal |
+    vk::MemoryPropertyFlagBits::eHostVisible |
+    vk::MemoryPropertyFlagBits::eHostCoherent |
+    vk::MemoryPropertyFlagBits::eHostCached;
 
-	for (i = 0; i < memory_properties.memoryTypeCount; i++)
-	{
-		if ((memory_type_bits & (1 << i)) != 0 &&
-			(memory_properties.memoryTypes[i].propertyFlags & properties) == properties)
-		{
-			return i;
-		}
-	}
-	ri.Error(ERR_FATAL, "Vulkan: failed to find matching memory type with requested properties");
-	return ~0U;
+static constexpr bool only_known_bits(vk::MemoryPropertyFlags f) noexcept {
+    return (f & ~kKnownBits) == vk::MemoryPropertyFlags{};
 }
 
-static inline uint32_t find_memory_type2(const uint32_t memory_type_bits, const vk::MemoryPropertyFlags properties, vk::MemoryPropertyFlags *outprops)
-{
-	const vk::PhysicalDeviceMemoryProperties memory_properties = vk_inst.physical_device.getMemoryProperties();
-
-	for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
-	{
-		if ((memory_type_bits & (1 << i)) != 0 && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties)
-		{
-			if (outprops)
-			{
-				*outprops = memory_properties.memoryTypes[i].propertyFlags;
-			}
-			return i;
-		}
-	}
-
-	return ~0U;
+static constexpr uint32_t compress_flags(vk::MemoryPropertyFlags f) noexcept {
+    // 4-bit key: [cached:8][coherent:4][visible:2][deviceLocal:1]
+    uint32_t key = 0;
+    if (bool(f & vk::MemoryPropertyFlagBits::eDeviceLocal)) key |= 0x1;
+    if (bool(f & vk::MemoryPropertyFlagBits::eHostVisible)) key |= 0x2;
+    if (bool(f & vk::MemoryPropertyFlagBits::eHostCoherent)) key |= 0x4;
+    if (bool(f & vk::MemoryPropertyFlagBits::eHostCached))   key |= 0x8;
+    return key;
 }
+
+struct MemTypeCache {
+    vk::PhysicalDeviceMemoryProperties props{};
+    // For each 4-bit key, store bitmasks of memory type indices that match.
+    std::array<uint32_t,16> anyMask{};       // all matches
+    std::array<uint32_t,16> devLocalMask{};  // matches that are also device-local
+
+    void build() noexcept {
+        anyMask.fill(0);
+        devLocalMask.fill(0);
+
+        // Precompute masks for all flag combos
+        for (uint32_t key = 1; key < anyMask.size(); ++key) {
+            const auto want = [&]{
+                vk::MemoryPropertyFlags f{};
+                if (key & 0x1) f |= vk::MemoryPropertyFlagBits::eDeviceLocal;
+                if (key & 0x2) f |= vk::MemoryPropertyFlagBits::eHostVisible;
+                if (key & 0x4) f |= vk::MemoryPropertyFlagBits::eHostCoherent;
+                if (key & 0x8) f |= vk::MemoryPropertyFlagBits::eHostCached;
+                return f;
+            }();
+
+            uint32_t any = 0, dev = 0;
+            for (uint32_t i = 0; i < props.memoryTypeCount; ++i) {
+                const auto flags = props.memoryTypes[i].propertyFlags;
+                if ((flags & want) == want) {
+                    any |= (1u << i);
+                    if (bool(flags & vk::MemoryPropertyFlagBits::eDeviceLocal))
+                        dev |= (1u << i);
+                }
+            }
+            anyMask[key] = any;
+            devLocalMask[key] = dev;
+        }
+    }
+
+    // Precise scan (fallback) used if LUT miss or uncommon flags present.
+    uint32_t scan(uint32_t typeBits, vk::MemoryPropertyFlags want) const noexcept {
+        for (uint32_t i = 0; i < props.memoryTypeCount; ++i)
+            if ((typeBits & (1u << i)) && (props.memoryTypes[i].propertyFlags & want) == want)
+                return i;
+        return BAD_INDEX;
+    }
+} g_memtypes;
+
+// Call this once at device init
+void init_memory_type_cache() {
+    g_memtypes.props = vk_inst.physical_device.getMemoryProperties();
+    g_memtypes.build();
+}
+
+static inline uint32_t find_memory_type(const uint32_t typeBits,
+                                        const vk::MemoryPropertyFlags properties)
+{
+    if (only_known_bits(properties)) {
+        const uint32_t key = compress_flags(properties);
+        uint32_t mask = (properties & vk::MemoryPropertyFlagBits::eDeviceLocal)
+                        ? g_memtypes.devLocalMask[key]
+                        : g_memtypes.anyMask[key];
+        uint32_t candidates = mask & typeBits;
+        if (!candidates) {
+            // fall back to "any" mask before full scan (maybe deviceLocal is impossible)
+            candidates = g_memtypes.anyMask[key] & typeBits;
+        }
+        if (candidates) {
+            // pick the lowest index set bit (stable and fast)
+            return std::countr_zero(candidates);
+        }
+    }
+
+    // Uncommon bits (e.g., LazilyAllocated, Protected) or no LUT hit.
+    const uint32_t idx = g_memtypes.scan(typeBits, properties);
+    if (idx == BAD_INDEX)
+        ri.Error(ERR_FATAL, "Vulkan: no memory type for flags %08x", (unsigned)properties);
+    return idx;
+}
+
+static inline uint32_t find_memory_type2(const uint32_t typeBits,
+                                         const vk::MemoryPropertyFlags properties,
+                                         vk::MemoryPropertyFlags* outprops)
+{
+    const uint32_t idx = find_memory_type(typeBits, properties);
+    if (idx != BAD_INDEX && outprops) {
+        *outprops = g_memtypes.props.memoryTypes[idx].propertyFlags;
+    }
+    return idx;
+}
+
+
+// static inline uint32_t find_memory_type(const uint32_t memory_type_bits, const vk::MemoryPropertyFlags properties)
+// {
+// 	uint32_t i;
+
+// 	auto memory_properties = vk_inst.physical_device.getMemoryProperties();
+
+// 	for (i = 0; i < memory_properties.memoryTypeCount; i++)
+// 	{
+// 		if ((memory_type_bits & (1 << i)) != 0 &&
+// 			(memory_properties.memoryTypes[i].propertyFlags & properties) == properties)
+// 		{
+// 			return i;
+// 		}
+// 	}
+// 	ri.Error(ERR_FATAL, "Vulkan: failed to find matching memory type with requested properties");
+// 	return ~0U;
+// }
+
+// static inline uint32_t find_memory_type2(const uint32_t memory_type_bits, const vk::MemoryPropertyFlags properties, vk::MemoryPropertyFlags *outprops)
+// {
+// 	const vk::PhysicalDeviceMemoryProperties memory_properties = vk_inst.physical_device.getMemoryProperties();
+
+// 	for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
+// 	{
+// 		if ((memory_type_bits & (1 << i)) != 0 && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties)
+// 		{
+// 			if (outprops)
+// 			{
+// 				*outprops = memory_properties.memoryTypes[i].propertyFlags;
+// 			}
+// 			return i;
+// 		}
+// 	}
+
+// 	return ~0U;
+// }
 
 static vk::CommandBuffer begin_command_buffer(void)
 {
