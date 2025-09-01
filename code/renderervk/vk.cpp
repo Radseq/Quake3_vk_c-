@@ -559,7 +559,7 @@ static void vk_create_swapchain(const vk::PhysicalDevice &physical_device, const
 	for ( i = 0; i < vk_inst.swapchain_image_count; i++ ) {
 		VK_CHECK_ASSIGN(vk_inst.swapchain_rendering_finished[i], vk_inst.device.createSemaphore({}));
 		#ifdef USE_VK_VALIDATION
-		SET_OBJECT_NAME( VkSemaphore() vk_inst.swapchain_rendering_finished[i]), va( "swapchain_rendering_finished semaphore %i", i ), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT );
+		SET_OBJECT_NAME( VkSemaphore(vk_inst.swapchain_rendering_finished[i]), va( "swapchain_rendering_finished semaphore %i", i ), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT );
 		#endif
 	}
 
@@ -3807,7 +3807,7 @@ static void vk_restart_swapchain(const char *funcname, vk::Result res)
 {
 	uint32_t i;
 #ifdef _DEBUG
-	ri.Printf( PRINT_WARNING, "%s(%s): restarting swapchain...\n", funcname, vk_result_string( res ) );
+	ri.Printf( PRINT_WARNING, "%s(%s): restarting swapchain...\n", funcname, vk::to_string( res ) );
 #else
 	ri.Printf(PRINT_WARNING, "%s(): restarting swapchain...\n", funcname );
 #endif
