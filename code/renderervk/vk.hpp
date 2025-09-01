@@ -4,6 +4,8 @@
 #include "tr_common.hpp"
 #include "tr_local.hpp"
 
+#include "tr_image.hpp"
+
 #define USE_VBO
 #define USE_PMLIGHT
 #define USE_LEGACY_DLIGHTS
@@ -90,6 +92,8 @@ void vk_create_image(image_t &image, const int width, const int height, const in
 void vk_upload_image_data(image_t &image, int x, int y, int width, int height, int miplevels, byte *pixels, int size, bool update);
 void vk_update_descriptor_set(const image_t &image, const bool mipmap);
 void vk_destroy_image_resources(vk::Image &image, vk::ImageView &imageView);
+void vk_update_attachment_descriptors( void );
+void vk_destroy_samplers( void );
 
 uint32_t vk_find_pipeline_ext(const uint32_t base, const Vk_Pipeline_Def &def, bool use);
 void vk_get_pipeline_def(const uint32_t pipeline, Vk_Pipeline_Def &def);

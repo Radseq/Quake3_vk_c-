@@ -1507,11 +1507,11 @@ static void RE_Shutdown(refShutdownCode_t code)
 	ri.Cmd_RemoveCommand("shaderstate");
 	ri.Cmd_RemoveCommand("vkinfo");
 
-	if (tr.registered)
-	{
-		// R_IssuePendingRenderCommands();
+	//if ( tr.registered ) {
+		//R_IssuePendingRenderCommands();
 		R_DeleteTextures();
-	}
+	//}
+
 
 	vk_release_resources();
 

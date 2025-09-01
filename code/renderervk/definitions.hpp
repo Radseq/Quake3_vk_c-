@@ -59,27 +59,10 @@ typedef struct
 struct Vk_World
 {
     //
-    // Resources.
-    //
-    int num_samplers{};
-    Vk_Sampler_Def sampler_defs[MAX_VK_SAMPLERS]{};
-    vk::Sampler samplers[MAX_VK_SAMPLERS]{};
-
-    //
     // Memory allocations.
     //
     int num_image_chunks{};
     ImageChunk image_chunks[MAX_IMAGE_CHUNKS]{};
-
-    // Host visible memory used to copy image data to device local memory.
-    vk::Buffer staging_buffer{};
-    vk::DeviceMemory staging_buffer_memory{};
-    vk::DeviceSize staging_buffer_size{};
-
-    byte* staging_buffer_ptr{}; // pointer to mapped staging buffer
-#ifdef USE_UPLOAD_QUEUE
-	vk::DeviceSize staging_buffer_offset{};
-#endif
 
     //
     // State.
@@ -293,7 +276,7 @@ struct Vk_Instance
     uint32_t swapchain_image_count{};
     vk::Image swapchain_images[MAX_SWAPCHAIN_IMAGES]{};
     vk::ImageView swapchain_image_views[MAX_SWAPCHAIN_IMAGES]{};
-    vk::Semaphore swapchain_rendering_finished[MAX_SWAPCHAIN_IMAGES];
+    vk::Semaphore swapchain_rendering_finished[MAX_SWAPCHAIN_IMAGES]{};
 
     vk::CommandPool command_pool{};
 #ifdef USE_UPLOAD_QUEUE
@@ -540,6 +523,28 @@ struct Vk_Instance
 	bool aux_fence_wait{};
 #endif
 
+	struct staging_buffer_s {
+		vk::Buffer handle{};
+		vk::DeviceMemory memory{};
+		vk::DeviceSize size{};
+		byte *ptr{}; // pointer to mapped staging buffer
+#ifdef USE_UPLOAD_QUEUE
+		vk::DeviceSize offset{};
+#endif
+	} staging_buffer;
+
+	struct samplers_s {
+		int count{};
+		Vk_Sampler_Def def[MAX_VK_SAMPLERS]{};
+		vk::Sampler handle[MAX_VK_SAMPLERS]{};
+		int filter_min{};
+		int filter_max{};
+	} samplers;
+
+    struct defaults_t {
+		vk::DeviceSize staging_size{};
+		vk::DeviceSize geometry_size{};
+	} defaults;
 };
 
 #endif // DEFINITIONS_HPP

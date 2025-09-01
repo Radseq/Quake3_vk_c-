@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // tr_image.c
 #include "tr_image.hpp"
 #include "tr_bsp.hpp"
+#include "tr_local.hpp"
 #include "vk.hpp"
 #include "tr_shader.hpp"
 #include "utils.hpp"
@@ -367,8 +368,17 @@ void TextureMode(std::string_view sv_mode)
 	gl_filter_min = mode->minimize;
 	gl_filter_max = mode->maximize;
 
+	if ( gl_filter_min == vk_inst.samplers.filter_min && gl_filter_max == vk_inst.samplers.filter_max ) {
+		return;
+	}
+
 	vk_wait_idle();
-	for (i = 0; i < tr.numImages; i++)
+	vk_destroy_samplers();
+
+	vk_inst.samplers.filter_min = gl_filter_min;
+	vk_inst.samplers.filter_max = gl_filter_max;
+	vk_update_attachment_descriptors();
+	for ( i = 0; i < tr.numImages; i++ ) 
 	{
 		img = tr.images[i];
 		if (HasFlag(img->flags, imgFlags_t::IMGFLAG_MIPMAP))
@@ -1466,15 +1476,18 @@ void R_InitImages(void)
 
 void R_DeleteTextures(void)
 {
+	if ( tr.numImages == 0 ) {
+		return;
+	}
 
-	image_t *img;
+
 	int i;
 
 	vk_wait_idle();
 
 	for (i = 0; i < tr.numImages; i++)
 	{
-		img = tr.images[i];
+		image_t *img = tr.images[i];
 		vk_destroy_image_resources(img->handle, img->view);
 
 		// img->descriptor will be released with pool reset
