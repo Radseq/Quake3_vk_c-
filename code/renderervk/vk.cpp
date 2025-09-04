@@ -57,6 +57,9 @@ static PFN_vkDestroyDebugReportCallbackEXT qvkDestroyDebugReportCallbackEXT;
 
 static PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;
 
+template <class T>
+inline void reset_to_default(T& x) noexcept { x = T{}; }
+
 #ifdef USE_VK_VALIDATION
 #define VK_CHECK(function_call)                                                                        \
 	{                                                                                                  \
@@ -115,180 +118,114 @@ static inline void vkCheckFunctionCall(const vk::Result res, const char *funcNam
 
 #endif
 
-static constexpr vk::SampleCountFlagBits convertToVkSampleCountFlagBits(const int sampleCountInt)
-{
-	switch (sampleCountInt)
-	{
-	case 1:
-		return vk::SampleCountFlagBits::e1;
-	case 2:
-		return vk::SampleCountFlagBits::e2;
-	case 4:
-		return vk::SampleCountFlagBits::e4;
-	case 8:
-		return vk::SampleCountFlagBits::e8;
-	case 16:
-		return vk::SampleCountFlagBits::e16;
-	case 32:
-		return vk::SampleCountFlagBits::e32;
-	case 64:
-		return vk::SampleCountFlagBits::e64;
-	default:
-		// Handle unsupported sample count
-		// For example, throw an exception or return a default value
-		ri.Printf(PRINT_DEVELOPER, "Wrong vk_inst.simple count, use 1 bit: %d\n", sampleCountInt);
-		return vk::SampleCountFlagBits::e1;
+
+constexpr uint32_t toInt(vk::SampleCountFlags f) {
+	if (f & vk::SampleCountFlagBits::e64) return 64;
+	if (f & vk::SampleCountFlagBits::e32) return 32;
+	if (f & vk::SampleCountFlagBits::e16) return 16;
+	if (f & vk::SampleCountFlagBits::e8)  return 8;
+	if (f & vk::SampleCountFlagBits::e4)  return 4;
+	if (f & vk::SampleCountFlagBits::e2)  return 2;
+	if (f & vk::SampleCountFlagBits::e1)  return 1;
+	return 0;
+}
+
+static constexpr auto sampleCountLUT = [] {
+	std::array<std::pair<vk::SampleCountFlagBits, uint32_t>, 7> lut{};
+	lut[0] = { vk::SampleCountFlagBits::e1,  1 };
+	lut[1] = { vk::SampleCountFlagBits::e2,  2 };
+	lut[2] = { vk::SampleCountFlagBits::e4,  4 };
+	lut[3] = { vk::SampleCountFlagBits::e8,  8 };
+	lut[4] = { vk::SampleCountFlagBits::e16, 16 };
+	lut[5] = { vk::SampleCountFlagBits::e32, 32 };
+	lut[6] = { vk::SampleCountFlagBits::e64, 64 };
+	return lut;
+	}();
+
+static constexpr uint32_t flagToCount(vk::SampleCountFlagBits b) {
+	for (auto [flag, value] : sampleCountLUT) {
+		if (flag == b) return value;
 	}
+	return 0; // invalid
+}
+
+// Map any integer to the nearest valid SampleCount flag (power-of-two clamp to [1,64]).
+static constexpr vk::SampleCountFlagBits countToFlag(uint32_t n) {
+	if (n == 0u) return vk::SampleCountFlagBits::e1;
+	uint32_t p = std::bit_ceil(n);
+	if (p > 64u) p = 64u;
+	return static_cast<vk::SampleCountFlagBits>(p);
+}
+
+// Highest supported bit from a mask (e.g., 0b101100 -> 0b100000)
+static constexpr vk::SampleCountFlagBits highestSupported(vk::SampleCountFlags mask) {
+	const uint32_t m = toInt(mask);
+	if (m == 0u) return vk::SampleCountFlagBits::e1; // defensive
+	return static_cast<vk::SampleCountFlagBits>(std::bit_floor(m));
+}
+
+// Clamp requested samples to the highest supported <= requested (no loops).
+static constexpr vk::SampleCountFlagBits clampToSupported(vk::SampleCountFlags supported,
+	uint32_t requestedCount) {
+	// Round up to next power-of-two and clamp to [1,64]
+	uint32_t req = std::bit_ceil(std::max<uint32_t>(1u, requestedCount));
+	if (req > 64u) req = 64u;
+
+	// Keep only supported bits <= req
+	const uint32_t supportedU = toInt(supported);
+	const uint32_t leMask = (req << 1) - 1u;             // bits up to and including 'req'
+	const uint32_t limited = supportedU & leMask;
+
+	if (limited == 0u) return vk::SampleCountFlagBits::e1;   // fallback
+	return static_cast<vk::SampleCountFlagBits>(std::bit_floor(limited));
+}
+
+// Min/Max by numeric sample count (power-of-two => underlying value order is correct).
+static constexpr vk::SampleCountFlagBits minSample(vk::SampleCountFlagBits a, vk::SampleCountFlagBits b) {
+	return (flagToCount(a) < flagToCount(b)) ? a : b;
+}
+static constexpr vk::SampleCountFlagBits maxSample(vk::SampleCountFlagBits a, vk::SampleCountFlagBits b) {
+	return (flagToCount(a) > flagToCount(b)) ? a : b;
 }
 
 ////////////////////////////////////////////////////////////////////////////
 
-static constexpr uint32_t BAD_INDEX = ~0u;
+ static inline uint32_t find_memory_type(const uint32_t memory_type_bits, const vk::MemoryPropertyFlags properties)
+ {
+ 	uint32_t i;
 
-static constexpr vk::MemoryPropertyFlags kKnownBits =
-    vk::MemoryPropertyFlagBits::eDeviceLocal |
-    vk::MemoryPropertyFlagBits::eHostVisible |
-    vk::MemoryPropertyFlagBits::eHostCoherent |
-    vk::MemoryPropertyFlagBits::eHostCached;
+ 	auto memory_properties = vk_inst.physical_device.getMemoryProperties();
 
-static constexpr bool only_known_bits(vk::MemoryPropertyFlags f) noexcept {
-    return (f & ~kKnownBits) == vk::MemoryPropertyFlags{};
-}
+ 	for (i = 0; i < memory_properties.memoryTypeCount; i++)
+ 	{
+ 		if ((memory_type_bits & (1 << i)) != 0 &&
+ 			(memory_properties.memoryTypes[i].propertyFlags & properties) == properties)
+ 		{
+ 			return i;
+ 		}
+ 	}
+ 	ri.Error(ERR_FATAL, "Vulkan: failed to find matching memory type with requested properties");
+ 	return ~0U;
+ }
 
-static constexpr uint32_t compress_flags(vk::MemoryPropertyFlags f) noexcept {
-    // 4-bit key: [cached:8][coherent:4][visible:2][deviceLocal:1]
-    uint32_t key = 0;
-    if (bool(f & vk::MemoryPropertyFlagBits::eDeviceLocal)) key |= 0x1;
-    if (bool(f & vk::MemoryPropertyFlagBits::eHostVisible)) key |= 0x2;
-    if (bool(f & vk::MemoryPropertyFlagBits::eHostCoherent)) key |= 0x4;
-    if (bool(f & vk::MemoryPropertyFlagBits::eHostCached))   key |= 0x8;
-    return key;
-}
+ static inline uint32_t find_memory_type2(const uint32_t memory_type_bits, const vk::MemoryPropertyFlags properties, vk::MemoryPropertyFlags *outprops)
+ {
+ 	const vk::PhysicalDeviceMemoryProperties memory_properties = vk_inst.physical_device.getMemoryProperties();
 
-struct MemTypeCache {
-    vk::PhysicalDeviceMemoryProperties props{};
-    // For each 4-bit key, store bitmasks of memory type indices that match.
-    std::array<uint32_t,16> anyMask{};       // all matches
-    std::array<uint32_t,16> devLocalMask{};  // matches that are also device-local
+ 	for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
+ 	{
+ 		if ((memory_type_bits & (1 << i)) != 0 && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties)
+ 		{
+ 			if (outprops)
+ 			{
+ 				*outprops = memory_properties.memoryTypes[i].propertyFlags;
+ 			}
+ 			return i;
+ 		}
+ 	}
 
-    void build() noexcept {
-        anyMask.fill(0);
-        devLocalMask.fill(0);
-
-        // Precompute masks for all flag combos
-        for (uint32_t key = 1; key < anyMask.size(); ++key) {
-            const auto want = [&]{
-                vk::MemoryPropertyFlags f{};
-                if (key & 0x1) f |= vk::MemoryPropertyFlagBits::eDeviceLocal;
-                if (key & 0x2) f |= vk::MemoryPropertyFlagBits::eHostVisible;
-                if (key & 0x4) f |= vk::MemoryPropertyFlagBits::eHostCoherent;
-                if (key & 0x8) f |= vk::MemoryPropertyFlagBits::eHostCached;
-                return f;
-            }();
-
-            uint32_t any = 0, dev = 0;
-            for (uint32_t i = 0; i < props.memoryTypeCount; ++i) {
-                const auto flags = props.memoryTypes[i].propertyFlags;
-                if ((flags & want) == want) {
-                    any |= (1u << i);
-                    if (bool(flags & vk::MemoryPropertyFlagBits::eDeviceLocal))
-                        dev |= (1u << i);
-                }
-            }
-            anyMask[key] = any;
-            devLocalMask[key] = dev;
-        }
-    }
-
-    // Precise scan (fallback) used if LUT miss or uncommon flags present.
-    uint32_t scan(uint32_t typeBits, vk::MemoryPropertyFlags want) const noexcept {
-        for (uint32_t i = 0; i < props.memoryTypeCount; ++i)
-            if ((typeBits & (1u << i)) && (props.memoryTypes[i].propertyFlags & want) == want)
-                return i;
-        return BAD_INDEX;
-    }
-} g_memtypes;
-
-// Call this once at device init
-void init_memory_type_cache() {
-    g_memtypes.props = vk_inst.physical_device.getMemoryProperties();
-    g_memtypes.build();
-}
-
-static inline uint32_t find_memory_type(const uint32_t typeBits,
-                                        const vk::MemoryPropertyFlags properties)
-{
-    if (only_known_bits(properties)) {
-        const uint32_t key = compress_flags(properties);
-        uint32_t mask = (properties & vk::MemoryPropertyFlagBits::eDeviceLocal)
-                        ? g_memtypes.devLocalMask[key]
-                        : g_memtypes.anyMask[key];
-        uint32_t candidates = mask & typeBits;
-        if (!candidates) {
-            // fall back to "any" mask before full scan (maybe deviceLocal is impossible)
-            candidates = g_memtypes.anyMask[key] & typeBits;
-        }
-        if (candidates) {
-            // pick the lowest index set bit (stable and fast)
-            return std::countr_zero(candidates);
-        }
-    }
-
-    // Uncommon bits (e.g., LazilyAllocated, Protected) or no LUT hit.
-    const uint32_t idx = g_memtypes.scan(typeBits, properties);
-    if (idx == BAD_INDEX)
-        ri.Error(ERR_FATAL, "Vulkan: no memory type for flags %08x", (unsigned)properties);
-    return idx;
-}
-
-static inline uint32_t find_memory_type2(const uint32_t typeBits,
-                                         const vk::MemoryPropertyFlags properties,
-                                         vk::MemoryPropertyFlags* outprops)
-{
-    const uint32_t idx = find_memory_type(typeBits, properties);
-    if (idx != BAD_INDEX && outprops) {
-        *outprops = g_memtypes.props.memoryTypes[idx].propertyFlags;
-    }
-    return idx;
-}
-
-
-// static inline uint32_t find_memory_type(const uint32_t memory_type_bits, const vk::MemoryPropertyFlags properties)
-// {
-// 	uint32_t i;
-
-// 	auto memory_properties = vk_inst.physical_device.getMemoryProperties();
-
-// 	for (i = 0; i < memory_properties.memoryTypeCount; i++)
-// 	{
-// 		if ((memory_type_bits & (1 << i)) != 0 &&
-// 			(memory_properties.memoryTypes[i].propertyFlags & properties) == properties)
-// 		{
-// 			return i;
-// 		}
-// 	}
-// 	ri.Error(ERR_FATAL, "Vulkan: failed to find matching memory type with requested properties");
-// 	return ~0U;
-// }
-
-// static inline uint32_t find_memory_type2(const uint32_t memory_type_bits, const vk::MemoryPropertyFlags properties, vk::MemoryPropertyFlags *outprops)
-// {
-// 	const vk::PhysicalDeviceMemoryProperties memory_properties = vk_inst.physical_device.getMemoryProperties();
-
-// 	for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
-// 	{
-// 		if ((memory_type_bits & (1 << i)) != 0 && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties)
-// 		{
-// 			if (outprops)
-// 			{
-// 				*outprops = memory_properties.memoryTypes[i].propertyFlags;
-// 			}
-// 			return i;
-// 		}
-// 	}
-
-// 	return ~0U;
-// }
+ 	return ~0U;
+ }
 
 static vk::CommandBuffer begin_command_buffer(void)
 {
@@ -3650,7 +3587,7 @@ static void vk_create_attachments(void)
 	SET_OBJECT_NAME(VkImage(vk_inst.color_image), "color attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
 	SET_OBJECT_NAME(VkImageView(vk_inst.color_image_view), "color attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 
-	SET_OBJECT_NAME(VkImage(vk_inst.capture.image), "capture image", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
+	SET_OBJECT_NAME(VkImage(vk_inst.capture.image), "capture image", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
 	SET_OBJECT_NAME(VkImageView(vk_inst.capture.image_view), "capture image view", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT);
 
 	for (i = 0; i < arrayLen(vk_inst.bloom_image); i++)
@@ -3996,25 +3933,6 @@ static void vk_set_render_scale(void)
 	}
 }
 
-static constexpr int sampleCountFlagsToInt(vk::SampleCountFlags sampleCountFlags)
-{
-	if (sampleCountFlags & vk::SampleCountFlagBits::e1)
-		return 1;
-	if (sampleCountFlags & vk::SampleCountFlagBits::e2)
-		return 2;
-	if (sampleCountFlags & vk::SampleCountFlagBits::e4)
-		return 4;
-	if (sampleCountFlags & vk::SampleCountFlagBits::e8)
-		return 8;
-	if (sampleCountFlags & vk::SampleCountFlagBits::e16)
-		return 16;
-	if (sampleCountFlags & vk::SampleCountFlagBits::e32)
-		return 32;
-	if (sampleCountFlags & vk::SampleCountFlagBits::e64)
-		return 64;
-	return 0; // Default case for unsupported or undefined sample counts
-}
-
 void vk_initialize(void)
 {
 	char buf[64], driver_version[64];
@@ -4062,26 +3980,26 @@ void vk_initialize(void)
 
 	// multisampling
 
-	vkMaxSamples = convertToVkSampleCountFlagBits(MIN(sampleCountFlagsToInt(props.limits.sampledImageColorSampleCounts),
-													  sampleCountFlagsToInt(props.limits.sampledImageDepthSampleCounts)));
+	// Intersection of color & depth: what you can *actually* use for render targets.
+	const vk::SampleCountFlags supported =
+		props.limits.sampledImageColorSampleCounts &
+		props.limits.sampledImageDepthSampleCounts;
 
-	if (/*vk_inst.fboActive &&*/ vk_inst.msaaActive)
-	{
-		vk::SampleCountFlags mask = vkMaxSamples;
-		vkSamples = convertToVkSampleCountFlagBits(MAX(static_cast<int>(log2pad_plus(r_ext_multisample->integer, 1)), sampleCountFlagsToInt(vk::SampleCountFlagBits::e2)));
-		while (vkSamples > mask)
-		{
-			int shiftAmount = 1;
-			vkSamples = static_cast<vk::SampleCountFlagBits>(sampleCountFlagsToInt(vkSamples) >> shiftAmount);
-		}
-		ri.Printf(PRINT_ALL, "...using %ix MSAA\n", sampleCountFlagsToInt(vkSamples));
+	vkMaxSamples = highestSupported(supported);
+
+	if (/*vk_inst.fboActive &&*/ vk_inst.msaaActive) {
+		// Your request: any integer; we round to pow2 and clamp to supported.
+		const uint32_t requested = std::max<uint32_t>(2u, static_cast<uint32_t>(r_ext_multisample->integer));
+		vkSamples = clampToSupported(supported, requested);
+
+		ri.Printf(PRINT_ALL, "...using %ux MSAA\n", flagToCount(vkSamples));
 	}
-	else
-	{
+	else {
 		vkSamples = vk::SampleCountFlagBits::e1;
 	}
 
-	vk_inst.screenMapSamples = vk::SampleCountFlagBits(MIN((int)vkMaxSamples, (int)vk::SampleCountFlagBits::e4));
+	// Cap screenMap at 4x but never exceed device max.
+	vk_inst.screenMapSamples = minSample(vkMaxSamples, vk::SampleCountFlagBits::e4);
 
 	vk_inst.screenMapWidth = (float)glConfig.vidWidth / 16.0;
 	if (vk_inst.screenMapWidth < 4)
@@ -4669,9 +4587,6 @@ static void vk_destroy_pipelines(bool resetCounter)
 		}
 	}
 }
-
-template <class T>
-inline void reset_to_default(T& x) noexcept { x = T{}; }
 
 static void reset_vk_instance(Vk_Instance& s) noexcept
 {
@@ -5853,7 +5768,7 @@ void vk_create_post_process_pipeline(const int program_index, const uint32_t wid
 		else
 		{
 			*pipeline = createGraphicsPipelineResult.value;
-			SET_OBJECT_NAME(VkPipeline(&pipeline), pipeline_name, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+			SET_OBJECT_NAME(VkPipeline(*pipeline), pipeline_name, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
 		}
 	}
 	catch (vk::SystemError &err)
@@ -5888,18 +5803,19 @@ static void push_attr(const uint32_t location, const uint32_t binding, const vk:
 	num_attrs++;
 }
 
-static constexpr vk::PrimitiveTopology GetTopologyByPrimitivies(const Vk_Pipeline_Def &def)
-{
-	switch (def.primitives)
-	{
-	case Vk_Primitive_Topology::LINE_LIST:
-		return vk::PrimitiveTopology::eLineList;
-	case Vk_Primitive_Topology::POINT_LIST:
-		return vk::PrimitiveTopology::ePointList;
-	case Vk_Primitive_Topology::TRIANGLE_STRIP:
-		return vk::PrimitiveTopology::eTriangleStrip;
-	default:
-		return vk::PrimitiveTopology::eTriangleList;
+constexpr vk::PrimitiveTopology kTopo[] = {
+	vk::PrimitiveTopology::eTriangleList,   // default
+	vk::PrimitiveTopology::eLineList,       // LINE_LIST
+	vk::PrimitiveTopology::ePointList,      // POINT_LIST
+	vk::PrimitiveTopology::eTriangleStrip,  // TRIANGLE_STRIP
+};
+
+inline static vk::PrimitiveTopology GetTopologyByPrimitivies(Vk_Primitive_Topology p) {
+	switch (p) {
+		case Vk_Primitive_Topology::LINE_LIST: return kTopo[1];
+		case Vk_Primitive_Topology::POINT_LIST: return kTopo[2];
+		case Vk_Primitive_Topology::TRIANGLE_STRIP: return kTopo[3];
+		default: return kTopo[0];
 	}
 }
 
@@ -6017,12 +5933,28 @@ static vk::PipelineColorBlendAttachmentState createBlendAttachmentState(const ui
 	return attachmentBlendState;
 }
 
+inline constexpr std::array<vk::SpecializationMapEntry, 11> kFragSpecEntries = { {
+	{ 0, offsetof(FragSpec, alphaFunc),        sizeof(int)   },
+	{ 1, offsetof(FragSpec, alphaRef),         sizeof(float) },
+	{ 2, offsetof(FragSpec, depthFrag),        sizeof(float) },
+	{ 3, offsetof(FragSpec, alphaToCoverage),  sizeof(int)   },
+	{ 4, offsetof(FragSpec, colorMode),        sizeof(int)   },
+	{ 5, offsetof(FragSpec, absLight),         sizeof(int)   },
+	{ 6, offsetof(FragSpec, multiTexMode),     sizeof(int)   },
+	{ 7, offsetof(FragSpec, discardMode),      sizeof(int)   },
+	{ 8, offsetof(FragSpec, fixedColor),       sizeof(float) },
+	{ 9, offsetof(FragSpec, fixedAlpha),       sizeof(float) },
+	{10, offsetof(FragSpec, acff),             sizeof(int)   },
+} };
+
+
 vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t renderPassIndex, uint32_t def_index)
 {
 	vk::ShaderModule *vs_module = nullptr;
 	vk::ShaderModule *fs_module = nullptr;
 	// int32_t vert_spec_data[1]; // clippping
-	floatint_t frag_spec_data[11]{}; // 0:alpha-test-func, 1:alpha-test-value, 2:depth-fragment, 3:alpha-to-coverage, 4:color_mode, 5:abs_light, 6:multitexture mode, 7:discard mode, 8: ident.color, 9 - ident.alpha, 10 - acff
+
+	FragSpec fragSpec = {};
 
 	vk::DynamicState dynamic_state_array[] = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
 
@@ -6242,25 +6174,25 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	switch (atest_bits)
 	{
 	case GLS_ATEST_GT_0:
-		frag_spec_data[0].i = 1; // not equal
-		frag_spec_data[1].f = 0.0f;
+		fragSpec.alphaFunc = 1; // not equal
+		fragSpec.alphaRef  = 0.0f;
 		break;
 	case GLS_ATEST_LT_80:
-		frag_spec_data[0].i = 2; // less than
-		frag_spec_data[1].f = 0.5f;
+		fragSpec.alphaFunc = 2; // less than
+		fragSpec.alphaRef = 0.5f;
 		break;
 	case GLS_ATEST_GE_80:
-		frag_spec_data[0].i = 3; // greater or equal
-		frag_spec_data[1].f = 0.5f;
+		fragSpec.alphaFunc = 3; // greater or equal
+		fragSpec.alphaRef = 0.5f;
 		break;
 	default:
-		frag_spec_data[0].i = 0;
-		frag_spec_data[1].f = 0.0f;
+		fragSpec.alphaFunc = 0;
+		fragSpec.alphaRef = 0.0f;
 		break;
 	};
 
 	// depth fragment threshold
-	frag_spec_data[2].f = 0.85f;
+	fragSpec.depthFrag = 0.85f;
 
 #if 0
 	if (r_ext_alpha_to_coverage->integer && vkSamples != vk::SampleCountFlagBits::e1 && frag_spec_data[0].i) {
@@ -6273,16 +6205,16 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	switch (def.shader_type)
 	{
 	default:
-		frag_spec_data[4].i = 0;
+		fragSpec.colorMode = 0;
 		break;
 	case Vk_Shader_Type::TYPE_COLOR_WHITE:
-		frag_spec_data[4].i = 1;
+		fragSpec.colorMode = 1;
 		break;
 	case Vk_Shader_Type::TYPE_COLOR_GREEN:
-		frag_spec_data[4].i = 2;
+		fragSpec.colorMode = 2;
 		break;
 	case Vk_Shader_Type::TYPE_COLOR_RED:
-		frag_spec_data[4].i = 3;
+		fragSpec.colorMode = 3;
 		break;
 	}
 
@@ -6291,7 +6223,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	{
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
-		frag_spec_data[5].i = def.abs_light ? 1 : 0;
+		fragSpec.absLight = def.abs_light ? 1 : 0;
 	default:
 		break;
 	}
@@ -6311,7 +6243,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_BLEND2_MUL_ENV:
 	case Vk_Shader_Type::TYPE_BLEND3_MUL:
 	case Vk_Shader_Type::TYPE_BLEND3_MUL_ENV:
-		frag_spec_data[6].i = 0;
+		fragSpec.multiTexMode = 0;
 		break;
 
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
@@ -6322,7 +6254,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1_ENV:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV:
-		frag_spec_data[6].i = 1;
+		fragSpec.multiTexMode = 1;
 		break;
 
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2:
@@ -6333,58 +6265,58 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_BLEND2_ADD_ENV:
 	case Vk_Shader_Type::TYPE_BLEND3_ADD:
 	case Vk_Shader_Type::TYPE_BLEND3_ADD_ENV:
-		frag_spec_data[6].i = 2;
+		fragSpec.multiTexMode = 2;
 		break;
 
 	case Vk_Shader_Type::TYPE_BLEND2_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND2_ALPHA_ENV:
 	case Vk_Shader_Type::TYPE_BLEND3_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND3_ALPHA_ENV:
-		frag_spec_data[6].i = 3;
+		fragSpec.multiTexMode = 3;
 		break;
 
 	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA_ENV:
 	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA_ENV:
-		frag_spec_data[6].i = 4;
+		fragSpec.multiTexMode = 4;
 		break;
 
 	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV:
 	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV:
-		frag_spec_data[6].i = 5;
+		fragSpec.multiTexMode = 5;
 		break;
 
 	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
 	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
-		frag_spec_data[6].i = 6;
+		fragSpec.multiTexMode = 6;
 		break;
 
 	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
 	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
-		frag_spec_data[6].i = 7;
+		fragSpec.multiTexMode = 7;
 		break;
 
 	default:
 		break;
 	}
 
-	frag_spec_data[8].f = ((float)def.color.rgb) / 255.0;
-	frag_spec_data[9].f = ((float)def.color.alpha) / 255.0;
+	fragSpec.fixedColor = ((float)def.color.rgb) / 255.0;
+	fragSpec.fixedAlpha = ((float)def.color.alpha) / 255.0;
 
 	if (def.fog_stage)
 	{
-		frag_spec_data[10].i = def.acff;
+		fragSpec.acff = def.acff;
 	}
 	else
 	{
-		frag_spec_data[10].i = 0;
+		fragSpec.acff = 0;
 	}
 
 	//
@@ -6406,24 +6338,11 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	//
 	// fragment module specialization data
 	//
-	std::array<vk::SpecializationMapEntry, 11> spec_entries = {{
-		{0, 0 * sizeof(int32_t), sizeof(int32_t)},	// alpha-test-function
-		{1, 1 * sizeof(int32_t), sizeof(float)},	// alpha-test-value
-		{2, 2 * sizeof(int32_t), sizeof(float)},	// depth-fragment
-		{3, 3 * sizeof(int32_t), sizeof(int32_t)},	// alpha-to-coverage
-		{4, 4 * sizeof(int32_t), sizeof(int32_t)},	// color_mode
-		{5, 5 * sizeof(int32_t), sizeof(int32_t)},	// abs_light
-		{6, 6 * sizeof(int32_t), sizeof(int32_t)},	// multitexture mode
-		{7, 7 * sizeof(int32_t), sizeof(int32_t)},	// discard mode
-		{8, 8 * sizeof(int32_t), sizeof(float)},	// fixed color
-		{9, 9 * sizeof(int32_t), sizeof(float)},	// fixed alpha
-		{10, 10 * sizeof(int32_t), sizeof(int32_t)} // acff
-	}};
 
-	vk::SpecializationInfo frag_spec_info{static_cast<uint32_t>(spec_entries.size()),
-										  spec_entries.data(),
-										  (7 * sizeof(int32_t)) + (4 * sizeof(float)),
-										  &frag_spec_data[0]};
+	vk::SpecializationInfo frag_spec_info{static_cast<uint32_t>(kFragSpecEntries.size()),
+										  kFragSpecEntries.data(),
+										  sizeof(FragSpec),
+										  &fragSpec};
 
 	shader_stages[1].pSpecializationInfo = &frag_spec_info;
 
@@ -6685,7 +6604,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 	// Primitive assembly.
 	//
 	vk::PipelineInputAssemblyStateCreateInfo input_assembly_state{{},
-																  GetTopologyByPrimitivies(def),
+																  GetTopologyByPrimitivies(def.primitives),
 																  vk::False,
 																  nullptr};
 
@@ -6799,11 +6718,11 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 			// try to reduce pixel fillrate for transparent surfaces, this yields 1..10% fps increase when multisampling in enabled
 			if (attachment_blend_state.srcColorBlendFactor == vk::BlendFactor::eSrcAlpha && attachment_blend_state.dstColorBlendFactor == vk::BlendFactor::eOneMinusSrcAlpha)
 			{
-				frag_spec_data[7].i = 1;
+				fragSpec.discardMode = 1;
 			}
 			else if (attachment_blend_state.srcColorBlendFactor == vk::BlendFactor::eOne && attachment_blend_state.dstColorBlendFactor == vk::BlendFactor::eOne)
 			{
-				frag_spec_data[7].i = 2;
+				fragSpec.discardMode = 2;
 			}
 		}
 	}
@@ -6855,8 +6774,8 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t rend
 		else
 		{
 			resultPipeline = createGraphicsPipelineResult.value;
-			SET_OBJECT_NAME(VkPipeline(&resultPipeline), va("pipeline def#%i, pass#%i", def_index, static_cast<int>(renderPassIndex)), VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
-			SET_OBJECT_NAME(VkPipeline(&resultPipeline), "create_pipeline -> createGraphicsPipeline", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+			SET_OBJECT_NAME(VkPipeline(resultPipeline), va("pipeline def#%i, pass#%i", def_index, static_cast<int>(renderPassIndex)), VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+			SET_OBJECT_NAME(VkPipeline(resultPipeline), "create_pipeline -> createGraphicsPipeline", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
 		}
 	}
 	catch (vk::SystemError &err)
@@ -7987,7 +7906,6 @@ void vk_end_frame(void)
 		submit_info.pWaitSemaphores = &vk_inst.cmd->image_acquired;
 		submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
 		submit_info.signalSemaphoreCount = 1;
-		submit_info.pSignalSemaphores = &vk_inst.cmd->rendering_finished;
 		submit_info.pSignalSemaphores = &vk_inst.swapchain_rendering_finished[ vk_inst.cmd->swapchain_image_index ];
 #endif
 	} else {
@@ -8102,14 +8020,14 @@ static constexpr bool is_bgr(const vk::Format format)
 	}
 }
 
-void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
+void vk_read_pixels(byte* buffer, const uint32_t width, const uint32_t height)
 {
 	vk::MemoryPropertyFlags memory_flags;
 
 	vk::Image srcImage;
 	vk::ImageLayout srcImageLayout;
-	byte *buffer_ptr;
-	byte *data;
+	byte* buffer_ptr;
+	byte* data;
 	uint32_t pixel_width;
 	uint32_t i, n;
 	bool invalidate_ptr;
@@ -8139,7 +8057,7 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 	// Com_Memset(&desc, 0, sizeof(desc));
 
 	// Create image in host visible memory to serve as a destination for framebuffer pixels.
-	vk::ImageCreateInfo desc{{},
+	vk::ImageCreateInfo desc{ {},
 							 vk::ImageType::e2D,
 							 vk_inst.capture_format,
 							 {width, height, 1},
@@ -8152,7 +8070,7 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 							 0,
 							 nullptr,
 							 vk::ImageLayout::eUndefined,
-							 nullptr};
+							 nullptr };
 
 	vk::Image dstImage;
 	VK_CHECK_ASSIGN(dstImage, vk_inst.device.createImage(desc));
@@ -8188,15 +8106,15 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 	if (srcImageLayout != vk::ImageLayout::eTransferSrcOptimal)
 	{
 		record_image_layout_transition(command_buffer, srcImage,
-									   vk::ImageAspectFlagBits::eColor,
-									   srcImageLayout,
-									   vk::ImageLayout::eTransferSrcOptimal);
+			vk::ImageAspectFlagBits::eColor,
+			srcImageLayout,
+			vk::ImageLayout::eTransferSrcOptimal);
 	}
 
 	record_image_layout_transition(command_buffer, dstImage,
-								   vk::ImageAspectFlagBits::eColor,
-								   vk::ImageLayout::eUndefined,
-								   vk::ImageLayout::eTransferDstOptimal);
+		vk::ImageAspectFlagBits::eColor,
+		vk::ImageLayout::eUndefined,
+		vk::ImageLayout::eTransferDstOptimal);
 
 	// end_command_buffer( command_buffer );
 
@@ -8212,7 +8130,7 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 			// dstSubresource (initialized to the same as srcSubresource)
 			{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
 			// dstOffsets[0]
-			{vk::Offset3D{0, 0, 0}, vk::Offset3D{(int32_t)width, (int32_t)height, 1}}};
+			{vk::Offset3D{0, 0, 0}, vk::Offset3D{(int32_t)width, (int32_t)height, 1}} };
 
 		command_buffer.blitImage(srcImage, vk::ImageLayout::eTransferSrcOptimal, dstImage, vk::ImageLayout::eTransferDstOptimal, region, vk::Filter::eNearest);
 	}
@@ -8228,7 +8146,7 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 			// dstOffset
 			vk::Offset3D{0, 0, 0},
 			// extent
-			vk::Extent3D{width, height, 1}};
+			vk::Extent3D{width, height, 1} };
 
 		command_buffer.copyImage(srcImage, vk::ImageLayout::eTransferSrcOptimal, dstImage, vk::ImageLayout::eTransferDstOptimal, region);
 	}
@@ -8236,14 +8154,14 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 	end_command_buffer(command_buffer, __func__);
 
 	// Copy data from destination image to memory buffer.
-	vk::ImageSubresource subresource{vk::ImageAspectFlagBits::eColor, 0, 0};
+	vk::ImageSubresource subresource{ vk::ImageAspectFlagBits::eColor, 0, 0 };
 
 	vk::SubresourceLayout layout = vk_inst.device.getImageSubresourceLayout(dstImage, subresource);
 
-	void *mappedMemory;
+	void* mappedMemory;
 	VK_CHECK_ASSIGN(mappedMemory, vk_inst.device.mapMemory(memory, 0, vk::WholeSize));
 
-	data = static_cast<uint8_t *>(mappedMemory);
+	data = static_cast<uint8_t*>(mappedMemory);
 
 	if (invalidate_ptr)
 	{
@@ -8273,7 +8191,7 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 		{
 		case 2:
 		{
-			uint16_t *src = (uint16_t *)data;
+			uint16_t* src = (uint16_t*)data;
 			for (n = 0; n < width; n++)
 			{
 				buffer_ptr[n * 3 + 0] = ((src[n] >> 12) & 0xF) << 4;
@@ -8297,7 +8215,7 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 
 		case 8:
 		{
-			const uint16_t *src = (uint16_t *)data;
+			const uint16_t* src = (uint16_t*)data;
 			for (n = 0; n < width; n++)
 			{
 				buffer_ptr[n * 3 + 0] = src[n * 4 + 0] >> 8;
@@ -8332,9 +8250,9 @@ void vk_read_pixels(byte *buffer, const uint32_t width, const uint32_t height)
 		command_buffer = begin_command_buffer();
 
 		record_image_layout_transition(command_buffer, srcImage,
-									   vk::ImageAspectFlagBits::eColor,
-									   vk::ImageLayout::eTransferSrcOptimal,
-									   srcImageLayout);
+			vk::ImageAspectFlagBits::eColor,
+			vk::ImageLayout::eTransferSrcOptimal,
+			srcImageLayout);
 
 		end_command_buffer(command_buffer, "restore layout");
 	}

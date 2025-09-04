@@ -547,4 +547,19 @@ struct Vk_Instance
 	} defaults;
 };
 
+// ---------- 1) Main forward/decal/etc. fragment specialization (create_pipeline) ----------
+struct FragSpec {
+    int   alphaFunc;        // 0: disabled, 1: != 0, 2: < 0.5, 3: >= 0.5
+    float alphaRef;         // e.g., 0.0 / 0.5
+    float depthFrag;        // your 0.85f threshold
+    int   alphaToCoverage;  // 0/1
+    int   colorMode;        // const color switch (black/white/green/red/none)
+    int   absLight;         // 0/1
+    int   multiTexMode;     // MT mode enum you set
+    int   discardMode;      // 0..2 (your early discard micro-opt)
+    float fixedColor;       // packed constant color param (float)
+    float fixedAlpha;       // packed constant alpha  param (float)
+    int   acff;             // fog ACFF or 0
+};
+
 #endif // DEFINITIONS_HPP
