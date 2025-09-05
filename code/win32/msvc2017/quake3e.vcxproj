@@ -86,8 +86,8 @@
     <LinkIncremental>true</LinkIncremental>
     <EmbedManifest>false</EmbedManifest>
     <TargetName>quake3e-debug.x64</TargetName>
-    <IncludePath>$(ProjectDir)..\..\libogg\include;$(ProjectDir)..\..\libvorbis\include;D:\Programming\vulkanSDK\Include;C:\VulkanSDK\1.3.296.0\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VulkanSDK\1.3.296.0\Lib;D:\Programming\vulkanSDK\Lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)..\..\libogg\include;$(ProjectDir)..\..\libvorbis\include;D:\Programming\vulkanSDK\Include;C:\VulkanSDK\1.4.321.1\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\VulkanSDK\1.4.321.1\Lib;D:\Programming\vulkanSDK\Lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <LinkIncremental>true</LinkIncremental>
@@ -109,8 +109,8 @@
     <IntDir>.\build\$(ProjectName)_$(Configuration)_$(PlatformTarget)\</IntDir>
     <EmbedManifest>false</EmbedManifest>
     <TargetName>quake3e.x64</TargetName>
-    <IncludePath>C:\VulkanSDK\1.3.296.0\Include;$(ProjectDir)..\..\libogg\include;$(ProjectDir)..\..\libvorbis\include;D:\Programming\vulkanSDK\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VulkanSDK\1.3.296.0\Lib;D:\Programming\vulkanSDK\Lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\VulkanSDK\1.4.321.1\Include;$(ProjectDir)..\..\libogg\include;$(ProjectDir)..\..\libvorbis\include;D:\Programming\vulkanSDK\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\VulkanSDK\1.4.321.1\Lib;D:\Programming\vulkanSDK\Lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <EmbedManifest>false</EmbedManifest>

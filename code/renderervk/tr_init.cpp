@@ -223,6 +223,18 @@ void QDECL Com_Printf(const char *fmt, ...)
 }
 #endif
 
+#ifdef USE_VK_VALIDATION
+PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT = nullptr;
+
+static void LoadDebugMarkerFunctions()
+{
+	// VK_EXT_debug_marker must be enabled on the device
+	qvkDebugMarkerSetObjectNameEXT =
+		reinterpret_cast<PFN_vkDebugMarkerSetObjectNameEXT>(
+			vkGetDeviceProcAddr(vk_inst.device, "vkDebugMarkerSetObjectNameEXT"));
+}
+#endif
+
 /*
 ** InitOpenGL
 **
@@ -282,6 +294,10 @@ static void InitOpenGL(void)
 				ri.CL_SetScaling(2.0, gls.captureWidth, gls.captureHeight);
 			}
 		}
+
+#ifdef USE_VK_VALIDATION
+		LoadDebugMarkerFunctions();
+#endif
 
 		vk_initialize();
 

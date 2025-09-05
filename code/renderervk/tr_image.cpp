@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk.hpp"
 #include "tr_shader.hpp"
 #include "utils.hpp"
+#include "vk_descriptors.hpp"
 
 #define generateHashValue(fname) Com_GenerateHashValue_cpp((fname), FILE_HASH_SIZE)
 

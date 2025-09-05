@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_vbo.hpp"
 #include "vk.hpp"
 #include "math.hpp"
+#include "vk_descriptors.hpp"
 
 shaderCommands_t tess;
 

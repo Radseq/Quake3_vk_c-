@@ -13,31 +13,6 @@
 #define USE_REVERSED_DEPTH
 #define USE_DEDICATED_ALLOCATION
 
-// this structure must be in sync with shader uniforms!
-typedef struct vkUniform_s
-{
-      // light/env parameters:
-      vec4_t eyePos; // vertex
-      union
-      {
-            struct
-            {
-                  vec4_t pos;    // vertex: light origin
-                  vec4_t color;  // fragment: rgb + 1/(r*r)
-                  vec4_t vector; // fragment: linear dynamic light
-            } light;
-            struct
-            {
-                  vec4_t color[3]; // ent.color[3]
-            } ent;
-      };
-      // fog parameters:
-      vec4_t fogDistanceVector; // vertex
-      vec4_t fogDepthVector;    // vertex
-      vec4_t fogEyeT;           // vertex
-      vec4_t fogColor;          // fragment
-} vkUniform_t;
-
 constexpr int TESS_XYZ = 1;
 constexpr int TESS_RGBA0 = 2;
 constexpr int TESS_RGBA1 = 4;
@@ -78,9 +53,7 @@ void vk_queue_wait_idle( void );
 //
 void vk_create_image(image_t &image, const int width, const int height, const int mip_levels);
 void vk_upload_image_data(image_t &image, int x, int y, int width, int height, int miplevels, byte *pixels, int size, bool update);
-void vk_update_descriptor_set(const image_t &image, const bool mipmap);
 void vk_destroy_image_resources(vk::Image &image, vk::ImageView &imageView);
-void vk_update_attachment_descriptors( void );
 void vk_destroy_samplers( void );
 
 uint32_t vk_find_pipeline_ext(const uint32_t base, const Vk_Pipeline_Def &def, bool use);
@@ -120,10 +93,7 @@ void vk_bind_index_buffer(const vk::Buffer &buffer, const uint32_t offset);
 #ifdef USE_VBO
 void vk_draw_indexed(const uint32_t indexCount, const uint32_t firstIndex);
 #endif
-void vk_reset_descriptor(const int index);
-void vk_update_descriptor(const int index, const vk::DescriptorSet &descriptor);
-void vk_update_descriptor_offset(const int index, const uint32_t offset);
-void vk_update_uniform_descriptor(const vk::DescriptorSet &descriptor, const vk::Buffer &buffer);
+
 
 void vk_update_post_process_pipelines(void);
 
@@ -142,7 +112,6 @@ void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const u
 //uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def);
 
 vk::Pipeline vk_gen_pipeline(const uint32_t index);
-void vk_bind_descriptor_sets(void);
 void vk_begin_post_bloom_render_pass(void);
 void vk_begin_bloom_extract_render_pass(void);
 

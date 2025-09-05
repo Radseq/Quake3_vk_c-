@@ -54,6 +54,85 @@ using byte = std::uint8_t;
 #include "definitions.hpp"
 #include <array>
 
+extern Vk_Instance vk_inst; // shouldn't be cleared during ref re-init
+extern Vk_World vk_world;	// this data is cleared during ref re-init
+
+#ifdef USE_VK_VALIDATION
+extern PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;
+
+#define VK_CHECK(function_call)                                                                        \
+	{                                                                                                  \
+		try                                                                                            \
+		{                                                                                              \
+			function_call;                                                                             \
+		}                                                                                              \
+		catch (vk::SystemError & err)                                                                  \
+		{                                                                                              \
+			ri.Error(ERR_FATAL, "Vulkan error in function: %s, what: %s", #function_call, err.what()); \
+		}                                                                                              \
+	}
+
+#define VK_CHECK_ASSIGN(var, function_call)                                                            \
+	{                                                                                                  \
+		try                                                                                            \
+		{                                                                                              \
+			var = function_call;                                                                       \
+		}                                                                                              \
+		catch (vk::SystemError & err)                                                                  \
+		{                                                                                              \
+			ri.Error(ERR_FATAL, "Vulkan error in function: %s, what: %s", #function_call, err.what()); \
+		}                                                                                              \
+	}
+
+#define SET_OBJECT_NAME(obj, objName, objType) vk_set_object_name((uint64_t)(obj), (objName), (objType))
+
+static void vk_set_object_name(uint64_t obj, const char* objName, VkDebugReportObjectTypeEXT objType)
+{
+	if (qvkDebugMarkerSetObjectNameEXT && obj)
+	{
+		VkDebugMarkerObjectNameInfoEXT info{
+			VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
+			nullptr,
+			objType,
+			obj,
+			objName };
+		qvkDebugMarkerSetObjectNameEXT(vk_inst.device, &info);
+	}
+}
+
+#else
+
+template <typename T>
+inline void vkCheckFunctionCall(const vk::ResultValue<T> res, const char* funcName)
+{
+	if (static_cast<int>(res.result) < 0)
+	{
+		ri.Error(ERR_FATAL, "Vulkan: %s returned %s", funcName, vk::to_string(res.result).data());
+	}
+}
+
+static inline void vkCheckFunctionCall(const vk::Result res, const char* funcName)
+{
+	if (static_cast<int>(res) < 0)
+	{
+		ri.Error(ERR_FATAL, "Vulkan: %s returned %s", funcName, vk::to_string(res).data());
+	}
+}
+
+#define VK_CHECK_ASSIGN(var, function_call)                 \
+	{                                                       \
+		auto result = function_call;                        \
+		vkCheckFunctionCall(result.result, #function_call); \
+		var = result.value;                                 \
+	}
+
+#define VK_CHECK(function_call)                             \
+	{                                                       \
+		vkCheckFunctionCall(function_call, #function_call); \
+	}
+
+#endif
+
 constexpr int MAX_DRAWSURFS = 0x20000;
 constexpr int MAX_LITSURFS = (MAX_DRAWSURFS);
 constexpr int MAX_FLARES = 256;
@@ -108,6 +187,31 @@ constexpr int REFENTITYNUM_WORLD = ((1 << REFENTITYNUM_BITS) - 1);
 constexpr int SHADERNUM_BITS = 14;
 constexpr int MAX_SHADERS = (1 << SHADERNUM_BITS);
 constexpr int SHADERNUM_MASK = (MAX_SHADERS - 1);
+
+// this structure must be in sync with shader uniforms!
+typedef struct vkUniform_s
+{
+	// light/env parameters:
+	vec4_t eyePos; // vertex
+	union
+	{
+		struct
+		{
+			vec4_t pos;    // vertex: light origin
+			vec4_t color;  // fragment: rgb + 1/(r*r)
+			vec4_t vector; // fragment: linear dynamic light
+		} light;
+		struct
+		{
+			vec4_t color[3]; // ent.color[3]
+		} ent;
+	};
+	// fog parameters:
+	vec4_t fogDistanceVector; // vertex
+	vec4_t fogDepthVector;    // vertex
+	vec4_t fogEyeT;           // vertex
+	vec4_t fogColor;          // fragment
+} vkUniform_t;
 
 typedef struct dlight_s
 {
@@ -1330,9 +1434,6 @@ extern glstate_t glState; // outside of TR since it shouldn't be cleared during 
 extern glstatic_t gls;
 
 // extern void myGlMultMatrix(const float *a, const float *b, float *out);
-
-extern Vk_Instance vk_inst; // shouldn't be cleared during ref re-init
-extern Vk_World vk_world;	// this data is cleared during ref re-init
 
 //
 // cvars
