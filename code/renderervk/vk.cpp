@@ -190,42 +190,50 @@ static constexpr vk::SampleCountFlagBits maxSample(vk::SampleCountFlagBits a, vk
 
 ////////////////////////////////////////////////////////////////////////////
 
- static inline uint32_t find_memory_type(const uint32_t memory_type_bits, const vk::MemoryPropertyFlags properties)
- {
- 	uint32_t i;
+inline vk::PhysicalDeviceMemoryProperties g_memprops;
+inline uint32_t g_memtype_count = 0;
 
- 	auto memory_properties = vk_inst.physical_device.getMemoryProperties();
+inline static void InitCachedMemProps(vk::PhysicalDevice pd) {
+	g_memprops = pd.getMemoryProperties();
+	g_memtype_count = g_memprops.memoryTypeCount;
+}
 
- 	for (i = 0; i < memory_properties.memoryTypeCount; i++)
- 	{
- 		if ((memory_type_bits & (1 << i)) != 0 &&
- 			(memory_properties.memoryTypes[i].propertyFlags & properties) == properties)
- 		{
- 			return i;
- 		}
- 	}
- 	ri.Error(ERR_FATAL, "Vulkan: failed to find matching memory type with requested properties");
- 	return ~0U;
- }
+static inline uint32_t find_memory_type(uint32_t memory_type_bits,
+	vk::MemoryPropertyFlags want)
+{
+	uint32_t cands = memory_type_bits;
+	while (cands) {
+		const uint32_t i = (uint32_t)std::countr_zero(cands);
+		cands &= (cands - 1); // clear that bit
 
- static inline uint32_t find_memory_type2(const uint32_t memory_type_bits, const vk::MemoryPropertyFlags properties, vk::MemoryPropertyFlags *outprops)
- {
- 	const vk::PhysicalDeviceMemoryProperties memory_properties = vk_inst.physical_device.getMemoryProperties();
+		if (i < g_memtype_count) {
+			const auto have = g_memprops.memoryTypes[i].propertyFlags;
+			if ((have & want) == want) return i;
+		}
+	}
+	ri.Error(ERR_FATAL, "Vulkan: failed to find matching memory type");
+	return ~0u;
+}
 
- 	for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
- 	{
- 		if ((memory_type_bits & (1 << i)) != 0 && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties)
- 		{
- 			if (outprops)
- 			{
- 				*outprops = memory_properties.memoryTypes[i].propertyFlags;
- 			}
- 			return i;
- 		}
- 	}
+static inline uint32_t find_memory_type2(uint32_t memory_type_bits,
+	vk::MemoryPropertyFlags want,
+	vk::MemoryPropertyFlags* outprops)
+{
+	uint32_t cands = memory_type_bits;
+	while (cands) {
+		const uint32_t i = (uint32_t)std::countr_zero(cands);
+		cands &= (cands - 1);
 
- 	return ~0U;
- }
+		if (i < g_memtype_count) {
+			const auto have = g_memprops.memoryTypes[i].propertyFlags;
+			if ((have & want) == want) {
+				if (outprops) *outprops = have;
+				return i;
+			}
+		}
+	}
+	return ~0u;
+}
 
 static vk::CommandBuffer begin_command_buffer(void)
 {
@@ -2028,6 +2036,8 @@ static void init_vulkan_library(void)
 		ri.Error(ERR_FATAL, "Vulkan: unable to find any suitable physical device");
 		return;
 	}
+
+	InitCachedMemProps(vk_inst.physical_device);
 
 	//
 	// Get device level functions.

@@ -13,6 +13,18 @@
 #define USE_REVERSED_DEPTH
 #define USE_DEDICATED_ALLOCATION
 
+constexpr int VK_DESC_STORAGE = 0;
+constexpr int VK_DESC_UNIFORM = 0;
+constexpr int VK_DESC_TEXTURE0 = 1;
+constexpr int VK_DESC_TEXTURE1 = 2;
+constexpr int VK_DESC_TEXTURE2 = 3;
+constexpr int VK_DESC_FOG_COLLAPSE = 4;
+constexpr int VK_DESC_COUNT = 5;
+
+constexpr int VK_DESC_TEXTURE_BASE = VK_DESC_TEXTURE0;
+constexpr int VK_DESC_FOG_ONLY = VK_DESC_TEXTURE1;
+constexpr int VK_DESC_FOG_DLIGHT = VK_DESC_TEXTURE1;
+
 // this structure must be in sync with shader uniforms!
 typedef struct vkUniform_s
 {
