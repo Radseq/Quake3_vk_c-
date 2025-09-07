@@ -27,11 +27,11 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def& def)
 
 	address_mode = def.address_mode;
 
-	if (def.gl_mag_filter == GL_NEAREST)
+	if (def.gl_mag_filter == std::to_underlying(glCompat::GL_NEAREST))
 	{
 		mag_filter = vk::Filter::eNearest;
 	}
-	else if (def.gl_mag_filter == GL_LINEAR)
+	else if (def.gl_mag_filter == std::to_underlying(glCompat::GL_LINEAR))
 	{
 		mag_filter = vk::Filter::eLinear;
 	}
@@ -43,34 +43,34 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def& def)
 
 	maxLod = vk_inst.maxLod;
 
-	if (def.gl_min_filter == GL_NEAREST)
+	if (def.gl_min_filter == std::to_underlying(glCompat::GL_NEAREST))
 	{
 		min_filter = vk::Filter::eNearest;
 		mipmap_mode = vk::SamplerMipmapMode::eNearest;
 		maxLod = 0.25f; // used to emulate OpenGL's GL_LINEAR/GL_NEAREST minification filter
 	}
-	else if (def.gl_min_filter == GL_LINEAR)
+	else if (def.gl_min_filter == std::to_underlying(glCompat::GL_LINEAR))
 	{
 		min_filter = vk::Filter::eLinear;
 		mipmap_mode = vk::SamplerMipmapMode::eNearest;
 		maxLod = 0.25f; // used to emulate OpenGL's GL_LINEAR/GL_NEAREST minification filter
 	}
-	else if (def.gl_min_filter == GL_NEAREST_MIPMAP_NEAREST)
+	else if (def.gl_min_filter == std::to_underlying(glCompat::GL_NEAREST_MIPMAP_NEAREST))
 	{
 		min_filter = vk::Filter::eNearest;
 		mipmap_mode = vk::SamplerMipmapMode::eNearest;
 	}
-	else if (def.gl_min_filter == GL_LINEAR_MIPMAP_NEAREST)
+	else if (def.gl_min_filter == std::to_underlying(glCompat::GL_LINEAR_MIPMAP_NEAREST))
 	{
 		min_filter = vk::Filter::eLinear;
 		mipmap_mode = vk::SamplerMipmapMode::eNearest;
 	}
-	else if (def.gl_min_filter == GL_NEAREST_MIPMAP_LINEAR)
+	else if (def.gl_min_filter == std::to_underlying(glCompat::GL_NEAREST_MIPMAP_LINEAR))
 	{
 		min_filter = vk::Filter::eNearest;
 		mipmap_mode = vk::SamplerMipmapMode::eLinear;
 	}
-	else if (def.gl_min_filter == GL_LINEAR_MIPMAP_LINEAR)
+	else if (def.gl_min_filter == std::to_underlying(glCompat::GL_LINEAR_MIPMAP_LINEAR))
 	{
 		min_filter = vk::Filter::eLinear;
 		mipmap_mode = vk::SamplerMipmapMode::eLinear;
@@ -202,8 +202,8 @@ void vk_update_descriptor_set(const image_t& image, const bool mipmap)
 	}
 	else
 	{
-		sampler_def.gl_mag_filter = GL_LINEAR;
-		sampler_def.gl_min_filter = GL_LINEAR;
+		sampler_def.gl_mag_filter = std::to_underlying(glCompat::GL_LINEAR);
+		sampler_def.gl_min_filter = std::to_underlying(glCompat::GL_LINEAR);
 		// no anisotropy without mipmaps
 		sampler_def.noAnisotropy = true;
 	}
@@ -249,7 +249,7 @@ void vk_update_attachment_descriptors(void)
 		vk_inst.device.updateDescriptorSets(desc, nullptr);
 
 		// screenmap
-		sd.gl_mag_filter = sd.gl_min_filter = GL_LINEAR;
+		sd.gl_mag_filter = sd.gl_min_filter = std::to_underlying(glCompat::GL_LINEAR);
 		sd.max_lod_1_0 = false;
 		sd.noAnisotropy = true;
 

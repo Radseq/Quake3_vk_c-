@@ -58,16 +58,16 @@ static image_t *hashTable[FILE_HASH_SIZE];
 
 static const int numImageLoaders = arrayLen(imageLoaders);
 
-GLint gl_filter_min = GL_LINEAR_MIPMAP_NEAREST;
-GLint gl_filter_max = GL_LINEAR;
+GLint gl_filter_min = std::to_underlying(glCompat::GL_LINEAR_MIPMAP_NEAREST);
+GLint gl_filter_max = std::to_underlying(glCompat::GL_LINEAR);
 
 constexpr textureMode_t modes[6] = { // Texture modes
-	{"GL_NEAREST", GL_NEAREST, GL_NEAREST},
-	{"GL_LINEAR", GL_LINEAR, GL_LINEAR},
-	{"GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST},
-	{"GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR},
-	{"GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST},
-	{"GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR}};
+	{"GL_NEAREST", glCompat::GL_NEAREST, glCompat::GL_NEAREST},
+	{"GL_LINEAR", glCompat::GL_LINEAR, glCompat::GL_LINEAR},
+	{"GL_NEAREST_MIPMAP_NEAREST", glCompat::GL_NEAREST_MIPMAP_NEAREST, glCompat::GL_NEAREST},
+	{"GL_LINEAR_MIPMAP_NEAREST", glCompat::GL_LINEAR_MIPMAP_NEAREST, glCompat::GL_LINEAR},
+	{"GL_NEAREST_MIPMAP_LINEAR", glCompat::GL_NEAREST_MIPMAP_LINEAR, glCompat::GL_NEAREST},
+	{"GL_LINEAR_MIPMAP_LINEAR", glCompat::GL_LINEAR_MIPMAP_LINEAR, glCompat::GL_LINEAR}};
 
 skin_t *R_GetSkinByHandle(qhandle_t hSkin)
 {
@@ -367,8 +367,8 @@ void TextureMode(std::string_view sv_mode)
 		return;
 	}
 
-	gl_filter_min = mode->minimize;
-	gl_filter_max = mode->maximize;
+	gl_filter_min = std::to_underlying(mode->minimize);
+	gl_filter_max = std::to_underlying(mode->maximize);
 
 	if ( gl_filter_min == vk_inst.samplers.filter_min && gl_filter_max == vk_inst.samplers.filter_max ) {
 		return;

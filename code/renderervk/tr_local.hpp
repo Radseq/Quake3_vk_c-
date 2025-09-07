@@ -131,7 +131,7 @@ constexpr int MAX_FLARES = 256;
 constexpr int MAX_TEXTURE_SIZE = 2048; // must be less or equal to 32768
 
 // GL constants substitutions
-typedef enum
+enum class glCompat : uint8_t
 {
 	GL_NEAREST,
 	GL_LINEAR,
@@ -155,7 +155,7 @@ typedef enum
 	GL_DECAL,
 	GL_BACK_LEFT,
 	GL_BACK_RIGHT
-} glCompat;
+};
 
 #define GL_INDEX_TYPE uint32_t
 #define GLint int

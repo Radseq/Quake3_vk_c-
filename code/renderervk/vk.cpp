@@ -60,7 +60,7 @@ template <class T>
 inline void reset_to_default(T& x) noexcept { x = T{}; }
 
 
-constexpr uint32_t toInt(vk::SampleCountFlags f) {
+static constexpr uint32_t toInt(vk::SampleCountFlags f) {
 	if (f & vk::SampleCountFlagBits::e64) return 64;
 	if (f & vk::SampleCountFlagBits::e32) return 32;
 	if (f & vk::SampleCountFlagBits::e16) return 16;
@@ -2906,9 +2906,9 @@ static void vk_set_render_scale(void)
 			}
 			// linear filtering
 			if (scaleMode & 2)
-				vk_inst.blitFilter = GL_LINEAR;
+				vk_inst.blitFilter = std::to_underlying(glCompat::GL_LINEAR);
 			else
-				vk_inst.blitFilter = GL_NEAREST;
+				vk_inst.blitFilter = std::to_underlying(glCompat::GL_NEAREST);
 		}
 
 		vk_inst.windowAdjusted = true;
@@ -2916,7 +2916,7 @@ static void vk_set_render_scale(void)
 
 	if (r_fbo->integer && r_ext_supersample->integer && !r_renderScale->integer)
 	{
-		vk_inst.blitFilter = GL_LINEAR;
+		vk_inst.blitFilter = std::to_underlying(glCompat::GL_LINEAR);
 	}
 }
 
@@ -2946,7 +2946,7 @@ void vk_initialize(void)
 
 	vk_inst.maxAnisotropy = props.limits.maxSamplerAnisotropy;
 
-	vk_inst.blitFilter = GL_NEAREST;
+	vk_inst.blitFilter = std::to_underlying(glCompat::GL_NEAREST);
 	vk_inst.windowAdjusted = false;
 	vk_inst.blitX0 = vk_inst.blitY0 = 0;
 

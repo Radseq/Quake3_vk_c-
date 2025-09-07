@@ -295,11 +295,11 @@ void RE_BeginFrame(stereoFrame_t stereoFrame)
 	{
 		if (stereoFrame == STEREO_LEFT)
 		{
-			cmd->buffer = (int)GL_BACK_LEFT;
+			cmd->buffer = std::to_underlying(glCompat::GL_BACK_LEFT);
 		}
 		else if (stereoFrame == STEREO_RIGHT)
 		{
-			cmd->buffer = (int)GL_BACK_RIGHT;
+			cmd->buffer = std::to_underlying(glCompat::GL_BACK_RIGHT);
 		}
 		else
 		{
