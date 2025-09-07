@@ -23,16 +23,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef TR_LOCAL_HPP
 #define TR_LOCAL_HPP
 
-#define USE_VBO // store static world geometry in VBO
-#define USE_FOG_ONLY
-#define USE_FOG_COLLAPSE // not compatible with legacy dlights
-#if defined(USE_VBO) && !defined(USE_FOG_ONLY)
-#define USE_FOG_ONLY
-#endif
-#define USE_LEGACY_DLIGHTS // vq3 dynamic lights
-#define USE_PMLIGHT		   // promode dynamic lights via \r_dlightMode 1|2
-#define MAX_REAL_DLIGHTS (MAX_DLIGHTS * 2)
-
 // #define USE_TESS_NEEDS_NORMAL
 // #define USE_TESS_NEEDS_ST2
 
@@ -56,6 +46,7 @@ using byte = std::uint8_t;
 
 extern Vk_Instance vk_inst; // shouldn't be cleared during ref re-init
 extern Vk_World vk_world;	// this data is cleared during ref re-init
+extern vk::SampleCountFlagBits vkSamples;
 
 #ifdef USE_VK_VALIDATION
 extern PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;
@@ -172,6 +163,7 @@ typedef enum
 #define GLboolean VkBool32
 
 #define USE_BUFFER_CLEAR	/* clear attachments on render pass begin */
+#define USE_REVERSED_DEPTH
 
 typedef uint32_t glIndex_t;
 

@@ -6,13 +6,6 @@
 
 #include "tr_image.hpp"
 
-#define USE_VBO
-#define USE_PMLIGHT
-#define USE_LEGACY_DLIGHTS
-
-#define USE_REVERSED_DEPTH
-#define USE_DEDICATED_ALLOCATION
-
 constexpr int TESS_XYZ = 1;
 constexpr int TESS_RGBA0 = 2;
 constexpr int TESS_RGBA1 = 4;
@@ -72,9 +65,6 @@ void vk_begin_frame(void);
 void vk_end_frame(void);
 void vk_present_frame(void);
 
-void vk_end_render_pass(void);
-void vk_begin_main_render_pass(void);
-
 void vk_bind_pipeline(const uint32_t pipeline);
 void vk_bind_index(void);
 void vk_bind_index_ext(const int numIndexes, const uint32_t *indexes);
@@ -112,10 +102,6 @@ void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const u
 //uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def);
 
 vk::Pipeline vk_gen_pipeline(const uint32_t index);
-void vk_begin_post_bloom_render_pass(void);
-void vk_begin_bloom_extract_render_pass(void);
-
-void vk_begin_blur_render_pass(const uint32_t index);
 
 // Vk_Instance contains engine-specific vulkan resources that persist entire renderer lifetime.
 // This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.

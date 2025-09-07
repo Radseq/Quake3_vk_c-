@@ -198,6 +198,7 @@ int max_polyverts;
 #include "math.hpp"
 Vk_Instance vk_inst;
 Vk_World vk_world;
+vk::SampleCountFlagBits vkSamples = vk::SampleCountFlagBits::e1;
 
 // for modular renderer
 #ifdef USE_RENDERER_DLOPEN
