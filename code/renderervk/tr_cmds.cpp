@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shader.hpp"
 #include "tr_scene.hpp"
 #include "vk.hpp"
+#include "vk_pipeline.hpp"
 
 constexpr int MODE_RED_CYAN = 1;
 constexpr int MODE_RED_BLUE = 2;

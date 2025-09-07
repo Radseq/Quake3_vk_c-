@@ -36,6 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "string_operations.hpp"
 #include <string>
 #include <span>
+#include "vk_pipeline.hpp"
 
 // Note that the ordering indicates the order of preference used
 // when there are multiple images of different formats available
