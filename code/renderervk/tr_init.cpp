@@ -199,8 +199,6 @@ int max_polyverts;
 Vk_Instance vk_inst;
 Vk_World vk_world;
 
-vk::SampleCountFlagBits vkSamples = vk::SampleCountFlagBits::e1;
-
 // for modular renderer
 #ifdef USE_RENDERER_DLOPEN
 void QDECL Com_Error(errorParm_t code, const char *fmt, ...)

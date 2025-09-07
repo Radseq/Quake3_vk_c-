@@ -29,7 +29,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "math.hpp"
 #include "string_operations.hpp"
 #include "compiler_defines.hpp"
-#include "vk_pipeline.hpp"
 
 constexpr int SKY_SUBDIVISIONS = 8;
 constexpr int HALF_SKY_SUBDIVISIONS = (SKY_SUBDIVISIONS / 2);

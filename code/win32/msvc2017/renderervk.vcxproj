@@ -252,7 +252,6 @@
     <ClCompile Include="..\..\renderervk\vk.cpp" />
     <ClCompile Include="..\..\renderervk\vk_descriptors.cpp" />
     <ClCompile Include="..\..\renderervk\vk_flares.cpp" />
-    <ClCompile Include="..\..\renderervk\vk_pipeline.cpp" />
     <ClCompile Include="..\..\renderervk\vk_vbo.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -290,7 +289,6 @@
     <ClInclude Include="..\..\renderervk\vk.hpp" />
     <ClInclude Include="..\..\renderervk\vk_descriptors.hpp" />
     <ClInclude Include="..\..\renderervk\vk_flares.hpp" />
-    <ClInclude Include="..\..\renderervk\vk_pipeline.hpp" />
     <ClInclude Include="..\..\renderervk\vk_vbo.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

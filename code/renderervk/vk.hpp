@@ -38,8 +38,6 @@ void vk_initialize(void);
 // Called after initialization or renderer restart
 void vk_init_descriptors(void);
 
-void vk_create_pipelines(void);
-
 // Shutdown vulkan subsystem by releasing resources acquired by Vk_Instance.
 void vk_shutdown(const refShutdownCode_t code);
 
@@ -58,7 +56,11 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 void vk_destroy_image_resources(vk::Image &image, vk::ImageView &imageView);
 void vk_destroy_samplers( void );
 
+uint32_t vk_find_pipeline_ext(const uint32_t base, const Vk_Pipeline_Def &def, bool use);
 void vk_get_pipeline_def(const uint32_t pipeline, Vk_Pipeline_Def &def);
+
+void vk_create_post_process_pipeline(const int program_index, const uint32_t width, const uint32_t height);
+void vk_create_pipelines(void);
 
 //
 // Rendering setup.
@@ -73,6 +75,7 @@ void vk_present_frame(void);
 void vk_end_render_pass(void);
 void vk_begin_main_render_pass(void);
 
+void vk_bind_pipeline(const uint32_t pipeline);
 void vk_bind_index(void);
 void vk_bind_index_ext(const int numIndexes, const uint32_t *indexes);
 void vk_bind_geometry(const uint32_t flags);
@@ -98,11 +101,17 @@ void VBO_PrepareQueues(void);
 void VBO_RenderIBOItems(void);
 void VBO_ClearQueue(void);
 
+vk::Pipeline create_pipeline(const Vk_Pipeline_Def &def, const renderPass_t renderPassIndex, uint32_t def_index);
+
 #ifdef USE_VBO
 void vk_release_vbo(void);
 bool vk_alloc_vbo(const byte *vbo_data, const uint32_t vbo_size);
 #endif
 
+void vk_create_blur_pipeline(const uint32_t index, const uint32_t width, const uint32_t height, const bool horizontal_pass);
+//uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def &def);
+
+vk::Pipeline vk_gen_pipeline(const uint32_t index);
 void vk_begin_post_bloom_render_pass(void);
 void vk_begin_bloom_extract_render_pass(void);
 
