@@ -781,6 +781,8 @@ Q3RENDVOBJ = \
   $(B)/rendv/vk_render_pass.o \
   $(B)/rendv/vk_pipeline.o \
   $(B)/rendv/vk_descriptors.o \
+  $(B)/rendv/vk_attachments.o \
+  $(B)/rendv/vk_utils.o \
 #  $(B)/rendv/q_shared.o \
 
 ifneq ($(USE_RENDERER_DLOPEN), 0)

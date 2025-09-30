@@ -1,7 +1,7 @@
 #include "vk_attachments.hpp"
 #include "utils.hpp"
 #include "vk_utils.hpp"
-#include "vk_descriptors.cpp"
+#include "vk_descriptors.hpp"
 
 typedef struct vk_attach_desc_s
 {
