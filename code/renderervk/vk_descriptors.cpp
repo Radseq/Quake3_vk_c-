@@ -224,7 +224,24 @@ void vk_update_descriptor_set(const image_t& image, const bool mipmap)
 	vk_inst.device.updateDescriptorSets(descriptor_write, nullptr);
 }
 
-void vk_update_attachment_descriptors(void)
+void vk_update_uniform_descriptor(const vk::DescriptorSet& descriptor, const vk::Buffer& buffer)
+{
+	vk::DescriptorBufferInfo info{ buffer, 0, sizeof(vkUniform_t) };
+
+	vk::WriteDescriptorSet desc{ descriptor,
+								0,
+								0,
+								1,
+								vk::DescriptorType::eUniformBufferDynamic,
+								nullptr,
+								&info,
+								nullptr,
+								nullptr };
+
+	vk_inst.device.updateDescriptorSets(desc, nullptr);
+}
+
+void vk_update_attachment_descriptors()
 {
 
 	if (vk_inst.color_image_view)
@@ -273,21 +290,4 @@ void vk_update_attachment_descriptors(void)
 			}
 		}
 	}
-}
-
-void vk_update_uniform_descriptor(const vk::DescriptorSet& descriptor, const vk::Buffer& buffer)
-{
-	vk::DescriptorBufferInfo info{ buffer, 0, sizeof(vkUniform_t) };
-
-	vk::WriteDescriptorSet desc{ descriptor,
-								0,
-								0,
-								1,
-								vk::DescriptorType::eUniformBufferDynamic,
-								nullptr,
-								&info,
-								nullptr,
-								nullptr };
-
-	vk_inst.device.updateDescriptorSets(desc, nullptr);
 }

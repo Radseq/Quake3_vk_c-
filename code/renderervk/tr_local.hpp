@@ -47,6 +47,7 @@ using byte = std::uint8_t;
 extern Vk_Instance vk_inst; // shouldn't be cleared during ref re-init
 extern Vk_World vk_world;	// this data is cleared during ref re-init
 extern vk::SampleCountFlagBits vkSamples;
+extern vk::detail::DispatchLoaderDynamic dldi;
 
 #ifdef USE_VK_VALIDATION
 extern PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;

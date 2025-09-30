@@ -199,6 +199,7 @@ int max_polyverts;
 #include "vk_pipeline.hpp"
 Vk_Instance vk_inst;
 Vk_World vk_world;
+vk::detail::DispatchLoaderDynamic dldi;
 vk::SampleCountFlagBits vkSamples = vk::SampleCountFlagBits::e1;
 
 // for modular renderer
