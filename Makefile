@@ -778,6 +778,9 @@ Q3RENDVOBJ = \
   $(B)/rendv/tr_init.o \
   $(B)/rendv/math.o \
   $(B)/rendv/string_operations.o \
+  $(B)/rendv/vk_render_pass.o \
+  $(B)/rendv/vk_pipeline.o \
+  $(B)/rendv/vk_descriptors.o \
 #  $(B)/rendv/q_shared.o \
 
 ifneq ($(USE_RENDERER_DLOPEN), 0)
