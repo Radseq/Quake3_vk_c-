@@ -23,16 +23,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef TR_LOCAL_HPP
 #define TR_LOCAL_HPP
 
-#define USE_VBO // store static world geometry in VBO
-#define USE_FOG_ONLY
-#define USE_FOG_COLLAPSE // not compatible with legacy dlights
-#if defined(USE_VBO) && !defined(USE_FOG_ONLY)
-#define USE_FOG_ONLY
-#endif
-#define USE_LEGACY_DLIGHTS // vq3 dynamic lights
-#define USE_PMLIGHT		   // promode dynamic lights via \r_dlightMode 1|2
-#define MAX_REAL_DLIGHTS (MAX_DLIGHTS * 2)
-
 // #define USE_TESS_NEEDS_NORMAL
 // #define USE_TESS_NEEDS_ST2
 
@@ -54,6 +44,87 @@ using byte = std::uint8_t;
 #include "definitions.hpp"
 #include <array>
 
+extern Vk_Instance vk_inst; // shouldn't be cleared during ref re-init
+extern Vk_World vk_world;	// this data is cleared during ref re-init
+extern vk::SampleCountFlagBits vkSamples;
+extern vk::detail::DispatchLoaderDynamic dldi;
+
+#ifdef USE_VK_VALIDATION
+extern PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;
+
+#define VK_CHECK(function_call)                                                                        \
+	{                                                                                                  \
+		try                                                                                            \
+		{                                                                                              \
+			function_call;                                                                             \
+		}                                                                                              \
+		catch (vk::SystemError & err)                                                                  \
+		{                                                                                              \
+			ri.Error(ERR_FATAL, "Vulkan error in function: %s, what: %s", #function_call, err.what()); \
+		}                                                                                              \
+	}
+
+#define VK_CHECK_ASSIGN(var, function_call)                                                            \
+	{                                                                                                  \
+		try                                                                                            \
+		{                                                                                              \
+			var = function_call;                                                                       \
+		}                                                                                              \
+		catch (vk::SystemError & err)                                                                  \
+		{                                                                                              \
+			ri.Error(ERR_FATAL, "Vulkan error in function: %s, what: %s", #function_call, err.what()); \
+		}                                                                                              \
+	}
+
+#define SET_OBJECT_NAME(obj, objName, objType) vk_set_object_name((uint64_t)(obj), (objName), (objType))
+
+static void vk_set_object_name(uint64_t obj, const char* objName, VkDebugReportObjectTypeEXT objType)
+{
+	if (qvkDebugMarkerSetObjectNameEXT && obj)
+	{
+		VkDebugMarkerObjectNameInfoEXT info{
+			VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
+			nullptr,
+			objType,
+			obj,
+			objName };
+		qvkDebugMarkerSetObjectNameEXT(vk_inst.device, &info);
+	}
+}
+
+#else
+
+template <typename T>
+inline void vkCheckFunctionCall(const vk::ResultValue<T> res, const char* funcName)
+{
+	if (static_cast<int>(res.result) < 0)
+	{
+		ri.Error(ERR_FATAL, "Vulkan: %s returned %s", funcName, vk::to_string(res.result).data());
+	}
+}
+
+static inline void vkCheckFunctionCall(const vk::Result res, const char* funcName)
+{
+	if (static_cast<int>(res) < 0)
+	{
+		ri.Error(ERR_FATAL, "Vulkan: %s returned %s", funcName, vk::to_string(res).data());
+	}
+}
+
+#define VK_CHECK_ASSIGN(var, function_call)                 \
+	{                                                       \
+		auto result = function_call;                        \
+		vkCheckFunctionCall(result.result, #function_call); \
+		var = result.value;                                 \
+	}
+
+#define VK_CHECK(function_call)                             \
+	{                                                       \
+		vkCheckFunctionCall(function_call, #function_call); \
+	}
+
+#endif
+
 constexpr int MAX_DRAWSURFS = 0x20000;
 constexpr int MAX_LITSURFS = (MAX_DRAWSURFS);
 constexpr int MAX_FLARES = 256;
@@ -61,7 +132,7 @@ constexpr int MAX_FLARES = 256;
 constexpr int MAX_TEXTURE_SIZE = 2048; // must be less or equal to 32768
 
 // GL constants substitutions
-typedef enum
+enum class glCompat : uint8_t
 {
 	GL_NEAREST,
 	GL_LINEAR,
@@ -85,12 +156,15 @@ typedef enum
 	GL_DECAL,
 	GL_BACK_LEFT,
 	GL_BACK_RIGHT
-} glCompat;
+};
 
 #define GL_INDEX_TYPE uint32_t
 #define GLint int
 #define GLuint unsigned int
 #define GLboolean VkBool32
+
+#define USE_BUFFER_CLEAR	/* clear attachments on render pass begin */
+#define USE_REVERSED_DEPTH
 
 typedef uint32_t glIndex_t;
 
@@ -106,6 +180,31 @@ constexpr int REFENTITYNUM_WORLD = ((1 << REFENTITYNUM_BITS) - 1);
 constexpr int SHADERNUM_BITS = 14;
 constexpr int MAX_SHADERS = (1 << SHADERNUM_BITS);
 constexpr int SHADERNUM_MASK = (MAX_SHADERS - 1);
+
+// this structure must be in sync with shader uniforms!
+typedef struct vkUniform_s
+{
+	// light/env parameters:
+	vec4_t eyePos; // vertex
+	union
+	{
+		struct
+		{
+			vec4_t pos;    // vertex: light origin
+			vec4_t color;  // fragment: rgb + 1/(r*r)
+			vec4_t vector; // fragment: linear dynamic light
+		} light;
+		struct
+		{
+			vec4_t color[3]; // ent.color[3]
+		} ent;
+	};
+	// fog parameters:
+	vec4_t fogDistanceVector; // vertex
+	vec4_t fogDepthVector;    // vertex
+	vec4_t fogEyeT;           // vertex
+	vec4_t fogColor;          // fragment
+} vkUniform_t;
 
 typedef struct dlight_s
 {
@@ -379,7 +478,8 @@ typedef struct
 	int videoMapHandle;
 	int lightmap; // LIGHTMAP_INDEX_NONE, LIGHTMAP_INDEX_SHADER, LIGHTMAP_INDEX_OFFSET
 	bool isVideoMap;
-	bool isScreenMap;
+	unsigned int 	isScreenMap : 1;
+	unsigned int 	dlight : 1;
 } textureBundle_t;
 
 #ifdef USE_VULKAN
@@ -1327,9 +1427,6 @@ extern glstate_t glState; // outside of TR since it shouldn't be cleared during 
 extern glstatic_t gls;
 
 // extern void myGlMultMatrix(const float *a, const float *b, float *out);
-
-extern Vk_Instance vk_inst; // shouldn't be cleared during ref re-init
-extern Vk_World vk_world;	// this data is cleared during ref re-init
 
 //
 // cvars

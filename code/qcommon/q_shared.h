@@ -169,7 +169,18 @@ float FloatSwap( const float *f );
 #ifdef Q3_VM
 	typedef int intptr_t;
 #else
-	#include <stdint.h>
+	#if defined (_MSC_VER) && !defined(__clang__)
+		typedef __int64 int64_t;
+		typedef __int32 int32_t;
+		typedef __int16 int16_t;
+		typedef signed __int8 int8_t;
+		typedef unsigned __int64 uint64_t;
+		typedef unsigned __int32 uint32_t;
+		typedef unsigned __int16 uint16_t;
+		typedef unsigned __int8 uint8_t;
+	#else
+		#include <stdint.h>
+	#endif
 
 	#ifdef _WIN32
 		// vsnprintf is ISO/IEC 9899:1999
@@ -790,7 +801,7 @@ const char *Com_SkipCharset( const char *s, const char *sep );
 
 void Com_RandomBytes( byte *string, int len );
 
-void Com_SortFileList( char **list, int nfiles, int fastSort );
+void Com_SortList( char** list, int n );
 
 // mode parm for FS_FOpenFile
 typedef enum {

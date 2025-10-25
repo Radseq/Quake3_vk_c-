@@ -196,8 +196,11 @@ int max_polyverts;
 
 #include "vk.hpp"
 #include "math.hpp"
+#include "vk_pipeline.hpp"
 Vk_Instance vk_inst;
 Vk_World vk_world;
+vk::detail::DispatchLoaderDynamic dldi;
+vk::SampleCountFlagBits vkSamples = vk::SampleCountFlagBits::e1;
 
 // for modular renderer
 #ifdef USE_RENDERER_DLOPEN
@@ -220,6 +223,18 @@ void QDECL Com_Printf(const char *fmt, ...)
 	va_end(argptr);
 
 	ri.Printf(PRINT_ALL, "%s", buf);
+}
+#endif
+
+#ifdef USE_VK_VALIDATION
+PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT = nullptr;
+
+static void LoadDebugMarkerFunctions()
+{
+	// VK_EXT_debug_marker must be enabled on the device
+	qvkDebugMarkerSetObjectNameEXT =
+		reinterpret_cast<PFN_vkDebugMarkerSetObjectNameEXT>(
+			vkGetDeviceProcAddr(vk_inst.device, "vkDebugMarkerSetObjectNameEXT"));
 }
 #endif
 
@@ -282,6 +297,10 @@ static void InitOpenGL(void)
 				ri.CL_SetScaling(2.0, gls.captureWidth, gls.captureHeight);
 			}
 		}
+
+#ifdef USE_VK_VALIDATION
+		LoadDebugMarkerFunctions();
+#endif
 
 		vk_initialize();
 
@@ -986,24 +1005,24 @@ VarInfo
 Prints info that may change every R_Init() call
 ================
 */
-static void VarInfo(void)
+static void VarInfo( void )
 {
-	if (glConfig.deviceSupportsGamma)
-	{
-		ri.Printf(PRINT_ALL, "GAMMA: hardware w/ %d overbright bits\n", tr.overbrightBits);
-	}
-	else
-	{
-		ri.Printf(PRINT_ALL, "GAMMA: software w/ %d overbright bits\n", tr.overbrightBits);
+	if ( glConfig.deviceSupportsGamma ) {
+		ri.Printf( PRINT_ALL, "GAMMA: hardware w/ %d overbright bits\n", tr.overbrightBits );
+	} else {
+		ri.Printf( PRINT_ALL, "GAMMA: software w/ %d overbright bits\n", tr.overbrightBits );
 	}
 
-	ri.Printf(PRINT_ALL, "texturemode: %s\n", r_textureMode->string);
-	ri.Printf(PRINT_ALL, "texture bits: %d\n", r_texturebits->integer ? r_texturebits->integer : 32);
-	ri.Printf(PRINT_ALL, "picmip: %d%s\n", r_picmip->integer, r_nomip->integer ? ", worldspawn only" : "");
+	ri.Printf( PRINT_ALL, "texturemode: %s\n", r_textureMode->string );
+	ri.Printf( PRINT_ALL, "texture bits: %d\n", r_texturebits->integer ? r_texturebits->integer : 32 );
+	ri.Printf( PRINT_ALL, "picmip: %d%s\n", r_picmip->integer, r_nomip->integer ? ", worldspawn only" : "" );
 
-	if (r_vertexLight->integer)
-	{
-		ri.Printf(PRINT_ALL, "HACK: using vertex lightmap approximation\n");
+	if ( r_vertexLight->integer ) {
+		ri.Printf( PRINT_ALL, "HACK: using vertex lightmap approximation\n" );
+	}
+
+	if ( r_finish->integer ) {
+		ri.Printf( PRINT_ALL, "Forcing glFinish\n" );
 	}
 }
 
@@ -1416,18 +1435,8 @@ void R_Init(void)
 	//
 	for (i = 0; i < FUNCTABLE_SIZE; i++)
 	{
-		if (i == 0)
-		{
-			tr.sinTable[i] = EPSILON;
-		}
-		else if (i == (FUNCTABLE_SIZE - 1))
-		{
-			tr.sinTable[i] = -EPSILON;
-		}
-		else
-		{
-			tr.sinTable[i] = sin(deg2rad(i * 360.0f / ((float)(FUNCTABLE_SIZE - 1))));
-		}
+		tr.sinTable[i] = sin( deg2rad( i * 360.0f / FUNCTABLE_SIZE ) + 0.0001f );
+		
 		tr.squareTable[i] = (i < FUNCTABLE_SIZE / 2) ? 1.0f : -1.0f;
 		if (i == 0)
 		{
@@ -1517,12 +1526,13 @@ static void RE_Shutdown(refShutdownCode_t code)
 	ri.Cmd_RemoveCommand("shaderstate");
 	ri.Cmd_RemoveCommand("vkinfo");
 
-	if (tr.registered)
-	{
-		// R_IssuePendingRenderCommands();
+	//if ( tr.registered ) {
+		//R_IssuePendingRenderCommands();
 		R_DeleteTextures();
-		vk_release_resources();
-	}
+	//}
+
+
+	vk_release_resources();
 
 	R_DoneFreeType();
 

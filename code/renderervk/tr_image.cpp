@@ -22,9 +22,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // tr_image.c
 #include "tr_image.hpp"
 #include "tr_bsp.hpp"
+#include "tr_local.hpp"
 #include "vk.hpp"
 #include "tr_shader.hpp"
 #include "utils.hpp"
+#include "vk_descriptors.hpp"
 
 #define generateHashValue(fname) Com_GenerateHashValue_cpp((fname), FILE_HASH_SIZE)
 
@@ -34,6 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "string_operations.hpp"
 #include <string>
 #include <span>
+#include "vk_pipeline.hpp"
 
 // Note that the ordering indicates the order of preference used
 // when there are multiple images of different formats available
@@ -55,16 +58,16 @@ static image_t *hashTable[FILE_HASH_SIZE];
 
 static const int numImageLoaders = arrayLen(imageLoaders);
 
-GLint gl_filter_min = GL_LINEAR_MIPMAP_NEAREST;
-GLint gl_filter_max = GL_LINEAR;
+GLint gl_filter_min = std::to_underlying(glCompat::GL_LINEAR_MIPMAP_NEAREST);
+GLint gl_filter_max = std::to_underlying(glCompat::GL_LINEAR);
 
 constexpr textureMode_t modes[6] = { // Texture modes
-	{"GL_NEAREST", GL_NEAREST, GL_NEAREST},
-	{"GL_LINEAR", GL_LINEAR, GL_LINEAR},
-	{"GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST},
-	{"GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR},
-	{"GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST},
-	{"GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR}};
+	{"GL_NEAREST", glCompat::GL_NEAREST, glCompat::GL_NEAREST},
+	{"GL_LINEAR", glCompat::GL_LINEAR, glCompat::GL_LINEAR},
+	{"GL_NEAREST_MIPMAP_NEAREST", glCompat::GL_NEAREST_MIPMAP_NEAREST, glCompat::GL_NEAREST},
+	{"GL_LINEAR_MIPMAP_NEAREST", glCompat::GL_LINEAR_MIPMAP_NEAREST, glCompat::GL_LINEAR},
+	{"GL_NEAREST_MIPMAP_LINEAR", glCompat::GL_NEAREST_MIPMAP_LINEAR, glCompat::GL_NEAREST},
+	{"GL_LINEAR_MIPMAP_LINEAR", glCompat::GL_LINEAR_MIPMAP_LINEAR, glCompat::GL_LINEAR}};
 
 skin_t *R_GetSkinByHandle(qhandle_t hSkin)
 {
@@ -364,11 +367,20 @@ void TextureMode(std::string_view sv_mode)
 		return;
 	}
 
-	gl_filter_min = mode->minimize;
-	gl_filter_max = mode->maximize;
+	gl_filter_min = std::to_underlying(mode->minimize);
+	gl_filter_max = std::to_underlying(mode->maximize);
+
+	if ( gl_filter_min == vk_inst.samplers.filter_min && gl_filter_max == vk_inst.samplers.filter_max ) {
+		return;
+	}
 
 	vk_wait_idle();
-	for (i = 0; i < tr.numImages; i++)
+	vk_destroy_samplers();
+
+	vk_inst.samplers.filter_min = gl_filter_min;
+	vk_inst.samplers.filter_max = gl_filter_max;
+	vk_update_attachment_descriptors();
+	for ( i = 0; i < tr.numImages; i++ ) 
 	{
 		img = tr.images[i];
 		if (HasFlag(img->flags, imgFlags_t::IMGFLAG_MIPMAP))
@@ -862,7 +874,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 
 	if (mipmap)
 	{
-		while (scaled_width > 1 || scaled_height > 1)
+		while (scaled_width > 1 && scaled_height > 1)
 		{
 			R_MipMap((byte *)scaled_buffer, (byte *)scaled_buffer, scaled_width, scaled_height);
 
@@ -916,10 +928,6 @@ static void upload_vk_image(image_t *image, byte *pic)
 		bool has_alpha = RawImage_HasAlpha(upload_data.buffer, w * h);
 		image->internalFormat = has_alpha ? vk::Format::eB4G4R4A4UnormPack16 : vk::Format::eA1R5G5B5UnormPack16;
 	}
-
-	image->handle = nullptr;
-	image->view = nullptr;
-	image->descriptor = nullptr;
 
 	image->uploadWidth = w;
 	image->uploadHeight = h;
@@ -1008,6 +1016,10 @@ image_t *R_CreateImage(std::string_view name, std::string_view name2, byte *pic,
 		image->wrapClampMode = vk::SamplerAddressMode::eClampToEdge;
 	else
 		image->wrapClampMode = vk::SamplerAddressMode::eRepeat;
+
+	image->handle = VK_NULL_HANDLE;
+	image->view = VK_NULL_HANDLE;
+	image->descriptor = VK_NULL_HANDLE;
 
 	upload_vk_image(image, pic);
 	return image;
@@ -1466,15 +1478,18 @@ void R_InitImages(void)
 
 void R_DeleteTextures(void)
 {
+	if ( tr.numImages == 0 ) {
+		return;
+	}
 
-	image_t *img;
+
 	int i;
 
 	vk_wait_idle();
 
 	for (i = 0; i < tr.numImages; i++)
 	{
-		img = tr.images[i];
+		image_t *img = tr.images[i];
 		vk_destroy_image_resources(img->handle, img->view);
 
 		// img->descriptor will be released with pool reset

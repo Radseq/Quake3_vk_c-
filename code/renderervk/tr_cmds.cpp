@@ -22,9 +22,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_cmds.hpp"
 #include "tr_image.hpp"
 #include "tr_backend.hpp"
+#include "tr_local.hpp"
 #include "tr_shader.hpp"
 #include "tr_scene.hpp"
 #include "vk.hpp"
+#include "vk_pipeline.hpp"
 
 constexpr int MODE_RED_CYAN = 1;
 constexpr int MODE_RED_BLUE = 2;
@@ -47,9 +49,9 @@ static void R_PerformanceCounters(void)
 	}
 
 	if (r_speeds->integer == 1) {
-		ri.Printf(PRINT_ALL, "%i/%i shaders/surfs %i leafs %i verts %i/%i tris %.2f mtex\n",
-			backEnd.pc.c_shaders, backEnd.pc.c_surfaces, tr.pc.c_leafs, backEnd.pc.c_vertexes,
-			backEnd.pc.c_indexes / 3, backEnd.pc.c_totalIndexes / 3, R_SumOfUsedImages() / 1000000.0);
+		ri.Printf (PRINT_ALL, "%i/%i shaders/surfs %i leafs %i verts %i/%i tris %.2f mtex\n",
+			backEnd.pc.c_shaders, backEnd.pc.c_surfaces, tr.pc.c_leafs, backEnd.pc.c_vertexes, 
+			backEnd.pc.c_indexes/3, backEnd.pc.c_totalIndexes/3, R_SumOfUsedImages()/1000000.0); 
 	}
 	else if (r_speeds->integer == 2) {
 		ri.Printf(PRINT_ALL, "(patch) %i sin %i sclip  %i sout %i bin %i bclip %i bout\n",
@@ -293,11 +295,11 @@ void RE_BeginFrame(stereoFrame_t stereoFrame)
 	{
 		if (stereoFrame == STEREO_LEFT)
 		{
-			cmd->buffer = (int)GL_BACK_LEFT;
+			cmd->buffer = std::to_underlying(glCompat::GL_BACK_LEFT);
 		}
 		else if (stereoFrame == STEREO_RIGHT)
 		{
-			cmd->buffer = (int)GL_BACK_RIGHT;
+			cmd->buffer = std::to_underlying(glCompat::GL_BACK_RIGHT);
 		}
 		else
 		{
@@ -314,16 +316,16 @@ void RE_BeginFrame(stereoFrame_t stereoFrame)
 		cmd->buffer = 0;
 	}
 
-	if (r_fastsky->integer && vk_inst.fastSky)
-	{
-		if (stereoFrame != STEREO_RIGHT)
-		{
-			clearColorCommand_t *clrcmd;
-			if ((clrcmd = static_cast<clearColorCommand_t *>(R_GetCommandBuffer(sizeof(*clrcmd)))) == NULL)
+#ifndef USE_BUFFER_CLEAR
+	if ( r_fastsky->integer && vk_inst.clearAttachment ) {
+		if ( stereoFrame != STEREO_RIGHT ) {
+			clearColorCommand_t *clrcmd; 
+			if ( ( clrcmd = R_GetCommandBuffer( sizeof( *clrcmd ) ) ) == NULL )
 				return;
 			clrcmd->commandId = renderCommand_t::RC_CLEARCOLOR;
 		}
 	}
+#endif // USE_BUFFER_CLEAR
 
 	tr.refdef.stereoFrame = stereoFrame;
 }

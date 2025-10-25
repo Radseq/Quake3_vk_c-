@@ -110,6 +110,8 @@ void NORETURN FORMAT_PRINTF(1, 2) QDECL Sys_Error(const char* error, ...) {
 		DispatchMessage(&msg);
 	}
 
+	SetUnhandledExceptionFilter( NULL );
+
 	Sys_DestroyConsole();
 
 	exit(1);
@@ -123,7 +125,9 @@ Sys_Quit
 */
 void NORETURN Sys_Quit(void) {
 
-	timeEndPeriod(1);
+	timeEndPeriod( 1 );
+
+	SetUnhandledExceptionFilter( NULL );
 
 	Sys_DestroyConsole();
 	exit(0);
@@ -356,44 +360,40 @@ static int Sys_ListExtFiles(const char* directory, const char* subdir, const cha
 	}
 
 	do {
-		if (flag ^ (findinfo.attrib & _A_SUBDIR)) {
-			if (*subdir != '\0') {
-				Com_sprintf(filename, sizeof(filename), "%s\\%s", subdir, findinfo.name);
+		if ( flag ^ ( findinfo.attrib & _A_SUBDIR ) ) {
+			if ( *subdir != '\0' ) {
+				Com_sprintf( filename, sizeof( filename ), "%s\\%s", subdir, findinfo.name );
+			} else {
+				Q_strncpyz( filename, findinfo.name, sizeof( filename ) );
 			}
-			else {
-				Q_strncpyz(filename, findinfo.name, sizeof(filename));
-			}
-			if (filter != NULL && *filter != '\0') {
-				if (!Com_FilterPath(filter, filename)) {
+			if ( filter != NULL && *filter != '\0' ) {
+				if ( !Com_FilterPath( filter, filename ) ) {
 					continue;
 				}
-			}
-			else if (*extension != '\0') {
-				if (hasPatterns) {
-					x = strrchr(findinfo.name, '.');
-					if (x == NULL || !Com_FilterExt(extension, x + 1)) {
+			} else if ( *extension != '\0' ) {
+				if ( hasPatterns ) {
+					x = strrchr( findinfo.name, '.' );
+					if ( x == NULL || !Com_FilterExt( extension, x + 1 ) ) {
 						continue;
 					}
-				}
-				else {
+				} else {
 					// check for exact extension
-					const int length = strlen(findinfo.name);
-					if (length < extLen || Q_stricmp(findinfo.name + length - extLen, extension)) {
+					const int length = strlen( findinfo.name );
+					if ( length < extLen || Q_stricmp( findinfo.name + length - extLen, extension ) ) {
 						continue;
 					}
 				}
 			}
-			if (nfiles >= maxfiles) {
+			if ( nfiles >= maxfiles ) {
 				break;
 			}
-			list[nfiles++] = FS_CopyString(filename);
+			list[ nfiles++ ] = FS_CopyString( filename );
 		}
-	} while (_findnext(findhandle, &findinfo) == 0);
+	} while ( _findnext( findhandle, &findinfo ) == 0 );
 
-	_findclose(findhandle);
+	_findclose( findhandle );
 
 	return nfiles;
-
 }
 
 char** Sys_ListFiles(const char* directory, const char* extension, const char* filter, int* numfiles, int subdirs)
@@ -402,24 +402,39 @@ char** Sys_ListFiles(const char* directory, const char* extension, const char* f
 	char* list[MAX_FOUND_FILES];
 	int		i, nfiles;
 
-	if (extension == NULL) {
+	if ( extension == NULL ) {
 		extension = "";
 	}
 
-	nfiles = Sys_ListExtFiles(directory, "", extension, filter, list, ARRAY_LEN(list), subdirs);
+	nfiles = Sys_ListExtFiles( directory, "", extension, filter, list, ARRAY_LEN( list ), subdirs );
 
-	// copy list from stack
-	listCopy = Z_Malloc((nfiles + 1) * sizeof(listCopy[0]));
-	for (i = 0; i < nfiles; i++) {
+	// copy list from stack, reserve extra space for NULL
+	listCopy = Z_Malloc( (nfiles + 1) * sizeof( listCopy[0] ) );
+	for ( i = 0; i < nfiles; i++ ) {
 		listCopy[i] = list[i];
 	}
 	listCopy[i] = NULL;
 
-	Com_SortFileList(listCopy, nfiles, *extension != '\0');
+	if ( nfiles > 1 ) {
+		Com_SortList( listCopy, nfiles - 1 );
+		if ( nfiles > 2 ) {
+			if ( Q_streq( listCopy[0], "." ) && Q_streq( listCopy[1], ".." ) ) {
+				// emulate old strgtr() function sort behavior for special entries
+				char* dot1 = listCopy[0];
+				char* dot2 = listCopy[1];
+				for ( i = 0; i < nfiles - 2; i++ ) {
+					listCopy[i] = listCopy[i + 2];
+				}
+				listCopy[nfiles - 2] = dot1;
+				listCopy[nfiles - 1] = dot2;
+			}
+		}
+	}
 
 	*numfiles = nfiles;
 	return listCopy;
 }
+
 
 
 /*

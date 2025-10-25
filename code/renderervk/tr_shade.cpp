@@ -28,6 +28,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_vbo.hpp"
 #include "vk.hpp"
 #include "math.hpp"
+#include "vk_descriptors.hpp"
+#include "vk_pipeline.hpp"
 
 shaderCommands_t tess;
 
@@ -878,7 +880,7 @@ static bool ProjectDlightTexture(void)
 		numIndexes = 0;
 		for (i = 0; i < tess.numIndexes; i += 3)
 		{
-			int a, b, c;
+			glIndex_t a, b, c;
 
 			a = tess.indexes[i];
 			b = tess.indexes[i + 1];
@@ -1090,7 +1092,7 @@ static void DrawNormals(const shaderCommands_t &input)
 
 	vk_bind_pipeline(vk_inst.normals_debug_pipeline);
 	vk_bind_index();
-	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
+	vk_bind_geometry(TESS_XYZ | TESS_ST0 | TESS_RGBA0);
 	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_ZERO, true);
 }
 

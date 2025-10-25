@@ -87,7 +87,7 @@
     <OutDir>.\output\</OutDir>
     <IntDir>.\build\$(ProjectName)_$(Configuration)_$(PlatformTarget)\</IntDir>
     <TargetName>renderer</TargetName>
-    <IncludePath>D:\Programming\vulkanSDK\Include;C:\VulkanSDK\1.3.296.0\Include;$(IncludePath)</IncludePath>
+    <IncludePath>D:\Programming\vulkanSDK\Include;C:\VulkanSDK\1.4.321.1\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <OutDir>.\output\</OutDir>
@@ -109,7 +109,7 @@
     <OutDir>.\output\</OutDir>
     <IntDir>.\build\$(ProjectName)_$(Configuration)_$(PlatformTarget)\</IntDir>
     <TargetName>renderer</TargetName>
-    <IncludePath>D:\Programming\vulkanSDK\Include;C:\VulkanSDK\1.3.296.0\Include;$(IncludePath)</IncludePath>
+    <IncludePath>D:\Programming\vulkanSDK\Include;C:\VulkanSDK\1.4.321.1\Include;$(IncludePath)</IncludePath>
     <LibraryPath>D:\Programming\vulkanSDK\Lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
@@ -250,7 +250,12 @@
     <ClCompile Include="..\..\renderervk\tr_surface.cpp" />
     <ClCompile Include="..\..\renderervk\tr_world.cpp" />
     <ClCompile Include="..\..\renderervk\vk.cpp" />
+    <ClCompile Include="..\..\renderervk\vk_descriptors.cpp" />
     <ClCompile Include="..\..\renderervk\vk_flares.cpp" />
+    <ClCompile Include="..\..\renderervk\vk_pipeline.cpp" />
+    <ClCompile Include="..\..\renderervk\vk_render_pass.cpp" />
+    <ClCompile Include="..\..\renderervk\vk_attachments.cpp" />
+    <ClCompile Include="..\..\renderervk\vk_utils.cpp" />
     <ClCompile Include="..\..\renderervk\vk_vbo.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -286,7 +291,12 @@
     <ClInclude Include="..\..\renderervk\tr_world.hpp" />
     <ClInclude Include="..\..\renderervk\utils.hpp" />
     <ClInclude Include="..\..\renderervk\vk.hpp" />
+    <ClInclude Include="..\..\renderervk\vk_descriptors.hpp" />
     <ClInclude Include="..\..\renderervk\vk_flares.hpp" />
+    <ClInclude Include="..\..\renderervk\vk_pipeline.hpp" />
+    <ClInclude Include="..\..\renderervk\vk_render_pass.hpp" />
+    <ClInclude Include="..\..\renderervk\vk_attachments.hpp" />
+    <ClInclude Include="..\..\renderervk\vk_utils.hpp" />
     <ClInclude Include="..\..\renderervk\vk_vbo.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

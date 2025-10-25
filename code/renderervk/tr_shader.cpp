@@ -29,12 +29,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_image.hpp"
 #include "math.hpp"
 #include "utils.hpp"
+#include <cstdint>
+#include "vk_pipeline.hpp"
 
 #define generateHashValue Com_GenerateHashValue_cpp
 
-static char *s_shaderText;
+static char* s_shaderText;
 
-static const char *s_extensionOffset;
+static const char* s_extensionOffset;
 static int s_extendedShader;
 
 // the shader is parsed into these global variables, then copied into
@@ -44,37 +46,37 @@ static shader_t shader;
 static texModInfo_t texMods[MAX_SHADER_STAGES][TR_MAX_TEXMODS + 1]; // reserve one additional texmod for lightmap atlas correction
 
 constexpr int FILE_HASH_SIZE = 1024;
-static std::array<shader_t *, FILE_HASH_SIZE> shaderHashTable;
+static std::array<shader_t*, FILE_HASH_SIZE> shaderHashTable;
 
 constexpr int MAX_SHADERTEXT_HASH = 2048;
-static std::array<const char **, MAX_SHADERTEXT_HASH> shaderTextHashTable;
+static std::array<const char**, MAX_SHADERTEXT_HASH> shaderTextHashTable;
 
 // tr_shader.c -- this file deals with the parsing and definition of shaders
 
 constexpr collapse_t collapse[] = {
-	{0, GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO, GL_MODULATE, 0},
-	{0, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR, GL_MODULATE, 0},
-	{GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR, GL_MODULATE, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR},
-	{GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR, GL_MODULATE, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR},
-	{GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR, GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO, GL_MODULATE, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR},
-	{GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO, GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO, GL_MODULATE, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR},
-	{0, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE, GL_ADD, 0},
-	{GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE, GL_ADD, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE},
-	{GLS_DSTBLEND_ONE | GLS_SRCBLEND_SRC_ALPHA, GLS_DSTBLEND_ONE | GLS_SRCBLEND_SRC_ALPHA, GL_BLEND_ALPHA, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE},
-	{GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA, GL_BLEND_ONE_MINUS_ALPHA, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE},
-	{0, GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_SRCBLEND_SRC_ALPHA, GL_BLEND_MIX_ALPHA, 0},
-	{0, GLS_DSTBLEND_SRC_ALPHA | GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA, GL_BLEND_MIX_ONE_MINUS_ALPHA, 0},
-	{0, GLS_DSTBLEND_SRC_ALPHA | GLS_SRCBLEND_DST_COLOR, GL_BLEND_DST_COLOR_SRC_ALPHA, 0},
+	{0, GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO, std::to_underlying(glCompat::GL_MODULATE), 0},
+	{0, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR, std::to_underlying(glCompat::GL_MODULATE), 0},
+	{GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR, std::to_underlying(glCompat::GL_MODULATE), GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR},
+	{GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO, GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR, std::to_underlying(glCompat::GL_MODULATE), GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR},
+	{GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR, GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO, std::to_underlying(glCompat::GL_MODULATE), GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR},
+	{GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO, GLS_DSTBLEND_SRC_COLOR | GLS_SRCBLEND_ZERO, std::to_underlying(glCompat::GL_MODULATE), GLS_DSTBLEND_ZERO | GLS_SRCBLEND_DST_COLOR},
+	{0, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE, std::to_underlying(glCompat::GL_ADD), 0},
+	{GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE, std::to_underlying(glCompat::GL_ADD), GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE},
+	{GLS_DSTBLEND_ONE | GLS_SRCBLEND_SRC_ALPHA, GLS_DSTBLEND_ONE | GLS_SRCBLEND_SRC_ALPHA, std::to_underlying(glCompat::GL_BLEND_ALPHA), GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE},
+	{GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA, GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA, std::to_underlying(glCompat::GL_BLEND_ONE_MINUS_ALPHA), GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE},
+	{0, GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_SRCBLEND_SRC_ALPHA, std::to_underlying(glCompat::GL_BLEND_MIX_ALPHA), 0},
+	{0, GLS_DSTBLEND_SRC_ALPHA | GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA, std::to_underlying(glCompat::GL_BLEND_MIX_ONE_MINUS_ALPHA), 0},
+	{0, GLS_DSTBLEND_SRC_ALPHA | GLS_SRCBLEND_DST_COLOR, std::to_underlying(glCompat::GL_BLEND_DST_COLOR_SRC_ALPHA), 0},
 #if 0
 	{ 0, GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_SRCBLEND_SRC_ALPHA, GL_DECAL, 0 },
 #endif
-	{-1}};
+	{-1} };
 
-void RE_RemapShader(const char *shaderName, const char *newShaderName, const char *timeOffset)
+void RE_RemapShader(const char* shaderName, const char* newShaderName, const char* timeOffset)
 {
 	std::array<char, MAX_QPATH> strippedName;
 	int hash;
-	shader_t *sh, *sh2;
+	shader_t* sh, * sh2;
 	qhandle_t h;
 
 	sh = R_FindShaderByName(shaderName);
@@ -132,7 +134,7 @@ void RE_RemapShader(const char *shaderName, const char *newShaderName, const cha
 ParseVector
 ===============
 */
-static bool ParseVector(const char **text, const int count, float *v)
+static bool ParseVector(const char** text, const int count, float* v)
 {
 	std::string_view token;
 	int i;
@@ -323,7 +325,7 @@ static genFunc_t NameToGenFunc(std::string_view funcname)
 ParseWaveForm
 ===================
 */
-static void ParseWaveForm(const char **text, waveForm_t &wave)
+static void ParseWaveForm(const char** text, waveForm_t& wave)
 {
 	std::string_view token;
 
@@ -374,9 +376,9 @@ static void ParseWaveForm(const char **text, waveForm_t &wave)
 ParseTexMod
 ===================
 */
-static void ParseTexMod(const char *_text, shaderStage_t &stage)
+static void ParseTexMod(const char* _text, shaderStage_t& stage)
 {
-	const char **text = &_text;
+	const char** text = &_text;
 
 	if (stage.bundle[0].numTexMods == TR_MAX_TEXMODS)
 	{
@@ -384,7 +386,7 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 		return;
 	}
 
-	texModInfo_t &tmi = stage.bundle[0].texMods[stage.bundle[0].numTexMods];
+	texModInfo_t& tmi = stage.bundle[0].texMods[stage.bundle[0].numTexMods];
 	stage.bundle[0].numTexMods++;
 
 	std::string_view token = COM_ParseExt_cpp(text, false);
@@ -602,7 +604,7 @@ static void ParseTexMod(const char *_text, shaderStage_t &stage)
 ParseStage
 ===================
 */
-static bool ParseStage(shaderStage_t &stage, const char **text)
+static bool ParseStage(shaderStage_t& stage, const char** text)
 {
 	std::string_view token;
 	int i, depthMaskBits = GLS_DEPTHMASK_TRUE, blendSrcBits = 0, blendDstBits = 0, atestBits = 0, depthFuncBits = 0;
@@ -716,7 +718,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			if (token.empty())
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: missing parameter for '%s' keyword in shader '%s'\n",
-						  stage.bundle[0].isScreenMap ? "screenMap" : "clampMap", shader.name);
+					stage.bundle[0].isScreenMap ? "screenMap" : "clampMap", shader.name);
 				return false;
 			}
 
@@ -791,7 +793,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			if (totalImages > maxAnimations)
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: ignoring excess images for 'animMap' (found %d, max is %d) in shader '%s'\n",
-						  totalImages, maxAnimations, shader.name);
+					totalImages, maxAnimations, shader.name);
 			}
 		}
 		else if (!Q_stricmp_cpp(token, "videoMap"))
@@ -1072,7 +1074,7 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 
 			if (!Q_stricmp_cpp(token, "environment"))
 			{
-				const char *t = *text;
+				const char* t = *text;
 				stage.bundle[0].tcGen = texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED;
 				token = COM_ParseExt_cpp(text, false);
 				if (Q_stricmp_cpp(token, "firstPerson") == 0)
@@ -1188,7 +1190,10 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 			if (stage.bundle[0].alphaGen != alphaGen_t::AGEN_SKIP)
 			{
 				// q3wcp18 @ "textures/ctf_unified/floor_decal_blue" : alphaGen_t::AGEN_VERTEX, colorGen_t::CGEN_VERTEX
-				depthMaskBits &= ~GLS_DEPTHMASK_TRUE;
+				// check for grates on tscabdm3
+				if (atestBits == 0) {
+					depthMaskBits &= ~GLS_DEPTHMASK_TRUE;
+				}
 			}
 			else
 			{
@@ -1226,9 +1231,9 @@ static bool ParseStage(shaderStage_t &stage, const char **text)
 	// compute state bits
 	//
 	stage.stateBits = depthMaskBits |
-					  blendSrcBits | blendDstBits |
-					  atestBits |
-					  depthFuncBits;
+		blendSrcBits | blendDstBits |
+		atestBits |
+		depthFuncBits;
 
 	stage.active = true;
 
@@ -1249,7 +1254,7 @@ deformVertexes autoSprite2
 deformVertexes text[0-7]
 ===============
 */
-static void ParseDeform(const char **text)
+static void ParseDeform(const char** text)
 {
 	std::string_view token = COM_ParseExt_cpp(text, false);
 
@@ -1265,7 +1270,7 @@ static void ParseDeform(const char **text)
 		return;
 	}
 
-	deformStage_t &ds = shader.deforms[shader.numDeforms];
+	deformStage_t& ds = shader.deforms[shader.numDeforms];
 	shader.numDeforms++;
 
 	if (!Q_stricmp_cpp(token, "projectionShadow"))
@@ -1407,10 +1412,10 @@ ParseSkyParms
 skyParms <outerbox> <cloudheight> <innerbox>
 ===============
 */
-static void ParseSkyParms(const char **text)
+static void ParseSkyParms(const char** text)
 {
 	std::string_view token;
-	static const char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
+	static const char* suf[6] = { "rt", "bk", "lf", "ft", "up", "dn" };
 	char pathname[MAX_QPATH];
 	int i;
 	imgFlags_t imgFlags = static_cast<imgFlags_t>(imgFlags_t::IMGFLAG_MIPMAP | imgFlags_t::IMGFLAG_PICMIP);
@@ -1483,7 +1488,7 @@ static void ParseSkyParms(const char **text)
 ParseSort
 =================
 */
-static void ParseSort(const char **text)
+static void ParseSort(const char** text)
 {
 	std::string_view token = COM_ParseExt_cpp(text, false);
 	if (token.empty())
@@ -1591,7 +1596,7 @@ ParseSurfaceParm
 surfaceparm <name>
 ===============
 */
-static void ParseSurfaceParm(const char **text)
+static void ParseSurfaceParm(const char** text)
 {
 	int numInfoParms = arrayLen(infoParms);
 	int i;
@@ -1633,7 +1638,7 @@ enum class resultMask : int8_t
 	maskAND
 };
 
-static void derefVariable(std::string_view name, char *buf, const int size)
+static void derefVariable(std::string_view name, char* buf, const int size)
 {
 	if (!Q_stricmp_cpp(name, "vid_width"))
 	{
@@ -1658,13 +1663,13 @@ if ( $cvar|<integer value> [<condition> $cvar|<integer value> [ [ || .. ] && .. 
 { shader stage } ]
 ===============
 */
-static bool ParseCondition(const char **text, resultType *res)
+static bool ParseCondition(const char** text, resultType* res)
 {
 	char lval_str[MAX_CVAR_VALUE_STRING];
 	char rval_str[MAX_CVAR_VALUE_STRING]{};
 	tokenType_t lval_type;
 	tokenType_t rval_type;
-	const char *token;
+	const char* token;
 	tokenType_t op;
 	resultMask rm;
 	bool str;
@@ -1845,7 +1850,7 @@ static bool ParseCondition(const char **text, resultType *res)
 FinishStage
 =================
 */
-static void FinishStage(shaderStage_t &stage)
+static void FinishStage(shaderStage_t& stage)
 {
 	if (!tr.mergeLightmaps)
 	{
@@ -1857,15 +1862,23 @@ static void FinishStage(shaderStage_t &stage)
 
 	for (i = 0; i < arrayLen(stage.bundle); i++)
 	{
-		textureBundle_t &bundle = stage.bundle[i];
+		textureBundle_t& bundle = stage.bundle[i];
 		// offset lightmap coordinates
 		if (bundle.lightmap >= LIGHTMAP_INDEX_OFFSET)
 		{
 			if (bundle.tcGen == texCoordGen_t::TCGEN_LIGHTMAP)
 			{
-				texModInfo_t &tmi = bundle.texMods[bundle.numTexMods];
+				texModInfo_t& tmi = bundle.texMods[bundle.numTexMods];
 				float x, y;
 				const int lightmapIndex = R_GetLightmapCoords(bundle.lightmap - LIGHTMAP_INDEX_OFFSET, x, y);
+				// rescale tcMod transform
+				for (n = 0; n < bundle.numTexMods; n++) {
+					tmi = bundle.texMods[n];
+					if (tmi.type == texMod_t::TMOD_TRANSFORM) {
+						tmi.translate[0] *= tr.lightmapScale[0];
+						tmi.translate[1] *= tr.lightmapScale[1];
+					}
+				}
 				bundle.image[0] = tr.lightmaps[lightmapIndex];
 				tmi.type = texMod_t::TMOD_OFFSET;
 				tmi.offset[0] = x - tr.lightmapOffset[0];
@@ -1879,7 +1892,7 @@ static void FinishStage(shaderStage_t &stage)
 		{
 			if (bundle.tcGen != texCoordGen_t::TCGEN_LIGHTMAP)
 			{
-				texModInfo_t &tmi = bundle.texMods[bundle.numTexMods];
+				texModInfo_t& tmi = bundle.texMods[bundle.numTexMods];
 				tmi.type = texMod_t::TMOD_SCALE_OFFSET;
 				tmi.scale[0] = tr.lightmapScale[0];
 				tmi.scale[1] = tr.lightmapScale[1];
@@ -1891,7 +1904,7 @@ static void FinishStage(shaderStage_t &stage)
 			{
 				for (n = 0; n < bundle.numTexMods; n++)
 				{
-					texModInfo_t &tmi = bundle.texMods[n];
+					texModInfo_t& tmi = bundle.texMods[n];
 					if (tmi.type == texMod_t::TMOD_TRANSFORM)
 					{
 						tmi.translate[0] *= tr.lightmapScale[0];
@@ -1914,7 +1927,7 @@ static void FinishStage(shaderStage_t &stage)
 				{
 					bundle.texMods[n] = bundle.texMods[n - 1];
 				}
-				texModInfo_t &tmi = bundle.texMods[0];
+				texModInfo_t& tmi = bundle.texMods[0];
 				tmi.type = texMod_t::TMOD_OFFSET_SCALE;
 				tmi.offset[0] = -tr.lightmapOffset[0];
 				tmi.offset[1] = -tr.lightmapOffset[1];
@@ -1935,7 +1948,7 @@ shader.  Parse it into the global shader variable.  Later functions
 will optimize it.
 =================
 */
-static bool ParseShader(const char **text)
+static bool ParseShader(const char** text)
 {
 	resultType res;
 	branchType branch;
@@ -2276,7 +2289,7 @@ Attempt to combine two stages into a single multitexture stage
 FIXME: I think modulated add + modulated add collapses incorrectly
 =================
 */
-static int CollapseMultitexture(unsigned int st0bits, shaderStage_t &st0, shaderStage_t &st1, const int num_stages)
+static int CollapseMultitexture(unsigned int st0bits, shaderStage_t& st0, shaderStage_t& st1, const int num_stages)
 {
 	// make sure both stages are active
 	if (!st0.active || !st1.active)
@@ -2325,16 +2338,20 @@ static int CollapseMultitexture(unsigned int st0bits, shaderStage_t &st0, shader
 
 	mtEnv = collapse[i].multitextureEnv;
 
-	if (mtEnv == GL_ADD && st0.bundle[0].rgbGen != colorGen_t::CGEN_IDENTITY)
-	{
-		mtEnv = GL_ADD_NONIDENTITY;
+	// GL_ADD is a separate extension
+	if (mtEnv == std::to_underlying(glCompat::GL_ADD) && !glConfig.textureEnvAddAvailable) {
+		return 0;
 	}
 
-	if (st0.mtEnv && st0.mtEnv != mtEnv)
-	{
+	if (mtEnv == std::to_underlying(glCompat::GL_ADD) && st0.bundle[0].rgbGen != colorGen_t::CGEN_IDENTITY) {
+		mtEnv = std::to_underlying(glCompat::GL_ADD_NONIDENTITY);
+	}
+
+	if (st0.mtEnv && st0.mtEnv != mtEnv) {
 		// we don't support different blend modes in 3x mode, yet
 		return 0;
 	}
+
 	nonIdenticalColors = false;
 
 	// make sure waveforms have identical parameters
@@ -2363,20 +2380,20 @@ static int CollapseMultitexture(unsigned int st0bits, shaderStage_t &st0, shader
 	{
 		switch (mtEnv)
 		{
-		case GL_ADD:
-		case GL_ADD_NONIDENTITY:
-			mtEnv = GL_BLEND_ADD;
+		case std::to_underlying(glCompat::GL_ADD):
+		case std::to_underlying(glCompat::GL_ADD_NONIDENTITY):
+			mtEnv = std::to_underlying(glCompat::GL_BLEND_ADD);
 			break;
-		case GL_MODULATE:
-			mtEnv = GL_BLEND_MODULATE;
+		case std::to_underlying(glCompat::GL_MODULATE):
+			mtEnv = std::to_underlying(glCompat::GL_BLEND_MODULATE);
 			break;
 		}
 	}
 
 	switch (mtEnv)
 	{
-	case GL_MODULATE:
-	case GL_ADD:
+	case std::to_underlying(glCompat::GL_MODULATE):
+	case std::to_underlying(glCompat::GL_ADD):
 		swapLightmap = true;
 		break;
 	default:
@@ -2427,7 +2444,11 @@ static int CollapseMultitexture(unsigned int st0bits, shaderStage_t &st0, shader
 
 	if (vk_inst.maxBoundDescriptorSets >= 8 && num_stages >= 3 && !st0.mtEnv3)
 	{
-		if (mtEnv == GL_BLEND_ONE_MINUS_ALPHA || mtEnv == GL_BLEND_ALPHA || mtEnv == GL_BLEND_MIX_ALPHA || mtEnv == GL_BLEND_MIX_ONE_MINUS_ALPHA || mtEnv == GL_BLEND_DST_COLOR_SRC_ALPHA)
+		if (mtEnv == std::to_underlying(glCompat::GL_BLEND_ONE_MINUS_ALPHA) ||
+			mtEnv == std::to_underlying(glCompat::GL_BLEND_ALPHA) ||
+			mtEnv == std::to_underlying(glCompat::GL_BLEND_MIX_ALPHA) ||
+			mtEnv == std::to_underlying(glCompat::GL_BLEND_MIX_ONE_MINUS_ALPHA) ||
+			mtEnv == std::to_underlying(glCompat::GL_BLEND_DST_COLOR_SRC_ALPHA))
 		{
 			// pass original state bits so recursive detection will work for these shaders
 			return 1 + CollapseMultitexture(st0bits, st0, st1, num_stages - 1);
@@ -2443,115 +2464,157 @@ static int CollapseMultitexture(unsigned int st0bits, shaderStage_t &st0, shader
 
 #ifdef USE_PMLIGHT
 
-static int tcmodWeight(const textureBundle_t *bundle)
+static int tcmodWeight2(const shaderStage_t* st)
 {
-	if (bundle->numTexMods == 0)
-		return 1;
-
-	return 0;
-}
-
-#if 0
-static int rgbWeight(const textureBundle_t* bundle) {
-
-	switch (bundle->rgbGen) {
-	case colorGen_t::CGEN_EXACT_VERTEX: return 3;
-	case colorGen_t::CGEN_VERTEX: return 3;
-	case colorGen_t::CGEN_ENTITY: return 2;
-	case colorGen_t::CGEN_ONE_MINUS_ENTITY: return 2;
-	case colorGen_t::CGEN_CONST: return 1;
-	default: return 0;
-	}
-}
-#endif
-
-static const textureBundle_t *lightingBundle(const int stageIndex, const textureBundle_t *selected)
-{
-	const shaderStage_t *stage = &stages[stageIndex];
 	int i;
 
-	for (i = 0; i < static_cast<int>(stage->numTexBundles); i++)
-	{
-		const textureBundle_t *bundle = &stage->bundle[i];
-		if (bundle->lightmap != LIGHTMAP_INDEX_NONE)
-		{
-			continue;
+	for (i = 0; i < st->bundle[0].numTexMods; i++) {
+		switch (st->bundle[0].texMods[i].type) {
+		case texMod_t::TMOD_NONE:
+		case texMod_t::TMOD_SCALE:
+		case texMod_t::TMOD_TRANSFORM:
+		case texMod_t::TMOD_OFFSET:
+		case texMod_t::TMOD_SCALE_OFFSET:
+		case texMod_t::TMOD_OFFSET_SCALE:
+			break;
+		default:
+			return 0;
 		}
-		if (bundle->image[0] == tr.whiteImage)
-		{
-			continue;
-		}
-		if (bundle->tcGen != texCoordGen_t::TCGEN_TEXTURE)
-		{
-			continue;
-		}
-		if (selected)
-		{
-			if (bundle->rgbGen == colorGen_t::CGEN_IDENTITY && (stage->stateBits & GLS_BLEND_BITS) == (GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO))
-			{
-				// fix for q3wcp17' textures/scanctf2/bounce_white and others
-				continue;
-			}
-			if (tcmodWeight(selected) > tcmodWeight(bundle))
-			{
-				continue;
-			}
-			// commented because causes regression in q3dm1' Mouth area
-			// if ( rgbWeight( selected ) > rgbWeight( bundle ) ) {
-			// continue;
-			//}
-		}
-		shader.lightingStage = stageIndex;
-		shader.lightingBundle = i;
-		selected = bundle;
 	}
-
-	return selected;
+	return 1;
 }
 
 /*
 ====================
-FindLightingStages
+FindLightingStage
 
-Find proper stage for dlight pass
+Find proper stage for dlight pass.
+Perform it before multitexture collapse for simplification and to preserve all info (e.g. isDetail)
+
+Key complex shaders to validate/check:
+[q3dm0]
+* textures/base_wall/comp3 -> stage #3
+[q3dm17]
+* textures/sfx/diamond2cjumppad -> stage #0
+* textures/sfx/launchpad_diamond -> stage #1
+* textures/base_floor/diamond2c_ow -> stage #1
+[q3wcp17]
+* textures/scanctf2/bounce_white -> stage #0
+[q3wcp18]
+* textures/ctf_unified/weapfloor_* -> stage #1
+[q3w8]
+* textures/ctf_cas_v/bounce_red_v -> stage #0
+[lun3dm5]
+* textures/lun3dm5/c_crete6gs -> stage #1
+* textures/lun3dm5/c_crete6j -> stage #4
+[pom]
+* textures/sockter/ter_mossgravel -> stage #1
 ====================
 */
-static void FindLightingStages(void)
-{
-	const textureBundle_t *bundle;
-	int i;
+static void FindLightingStage(const int stage) {
+	int i, selected, lightmap;
 
-	shader.lightingStage = -1;
 	shader.lightingBundle = 0;
+	shader.lightingStage = -1;
 
-	if (shader.isSky || (shader.surfaceFlags & (SURF_NODLIGHT | SURF_SKY)) || shader.sort == static_cast<float>(shaderSort_t::SS_ENVIRONMENT) || shader.sort >= static_cast<float>(shaderSort_t::SS_FOG))
+	if (shader.isSky || (shader.surfaceFlags & (SURF_NODLIGHT | SURF_SKY)) /* || shader.sort == SS_ENVIRONMENT || shader.sort >= SS_FOG */) {
 		return;
+	}
 
-	bundle = NULL;
-	for (i = 0; i < shader.numUnfoggedPasses; i++)
-	{
-		const shaderStage_t &st = stages[i];
-		if (!st.active)
+	selected = -2;
+	lightmap = -2;
+	for (i = 0; i < stage; i++) {
+		const shaderStage_t* st = &stages[i];
+		const textureBundle_t* b = &st->bundle[0];
+		if (!st->active) {
 			break;
-		if (st.isDetail && shader.lightingStage >= 0)
-			continue;
-		if ((st.stateBits & GLS_BLEND_BITS) == (GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE))
-		{
-			if (bundle && bundle->numTexMods)
-			{
-				// already selected bundle has somewhat non-static tcgen
-				// so we may accept this stage
-				// this fixes jumppads on lun3dm5
+		}
+		if (b->lightmap != LIGHTMAP_INDEX_NONE) {
+			// 1. prefer stages near lightmap
+			if (selected == i - 1) {
+				break;
 			}
-			else
-			{
+			lightmap = i;
+			continue;
+		}
+		if (b->image[0] == tr.whiteImage || b->tcGen != texCoordGen_t::TCGEN_TEXTURE) {
+			continue;
+		}
+		if (selected >= 0) {
+			// 2. skip detail textures
+			if (st->isDetail) {
 				continue;
 			}
+			// 3. prefer non-animated stages
+			if (stages[selected].bundle[0].numImageAnimations < b->numImageAnimations) {
+				continue;
+			}
+			// 4. prefer static tcgens
+			if (tcmodWeight2(&stages[selected]) > tcmodWeight2(st)) {
+				continue;
+			}
+			// 5. special case for lun3dm5 crete6gs stage #2
+			if ((st->stateBits & GLS_BLEND_BITS) == (GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_SRC_COLOR)) {
+				if ((stages[selected].stateBits & GLS_BLEND_BITS) == (GLS_SRCBLEND_ONE | GLS_DSTBLEND_SRC_ALPHA)) {
+					continue;
+				}
+			}
+			// 6. special case for q3w8 bounce_red_v/bounce_blue_v
+			if ((st->stateBits == (GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE))) {
+				if (stages[selected].stateBits == (GLS_DEPTHMASK_TRUE | GLS_ATEST_GE_80)) {
+					break;
+				}
+			}
 		}
-		bundle = lightingBundle(i, bundle);
+		selected = i;
+		// 1. prefer stages near lightmap
+		if (i == lightmap + 1) {
+			break;
+		}
+	}
+
+	if (selected >= 0) {
+		shader.lightingStage = selected;
+		stages[selected].bundle[0].dlight = 1;
 	}
 }
-#endif
+
+/*
+====================
+FindLightingStage
+
+Set shader.lightingStage and shader.lightingBundle depending from marked .dlight field
+====================
+*/
+static void FindLightingBundle(void)
+{
+	int i;
+	uint32_t n;
+
+	if (shader.lightingStage < 0) {
+		return;
+	}
+
+	shader.lightingStage = -1;
+
+	if ( /*shader.isSky || (shader.surfaceFlags & (SURF_SKY)) || */ shader.sort == static_cast<float>(shaderSort_t::SS_ENVIRONMENT) || shader.sort >= static_cast<float>(shaderSort_t::SS_FOG)) {
+		return;
+	}
+
+	for (i = 0; i < shader.numUnfoggedPasses; i++) {
+		const shaderStage_t* st = &stages[i];
+		if (!st->active) {
+			break;
+		}
+		for (n = 0; n < st->numTexBundles; n++) {
+			if (st->bundle[n].dlight) {
+				shader.lightingStage = i;
+				shader.lightingBundle = n;
+			}
+		}
+	}
+}
+#endif // USE_PMLIGHT
 
 /*
 =============
@@ -2565,42 +2628,42 @@ sortedIndex.
 */
 static void FixRenderCommandList(const int newShader)
 {
-	renderCommandList_t *cmdList = &backEndData->commands;
+	renderCommandList_t* cmdList = &backEndData->commands;
 
 	if (cmdList)
 	{
-		const void *curCmd = cmdList->cmds;
+		const void* curCmd = cmdList->cmds;
 
-		*((int *)(cmdList->cmds + cmdList->used)) = static_cast<int>(renderCommand_t::RC_END_OF_LIST);
+		*((int*)(cmdList->cmds + cmdList->used)) = static_cast<int>(renderCommand_t::RC_END_OF_LIST);
 
 		while (1)
 		{
-			curCmd = PADP(curCmd, sizeof(void *));
+			curCmd = PADP(curCmd, sizeof(void*));
 
-			switch (static_cast<renderCommand_t>(*(const int *)curCmd))
+			switch (static_cast<renderCommand_t>(*(const int*)curCmd))
 			{
 			case renderCommand_t::RC_SET_COLOR:
 			{
-				const setColorCommand_t *sc_cmd = (const setColorCommand_t *)curCmd;
-				curCmd = (const void *)(sc_cmd + 1);
+				const setColorCommand_t* sc_cmd = (const setColorCommand_t*)curCmd;
+				curCmd = (const void*)(sc_cmd + 1);
 				break;
 			}
 			case renderCommand_t::RC_STRETCH_PIC:
 			{
-				const stretchPicCommand_t *sp_cmd = (const stretchPicCommand_t *)curCmd;
-				curCmd = (const void *)(sp_cmd + 1);
+				const stretchPicCommand_t* sp_cmd = (const stretchPicCommand_t*)curCmd;
+				curCmd = (const void*)(sp_cmd + 1);
 				break;
 			}
 			case renderCommand_t::RC_DRAW_SURFS:
 			{
 				int i;
-				drawSurf_t *drawSurf;
-				shader_t *sh;
+				drawSurf_t* drawSurf;
+				shader_t* sh;
 				int fogNum;
 				int entityNum;
 				int dlightMap;
 				int sortedIndex;
-				const drawSurfsCommand_t *ds_cmd = (const drawSurfsCommand_t *)curCmd;
+				const drawSurfsCommand_t* ds_cmd = (const drawSurfsCommand_t*)curCmd;
 
 				for (i = 0, drawSurf = ds_cmd->drawSurfs; i < ds_cmd->numDrawSurfs; i++, drawSurf++)
 				{
@@ -2612,43 +2675,43 @@ static void FixRenderCommandList(const int newShader)
 						drawSurf->sort = (sortedIndex << QSORT_SHADERNUM_SHIFT) | (entityNum << QSORT_REFENTITYNUM_SHIFT) | (fogNum << QSORT_FOGNUM_SHIFT) | (int)dlightMap;
 					}
 				}
-				curCmd = (const void *)(ds_cmd + 1);
+				curCmd = (const void*)(ds_cmd + 1);
 				break;
 			}
 			case renderCommand_t::RC_DRAW_BUFFER:
 			{
-				const drawBufferCommand_t *db_cmd = (const drawBufferCommand_t *)curCmd;
-				curCmd = (const void *)(db_cmd + 1);
+				const drawBufferCommand_t* db_cmd = (const drawBufferCommand_t*)curCmd;
+				curCmd = (const void*)(db_cmd + 1);
 				break;
 			}
 			case renderCommand_t::RC_SWAP_BUFFERS:
 			{
-				const swapBuffersCommand_t *sb_cmd = (const swapBuffersCommand_t *)curCmd;
-				curCmd = (const void *)(sb_cmd + 1);
+				const swapBuffersCommand_t* sb_cmd = (const swapBuffersCommand_t*)curCmd;
+				curCmd = (const void*)(sb_cmd + 1);
 				break;
 			}
 			case renderCommand_t::RC_FINISHBLOOM:
 			{
-				const finishBloomCommand_t *fb_cmd = (const finishBloomCommand_t *)curCmd;
-				curCmd = (const void *)(fb_cmd + 1);
+				const finishBloomCommand_t* fb_cmd = (const finishBloomCommand_t*)curCmd;
+				curCmd = (const void*)(fb_cmd + 1);
 				break;
 			}
 			case renderCommand_t::RC_COLORMASK:
 			{
-				const colorMaskCommand_t *cm_cmd = (const colorMaskCommand_t *)curCmd;
-				curCmd = (const void *)(cm_cmd + 1);
+				const colorMaskCommand_t* cm_cmd = (const colorMaskCommand_t*)curCmd;
+				curCmd = (const void*)(cm_cmd + 1);
 				break;
 			}
 			case renderCommand_t::RC_CLEARDEPTH:
 			{
-				const clearDepthCommand_t *cd_cmd = (const clearDepthCommand_t *)curCmd;
-				curCmd = (const void *)(cd_cmd + 1);
+				const clearDepthCommand_t* cd_cmd = (const clearDepthCommand_t*)curCmd;
+				curCmd = (const void*)(cd_cmd + 1);
 				break;
 			}
 			case renderCommand_t::RC_CLEARCOLOR:
 			{
-				const clearColorCommand_t *cc_cmd = (const clearColorCommand_t *)curCmd;
-				curCmd = (const void *)(cc_cmd + 1);
+				const clearColorCommand_t* cc_cmd = (const clearColorCommand_t*)curCmd;
+				curCmd = (const void*)(cc_cmd + 1);
 				break;
 			}
 			case renderCommand_t::RC_END_OF_LIST:
@@ -2659,7 +2722,7 @@ static void FixRenderCommandList(const int newShader)
 	}
 }
 
-static bool EqualACgen(const shaderStage_t *st1, const shaderStage_t *st2)
+static bool EqualACgen(const shaderStage_t* st1, const shaderStage_t* st2)
 {
 	if (st1 == NULL || st2 == NULL)
 	{
@@ -2674,7 +2737,7 @@ static bool EqualACgen(const shaderStage_t *st1, const shaderStage_t *st2)
 	return true;
 }
 
-static bool EqualRGBgen(const shaderStage_t *st1, const shaderStage_t *st2)
+static bool EqualRGBgen(const shaderStage_t* st1, const shaderStage_t* st2)
 {
 	if (st1 == NULL || st2 == NULL)
 	{
@@ -2729,7 +2792,7 @@ static bool EqualRGBgen(const shaderStage_t *st1, const shaderStage_t *st2)
 	return true;
 }
 
-static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderStage_t *st2)
+static bool EqualTCgen(const int bundle, const shaderStage_t* st1, const shaderStage_t* st2)
 {
 	int tm;
 
@@ -2739,8 +2802,8 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 	if (st1->active != st2->active)
 		return false;
 
-	const textureBundle_t &b1 = st1->bundle[bundle];
-	const textureBundle_t &b2 = st2->bundle[bundle];
+	const textureBundle_t& b1 = st1->bundle[bundle];
+	const textureBundle_t& b2 = st2->bundle[bundle];
 
 	if (b1.tcGen != b2.tcGen)
 	{
@@ -2772,8 +2835,8 @@ static bool EqualTCgen(const int bundle, const shaderStage_t *st1, const shaderS
 
 	for (tm = 0; tm < b1.numTexMods; tm++)
 	{
-		const texModInfo_t &tm1 = b1.texMods[tm];
-		const texModInfo_t &tm2 = b2.texMods[tm];
+		const texModInfo_t& tm1 = b1.texMods[tm];
+		const texModInfo_t& tm2 = b2.texMods[tm];
 
 		if (tm1.type != tm2.type)
 		{
@@ -2866,7 +2929,7 @@ static void SortNewShader(void)
 {
 	int i;
 	float sort;
-	shader_t *newShader;
+	shader_t* newShader;
 
 	newShader = tr.shaders[tr.numShaders - 1];
 	sort = newShader->sort;
@@ -2894,9 +2957,9 @@ static void SortNewShader(void)
 GeneratePermanentShader
 ====================
 */
-static shader_t *GeneratePermanentShader(void)
+static shader_t* GeneratePermanentShader(void)
 {
-	shader_t *newShader;
+	shader_t* newShader;
 	int i, b;
 	int size, hash;
 
@@ -2906,7 +2969,7 @@ static shader_t *GeneratePermanentShader(void)
 		return tr.defaultShader;
 	}
 
-	newShader = reinterpret_cast<shader_t *>(ri.Hunk_Alloc(sizeof(shader_t), h_low));
+	newShader = reinterpret_cast<shader_t*>(ri.Hunk_Alloc(sizeof(shader_t), h_low));
 
 	*newShader = shader;
 
@@ -2924,7 +2987,7 @@ static shader_t *GeneratePermanentShader(void)
 		{
 			break;
 		}
-		newShader->stages[i] = reinterpret_cast<shaderStage_t *>(ri.Hunk_Alloc(sizeof(stages[i]), h_low));
+		newShader->stages[i] = reinterpret_cast<shaderStage_t*>(ri.Hunk_Alloc(sizeof(stages[i]), h_low));
 		*newShader->stages[i] = stages[i];
 
 		for (b = 0; b < NUM_TEXTURE_BUNDLES; b++)
@@ -2932,7 +2995,7 @@ static shader_t *GeneratePermanentShader(void)
 			size = newShader->stages[i]->bundle[b].numTexMods * sizeof(texModInfo_t);
 			if (size)
 			{
-				newShader->stages[i]->bundle[b].texMods = reinterpret_cast<texModInfo_t *>(ri.Hunk_Alloc(size, h_low));
+				newShader->stages[i]->bundle[b].texMods = reinterpret_cast<texModInfo_t*>(ri.Hunk_Alloc(size, h_low));
 				Com_Memcpy(newShader->stages[i]->bundle[b].texMods, stages[i].bundle[b].texMods, size);
 			}
 		}
@@ -2968,13 +3031,13 @@ static void VertexLightingCollapse(void)
 	{
 
 		// pick the best texture for the single pass
-		shaderStage_t &bestStage = stages[0];
+		shaderStage_t& bestStage = stages[0];
 		bestImageRank = -999999;
 		vertexColors = false;
 
 		for (stage = 0; stage < MAX_SHADER_STAGES; stage++)
 		{
-			shaderStage_t &pStage = stages[stage];
+			shaderStage_t& pStage = stages[stage];
 
 			if (!pStage.active)
 			{
@@ -3057,7 +3120,7 @@ static void VertexLightingCollapse(void)
 
 	for (stage = 1; stage < MAX_SHADER_STAGES; stage++)
 	{
-		shaderStage_t &pStage = stages[stage];
+		shaderStage_t& pStage = stages[stage];
 
 		if (!pStage.active)
 		{
@@ -3165,28 +3228,28 @@ constexpr auto GetShaderDefForBlendMode3(int blendMode)
 {
 	switch (blendMode)
 	{
-	case GL_MODULATE:
-		return ShaderDefInfo{TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3};
-	case GL_ADD:
-		return ShaderDefInfo{TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1};
-	case GL_ADD_NONIDENTITY:
-		return ShaderDefInfo{TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3};
-	case GL_BLEND_MODULATE:
-		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_MUL};
-	case GL_BLEND_ADD:
-		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_ADD};
-	case GL_BLEND_ALPHA:
-		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_ALPHA};
-	case GL_BLEND_ONE_MINUS_ALPHA:
-		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA};
-	case GL_BLEND_MIX_ONE_MINUS_ALPHA:
-		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA};
-	case GL_BLEND_MIX_ALPHA:
-		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA};
-	case GL_BLEND_DST_COLOR_SRC_ALPHA:
-		return ShaderDefInfo{TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA};
+	case std::to_underlying(glCompat::GL_MODULATE):
+		return ShaderDefInfo{ TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3 };
+	case std::to_underlying(glCompat::GL_ADD):
+		return ShaderDefInfo{ TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1 };
+	case std::to_underlying(glCompat::GL_ADD_NONIDENTITY):
+		return ShaderDefInfo{ TESS_RGBA0 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3 };
+	case std::to_underlying(glCompat::GL_BLEND_MODULATE):
+		return ShaderDefInfo{ TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_MUL };
+	case std::to_underlying(glCompat::GL_BLEND_ADD):
+		return ShaderDefInfo{ TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_ADD };
+	case std::to_underlying(glCompat::GL_BLEND_ALPHA):
+		return ShaderDefInfo{ TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_ALPHA };
+	case std::to_underlying(glCompat::GL_BLEND_ONE_MINUS_ALPHA):
+		return ShaderDefInfo{ TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA };
+	case std::to_underlying(glCompat::GL_BLEND_MIX_ONE_MINUS_ALPHA):
+		return ShaderDefInfo{ TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA };
+	case std::to_underlying(glCompat::GL_BLEND_MIX_ALPHA):
+		return ShaderDefInfo{ TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA };
+	case std::to_underlying(glCompat::GL_BLEND_DST_COLOR_SRC_ALPHA):
+		return ShaderDefInfo{ TESS_RGBA0 | TESS_RGBA1 | TESS_RGBA2 | TESS_ST0 | TESS_ST1 | TESS_ST2, Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA };
 	default:
-		return ShaderDefInfo{0, Vk_Shader_Type::TYPE_SIGNLE_TEXTURE}; // Default case
+		return ShaderDefInfo{ 0, Vk_Shader_Type::TYPE_SIGNLE_TEXTURE }; // Default case
 	}
 }
 
@@ -3198,7 +3261,7 @@ Returns a freshly allocated shader with all the needed info
 from the current global working shader
 =========================
 */
-static shader_t *FinishShader(void)
+static shader_t* FinishShader(void)
 {
 	int stage, i, m;
 	uint32_t n;
@@ -3207,7 +3270,7 @@ static shader_t *FinishShader(void)
 	bool colorBlend;
 	bool depthMask;
 	bool fogCollapse;
-	shaderStage_t *lastStage[NUM_TEXTURE_BUNDLES];
+	shaderStage_t* lastStage[NUM_TEXTURE_BUNDLES];
 
 	hasLightmapStage = false;
 	vertexLightmap = false;
@@ -3236,7 +3299,7 @@ static shader_t *FinishShader(void)
 	//
 	for (stage = 0; stage < MAX_SHADER_STAGES;)
 	{
-		shaderStage_t *pStage = &stages[stage];
+		shaderStage_t* pStage = &stages[stage];
 
 		if (!pStage->active)
 		{
@@ -3377,7 +3440,7 @@ static shader_t *FinishShader(void)
 	// fix alphaGen flags to avoid redundant comparisons in R_ComputeColors()
 	for (i = 0; i < MAX_SHADER_STAGES; i++)
 	{
-		shaderStage_t &pStage = stages[i];
+		shaderStage_t& pStage = stages[i];
 		if (!pStage.active)
 			break;
 		if (pStage.bundle[0].rgbGen == colorGen_t::CGEN_IDENTITY && pStage.bundle[0].alphaGen == alphaGen_t::AGEN_IDENTITY)
@@ -3414,6 +3477,10 @@ static shader_t *FinishShader(void)
 	{
 		stages[i].numTexBundles = 1;
 	}
+
+#ifdef USE_PMLIGHT
+	FindLightingStage(stage);
+#endif
 
 	//
 	// look for multitexture potential
@@ -3463,7 +3530,7 @@ static shader_t *FinishShader(void)
 		fogCollapse = true;
 		if (stage == 1)
 		{
-			// we can always fog-collapse signle-stage shaders
+			// we can always fog-collapse single-stage shaders
 		}
 		else
 		{
@@ -3544,7 +3611,7 @@ static shader_t *FinishShader(void)
 		for (i = 0; i < stage; i++)
 		{
 			int env_mask;
-			shaderStage_t &pStage = stages[i];
+			shaderStage_t& pStage = stages[i];
 			def.state_bits = pStage.stateBits;
 
 			if (pStage.mtEnv3)
@@ -3560,7 +3627,7 @@ static shader_t *FinishShader(void)
 			{
 				switch (pStage.mtEnv)
 				{
-				case GL_MODULATE:
+				case std::to_underlying(glCompat::GL_MODULATE):
 					pStage.tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1;
 					def.shader_type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2;
 					if ((pStage.bundle[0].adjustColorsForFog == acff_t::ACFF_NONE && pStage.bundle[1].adjustColorsForFog == acff_t::ACFF_NONE) || fogCollapse)
@@ -3585,7 +3652,7 @@ static shader_t *FinishShader(void)
 						}
 					}
 					break;
-				case GL_ADD:
+				case std::to_underlying(glCompat::GL_ADD):
 					pStage.tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1;
 					def.shader_type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1;
 					if ((pStage.bundle[0].adjustColorsForFog == acff_t::ACFF_NONE && pStage.bundle[1].adjustColorsForFog == acff_t::ACFF_NONE) || fogCollapse)
@@ -3610,7 +3677,7 @@ static shader_t *FinishShader(void)
 						}
 					}
 					break;
-				case GL_ADD_NONIDENTITY:
+				case std::to_underlying(glCompat::GL_ADD_NONIDENTITY):
 					pStage.tessFlags = TESS_RGBA0 | TESS_ST0 | TESS_ST1;
 					def.shader_type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2;
 					if ((pStage.bundle[0].adjustColorsForFog == acff_t::ACFF_NONE && pStage.bundle[1].adjustColorsForFog == acff_t::ACFF_NONE) || fogCollapse)
@@ -3636,31 +3703,31 @@ static shader_t *FinishShader(void)
 					}
 					break;
 					// extended blending modes
-				case GL_BLEND_MODULATE:
+				case std::to_underlying(glCompat::GL_BLEND_MODULATE):
 					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = Vk_Shader_Type::TYPE_BLEND2_MUL;
 					break;
-				case GL_BLEND_ADD:
+				case std::to_underlying(glCompat::GL_BLEND_ADD):
 					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = Vk_Shader_Type::TYPE_BLEND2_ADD;
 					break;
-				case GL_BLEND_ALPHA:
+				case std::to_underlying(glCompat::GL_BLEND_ALPHA):
 					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = Vk_Shader_Type::TYPE_BLEND2_ALPHA;
 					break;
-				case GL_BLEND_ONE_MINUS_ALPHA:
+				case std::to_underlying(glCompat::GL_BLEND_ONE_MINUS_ALPHA):
 					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA;
 					break;
-				case GL_BLEND_MIX_ALPHA:
+				case std::to_underlying(glCompat::GL_BLEND_MIX_ALPHA):
 					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA;
 					break;
-				case GL_BLEND_MIX_ONE_MINUS_ALPHA:
+				case std::to_underlying(glCompat::GL_BLEND_MIX_ONE_MINUS_ALPHA):
 					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA;
 					break;
-				case GL_BLEND_DST_COLOR_SRC_ALPHA:
+				case std::to_underlying(glCompat::GL_BLEND_DST_COLOR_SRC_ALPHA):
 					pStage.tessFlags = TESS_RGBA0 | TESS_RGBA1 | TESS_ST0 | TESS_ST1;
 					def.shader_type = Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA;
 					break;
@@ -3767,7 +3834,7 @@ static shader_t *FinishShader(void)
 	}
 
 #ifdef USE_PMLIGHT
-	FindLightingStages();
+	FindLightingBundle();
 #endif
 
 #if 1
@@ -3844,11 +3911,11 @@ return NULL if not found
 If found, it will return a valid shader
 =====================
 */
-static const char *FindShaderInShaderText(std::string_view shadername)
+static const char* FindShaderInShaderText(std::string_view shadername)
 {
 
 	std::string_view token;
-	const char *p;
+	const char* p;
 	int i, hash;
 
 	hash = generateHashValue(shadername, MAX_SHADERTEXT_HASH);
@@ -3875,11 +3942,11 @@ Will always return a valid shader, but it might be the
 default shader if the real one can't be found.
 ==================
 */
-shader_t *R_FindShaderByName(std::string_view name)
+shader_t* R_FindShaderByName(std::string_view name)
 {
 	std::array<char, MAX_QPATH> strippedName;
 	int hash;
-	shader_t *sh;
+	shader_t* sh;
 
 	if (name.empty())
 	{
@@ -3914,7 +3981,7 @@ shader_t *R_FindShaderByName(std::string_view name)
 R_CreateDefaultShading
 ===============
 */
-static void R_CreateDefaultShading(image_t &image)
+static void R_CreateDefaultShading(image_t& image)
 {
 	if (shader.lightmapIndex == LIGHTMAP_NONE)
 	{
@@ -3944,8 +4011,8 @@ static void R_CreateDefaultShading(image_t &image)
 		stages[0].bundle[0].rgbGen = colorGen_t::CGEN_VERTEX;
 		stages[0].bundle[0].alphaGen = alphaGen_t::AGEN_VERTEX;
 		stages[0].stateBits = GLS_DEPTHTEST_DISABLE |
-							  GLS_SRCBLEND_SRC_ALPHA |
-							  GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
+			GLS_SRCBLEND_SRC_ALPHA |
+			GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
 	}
 	else if (shader.lightmapIndex == LIGHTMAP_WHITEIMAGE)
 	{
@@ -4003,13 +4070,13 @@ most world construction surfaces.
 
 ===============
 */
-shader_t *R_FindShader(std::string_view name, int lightmapIndex, const bool mipRawImage)
+shader_t* R_FindShader(std::string_view name, int lightmapIndex, const bool mipRawImage)
 {
 	std::array<char, MAX_QPATH> strippedName;
 	unsigned long hash;
-	const char *shaderText;
-	image_t *image;
-	shader_t *sh;
+	const char* shaderText;
+	image_t* image;
+	shader_t* sh;
 
 	if (name.empty())
 	{
@@ -4114,10 +4181,10 @@ shader_t *R_FindShader(std::string_view name, int lightmapIndex, const bool mipR
 	return FinishShader();
 }
 
-qhandle_t RE_RegisterShaderFromImage(std::string_view name, int lightmapIndex, image_t &image, bool mipRawImage)
+qhandle_t RE_RegisterShaderFromImage(std::string_view name, int lightmapIndex, image_t& image, bool mipRawImage)
 {
 	unsigned long hash;
-	shader_t *sh;
+	shader_t* sh;
 
 	hash = generateHashValue(name, FILE_HASH_SIZE);
 
@@ -4176,7 +4243,7 @@ way to ask for different implicit lighting modes (vertex, lightmap, etc)
 */
 qhandle_t RE_RegisterShaderLightMap(std::string_view name, int lightmapIndex)
 {
-	shader_t *sh;
+	shader_t* sh;
 
 	if (name.length() >= MAX_QPATH)
 	{
@@ -4210,7 +4277,7 @@ This should really only be used for explicit shaders, because there is no
 way to ask for different implicit lighting modes (vertex, lightmap, etc)
 ====================
 */
-qhandle_t RE_RegisterShader(const char *name)
+qhandle_t RE_RegisterShader(const char* name)
 {
 	if (!name)
 	{
@@ -4224,7 +4291,7 @@ qhandle_t RE_RegisterShader(const char *name)
 		return 0;
 	}
 
-	shader_t *sh = R_FindShader(name, LIGHTMAP_2D, true);
+	shader_t* sh = R_FindShader(name, LIGHTMAP_2D, true);
 
 	// we want to return 0 if the shader failed to
 	// load for some reason, but R_FindShader should
@@ -4246,9 +4313,9 @@ RE_RegisterShaderNoMip
 For menu graphics that should never be picmiped
 ====================
 */
-qhandle_t RE_RegisterShaderNoMip(const char *name)
+qhandle_t RE_RegisterShaderNoMip(const char* name)
 {
-	shader_t *sh;
+	shader_t* sh;
 
 	if (strlen(name) >= MAX_QPATH)
 	{
@@ -4279,7 +4346,7 @@ When a handle is passed in by another module, this range checks
 it and returns a valid (possibly default) shader_t to be used internally.
 ====================
 */
-shader_t *R_GetShaderByHandle(qhandle_t hShader)
+shader_t* R_GetShaderByHandle(qhandle_t hShader)
 {
 	if (hShader < 0)
 	{
@@ -4306,7 +4373,7 @@ void R_ShaderList_f(void)
 {
 	int i;
 	int count;
-	const shader_t *sh;
+	const shader_t* sh;
 
 	ri.Printf(PRINT_ALL, "-----------------------\n");
 
@@ -4378,16 +4445,16 @@ void R_ShaderList_f(void)
 
 constexpr int MAX_SHADER_FILES = 16384;
 
-static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char **buffers)
+static int loadShaderBuffers(char** shaderFiles, const int numShaderFiles, char** buffers)
 {
 	std::array<char, MAX_QPATH + 8> filename;
 	std::array<char, MAX_QPATH> shaderName;
-	const char *p;
+	const char* p;
 	std::string_view token;
 	long summand, sum = 0;
 	int shaderLine;
 	int i;
-	const char *shaderStart;
+	const char* shaderStart;
 	bool denyErrors;
 
 	// load and parse shader files
@@ -4395,7 +4462,7 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 	{
 		Com_sprintf(filename.data(), sizeof(filename), "scripts/%s", shaderFiles[i]);
 		// ri.Printf( PRINT_DEVELOPER, "...loading '%s'\n", filename );
-		summand = ri.FS_ReadFile(filename.data(), (void **)&buffers[i]);
+		summand = ri.FS_ReadFile(filename.data(), (void**)&buffers[i]);
 
 		if (!buffers[i])
 			ri.Error(ERR_DROP, "Couldn't load %s", filename.data());
@@ -4441,8 +4508,8 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 			if (token[0] != '{' || (token.size() > 1 && token[1] != '\0'))
 			{
 				ri.Printf(PRINT_DEVELOPER, "File %s: shader \"%s\" "
-										   "on line %d missing opening brace",
-						  filename.data(), shaderName.data(), shaderLine);
+					"on line %d missing opening brace",
+					filename.data(), shaderName.data(), shaderLine);
 				if (token.empty())
 					ri.Printf(PRINT_DEVELOPER, " (found \"%s\" on line %d)\n", token.data(), COM_GetCurrentParseLine_cpp());
 				else
@@ -4464,8 +4531,8 @@ static int loadShaderBuffers(char **shaderFiles, const int numShaderFiles, char 
 			if (!SkipBracedSection_cpp(&p, 1))
 			{
 				ri.Printf(PRINT_WARNING, "WARNING: Ignoring shader file %s. Shader \"%s\" "
-										 "on line %d missing closing brace.\n",
-						  filename.data(), shaderName.data(), shaderLine);
+					"on line %d missing closing brace.\n",
+					filename.data(), shaderName.data(), shaderLine);
 				ri.FS_FreeFile(buffers[i]);
 				buffers[i] = NULL;
 				break;
@@ -4502,15 +4569,15 @@ a single large text block that can be scanned for shader names
 */
 static void ScanAndLoadShaderFiles(void)
 {
-	char **shaderFiles, **shaderxFiles;
-	char *buffers[MAX_SHADER_FILES];
-	char *xbuffers[MAX_SHADER_FILES];
+	char** shaderFiles, ** shaderxFiles;
+	char* buffers[MAX_SHADER_FILES];
+	char* xbuffers[MAX_SHADER_FILES];
 	int numShaderFiles, numShaderxFiles;
 	int i;
-	const char *hashMem;
+	const char* hashMem;
 	std::string_view token;
-	char *textEnd;
-	const char *p, *oldp;
+	char* textEnd;
+	const char* p, * oldp;
 	int hash, size;
 	std::array<int, MAX_SHADERTEXT_HASH> shaderTextHashTableSizes;
 
@@ -4550,7 +4617,7 @@ static void ScanAndLoadShaderFiles(void)
 	sum += loadShaderBuffers(shaderFiles, numShaderFiles, buffers);
 
 	// build single large buffer
-	s_shaderText = reinterpret_cast<char *>(ri.Hunk_Alloc(sum + numShaderxFiles * 2 + numShaderFiles * 2 + 1, h_low));
+	s_shaderText = reinterpret_cast<char*>(ri.Hunk_Alloc(sum + numShaderxFiles * 2 + numShaderFiles * 2 + 1, h_low));
 	s_shaderText[0] = s_shaderText[sum + numShaderxFiles * 2 + numShaderFiles * 2] = '\0';
 
 	textEnd = s_shaderText;
@@ -4609,12 +4676,12 @@ static void ScanAndLoadShaderFiles(void)
 
 	size += MAX_SHADERTEXT_HASH;
 
-	hashMem = reinterpret_cast<char *>(ri.Hunk_Alloc(size * sizeof(char *), h_low));
+	hashMem = reinterpret_cast<char*>(ri.Hunk_Alloc(size * sizeof(char*), h_low));
 
 	for (i = 0; i < MAX_SHADERTEXT_HASH; i++)
 	{
-		shaderTextHashTable[i] = (const char **)hashMem;
-		hashMem = ((char *)hashMem) + ((shaderTextHashTableSizes[i] + 1) * sizeof(char *));
+		shaderTextHashTable[i] = (const char**)hashMem;
+		hashMem = ((char*)hashMem) + ((shaderTextHashTableSizes[i] + 1) * sizeof(char*));
 	}
 
 	p = s_shaderText;
@@ -4629,7 +4696,7 @@ static void ScanAndLoadShaderFiles(void)
 		}
 
 		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
-		shaderTextHashTable[hash][--shaderTextHashTableSizes[hash]] = (char *)oldp;
+		shaderTextHashTable[hash][--shaderTextHashTableSizes[hash]] = (char*)oldp;
 
 		SkipBracedSection_cpp(&p, 0);
 	}

@@ -12,7 +12,8 @@ return a hash value for the filename
 typedef struct
 {
 	std::string_view name;
-	GLint minimize, maximize;
+	glCompat minimize;
+	glCompat maximize;
 } textureMode_t;
 
 typedef struct

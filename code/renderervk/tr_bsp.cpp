@@ -610,6 +610,9 @@ static void GenerateNormals(srfSurfaceFace_t *face)
 	{
 		n1 = face->normals + i * 4;
 		VectorNormalize2(n1, n1);
+		for ( i0 = 0; i0 < 3; i0++ ) {
+			n1[i0] = R_ClampDenorm( n1[i0] );
+		}
 	}
 }
 #endif // USE_PMLIGHT
@@ -619,9 +622,9 @@ static void GenerateNormals(srfSurfaceFace_t *face)
 qsort_idx
 =============
 */
-static void qsort_idx(int *a, const int n)
+static void qsort_idx(int32_t *a, const int n)
 {
-	int temp[3], m;
+	int32_t temp[3], m;
 	int i, j, x;
 
 	i = 0;
@@ -756,7 +759,7 @@ static void ParseFace(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 #ifdef USE_PMLIGHT
 	if (surf.shader->numUnfoggedPasses && surf.shader->lightingStage >= 0)
 	{
-		if (fabs(cv->plane.normal[0]) < 0.01 && fabs(cv->plane.normal[1]) < 0.01 && fabs(cv->plane.normal[2]) < 0.01)
+		if ( fabsf( cv->plane.normal[0] ) < 0.01f && fabsf( cv->plane.normal[1] ) < 0.01f && fabsf( cv->plane.normal[2] ) < 0.01f )
 		{
 			// Zero-normals case:
 			// might happen if surface contains multiple non-coplanar faces for terrain simulation
@@ -771,6 +774,10 @@ static void ParseFace(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 		}
 	}
 #endif
+
+	for ( i = 0; i < 3; i++ ) {
+		cv->plane.normal[i] = R_ClampDenorm( cv->plane.normal[i] );
+	}
 
 	cv->plane.dist = DotProduct(cv->points[0], cv->plane.normal);
 	SetPlaneSignbits(&cv->plane);
@@ -833,7 +840,7 @@ static void ParseMesh(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 		for (j = 0; j < 3; j++)
 		{
 			points[i].xyz[j] = LittleFloat(verts[i].xyz[j]);
-			points[i].normal[j] = LittleFloat(verts[i].normal[j]);
+			points[i].normal[j] = R_ClampDenorm( LittleFloat( verts[i].normal[j] ) );
 		}
 		for (j = 0; j < 2; j++)
 		{
@@ -919,7 +926,7 @@ static void ParseTriSurf(const dsurface_t &ds, const drawVert_t *verts, msurface
 		for (j = 0; j < 3; j++)
 		{
 			tri->verts[i].xyz[j] = LittleFloat(verts[i].xyz[j]);
-			tri->verts[i].normal[j] = LittleFloat(verts[i].normal[j]);
+			tri->verts[i].normal[j] = R_ClampDenorm( LittleFloat( verts[i].normal[j] ) );
 		}
 		AddPointToBounds(tri->verts[i].xyz, tri->bounds[0], tri->bounds[1]);
 		for (j = 0; j < 2; j++)
@@ -974,7 +981,7 @@ static void ParseFlare(const dsurface_t &ds, const drawVert_t *verts, msurface_t
 	{
 		flare->origin[i] = LittleFloat(ds.lightmapOrigin[i]);
 		flare->color[i] = LittleFloat(ds.lightmapVecs[0][i]);
-		flare->normal[i] = LittleFloat(ds.lightmapVecs[2][i]);
+		flare->normal[i] = R_ClampDenorm( LittleFloat( ds.lightmapVecs[2][i] ) );
 	}
 }
 
@@ -1784,7 +1791,7 @@ R_MovePatchSurfacesToHunk
 */
 static void R_MovePatchSurfacesToHunk(void)
 {
-	int i, size;
+	int i, j, k, n, size;
 	srfGridMesh_t *hunkgrid;
 
 	for (i = 0; i < s_worldData.numsurfaces; i++)
@@ -1795,7 +1802,15 @@ static void R_MovePatchSurfacesToHunk(void)
 		if (grid.surfaceType != surfaceType_t::SF_GRID)
 			continue;
 		//
-		size = (grid.width * grid.height - 1) * sizeof(drawVert_t) + sizeof(grid);
+		n = grid.width * grid.height - 1;
+		size = n * sizeof( drawVert_t ) + sizeof( grid );
+
+		for (j = 0; j < n; j++) {
+			for (k = 0; k < 3; k++) {
+				grid.verts[j].normal[k] = R_ClampDenorm( grid.verts[j].normal[k] );
+			}
+		}
+
 		hunkgrid = static_cast<srfGridMesh_t *>(ri.Hunk_Alloc(size, h_low));
 		Com_Memcpy(hunkgrid, &grid, size);
 

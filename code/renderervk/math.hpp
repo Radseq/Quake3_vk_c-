@@ -7,6 +7,15 @@ constexpr double PI_cpp = 3.14159265358979323846;
 
 constexpr size_t DegreeToRadiansTableSize = 361;
 
+/*
+===============
+R_ClampDenorm
+
+Clamp fp values that may result in denormalization after further multiplication
+===============
+*/
+float R_ClampDenorm(float v);
+
 consteval auto generateDegreeToRadiansLookupTable()
 {
     std::array<float, DegreeToRadiansTableSize> table{};
