@@ -38,6 +38,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <string.h> // memcpy
 
+#ifdef USE_VK_VALIDATION
+void vk_set_object_name(uint64_t obj, const char* objName, VkDebugReportObjectTypeEXT objType)
+{
+	if (qvkDebugMarkerSetObjectNameEXT && obj)
+	{
+		VkDebugMarkerObjectNameInfoEXT info{
+			VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
+			nullptr,
+			objType,
+			obj,
+			objName };
+		qvkDebugMarkerSetObjectNameEXT(vk_inst.device, &info);
+	}
+}
+#endif
+
 // entities that will have procedurally generated surfaces will just
 // point at this for their sorting surface
 static surfaceType_t entitySurface = surfaceType_t::SF_ENTITY;
