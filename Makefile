@@ -1,4 +1,3 @@
-
 # Quake3 Unix Makefile
 #
 # Nov '98 by Zoid <zoid@idsoftware.com>
@@ -56,6 +55,24 @@ else
 echo_cmd=@echo
 Q=@
 endif
+
+#############################################################################
+# Build feature toggles (safe defaults)
+#############################################################################
+
+# Link-time optimization:
+# - Debug: default OFF
+# - Release: default ON (set in release target, can be overridden)
+USE_LTO ?= 0
+
+# Fast-math is risky (can change behavior / precision). Default OFF.
+USE_FAST_MATH ?= 0
+
+# Garbage-collect unused sections (pairs well with -ffunction-sections/-fdata-sections)
+USE_GC_SECTIONS ?= 1
+
+# Export all symbols (Linux/ELF only) for better backtraces/dlopen symbol lookup
+USE_RDYNAMIC ?= 1
 
 #############################################################################
 #
@@ -175,7 +192,6 @@ ifneq ($(USE_VULKAN),0)
   USE_VULKAN_API=1
 endif
 
-
 #############################################################################
 
 BD=$(BUILD_DIR)/debug-$(PLATFORM)-$(ARCH)
@@ -220,6 +236,9 @@ ifneq ($(call bin_path, $(PKG_CONFIG)),)
     VORBIS_LIBS ?= $(shell $(PKG_CONFIG) --silence-errors --libs vorbisfile || echo -lvorbisfile)
   endif
 endif
+
+OGG_FLAGS    ?= $(OGG_CFLAGS)
+VORBIS_FLAGS ?= $(VORBIS_CFLAGS)
 
 # supply some reasonable defaults for SDL/X11
 ifeq ($(X11_INCLUDE),)
@@ -319,21 +338,33 @@ ifeq ($(GENERATE_DEPENDENCIES),1)
   BASE_CFLAGS += -MMD
 endif
 
+# Optional section GC
+ifeq ($(USE_GC_SECTIONS),1)
+  BASE_CFLAGS += -ffunction-sections -fdata-sections
+endif
+
+# Optional fast-math (risky)
+ifeq ($(USE_FAST_MATH),1)
+  BASE_CFLAGS += -ffast-math
+endif
+
+# Optional LTO
+ifeq ($(USE_LTO),1)
+  BASE_CFLAGS += -flto
+  LDFLAGS     += -flto
+endif
 
 ARCHEXT=
-
 CLIENT_EXTRA_FILES=
-
 
 #############################################################################
 # SETUP AND BUILD -- MINGW32
 #############################################################################
 
 ifdef MINGW
-
+  # If CC is already set to something generic, we probably want to use
+  # something more specific
   ifeq ($(CROSS_COMPILING),1)
-    # If CC is already set to something generic, we probably want to use
-    # something more specific
     ifneq ($(findstring $(strip $(CC)),cc gcc),)
       CC=
     endif
@@ -352,8 +383,6 @@ ifdef MINGW
          $(call bin_path, $(MINGW_PREFIX)-gcc))))
     endif
 
-#   STRIP=$(MINGW_PREFIX)-strip -g
-
     ifndef WINDRES
       WINDRES=$(firstword $(strip $(foreach MINGW_PREFIX, $(MINGW_PREFIXES), \
          $(call bin_path, $(MINGW_PREFIX)-windres))))
@@ -364,7 +393,6 @@ ifdef MINGW
     ifeq ($(call bin_path, $(CC)),)
       CC=gcc
     endif
-
   endif
 
   # using generic windres if specific one is not present
@@ -377,18 +405,17 @@ ifdef MINGW
   endif
 
   BASE_CFLAGS += -Wall -Wimplicit -Wstrict-prototypes -DUSE_ICON -DMINGW=1
-
   BASE_CFLAGS += -Wno-unused-result -fvisibility=hidden
-  BASE_CFLAGS += -ffunction-sections -flto
 
+  # arch + optimize
   ifeq ($(ARCH),x86_64)
     ARCHEXT = .x64
     BASE_CFLAGS += -m64
-    OPTIMIZE = -O2 -ffast-math
+    OPTIMIZE = -O2
   endif
   ifeq ($(ARCH),x86)
     BASE_CFLAGS += -m32
-    OPTIMIZE = -O2 -march=i586 -mtune=i686 -ffast-math
+    OPTIMIZE = -O2 -march=i586 -mtune=i686
   endif
 
   SHLIBEXT = dll
@@ -397,16 +424,22 @@ ifdef MINGW
 
   BINEXT = .exe
 
+  # Linker flags
   LDFLAGS += -mwindows -Wl,--dynamicbase -Wl,--nxcompat
-  LDFLAGS += -Wl,--gc-sections -fvisibility=hidden
+ifeq ($(USE_GC_SECTIONS),1)
+  LDFLAGS += -Wl,--gc-sections
+endif
+  LDFLAGS += -fvisibility=hidden
   LDFLAGS += -lwsock32 -lgdi32 -lwinmm -lole32 -lws2_32 -lpsapi -lcomctl32
-  LDFLAGS += -flto
 
   CLIENT_LDFLAGS=$(LDFLAGS)
 
+  # Vulkan import lib name may differ across setups; keep default -lvulkan here.
+  # If needed: make VULKAN_LIBS=-lvulkan-1
+  VULKAN_LIBS ?= -lvulkan
+
   ifeq ($(USE_SDL),1)
     BASE_CFLAGS += -DUSE_LOCAL_HEADERS=1 -I$(SDLHDIR)
-    #CLIENT_CFLAGS += -DUSE_LOCAL_HEADERS=1
     ifeq ($(ARCH),x86)
       CLIENT_LDFLAGS += -L$(MOUNT_DIR)/libsdl/windows/mingw/lib32
       CLIENT_LDFLAGS += -lSDL2
@@ -434,7 +467,7 @@ ifdef MINGW
   endif
 
   DEBUG_CFLAGS = $(BASE_CFLAGS) -DDEBUG -D_DEBUG -g -O0
-  RELEASE_CFLAGS = $(BASE_CFLAGS) -DNDEBUG $(OPTIMIZE)
+  RELEASE_CFLAGS = $(BASE_CFLAGS) -DNDEBUG $(OPTIMIZE) -UDEBUG -U_DEBUG
 
 else # !MINGW
 
@@ -445,9 +478,7 @@ ifeq ($(COMPILE_PLATFORM),darwin)
 #############################################################################
 
   BASE_CFLAGS += -Wall -Wimplicit -Wstrict-prototypes -pipe
-
   BASE_CFLAGS += -Wno-unused-result
-
   BASE_CFLAGS += -DMACOS_X
 
   OPTIMIZE = -O2 -fvisibility=hidden
@@ -458,7 +489,8 @@ ifeq ($(COMPILE_PLATFORM),darwin)
 
   ARCHEXT = .$(ARCH)
 
-  LDFLAGS +=
+  # Vulkan on macOS typically via MoltenVK; keep empty by default.
+  VULKAN_LIBS ?=
 
   ifeq ($(ARCH),x86_64)
     BASE_CFLAGS += -arch x86_64
@@ -503,11 +535,8 @@ else
 #############################################################################
 
   BASE_CFLAGS += -Wall -Wimplicit -Wstrict-prototypes -pipe
-
   BASE_CFLAGS += -Wno-unused-result
-
   BASE_CFLAGS += -DUSE_ICON
-
   BASE_CFLAGS += -I/usr/include -I/usr/local/include
 
   OPTIMIZE = -O2 -fvisibility=hidden
@@ -534,7 +563,10 @@ else
   SHLIBLDFLAGS = -shared $(LDFLAGS)
 
   LDFLAGS += -lm
-  LDFLAGS += -Wl,--gc-sections -fvisibility=hidden
+ifeq ($(USE_GC_SECTIONS),1)
+  LDFLAGS += -Wl,--gc-sections
+endif
+  LDFLAGS += -fvisibility=hidden
 
   ifeq ($(USE_SDL),1)
     BASE_CFLAGS += $(SDL_INCLUDE)
@@ -561,17 +593,28 @@ else
 
   ifeq ($(PLATFORM),linux)
     LDFLAGS += -ldl -Wl,--hash-style=both
+
+    # rdynamic only if enabled
+    ifeq ($(USE_RDYNAMIC),1)
+      DEBUG_LDFLAGS   = -rdynamic
+      RELEASE_LDFLAGS = -rdynamic
+    endif
+
+    VULKAN_LIBS ?= -lvulkan
+
     ifeq ($(ARCH),x86)
-      # linux32 make ...
       BASE_CFLAGS += -m32
       LDFLAGS += -m32
     endif
+  else
+    # Non-linux unix: default no rdynamic
+    DEBUG_LDFLAGS   =
+    RELEASE_LDFLAGS =
+    VULKAN_LIBS ?= -lvulkan
   endif
 
   DEBUG_CFLAGS = $(BASE_CFLAGS) -DDEBUG -D_DEBUG -g -O0
   RELEASE_CFLAGS = $(BASE_CFLAGS) -DNDEBUG $(OPTIMIZE)
-
-  DEBUG_LDFLAGS = -rdynamic
 
 endif # *NIX platforms
 
@@ -579,9 +622,7 @@ endif # !MINGW
 
 
 TARGET_CLIENT = $(CNAME)$(ARCHEXT)$(BINEXT)
-
-TARGET_RENDV = $(RENDERER_PREFIX)_vulkan_$(SHLIBNAME)
-
+TARGET_RENDV  = $(RENDERER_PREFIX)_vulkan_$(SHLIBNAME)
 TARGET_SERVER = $(DNAME)$(ARCHEXT)$(BINEXT)
 
 TARGETS =
@@ -620,11 +661,25 @@ $(Q)$(CC) $(CFLAGS) $(RENDCFLAGS) -o $@ -c $<
 endef
 
 # Remove C-specific flags when compiling C++
-CXXFLAGS := -std=c++23 $(filter-out -Wimplicit -Wstrict-prototypes,$(CFLAGS))
+CXXFLAGS = -std=c++23 $(filter-out -Wimplicit -Wstrict-prototypes,$(CFLAGS))
+RENDCXXFLAGS = $(CXXFLAGS)
+
+# Default renderer exception/RTTI policy depends on build type:
+# - Debug: allow exceptions (vulkan.hpp throws)
+# - Release: disable exceptions by default (can override)
+REND_NO_EXCEPTIONS ?= $(if $(findstring -DDEBUG,$(CFLAGS)),0,1)
+ifeq ($(REND_NO_EXCEPTIONS),1)
+  RENDCXXFLAGS += -fno-exceptions
+endif
+
+REND_NO_RTTI ?= 1
+ifeq ($(REND_NO_RTTI),1)
+  RENDCXXFLAGS += -fno-rtti
+endif
 
 define DO_REND_PLUS_CC
 $(echo_cmd) "REND_C++ $<"
-$(Q)$(CXX) -std=c++23 $(CXXFLAGS) $(RENDCFLAGS) -o $@ -c $<
+$(Q)$(CXX) $(RENDCXXFLAGS) $(RENDCFLAGS) -o $@ -c $<
 endef
 
 define DO_REF_STR
@@ -664,11 +719,27 @@ endif
 default: release
 all: debug release
 
+# Libraries: keep feature libs here, but do not force -lstdc++ manually.
+LDLIBS :=
+ifeq ($(USE_VULKAN),1)
+  LDLIBS += $(VULKAN_LIBS)
+endif
+
 debug:
-	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS) -lstdc++ -lvulkan" V=$(V)
+	@$(MAKE) targets B=$(BD) \
+	  CFLAGS="$(CFLAGS) $(DEBUG_CFLAGS)" \
+	  LDFLAGS="$(LDFLAGS) $(DEBUG_LDFLAGS)" \
+	  LDLIBS="$(LDLIBS)" \
+	  USE_LTO=0 \
+	  V=$(V)
 
 release:
-	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" LDFLAGS="-rdynamic -lm -lstdc++ -lvulkan" V=$(V)
+	@$(MAKE) targets B=$(BR) \
+	  CFLAGS="$(CFLAGS) $(RELEASE_CFLAGS)" \
+	  LDFLAGS="$(LDFLAGS) $(RELEASE_LDFLAGS)" \
+	  LDLIBS="$(LDLIBS)" \
+	  USE_LTO=$(USE_LTO) \
+	  V=$(V)
 
 define ADD_COPY_TARGET
 TARGETS += $2
@@ -708,16 +779,16 @@ endif
 	@echo "  CC: $(CC)"
 	@echo ""
 	@echo "  CFLAGS:"
-	@for i in $(CFLAGS); \
-	do \
-		echo "    $$i"; \
-	done
+	@for i in $(CFLAGS); do echo "    $$i"; done
+	@echo ""
+	@echo "  LDFLAGS:"
+	@for i in $(LDFLAGS); do echo "    $$i"; done
+	@echo ""
+	@echo "  LDLIBS:"
+	@for i in $(LDLIBS); do echo "    $$i"; done
 	@echo ""
 	@echo "  Output:"
-	@for i in $(TARGETS); \
-	do \
-		echo "    $$i"; \
-	done
+	@for i in $(TARGETS); do echo "    $$i"; done
 	@echo ""
 ifneq ($(TARGETS),)
 	@$(MAKE) $(TARGETS) V=$(V)
@@ -748,7 +819,7 @@ Q3RENDVOBJ_C = \
   $(B)/rendv/tr_image_bmp.o \
   $(B)/rendv/tr_image_tga.o \
   $(B)/rendv/tr_image_pcx.o \
-  $(B)/rendv/tr_font.o \
+  $(B)/rendv/tr_font.o
 
 Q3RENDVOBJ = \
   $(B)/rendv/tr_noise.o \
@@ -782,8 +853,7 @@ Q3RENDVOBJ = \
   $(B)/rendv/vk_pipeline.o \
   $(B)/rendv/vk_descriptors.o \
   $(B)/rendv/vk_attachments.o \
-  $(B)/rendv/vk_utils.o \
-#  $(B)/rendv/q_shared.o \
+  $(B)/rendv/vk_utils.o
 
 ifneq ($(USE_RENDERER_DLOPEN), 0)
   Q3RENDVOBJ += \
@@ -1071,17 +1141,14 @@ endif # !USE_SDL
 endif # !MINGW
 
 # client binary
-
 $(B)/$(TARGET_CLIENT): $(Q3OBJ)
 	$(echo_cmd) "LD $@"
-	$(Q)$(CC) -o $@ $(Q3OBJ) $(CLIENT_LDFLAGS) \
-		$(LDFLAGS)
+	$(Q)$(CXX) -o $@ $(Q3OBJ) $(CLIENT_LDFLAGS) $(LDFLAGS) $(LDLIBS)
 
-	
 # modular renderers
 $(B)/$(TARGET_RENDV): $(Q3RENDVOBJ_C) $(Q3RENDVOBJ)
 	$(echo_cmd) "LD $@"
-	$(Q)$(CXX) -std=c++23 -o $@ $(Q3RENDVOBJ_C) $(Q3RENDVOBJ) $(SHLIBCFLAGS) $(SHLIBLDFLAGS)
+	$(Q)$(CXX) -o $@ $(Q3RENDVOBJ_C) $(Q3RENDVOBJ) $(SHLIBLDFLAGS) $(LDLIBS)
 
 #############################################################################
 # DEDICATED SERVER
@@ -1184,7 +1251,7 @@ endif
 
 $(B)/$(TARGET_SERVER): $(Q3DOBJ)
 	$(echo_cmd) "LD $@"
-	$(Q)$(CC) -o $@ $(Q3DOBJ) $(LDFLAGS)
+	$(Q)$(CC) -o $@ $(Q3DOBJ) $(LDFLAGS) $(LDLIBS)
 
 #############################################################################
 ## CLIENT/SERVER RULES
@@ -1290,10 +1357,10 @@ distclean: clean
 # DEPENDENCIES
 #############################################################################
 
-D_FILES=$(shell find . -name '*.d')
+D_FILES := $(shell find $(B) -name '*.d' 2>/dev/null)
 
 ifneq ($(strip $(D_FILES)),)
- include $(D_FILES)
+-include $(D_FILES)
 endif
 
 .PHONY: all clean clean2 clean-debug clean-release copyfiles \

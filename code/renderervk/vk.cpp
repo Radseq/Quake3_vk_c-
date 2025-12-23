@@ -907,6 +907,10 @@ static const char *renderer_name(const vk::PhysicalDeviceProperties &props)
 	return buf;
 }
 
+#ifdef USE_VK_VALIDATION
+		bool debugMarker = false;
+#endif
+
 static bool vk_create_device(const vk::PhysicalDevice &physical_device, const int device_index)
 {
 
@@ -969,7 +973,7 @@ static bool vk_create_device(const vk::PhysicalDevice &physical_device, const in
 		bool dedicatedAllocation = false;
 		bool memoryRequirements2 = false;
 #ifdef USE_VK_VALIDATION
-		bool debugMarker = false;
+		debugMarker = false;
 		bool timelineSemaphore = false;
 		bool memoryModel = false;
 		bool devAddrFeat = false;
@@ -1251,7 +1255,6 @@ static void init_vulkan_library(void)
 
 	if (!vk_instance)
 	{
-
 		// force cleanup
 		vk_destroy_instance();
 
@@ -1929,35 +1932,6 @@ static void vk_create_shader_modules(void)
 #endif
 }
 
-static void vk_get_image_memory_requirements(const vk::Image &image, vk::MemoryRequirements *memory_requirements)
-{
-	vk::detail::DispatchLoaderDynamic dldi;
-
-	// Correct way to initialize DispatchLoaderDynamic
-	dldi.init(vk_instance, vk_inst.device);
-
-	if (vk_inst.dedicatedAllocation)
-	{
-		vk::MemoryDedicatedRequirementsKHR mem_req2 = {};
-		vk::MemoryRequirements2KHR memory_requirements2 = {};
-		vk::ImageMemoryRequirementsInfo2KHR image_requirements2 = {};
-
-		// Initialize the structures directly with the appropriate values
-		image_requirements2.image = image;
-		memory_requirements2.pNext = &mem_req2;
-
-		// Call the Vulkan-Hpp function to get image memory requirements
-		vk_inst.device.getImageMemoryRequirements2KHR(&image_requirements2, &memory_requirements2, dldi);
-
-		*memory_requirements = memory_requirements2.memoryRequirements;
-	}
-	else
-	{
-		// Get memory requirements using vk::Device's getImageMemoryRequirements method
-		*memory_requirements = vk_inst.device.getImageMemoryRequirements(image);
-	}
-}
-
 static void vk_create_framebuffers(void)
 {
 	std::array<vk::ImageView, 3> attachments;
@@ -2210,7 +2184,7 @@ static void vk_restart_swapchain(const char *funcname, vk::Result res)
 {
 	uint32_t i;
 #ifdef _DEBUG
-	ri.Printf( PRINT_WARNING, "%s(%s): restarting swapchain...\n", funcname, vk::to_string( res ) );
+	ri.Printf(PRINT_WARNING, "%s(%s): restarting swapchain...\n", funcname, vk::to_string(res).c_str());
 #else
 	ri.Printf(PRINT_WARNING, "%s(): restarting swapchain...\n", funcname );
 #endif
@@ -2933,8 +2907,11 @@ static void reset_vk_instance(Vk_Instance& s) noexcept
     s.samplerAnisotropy = false;
     s.fragmentStores    = false;
     s.dedicatedAllocation = false;
-    s.debugMarkers      = false;
-
+	#ifdef USE_VK_VALIDATION
+	if (debugMarker){
+		s.debugMarkers      = true;
+	}
+	#endif
     s.maxAnisotropy = 0.0f;
     s.maxLod        = 0.0f;
 
@@ -3473,29 +3450,31 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 		// wait for vkQueueSubmit() completion before new upload
 	}
 
-	if ( vk_inst.staging_buffer.size - vk_inst.staging_buffer.offset < buffer_size ) {
+	const vk::DeviceSize bufSize = static_cast<vk::DeviceSize>(buffer_size);
+
+	if ( vk_inst.staging_buffer.size - vk_inst.staging_buffer.offset < bufSize ) {
 		// try to flush staging buffer and reset offset
 		vk_flush_staging_buffer( false );
 	}
 
-	if ( vk_inst.staging_buffer.size /* - vk_world.staging_buffer_offset */ < buffer_size ) {
+	if ( vk_inst.staging_buffer.size /* - vk_world.staging_buffer_offset */ < bufSize ) {
 		// if still not enough - reallocate staging buffer
-		vk_alloc_staging_buffer( buffer_size );
+		vk_alloc_staging_buffer( bufSize );
 	}
 
-	for ( n = 0; n < num_regions; n++ ) {
+	for ( n = 0; n < static_cast<int>(num_regions); n++ ) {
 		regions[n].bufferOffset += vk_inst.staging_buffer.offset;
 	}
 
-	Com_Memcpy( vk_inst.staging_buffer.ptr + vk_inst.staging_buffer.offset, buf, buffer_size );
+	Com_Memcpy( vk_inst.staging_buffer.ptr + vk_inst.staging_buffer.offset, buf, bufSize );
 
 	if ( vk_inst.staging_buffer.offset == 0 ) {
 		// pInheritanceInfo defaults to nullptr; only need the usage flag.
 		vk::CommandBufferBeginInfo beginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit };
 		VK_CHECK(vk_inst.staging_command_buffer.begin(beginInfo));
 	}
-	//ri.Printf( PRINT_WARNING, "batch @%6i + %i %s \n", (int)vk_world.staging_buffer_offset, (int)buffer_size, image->imgName );
-	vk_inst.staging_buffer.offset += buffer_size;
+	//ri.Printf( PRINT_WARNING, "batch @%6i + %i %s \n", (int)vk_world.staging_buffer_offset, (int)bufSize, image->imgName );
+	vk_inst.staging_buffer.offset += bufSize;
 
 	command_buffer = vk_inst.staging_command_buffer;
 	if ( update ) {
@@ -3627,24 +3606,6 @@ static constexpr ColorDepth GetColorDepthForFormat(vk::Format format)
 	default:
 		return {-1, -1, -1};
 	}
-}
-
-static bool vk_surface_format_color_depth(const vk::Format format, int *r, int *g, int *b)
-{
-	ColorDepth depth = GetColorDepthForFormat(format);
-
-	if (depth.r == -1 && depth.g == -1 && depth.b == -1) // Default case
-	{
-		*r = 255;
-		*g = 255;
-		*b = 255;
-		return false;
-	}
-
-	*r = depth.r;
-	*g = depth.g;
-	*b = depth.b;
-	return true;
 }
 
 static void get_viewport_rect(vk::Rect2D &r)

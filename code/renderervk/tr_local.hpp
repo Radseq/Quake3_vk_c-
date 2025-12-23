@@ -76,21 +76,8 @@ extern PFN_vkDebugMarkerSetObjectNameEXT qvkDebugMarkerSetObjectNameEXT;
 		}                                                                                              \
 	}
 
+void vk_set_object_name(uint64_t obj, const char* objName, VkDebugReportObjectTypeEXT objType);
 #define SET_OBJECT_NAME(obj, objName, objType) vk_set_object_name((uint64_t)(obj), (objName), (objType))
-
-static void vk_set_object_name(uint64_t obj, const char* objName, VkDebugReportObjectTypeEXT objType)
-{
-	if (qvkDebugMarkerSetObjectNameEXT && obj)
-	{
-		VkDebugMarkerObjectNameInfoEXT info{
-			VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
-			nullptr,
-			objType,
-			obj,
-			objName };
-		qvkDebugMarkerSetObjectNameEXT(vk_inst.device, &info);
-	}
-}
 
 #else
 

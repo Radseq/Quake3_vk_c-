@@ -11,6 +11,10 @@
 #include <cstring>
 #include <span>
 
+#ifdef USE_VK_VALIDATION
+  #include <cassert>
+#endif
+
 template <size_t N>
 int Com_Split_cpp(std::array<char, N>& buffer, std::span<char*> out, char delim) {
     char* in = buffer.data();
@@ -65,7 +69,7 @@ constexpr std::string_view COM_SkipPath_cpp(std::string_view path) noexcept
 
 template <size_t N>
 constexpr std::string_view to_str_viewNT(const std::array<char, N>& arr, size_t length) noexcept {
-#ifndef NDEBUG
+#ifdef USE_VK_VALIDATION
     // Debug-only: ensure null-terminator exists within specified length
     if (std::memchr(arr.data(), '\0', length) == nullptr) {
         throw std::runtime_error("to_str_viewNT: null terminator not found within specified length");
@@ -78,13 +82,13 @@ constexpr std::string_view to_str_viewNT(const std::array<char, N>& arr, size_t 
 template <size_t N>
 constexpr std::string_view to_str_view(const std::array<char, N> &arr) noexcept
 {
-#ifndef NDEBUG
+#ifdef USE_VK_VALIDATION
     // Debug-only check: ensure array is null-terminated somewhere in bounds
     if constexpr (N > 0)
     {
         if (std::memchr(arr.data(), '\0', N) == nullptr)
         {
-            throw std::runtime_error("to_str_view: array is not null-terminated");
+            assert(!"to_str_view: array is not null-terminated");
         }
     }
 #endif
