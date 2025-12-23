@@ -1933,7 +1933,7 @@ static void *QDECL VM_LoadDll(const char *name, vmMainFunc_t *entryPoint, dllSys
 	void *libHandle;
 	dllEntry_t dllEntry;
 
-	Com_sprintf(filename, sizeof(filename), "%s%c%s" ARCH_STRING DLL_EXT, gamedir, PATH_SEP, name);
+	Com_sprintf( filename, sizeof( filename ), "%s" ARCH_STRING DLL_EXT, name );
 
 	libHandle = FS_LoadLibrary(filename);
 

@@ -907,7 +907,7 @@ void CL_ParseServerMessage( msg_t *msg ) {
 		case svc_voipSpeex: // ioq3 extension
 			clc.dm68compat = false;
 #ifdef USE_VOIP
-			CL_ParseVoip( msg, qtrue );
+			CL_ParseVoip( msg, true );
 			break;
 #else
 			return;

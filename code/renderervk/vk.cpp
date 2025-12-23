@@ -1669,7 +1669,10 @@ bool vk_alloc_vbo(const byte *vbo_data, const uint32_t vbo_size)
 	// staging buffers
 
 	// utilize existing staging buffer
+#ifdef USE_UPLOAD_QUEUE
 	vk_flush_staging_buffer( false );
+#endif
+	// utilize existing staging buffer
 	uploadDone = 0;
 	while ( uploadDone < vbo_size ) {
 		vk::DeviceSize uploadSize = vk_inst.staging_buffer.size;
@@ -2078,10 +2081,9 @@ static void vk_create_sync_primitives(void)
 	vk_inst.rendering_finished = vk::Semaphore{};
 	vk_inst.image_uploaded = vk::Semaphore{};
 	vk_inst.aux_fence_wait = false;
-#endif
-
 #ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkFence(vk_inst.aux_fence), "aux fence", VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT);
+#endif
 #endif
 }
 
@@ -3503,11 +3505,11 @@ void vk_upload_image_data(image_t &image, int x, int y, int width, int height, i
 		vk::ImageLayout::eTransferDstOptimal, 
 		vk::ImageLayout::eShaderReadOnlyOptimal);
 #else
-	if ( vk_world.staging_buffer_size < buffer_size ) {
+	if ( vk_inst.staging_buffer.size < buffer_size ) {
 		vk_alloc_staging_buffer( buffer_size );
 	}
 
-	Com_Memcpy( vk_world.staging_buffer_ptr, buf, buffer_size );
+	Com_Memcpy( vk_inst.staging_buffer.ptr, buf, buffer_size );
 
 	command_buffer = begin_command_buffer();
 	

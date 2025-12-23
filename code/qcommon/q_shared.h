@@ -213,10 +213,15 @@ int Q_longjmp_c(void *, int);
 
 typedef unsigned char byte;
 
-#ifndef __cplusplus
-#include <stdbool.h>
+#ifdef __cplusplus
+extern "C" {
 #endif
 
+#include <stdbool.h>
+
+#ifdef __cplusplus
+}
+#endif
 
 typedef union floatint_u
 {

@@ -455,6 +455,8 @@ static void IN_DeactivateMouse( void )
 	if ( !mouseAvailable )
 		return;
 
+	const char* drv = SDL_GetCurrentVideoDriver();
+
 	if ( mouseActive )
 	{
 #ifdef DEBUG_EVENTS
@@ -472,7 +474,9 @@ static void IN_DeactivateMouse( void )
 			if ( glw_state.isFullscreen )
 				SDL_ShowCursor( SDL_TRUE );
 
-			SDL_WarpMouseGlobal( glw_state.desktop_width / 2, glw_state.desktop_height / 2 );
+			if ( drv && strcmp( drv, "x11" ) == 0 ) {
+				SDL_WarpMouseGlobal( glw_state.desktop_width / 2, glw_state.desktop_height / 2 );
+			}
 		}
 
 		mouseActive = false;
@@ -1101,6 +1105,19 @@ static const char *eventName( SDL_WindowEventID event )
 }
 #endif
 
+/*
+===============
+IN_SyncModifiers
+===============
+*/
+static void IN_SyncModifiers( void ) {
+    SDL_Keymod mod = SDL_GetModState();
+
+    keys[K_CTRL].down  = (mod & KMOD_CTRL)  ? true : false;
+    keys[K_SHIFT].down = (mod & KMOD_SHIFT) ? true : false;
+    keys[K_ALT].down   = (mod & KMOD_ALT)   ? true : false;
+}
+
 
 /*
 ===============
@@ -1118,6 +1135,8 @@ void HandleEvents( void )
 			return;
 
 	in_eventTime = Sys_Milliseconds();
+
+	IN_SyncModifiers();
 
 	while ( SDL_PollEvent( &e ) )
 	{
@@ -1280,8 +1299,8 @@ void HandleEvents( void )
 					case SDL_WINDOWEVENT_RESTORED:
 					case SDL_WINDOWEVENT_MAXIMIZED:		gw_minimized = false; break;
 					// keyboard focus:
-					case SDL_WINDOWEVENT_FOCUS_LOST:	lastKeyDown = 0; Key_ClearStates(); gw_active = false; break;
-					case SDL_WINDOWEVENT_FOCUS_GAINED:	lastKeyDown = 0; Key_ClearStates(); gw_active = true; gw_minimized = false;
+					case SDL_WINDOWEVENT_FOCUS_LOST:	lastKeyDown = 0; Key_ClearStates(); IN_SyncModifiers(); gw_active = false; break;
+					case SDL_WINDOWEVENT_FOCUS_GAINED:	lastKeyDown = 0; Key_ClearStates(); IN_SyncModifiers(); gw_active = true; gw_minimized = false;
 														if ( re.SetColorMappings ) {
 															re.SetColorMappings();
 														}

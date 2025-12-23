@@ -1139,6 +1139,11 @@ static bool ParseStage(shaderStage_t& stage, const char** text)
 		else if (!Q_stricmp_cpp(token, "depthFragment") && s_extendedShader)
 		{
 			stage.depthFragment = true;
+			continue;
+		}
+		else if ( !Q_stricmp_cpp( token, "dlight" ) && s_extendedShader )
+		{
+			stage.bundle[0].dlight = 1;
 		}
 		else
 		{
@@ -2514,8 +2519,15 @@ Key complex shaders to validate/check:
 static void FindLightingStage(const int stage) {
 	int i, selected, lightmap;
 
-	shader.lightingBundle = 0;
-	shader.lightingStage = -1;
+	for ( i = 0; i < stage; i++ ) {
+		if ( stages[i].bundle[0].image[0] == NULL ) {
+			continue; // sanity check
+		}
+		if ( stages[i].bundle[0].dlight ) {
+			shader.lightingStage = i;
+			return; // already defined via 'dlight' keyword
+		}
+	}
 
 	if (shader.isSky || (shader.surfaceFlags & (SURF_NODLIGHT | SURF_SKY)) /* || shader.sort == SS_ENVIRONMENT || shader.sort >= SS_FOG */) {
 		return;
@@ -3156,6 +3168,11 @@ static void InitShader(std::string_view name, const int lightmapIndex)
 	{
 		stages[i].bundle[0].texMods = texMods[i];
 	}
+
+#ifdef USE_PMLIGHT
+	shader.lightingBundle = 0;
+	shader.lightingStage = -1;
+#endif
 }
 
 static void DetectNeeds(void)
@@ -3451,26 +3468,28 @@ static shader_t* FinishShader(void)
 			pStage.bundle[0].alphaGen = alphaGen_t::AGEN_SKIP;
 	}
 
-	//
-	// if we are in r_vertexLight mode, never use a lightmap texture
-	//
-	if (stage > 1 && ((r_vertexLight->integer && tr.vertexLightingAllowed && !shader.noVLcollapse) || glConfig.hardwareType == GLHW_PERMEDIA2))
-	{
-		VertexLightingCollapse();
-		stage = 1;
-		hasLightmapStage = false;
-	}
-
 	// whiteimage + "filter" texture == texture
 	if (stage > 1 && stages[0].bundle[0].image[0] == tr.whiteImage && stages[0].bundle[0].numImageAnimations <= 1 && stages[0].bundle[0].rgbGen == colorGen_t::CGEN_IDENTITY && stages[0].bundle[0].alphaGen == alphaGen_t::AGEN_SKIP)
 	{
 		if (stages[1].stateBits == (GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO))
 		{
 			stages[1].stateBits = stages[0].stateBits & (GLS_DEPTHMASK_TRUE | GLS_DEPTHTEST_DISABLE | GLS_DEPTHFUNC_EQUAL);
+#ifdef USE_PMLIGHT
+			stages[1].bundle[0].dlight |= stages[0].bundle[0].dlight;
+#endif
 			memmove(&stages[0], &stages[1], sizeof(stages[0]) * (stage - 1));
 			stages[stage - 1].active = false;
 			stage--;
 		}
+	}
+
+	//
+	// if we are in r_vertexLight mode, never use a lightmap texture
+	//
+	if ( stage > 1 && ( ( r_vertexLight->integer && tr.vertexLightingAllowed && !shader.noVLcollapse ) || glConfig.hardwareType == GLHW_PERMEDIA2 ) ) {
+		VertexLightingCollapse();
+		stage = 1;
+		hasLightmapStage = false;
 	}
 
 	for (i = 0; i < stage; i++)
