@@ -338,7 +338,7 @@ static void allocate_and_bind_image_memory(const vk::Image& image)
 	for (i = 0; i < vk_world.num_image_chunks; i++)
 	{
 		// ensure that memory region has proper alignment
-		vk::DeviceSize offset = PAD(vk_world.image_chunks[i].used, alignment);
+		vk::DeviceSize offset = pad_up(vk_world.image_chunks[i].used, alignment);
 
 		if (offset + memory_requirements.size <= vk_inst.image_chunk_size)
 		{
@@ -496,8 +496,8 @@ static void vk_alloc_staging_buffer(const vk::DeviceSize size)
 
 	vk_clean_staging_buffer();
 
-	vk_inst.staging_buffer.size = MAX(size, STAGING_BUFFER_SIZE);
-	vk_inst.staging_buffer.size = PAD(vk_inst.staging_buffer.size, 1024 * 1024);
+	vk_inst.staging_buffer.size = MAX( size, STAGING_BUFFER_SIZE );
+	vk_inst.staging_buffer.size = pad_up_ct<vk::DeviceSize, 1024 * 1024>(vk_inst.staging_buffer.size);
 
 	// if (vk_world.staging_buffer)
 	// 	vk_inst.device.destroyBuffer(vk_world.staging_buffer);
@@ -2249,7 +2249,7 @@ void vk_initialize(void)
 
 	vk_inst.cmd = vk_inst.tess + 0;
 	vk_inst.uniform_alignment = props.limits.minUniformBufferOffsetAlignment;
-	vk_inst.uniform_item_size = PAD(sizeof(vkUniform_t), vk_inst.uniform_alignment);
+	vk_inst.uniform_item_size = pad_up(sizeof(vkUniform_t), vk_inst.uniform_alignment);
 
 	// for flare visibility tests
 	vk_inst.storage_alignment = MAX(props.limits.minStorageBufferOffsetAlignment, sizeof(uint32_t));
@@ -3817,7 +3817,7 @@ static void vk_bind_index_attr(const int index)
 
 static void vk_bind_attr(const int index, const unsigned int item_size, const void* src)
 {
-	const uint32_t offset = PAD(vk_inst.cmd->vertex_buffer_offset, 32);
+	const vk::DeviceSize offset = pad_up_ct<vk::DeviceSize, 32>(vk_inst.cmd->vertex_buffer_offset);
 	const uint32_t size = tess.numVertexes * item_size;
 
 	if (offset + size > vk_inst.geometry_buffer_size)

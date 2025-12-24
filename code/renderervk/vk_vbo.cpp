@@ -496,6 +496,7 @@ static void initItem(vbo_item_t *item)
 	item->soft_offset = -1;
 }
 #include <cstdlib>
+#include "utils.hpp"
 void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 {
 	vbo_t &vbo = world_vbo;
@@ -573,10 +574,10 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 		return;
 	}
 
-	vbo_size = PAD(vbo_size, 32);
+	vbo_size = pad_up_ct<int, 32>(vbo_size);
 
 	ibo_size = numStaticIndexes * sizeof(tess.indexes[0]);
-	ibo_size = PAD(ibo_size, 32);
+	ibo_size = pad_up_ct<int, 32>(ibo_size);
 
 	// 0 item is unused
 	vbo.items = static_cast<vbo_item_t *>(ri.Hunk_Alloc((numStaticSurfaces + 1) * sizeof(vbo_item_t), h_low));

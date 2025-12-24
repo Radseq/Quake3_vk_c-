@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_scene.hpp"
 #include "vk.hpp"
 #include "vk_pipeline.hpp"
+#include "utils.hpp"
 
 constexpr int MODE_RED_CYAN = 1;
 constexpr int MODE_RED_BLUE = 2;
@@ -137,7 +138,7 @@ make sure there is enough command space
 static void *R_GetCommandBufferReserved(int bytes, const int reservedBytes)
 {
 	renderCommandList_t &cmdList = backEndData->commands;
-	bytes = PAD(bytes, sizeof(void *));
+	bytes = pad_up_ct<int, alignof(void*)>(bytes);
 
 	// always leave room for the end of list command
 	if (cmdList.used + bytes + sizeof(int) + reservedBytes > MAX_RENDER_COMMANDS)
@@ -164,7 +165,15 @@ returns NULL if there is not enough space for important commands
 void *R_GetCommandBuffer(int bytes)
 {
 	tr.lastRenderCommand = renderCommand_t::RC_END_OF_LIST;
-	return R_GetCommandBufferReserved(bytes, PAD(sizeof(swapBuffersCommand_t), sizeof(void *)));
+
+	constexpr size_t aligned = pad_up_ct<size_t, alignof(void*)>(sizeof(swapBuffersCommand_t));
+
+#ifndef NDEBUG
+	// Ensure the value fits into int before narrowing
+	assert(aligned <= static_cast<size_t>(std::numeric_limits<int>::max()));
+#endif
+
+	return R_GetCommandBufferReserved(bytes, static_cast<int>(aligned));
 }
 
 /*

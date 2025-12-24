@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "math.hpp"
 #include "vk_descriptors.hpp"
 #include "vk_pipeline.hpp"
+#include "utils.hpp"
 
 shaderCommands_t tess;
 
@@ -459,7 +460,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 
 uint32_t VK_PushUniform(const vkUniform_t &uniform)
 {
-	const uint32_t offset = vk_inst.cmd->uniform_read_offset = PAD(vk_inst.cmd->vertex_buffer_offset, vk_inst.uniform_alignment);
+	const uint32_t offset = vk_inst.cmd->uniform_read_offset = pad_up(vk_inst.cmd->vertex_buffer_offset, vk_inst.uniform_alignment);
 
 	if (static_cast<uint64_t>(offset) + vk_inst.uniform_item_size > vk_inst.geometry_buffer_size)
 		return ~0U;

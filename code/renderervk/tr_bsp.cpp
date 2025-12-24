@@ -499,7 +499,7 @@ static void R_LoadVisibility(const lump_t &l)
 	int len;
 	byte *buf;
 
-	len = PAD(s_worldData.numClusters, 64);
+	len = pad_up_ct<int, 64>(s_worldData.numClusters);
 	s_worldData.novis = static_cast<byte *>(ri.Hunk_Alloc(len, h_low));
 	Com_Memset(s_worldData.novis, 0xff, len);
 
