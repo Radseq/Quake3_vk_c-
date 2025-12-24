@@ -252,6 +252,7 @@
     <ClCompile Include="..\..\renderervk\vk.cpp" />
     <ClCompile Include="..\..\renderervk\vk_descriptors.cpp" />
     <ClCompile Include="..\..\renderervk\vk_flares.cpp" />
+    <ClCompile Include="..\..\renderervk\vk_physical_device.cpp" />
     <ClCompile Include="..\..\renderervk\vk_pipeline.cpp" />
     <ClCompile Include="..\..\renderervk\vk_render_pass.cpp" />
     <ClCompile Include="..\..\renderervk\vk_attachments.cpp" />
@@ -293,6 +294,7 @@
     <ClInclude Include="..\..\renderervk\vk.hpp" />
     <ClInclude Include="..\..\renderervk\vk_descriptors.hpp" />
     <ClInclude Include="..\..\renderervk\vk_flares.hpp" />
+    <ClInclude Include="..\..\renderervk\vk_physical_device.hpp" />
     <ClInclude Include="..\..\renderervk\vk_pipeline.hpp" />
     <ClInclude Include="..\..\renderervk\vk_render_pass.hpp" />
     <ClInclude Include="..\..\renderervk\vk_attachments.hpp" />
