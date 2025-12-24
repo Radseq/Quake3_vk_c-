@@ -36,7 +36,7 @@ USE_SYSTEM_VORBIS = 0
 
 USE_VULKAN       = 1
 USE_VULKAN_API   = 1
-USE_RENDERER_DLOPEN = 0
+USE_RENDERER_DLOPEN = 1
 
 # valid options: vulkan
 RENDERER_DEFAULT = vulkan
@@ -873,6 +873,7 @@ Q3RENDVOBJ = \
   $(B)/rendv/vk_pipeline.o \
   $(B)/rendv/vk_descriptors.o \
   $(B)/rendv/vk_attachments.o \
+  $(B)/rendv/vk_physical_device.o \
   $(B)/rendv/vk_utils.o
 
 ifneq ($(USE_RENDERER_DLOPEN), 0)

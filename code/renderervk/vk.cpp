@@ -62,15 +62,19 @@ template <class T>
 inline void reset_to_default(T& x) noexcept { x = T{}; }
 
 
-static constexpr uint32_t toInt(vk::SampleCountFlags f) {
-	if (f & vk::SampleCountFlagBits::e64) return 64;
-	if (f & vk::SampleCountFlagBits::e32) return 32;
-	if (f & vk::SampleCountFlagBits::e16) return 16;
-	if (f & vk::SampleCountFlagBits::e8)  return 8;
-	if (f & vk::SampleCountFlagBits::e4)  return 4;
-	if (f & vk::SampleCountFlagBits::e2)  return 2;
-	if (f & vk::SampleCountFlagBits::e1)  return 1;
-	return 0;
+// static constexpr uint32_t toInt(vk::SampleCountFlags f) {
+// 	if (f & vk::SampleCountFlagBits::e64) return 64;
+// 	if (f & vk::SampleCountFlagBits::e32) return 32;
+// 	if (f & vk::SampleCountFlagBits::e16) return 16;
+// 	if (f & vk::SampleCountFlagBits::e8)  return 8;
+// 	if (f & vk::SampleCountFlagBits::e4)  return 4;
+// 	if (f & vk::SampleCountFlagBits::e2)  return 2;
+// 	if (f & vk::SampleCountFlagBits::e1)  return 1;
+// 	return 0;
+// }
+
+static constexpr uint32_t toInt(vk::SampleCountFlags f) noexcept {
+    return static_cast<uint32_t>(f); // hpp robi to poprawnie (bitmask)
 }
 
 static constexpr auto sampleCountLUT = [] {
@@ -565,9 +569,6 @@ static bool used_instance_extension(const std::string_view ext)
 	if (Q_stricmp_cpp(ext, vk::KHRDisplayExtensionName) == 0)
 		return true; // needed for KMSDRM instances/devices?
 
-	if (Q_stricmp_cpp(ext, vk::KHRSwapchainExtensionName) == 0)
-		return true;
-
 #ifdef USE_VK_VALIDATION
 	if (Q_stricmp_cpp(ext, vk::EXTDebugUtilsExtensionName) == 0)
 		return true;
@@ -598,6 +599,8 @@ static void create_instance(void)
 	extension_count = 0;
 	std::vector<vk::ExtensionProperties> extension_properties;
 	VK_CHECK_ASSIGN(extension_properties, vk::enumerateInstanceExtensionProperties());
+
+	VK_CHECK_ASSIGN(vulkanApiVersion, vk::enumerateInstanceVersion());
 
 	count = extension_properties.size();
 	std::vector<const char*> extension_names(count);
@@ -663,60 +666,6 @@ static void create_instance(void)
 #else
 	VK_CHECK_ASSIGN(vk_instance, createInstance(desc));
 #endif
-
-	VK_CHECK_ASSIGN(vulkanApiVersion, vk::enumerateInstanceVersion());
-
-	dldi.init(vk_instance, vk_inst.device);
-}
-
-static vk::Format get_depth_format(const vk::PhysicalDevice& physical_device)
-{
-	vk::FormatProperties props;
-	std::array<vk::Format, 2> formats{};
-
-	if (glConfig.stencilBits > 0)
-	{
-		formats[0] = glConfig.depthBits == 16 ? vk::Format::eD16UnormS8Uint : vk::Format::eD24UnormS8Uint;
-		formats[1] = vk::Format::eD32SfloatS8Uint;
-		glConfig.stencilBits = 8;
-	}
-	else
-	{
-		formats[0] = glConfig.depthBits == 16 ? vk::Format::eD16Unorm : vk::Format::eX8D24UnormPack32;
-		formats[1] = vk::Format::eD32Sfloat;
-		glConfig.stencilBits = 0;
-	}
-	for (const auto& format : formats)
-	{
-		props = physical_device.getFormatProperties(format);
-
-		// qvkGetPhysicalDeviceFormatProperties(physical_device, formats[i], &props);
-		if ((props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) != vk::FormatFeatureFlags{})
-		{
-			return format;
-		}
-	}
-
-	ri.Error(ERR_FATAL, "get_depth_format: failed to find depth attachment format");
-	return vk::Format::eUndefined; // never get here
-}
-
-// Check if we can use vkCmdBlitImage for the given source and destination image formats.
-static bool vk_blit_enabled(const vk::PhysicalDevice& physical_device, const vk::Format srcFormat, const vk::Format dstFormat)
-{
-	vk::FormatProperties formatProps = physical_device.getFormatProperties(srcFormat);
-	if ((formatProps.optimalTilingFeatures & vk::FormatFeatureFlagBits::eBlitSrc) == vk::FormatFeatureFlags{})
-	{
-		return false;
-	}
-
-	formatProps = physical_device.getFormatProperties(dstFormat);
-	if ((formatProps.linearTilingFeatures & vk::FormatFeatureFlagBits::eBlitDst) == vk::FormatFeatureFlags{})
-	{
-		return false;
-	}
-
-	return true;
 }
 
 inline static vk::Format get_hdr_format(const vk::Format base_format)
@@ -855,348 +804,9 @@ static bool vk_select_surface_format(const vk::PhysicalDevice& physical_device, 
 	return true;
 }
 
-static void setup_surface_formats(const vk::PhysicalDevice& physical_device)
-{
-	vk_inst.depth_format = get_depth_format(physical_device);
-
-	vk_inst.color_format = get_hdr_format(vk_inst.base_format.format);
-
-	vk_inst.capture_format = vk::Format::eR8G8B8A8Unorm;
-
-	vk_inst.bloom_format = vk_inst.base_format.format;
-
-	vk_inst.blitEnabled = vk_blit_enabled(physical_device, vk_inst.color_format, vk_inst.capture_format);
-
-	if (!vk_inst.blitEnabled)
-	{
-		vk_inst.capture_format = vk_inst.color_format;
-	}
-}
-
-static const char* renderer_name(const vk::PhysicalDeviceProperties& props)
-{
-	static char buf[sizeof(props.deviceName) + 64];
-	const char* device_type;
-
-	switch (props.deviceType)
-	{
-	case vk::PhysicalDeviceType::eIntegratedGpu:
-		device_type = "Integrated";
-		break;
-	case vk::PhysicalDeviceType::eDiscreteGpu:
-		device_type = "Discrete";
-		break;
-	case vk::PhysicalDeviceType::eVirtualGpu:
-		device_type = "Virtual";
-		break;
-	case vk::PhysicalDeviceType::eCpu:
-		device_type = "CPU";
-		break;
-	default:
-		device_type = "OTHER";
-		break;
-	}
-
-	// Com_sprintf(buf, sizeof(buf), "%s %s, 0x%04x",
-	// 			device_type, props.deviceName, props.deviceID);
-
-	char charArray[256];
-	std::memcpy(charArray, props.deviceName.data(), 256);
-
-	Com_sprintf(buf, sizeof(buf), "%s %s, 0x%04x",
-		device_type, charArray, props.deviceID);
-
-	return buf;
-}
-
 #ifdef USE_VK_VALIDATION
 bool debugMarker = false;
 #endif
-
-static bool vk_create_device(const vk::PhysicalDevice& physical_device, const int device_index)
-{
-
-#ifdef USE_VK_VALIDATION
-	vk::PhysicalDeviceTimelineSemaphoreFeatures timeline_semaphore;
-	vk::PhysicalDeviceVulkanMemoryModelFeatures memory_model;
-	vk::PhysicalDeviceBufferDeviceAddressFeatures devaddr_features;
-	vk::PhysicalDevice8BitStorageFeatures storage_8bit_features;
-#endif
-
-	ri.Printf(PRINT_ALL, "...selected physical device: %i\n", device_index);
-
-	// select surface format
-	if (!vk_select_surface_format(physical_device, vk_surface))
-	{
-		return false;
-	}
-
-	setup_surface_formats(physical_device);
-
-	// select queue family
-	{
-		std::vector<vk::QueueFamilyProperties> queue_families;
-		uint32_t i;
-
-		queue_families = physical_device.getQueueFamilyProperties();
-
-		// select queue family with presentation and graphics support
-		vk_inst.queue_family_index = ~0U;
-		for (i = 0; i < queue_families.size(); i++)
-		{
-			vk::Bool32 presentation_supported;
-			VK_CHECK_ASSIGN(presentation_supported, physical_device.getSurfaceSupportKHR(i, vk_surface));
-
-			if (presentation_supported && (queue_families[i].queueFlags & vk::QueueFlagBits::eGraphics) != vk::QueueFlags{})
-			{
-				vk_inst.queue_family_index = i;
-				break;
-			}
-		}
-
-		if (vk_inst.queue_family_index == ~0U)
-		{
-			ri.Printf(PRINT_ERROR, "...failed to find graphics queue family\n");
-
-			return false;
-		}
-	}
-
-	// create VkDevice
-	{
-		std::vector<const char*> device_extension_list;
-		// const char *device_extension_list[4];
-		// uint32_t device_extension_count = 0;
-		const char* end;
-		char* str;
-		const float priority = 1.0;
-
-		bool swapchainSupported = false;
-		bool dedicatedAllocation = false;
-		bool memoryRequirements2 = false;
-#ifdef USE_VK_VALIDATION
-		debugMarker = false;
-		bool timelineSemaphore = false;
-		bool memoryModel = false;
-		bool devAddrFeat = false;
-		bool storage8bit = false;
-		const void** pNextPtr;
-#endif
-
-		uint32_t i, len;
-
-		std::vector<vk::ExtensionProperties> extension_properties;
-		VK_CHECK_ASSIGN(extension_properties, physical_device.enumerateDeviceExtensionProperties());
-
-		// fill glConfig.extensions_string
-		str = glConfig.extensions_string;
-		*str = '\0';
-		end = &glConfig.extensions_string[sizeof(glConfig.extensions_string) - 1];
-
-		for (i = 0; i < extension_properties.size(); i++)
-		{
-			auto ext = to_str_view(extension_properties[i].extensionName);
-
-			// add this device extension to glConfig
-			if (i != 0)
-			{
-				if (str + 1 >= end)
-					continue;
-				str = Q_stradd(str, " ");
-			}
-			len = (uint32_t)ext.size();
-			if (str + len >= end)
-				continue;
-			str = Q_stradd(str, ext.data());
-
-			if (vk::apiVersionMajor(vulkanApiVersion) == 1 && vk::apiVersionMinor(vulkanApiVersion) == 0)
-			{
-				if (ext == vk::KHRDedicatedAllocationExtensionName)
-				{
-					dedicatedAllocation = true;
-					continue;
-				}
-				else if (ext == vk::KHRGetMemoryRequirements2ExtensionName)
-				{
-					memoryRequirements2 = true;
-
-					device_extension_list.push_back(vk::KHRDedicatedAllocationExtensionName);
-					device_extension_list.push_back(vk::KHRGetMemoryRequirements2ExtensionName);
-					continue;
-				}
-			}
-
-			if (ext == vk::KHRSwapchainExtensionName)
-			{
-				swapchainSupported = true;
-			}
-#ifdef USE_VK_VALIDATION
-			else if (ext == vk::EXTDebugUtilsExtensionName)
-			{
-				debugMarker = true;
-			}
-			else if (ext == vk::KHRTimelineSemaphoreExtensionName)
-			{
-				timelineSemaphore = true;
-			}
-			else if (ext == vk::KHRVulkanMemoryModelExtensionName)
-			{
-				memoryModel = true;
-			}
-			else if (ext == vk::KHRBufferDeviceAddressExtensionName)
-			{
-				devAddrFeat = true;
-			}
-			else if (ext == vk::KHR8BitStorageExtensionName)
-			{
-				storage8bit = true;
-			}
-#endif
-		}
-
-		if (!swapchainSupported)
-		{
-			ri.Printf(PRINT_ERROR, "...required device extension is not available: %s\n", vk::KHRSwapchainExtensionName);
-			return false;
-		}
-
-		if (!memoryRequirements2)
-			dedicatedAllocation = false;
-
-		vk_inst.dedicatedAllocation = dedicatedAllocation;
-
-#ifndef USE_DEDICATED_ALLOCATION
-		vk_inst.dedicatedAllocation = false;
-#endif
-
-		device_extension_list.push_back(vk::KHRSwapchainExtensionName);
-
-#ifdef USE_VK_VALIDATION
-		if (debugMarker)
-		{
-			device_extension_list.push_back(vk::EXTDebugUtilsExtensionName);
-			vk_inst.debugMarkers = true;
-		}
-		if (timelineSemaphore)
-		{
-			device_extension_list.push_back(vk::KHRTimelineSemaphoreExtensionName);
-		}
-
-		if (memoryModel)
-		{
-			device_extension_list.push_back(vk::KHRVulkanMemoryModelExtensionName);
-		}
-		if (devAddrFeat)
-		{
-			device_extension_list.push_back(vk::KHRBufferDeviceAddressExtensionName);
-		}
-		if (storage8bit)
-		{
-			device_extension_list.push_back(vk::KHR8BitStorageExtensionName);
-		}
-#endif // _DEBUG
-
-		vk::PhysicalDeviceFeatures device_features;
-		device_features = physical_device.getFeatures();
-		if (device_features.fillModeNonSolid == vk::False)
-		{
-			ri.Printf(PRINT_ERROR, "...fillModeNonSolid feature is not supported\n");
-			return false;
-		}
-
-		vk::DeviceQueueCreateInfo queue_desc{ {},
-											 vk_inst.queue_family_index,
-											 1,
-											 &priority,
-											 nullptr };
-
-		vk::PhysicalDeviceFeatures features{};
-
-#ifdef USE_VK_VALIDATION
-		if (device_features.shaderInt64)
-		{
-			features.shaderInt64 = vk::True;
-		}
-#endif
-
-		features.fillModeNonSolid = vk::True;
-
-		if (device_features.wideLines)
-		{ // needed for RB_SurfaceAxis
-			features.wideLines = vk::True;
-			vk_inst.wideLines = true;
-		}
-
-		if (device_features.fragmentStoresAndAtomics && device_features.vertexPipelineStoresAndAtomics)
-		{
-			features.vertexPipelineStoresAndAtomics = vk::True;
-			features.fragmentStoresAndAtomics = vk::True;
-			vk_inst.fragmentStores = true;
-		}
-
-		if (r_ext_texture_filter_anisotropic->integer && device_features.samplerAnisotropy)
-		{
-			features.samplerAnisotropy = vk::True;
-			vk_inst.samplerAnisotropy = true;
-		}
-
-		vk::DeviceCreateInfo device_desc{ {},
-										 1,
-										 &queue_desc,
-										 0,
-										 nullptr,
-										 (uint32_t)device_extension_list.size(),
-										 device_extension_list.data(),
-										 &features,
-										 nullptr };
-
-#ifdef USE_VK_VALIDATION
-		pNextPtr = (const void**)&device_desc.pNext;
-		if (timelineSemaphore)
-		{
-			*pNextPtr = &timeline_semaphore;
-			timeline_semaphore.pNext = nullptr;
-			timeline_semaphore.sType = vk::StructureType::ePhysicalDeviceTimelineSemaphoreFeatures;
-			timeline_semaphore.timelineSemaphore = vk::True;
-			pNextPtr = (const void**)&timeline_semaphore.pNext;
-		}
-		if (memoryModel)
-		{
-			*pNextPtr = &memory_model;
-			memory_model.pNext = nullptr;
-			memory_model.sType = vk::StructureType::ePhysicalDeviceVulkanMemoryModelFeatures;
-			memory_model.vulkanMemoryModel = VK_TRUE;
-			memory_model.vulkanMemoryModelAvailabilityVisibilityChains = VK_FALSE;
-			memory_model.vulkanMemoryModelDeviceScope = VK_TRUE;
-			pNextPtr = (const void**)&memory_model.pNext;
-		}
-		if (devAddrFeat)
-		{
-			*pNextPtr = &devaddr_features;
-			devaddr_features.pNext = nullptr;
-			devaddr_features.sType = vk::StructureType::ePhysicalDeviceBufferDeviceAddressFeatures;
-			devaddr_features.bufferDeviceAddress = VK_TRUE;
-			devaddr_features.bufferDeviceAddressCaptureReplay = VK_FALSE;
-			devaddr_features.bufferDeviceAddressMultiDevice = VK_FALSE;
-			pNextPtr = (const void**)&devaddr_features.pNext;
-		}
-		if (storage8bit)
-		{
-			*pNextPtr = &storage_8bit_features;
-			storage_8bit_features.pNext = nullptr;
-			storage_8bit_features.sType = vk::StructureType::ePhysicalDevice8BitStorageFeatures;
-			storage_8bit_features.storageBuffer8BitAccess = VK_TRUE;
-			storage_8bit_features.storagePushConstant8 = VK_FALSE;
-			storage_8bit_features.uniformAndStorageBuffer8BitAccess = VK_TRUE;
-			pNextPtr = (const void**)&storage_8bit_features.pNext;
-		}
-#endif
-
-		VK_CHECK_ASSIGN(vk_inst.device, physical_device.createDevice(device_desc));
-	}
-
-	return true;
-}
 
 #define INIT_INSTANCE_FUNCTION(func)                                                       \
 	q##func = reinterpret_cast<PFN_##func>(ri.VK_GetInstanceProcAddr(vk_instance, #func)); \
@@ -1311,6 +921,8 @@ static void init_vulkan_library(void)
 		ri.Error(ERR_FATAL, "Vulkan: unable to find any suitable physical device");
 		return;
 	}
+	
+	dldi.init(vk_instance, vk_inst.device);
 
 	//
 	// Get device level functions.
@@ -1410,6 +1022,11 @@ void vk_init_descriptors(void)
 										nullptr };
 
 	VK_CHECK(vk_inst.device.allocateDescriptorSets(&alloc, &vk_inst.storage.descriptor));
+
+#ifdef USE_VK_VALIDATION
+	// Set object names for debugging
+	SET_OBJECT_NAME(VkDescriptorSet(vk_inst.storage.descriptor), "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
+#endif
 
 	vk::DescriptorBufferInfo info{ vk_inst.storage.buffer,
 								  0,
@@ -1562,21 +1179,18 @@ static void vk_create_storage_buffer(const uint32_t size)
 	// Allocate memory for the buffer
 	VK_CHECK_ASSIGN(vk_inst.storage.memory, vk_inst.device.allocateMemory(memoryAllocateInfo));
 
+	void* mappedMemory;
+	VK_CHECK_ASSIGN(mappedMemory, vk_inst.device.mapMemory(vk_inst.storage.memory, 0, vk::WholeSize));
+
+	vk_inst.storage.buffer_ptr = reinterpret_cast<byte*>(mappedMemory);
+
+	Com_Memset( vk_inst.storage.buffer_ptr, 0, memoryRequirements.size );
+	
 	// Bind the memory to the buffer
 	VK_CHECK(vk_inst.device.bindBufferMemory(vk_inst.storage.buffer, vk_inst.storage.memory, 0));
-
-	// Map the memory and initialize it
-	void* mappedMemory;
-	VK_CHECK_ASSIGN(mappedMemory, vk_inst.device.mapMemory(vk_inst.storage.memory, 0, vk::WholeSize, {}));
-	std::memset(mappedMemory, 0, size);								// Initialize the memory
-	vk_inst.storage.buffer_ptr = static_cast<byte*>(mappedMemory); // Store the pointer to the buffer
-
-	// Unmap the memory
-	vk_inst.device.unmapMemory(vk_inst.storage.memory);
 #ifdef USE_VK_VALIDATION
 	// Set object names for debugging
 	SET_OBJECT_NAME(VkBuffer(vk_inst.storage.buffer), "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
-	SET_OBJECT_NAME(VkDescriptorSet(vk_inst.storage.descriptor), "storage buffer", VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT);
 	SET_OBJECT_NAME(VkDeviceMemory(vk_inst.storage.memory), "storage buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
 #endif
 }
@@ -2175,7 +1789,6 @@ static void vk_restart_swapchain(const char* funcname, vk::Result res)
 	vk_destroy_sync_primitives();
 
 	vk_select_surface_format(vk_inst.physical_device, vk_surface);
-	setup_surface_formats(vk_inst.physical_device);
 
 	vk_create_sync_primitives();
 
@@ -2232,14 +1845,15 @@ static void vk_set_render_scale(void)
 
 void vk_initialize(void)
 {
-	char buf[64], driver_version[64];
-	const char* vendor_name;
+	char driver_version[64];
 	vk::PhysicalDeviceProperties props;
 	uint32_t major;
 	uint32_t minor;
 	uint32_t patch;
 	uint32_t maxSize;
 	uint32_t i;
+
+	vk_inst.offscreenRender = true;
 
 	init_vulkan_library();
 
@@ -2434,47 +2048,6 @@ void vk_initialize(void)
 	Com_sprintf(glConfig.version_string, sizeof(glConfig.version_string), "API: %i.%i.%i, Driver: %s",
 		major, minor, patch, driver_version);
 
-	vk_inst.offscreenRender = true;
-
-	if (props.vendorID == 0x1002)
-	{
-		vendor_name = "Advanced Micro Devices, Inc.";
-	}
-	else if (props.vendorID == 0x106B)
-	{
-		vendor_name = "Apple Inc.";
-	}
-	else if (props.vendorID == 0x10DE)
-	{
-		// https://github.com/SaschaWillems/Vulkan/issues/493
-		// we can't render to offscreen presentation surfaces on nvidia
-		vk_inst.offscreenRender = false;
-		vendor_name = "NVIDIA";
-	}
-	else if (props.vendorID == 0x14E4)
-	{
-		vendor_name = "Broadcom Inc.";
-	}
-	else if (props.vendorID == 0x1AE0)
-	{
-		vendor_name = "Google Inc.";
-	}
-	else if (props.vendorID == 0x8086)
-	{
-		vendor_name = "Intel Corporation";
-	}
-	else if (props.vendorID == VK_VENDOR_ID_MESA)
-	{
-		vendor_name = "MESA";
-	}
-	else
-	{
-		Com_sprintf(buf, sizeof(buf), "VendorID: %04x", props.vendorID);
-		vendor_name = buf;
-	}
-
-	Q_strncpyz(glConfig.vendor_string, vendor_name, sizeof(glConfig.vendor_string));
-	Q_strncpyz(glConfig.renderer_string, renderer_name(props), sizeof(glConfig.renderer_string));
 #ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME((intptr_t) static_cast<VkDevice>(vk_inst.device), glConfig.renderer_string, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT);
 #endif
@@ -3513,17 +3086,15 @@ void vk_upload_image_data(image_t& image, int x, int y, int width, int height, i
 
 void vk_destroy_image_resources(vk::Image& image, vk::ImageView& imageView)
 {
-
-	if (image)
-	{
-		vk_inst.device.destroyImage(image);
-		image = nullptr;
-	}
-
 	if (imageView)
 	{
 		vk_inst.device.destroyImageView(imageView);
 		imageView = nullptr;
+	}
+	if (image)
+	{
+		vk_inst.device.destroyImage(image);
+		image = nullptr;
 	}
 }
 

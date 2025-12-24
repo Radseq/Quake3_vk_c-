@@ -341,7 +341,8 @@ static bool create_logical_device(
 	}
 
 	const float priority = 1.0f;
-	vk::DeviceQueueCreateInfo queue_desc{ {}, vk_inst.queue_family_index, 1, &priority };
+	vk::DeviceQueueCreateInfo queue_desc{ {}, vk_inst.queue_family_index, 
+	1, &priority };
 
 	vk::PhysicalDeviceFeatures features{};
 	features.fillModeNonSolid = vk::True;
@@ -497,6 +498,61 @@ int choose_initial_device_index(const std::vector<vk::PhysicalDevice>& gpus, int
 	return 0;
 }
 
+static void fill_vendor_renderer_strings_and_workarounds(Vk_Instance& vk_inst,
+                                                         const vk::PhysicalDeviceProperties& props)
+{
+    char buf[64]{};
+    const char* vendor_name = nullptr;
+
+    // Default: allow offscreen unless a vendor workaround disables it
+    // (keep your existing initialization semantics; if vk_inst.offscreenRender is already set elsewhere,
+    // you may omit this line).
+    // vk_inst.offscreenRender = true;
+
+    if (props.vendorID == 0x1002)
+    {
+        vendor_name = "Advanced Micro Devices, Inc.";
+    }
+    else if (props.vendorID == 0x106B)
+    {
+        vendor_name = "Apple Inc.";
+    }
+    else if (props.vendorID == 0x10DE)
+    {
+        // https://github.com/SaschaWillems/Vulkan/issues/493
+        // we can't render to offscreen presentation surfaces on nvidia
+        vk_inst.offscreenRender = false;
+        vendor_name = "NVIDIA";
+    }
+    else if (props.vendorID == 0x14E4)
+    {
+        vendor_name = "Broadcom Inc.";
+    }
+    else if (props.vendorID == 0x1AE0)
+    {
+        vendor_name = "Google Inc.";
+    }
+    else if (props.vendorID == 0x8086)
+    {
+        vendor_name = "Intel Corporation";
+    }
+#ifdef VK_VENDOR_ID_MESA
+    else if (props.vendorID == VK_VENDOR_ID_MESA)
+    {
+        vendor_name = "MESA";
+    }
+#endif
+    else
+    {
+        Com_sprintf(buf, sizeof(buf), "VendorID: %04x", props.vendorID);
+        vendor_name = buf;
+    }
+
+    Q_strncpyz(glConfig.vendor_string, vendor_name, sizeof(glConfig.vendor_string));
+    Q_strncpyz(glConfig.renderer_string, renderer_name(props), sizeof(glConfig.renderer_string));
+}
+
+
 bool pick_and_create_device(
 	Vk_Instance& vk_inst,
 	vk::Instance   instance,
@@ -539,6 +595,9 @@ bool pick_and_create_device(
 
 		vk_inst.physical_device = gpu;
 		ri.Printf(PRINT_ALL, "...selected physical device: %i (%s)\n", idx, renderer_name(gpu.getProperties()));
+
+		const vk::PhysicalDeviceProperties props = gpu.getProperties();
+		fill_vendor_renderer_strings_and_workarounds(vk_inst, props);
 		return true;
 	}
 

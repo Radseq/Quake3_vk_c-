@@ -2,9 +2,10 @@
 
 #include <vector>
 #include <string_view>
-#include "definitions.hpp"
+#include "tr_local.hpp"
 
 // Centralized "physical device + logical device creation" module.
+struct Vk_Instance; // forward declare instead of including definitions.hpp
 
 struct PickResult
 {
