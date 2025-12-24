@@ -132,6 +132,9 @@
     <ClCompile Include="..\..\renderervk\vk_utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\renderervk\vk_physical_device.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\renderervk\tr_world.hpp">
@@ -249,6 +252,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\renderervk\vk_utils.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\renderervk\vk_physical_device.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
