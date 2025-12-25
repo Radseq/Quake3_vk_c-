@@ -1,22 +1,33 @@
 #include "vk_descriptors.hpp"
 
+static inline bool sampler_def_equal(const Vk_Sampler_Def& a, const Vk_Sampler_Def& b) noexcept {
+	return a.address_mode == b.address_mode &&
+		a.gl_mag_filter == b.gl_mag_filter &&
+		a.gl_min_filter == b.gl_min_filter &&
+		a.max_lod_1_0 == b.max_lod_1_0 &&
+		a.noAnisotropy == b.noAnisotropy;
+}
+
 static vk::Sampler vk_find_sampler(const Vk_Sampler_Def& def)
 {
 	int i;
 
 	// Look for sampler among existing samplers.
 	for (i = 0; i < vk_inst.samplers.count; i++) {
-		const Vk_Sampler_Def* cur_def = &vk_inst.samplers.def[i];
-		if (memcmp(cur_def, &def, sizeof(def)) == 0) {
+
+		if (sampler_def_equal(vk_inst.samplers.def[i], def)) {
 			return vk_inst.samplers.handle[i];
 		}
+
+		//const Vk_Sampler_Def* cur_def = &vk_inst.samplers.def[i];
+		//if (memcmp(cur_def, &def, sizeof(def)) == 0) {
+		//	return vk_inst.samplers.handle[i];
+		//}
 	}
 
 	vk::SamplerAddressMode address_mode;
 	vk::Sampler sampler;
 	vk::Filter mag_filter;
-	vk::Filter min_filter;
-	vk::SamplerMipmapMode mipmap_mode;
 	float maxLod;
 
 	// Create new sampler.
@@ -27,58 +38,30 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def& def)
 
 	address_mode = def.address_mode;
 
-	if (def.gl_mag_filter == std::to_underlying(glCompat::GL_NEAREST))
-	{
-		mag_filter = vk::Filter::eNearest;
-	}
-	else if (def.gl_mag_filter == std::to_underlying(glCompat::GL_LINEAR))
-	{
-		mag_filter = vk::Filter::eLinear;
-	}
-	else
-	{
-		ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_mag_filter");
-		return nullptr;
+	switch (def.gl_mag_filter) {
+		case std::to_underlying(glCompat::GL_NEAREST): mag_filter = vk::Filter::eNearest; break;
+		case std::to_underlying(glCompat::GL_LINEAR):  mag_filter = vk::Filter::eLinear;  break;
+		default: ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_mag_filter"); return nullptr;
 	}
 
 	maxLod = vk_inst.maxLod;
+	vk::SamplerMipmapMode mipmap_mode;
+	vk::Filter min_filter;
 
-	if (def.gl_min_filter == std::to_underlying(glCompat::GL_NEAREST))
-	{
-		min_filter = vk::Filter::eNearest;
-		mipmap_mode = vk::SamplerMipmapMode::eNearest;
-		maxLod = 0.25f; // used to emulate OpenGL's GL_LINEAR/GL_NEAREST minification filter
-	}
-	else if (def.gl_min_filter == std::to_underlying(glCompat::GL_LINEAR))
-	{
-		min_filter = vk::Filter::eLinear;
-		mipmap_mode = vk::SamplerMipmapMode::eNearest;
-		maxLod = 0.25f; // used to emulate OpenGL's GL_LINEAR/GL_NEAREST minification filter
-	}
-	else if (def.gl_min_filter == std::to_underlying(glCompat::GL_NEAREST_MIPMAP_NEAREST))
-	{
-		min_filter = vk::Filter::eNearest;
-		mipmap_mode = vk::SamplerMipmapMode::eNearest;
-	}
-	else if (def.gl_min_filter == std::to_underlying(glCompat::GL_LINEAR_MIPMAP_NEAREST))
-	{
-		min_filter = vk::Filter::eLinear;
-		mipmap_mode = vk::SamplerMipmapMode::eNearest;
-	}
-	else if (def.gl_min_filter == std::to_underlying(glCompat::GL_NEAREST_MIPMAP_LINEAR))
-	{
-		min_filter = vk::Filter::eNearest;
-		mipmap_mode = vk::SamplerMipmapMode::eLinear;
-	}
-	else if (def.gl_min_filter == std::to_underlying(glCompat::GL_LINEAR_MIPMAP_LINEAR))
-	{
-		min_filter = vk::Filter::eLinear;
-		mipmap_mode = vk::SamplerMipmapMode::eLinear;
-	}
-	else
-	{
-		ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_min_filter");
-		return nullptr;
+	switch (def.gl_min_filter) {
+	case std::to_underlying(glCompat::GL_NEAREST):
+		min_filter = vk::Filter::eNearest; mipmap_mode = vk::SamplerMipmapMode::eNearest; maxLod = 0.25f; break;
+	case std::to_underlying(glCompat::GL_LINEAR):
+		min_filter = vk::Filter::eLinear;  mipmap_mode = vk::SamplerMipmapMode::eNearest; maxLod = 0.25f; break;
+	case std::to_underlying(glCompat::GL_NEAREST_MIPMAP_NEAREST):
+		min_filter = vk::Filter::eNearest; mipmap_mode = vk::SamplerMipmapMode::eNearest; break;
+	case std::to_underlying(glCompat::GL_LINEAR_MIPMAP_NEAREST):
+		min_filter = vk::Filter::eLinear;  mipmap_mode = vk::SamplerMipmapMode::eNearest; break;
+	case std::to_underlying(glCompat::GL_NEAREST_MIPMAP_LINEAR):
+		min_filter = vk::Filter::eNearest; mipmap_mode = vk::SamplerMipmapMode::eLinear;  break;
+	case std::to_underlying(glCompat::GL_LINEAR_MIPMAP_LINEAR):
+		min_filter = vk::Filter::eLinear;  mipmap_mode = vk::SamplerMipmapMode::eLinear;  break;
+	default: ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_min_filter"); return nullptr;
 	}
 
 	if (def.max_lod_1_0)
@@ -104,19 +87,18 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def& def)
 							   vk::False,
 							   nullptr };
 
-	if (def.noAnisotropy || mipmap_mode == vk::SamplerMipmapMode::eNearest || mag_filter == vk::Filter::eNearest)
-	{
-		desc.anisotropyEnable = vk::False;
-		desc.maxAnisotropy = 1.0f;
-	}
-	else
-	{
-		desc.anisotropyEnable = (r_ext_texture_filter_anisotropic->integer && vk_inst.samplerAnisotropy) ? vk::True : vk::False;
-		if (desc.anisotropyEnable)
-		{
-			desc.maxAnisotropy = MIN(r_ext_max_anisotropy->integer, vk_inst.maxAnisotropy);
-		}
-	}
+	const bool allowAniso =
+		!def.noAnisotropy &&
+		mipmap_mode != vk::SamplerMipmapMode::eNearest &&
+		mag_filter != vk::Filter::eNearest &&
+		r_ext_texture_filter_anisotropic->integer &&
+		vk_inst.samplerAnisotropy;
+
+	desc.anisotropyEnable = allowAniso ? vk::True : vk::False;
+	desc.maxAnisotropy = allowAniso
+		? float(MIN(r_ext_max_anisotropy->integer, vk_inst.maxAnisotropy))
+		: 1.0f;
+
 
 	VK_CHECK_ASSIGN(sampler, vk_inst.device.createSampler(desc));
 #ifdef USE_VK_VALIDATION
@@ -149,6 +131,11 @@ void vk_update_descriptor_offset(const int index, const uint32_t offset)
 	vk_inst.cmd->descriptor_set.offset[index] = offset;
 }
 
+static inline bool is_texture_set(uint32_t set)
+{
+	return set >= VK_DESC_TEXTURE0 && set <= VK_DESC_TEXTURE2; // adjust as needed
+}
+
 void vk_bind_descriptor_sets(void)
 {
 	uint32_t start = vk_inst.cmd->descriptor_set.start;
@@ -171,7 +158,21 @@ void vk_bind_descriptor_sets(void)
 	// fill NULL descriptor gaps
 	for (i = start + 1; i < end; i++) {
 		if (vk_inst.cmd->descriptor_set.current[i] == vk::DescriptorSet()) {
-			vk_inst.cmd->descriptor_set.current[i] = tr.whiteImage->descriptor;
+
+			if (is_texture_set(i))
+			{
+				vk_inst.cmd->descriptor_set.current[i] = tr.whiteImage->descriptor;
+			}
+			else
+			{
+				// Do NOT substitute whiteImage for non-texture sets.
+				// In debug you should assert/crash here to catch bad state early.
+#ifdef USE_VK_VALIDATION
+				ri.Error(ERR_FATAL, "Descriptor set %u is NULL (non-texture).", i);
+#endif
+			}
+
+			//vk_inst.cmd->descriptor_set.current[i] = tr.whiteImage->descriptor;
 		}
 	}
 

@@ -1072,8 +1072,17 @@ void vk_init_descriptors(void)
 		if (r_bloom->integer)
 		{
 			// Allocate all bloom descriptors in a single call
-			alloc.descriptorSetCount = vk_inst.bloom_image_descriptor.size();
-			VK_CHECK(vk_inst.device.allocateDescriptorSets(&alloc, vk_inst.bloom_image_descriptor.data()));
+			const uint32_t count = static_cast<uint32_t>(vk_inst.bloom_image_descriptor.size());
+
+			std::vector<vk::DescriptorSetLayout> layouts(count, vk_inst.set_layout_sampler);
+
+			vk::DescriptorSetAllocateInfo bloomAlloc{};
+			bloomAlloc.descriptorPool = vk_inst.descriptor_pool;
+			bloomAlloc.descriptorSetCount = count;
+			bloomAlloc.pSetLayouts = layouts.data();
+
+			VK_CHECK(vk_inst.device.allocateDescriptorSets(&bloomAlloc,
+				vk_inst.bloom_image_descriptor.data()));
 		}
 
 		alloc.descriptorSetCount = 1;
