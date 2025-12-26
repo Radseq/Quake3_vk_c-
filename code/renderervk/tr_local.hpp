@@ -145,6 +145,7 @@ enum class glCompat : uint8_t
 	GL_BACK_RIGHT
 };
 
+
 #define GL_INDEX_TYPE uint32_t
 #define GLint int
 #define GLuint unsigned int
@@ -1291,7 +1292,7 @@ enum class renderCommand_t : int8_t
 ** but may read fields that aren't dynamically modified
 ** by the frontend.
 */
-typedef struct
+struct trGlobals_t
 {
 	bool registered; // cleared at shutdown, set at beginRegistration
 	bool inited;	 // cleared at shutdown, set at InitOpenGL
@@ -1384,12 +1385,14 @@ typedef struct
 	int numSkins;
 	skin_t *skins[MAX_SKINS];
 
-	float sinTable[FUNCTABLE_SIZE];
-	float squareTable[FUNCTABLE_SIZE];
-	float triangleTable[FUNCTABLE_SIZE];
-	float sawToothTable[FUNCTABLE_SIZE];
-	float inverseSawToothTable[FUNCTABLE_SIZE];
 	float fogTable[FOG_TABLE_SIZE];
+
+	alignas(64) std::array<float, FUNCTABLE_SIZE> sinTable{};
+	alignas(64) std::array<float, FUNCTABLE_SIZE> squareTable{};
+	alignas(64) std::array<float, FUNCTABLE_SIZE> triangleTable{};
+	alignas(64) std::array<float, FUNCTABLE_SIZE> sawToothTable{};
+	alignas(64) std::array<float, FUNCTABLE_SIZE> inverseSawToothTable{};
+	//alignas(64) std::array<float, FOG_TABLE_SIZE>  fogTable{};
 
 	bool mapLoading;
 
@@ -1402,7 +1405,7 @@ typedef struct
 #endif
 
 	bool vertexLightingAllowed;
-} trGlobals_t;
+};
 
 extern backEndState_t backEnd;
 extern trGlobals_t tr;

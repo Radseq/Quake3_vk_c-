@@ -31,26 +31,25 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // -EC-: avoid using ri.ftol
 #define WAVEVALUE(table, base, amplitude, phase, freq) ((base) + table[(int64_t)((((phase) + tess.shaderTime * (freq)) * FUNCTABLE_SIZE)) & FUNCTABLE_MASK] * (amplitude))
 
-static constexpr float *TableForFunc(genFunc_t func)
+static inline const float* TableForFunc(genFunc_t func) noexcept
 {
-	switch (func)
-	{
-	case genFunc_t::GF_SIN:
-		return tr.sinTable;
-	case genFunc_t::GF_TRIANGLE:
-		return tr.triangleTable;
-	case genFunc_t::GF_SQUARE:
-		return tr.squareTable;
-	case genFunc_t::GF_SAWTOOTH:
-		return tr.sawToothTable;
-	case genFunc_t::GF_INVERSE_SAWTOOTH:
-		return tr.inverseSawToothTable;
-	case genFunc_t::GF_NONE:
-	default:
-		return nullptr;
-	}
+	// Must match enum order exactly.
+	// GF_NOISE is mapped to nullptr (unless you add a noise table).
+	static const std::array<const float*, 7> kPtrLUT = {
+		/* GF_NONE             */ nullptr,
+		/* GF_SIN              */ tr.sinTable.data(),
+		/* GF_SQUARE           */ tr.squareTable.data(),
+		/* GF_TRIANGLE         */ tr.triangleTable.data(),
+		/* GF_SAWTOOTH         */ tr.sawToothTable.data(),
+		/* GF_INVERSE_SAWTOOTH */ tr.inverseSawToothTable.data(),
+		/* GF_NOISE            */ nullptr
+	};
 
-	return nullptr;
+	const auto idx = static_cast<std::uint8_t>(func);
+	if (idx >= kPtrLUT.size()) [[unlikely]]
+		return nullptr;
+
+	return kPtrLUT[idx];
 }
 
 /*
@@ -60,7 +59,7 @@ static constexpr float *TableForFunc(genFunc_t func)
 */
 static float EvalWaveForm(const waveForm_t &wf)
 {
-	float *table;
+	const float *table;
 
 	table = TableForFunc(wf.func);
 	if (table == nullptr)
@@ -128,7 +127,7 @@ static void RB_CalcDeformVertexes(deformStage_t &ds)
 	float scale;
 	float *xyz = (float *)tess.xyz;
 	float *normal = (float *)tess.normal;
-	float *table;
+	const float *table;
 
 	if (ds.deformationWave.frequency == 0)
 	{
@@ -244,7 +243,7 @@ static void RB_CalcMoveVertexes(deformStage_t &ds)
 {
 	int i;
 	float *xyz;
-	float *table;
+	const float *table;
 	float scale;
 	vec3_t offset{};
 

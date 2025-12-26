@@ -1403,7 +1403,65 @@ static void R_Register(void)
 										  " 4 - linear filtering, preserve aspect ratio (black bars on sides)\n");
 }
 
-constexpr float EPSILON = 1e-6f;
+
+template <std::size_t N>
+consteval std::array<float, N> MakeSquareTable()
+{
+	std::array<float, N> t{};
+	for (std::size_t i = 0; i < N; ++i)
+		t[i] = (i < (N / 2)) ? 1.0f : -1.0f;
+	return t;
+}
+
+template <std::size_t N>
+consteval std::array<float, N> MakeSawTable()
+{
+	std::array<float, N> t{};
+	for (std::size_t i = 0; i < N; ++i)
+		t[i] = (i == 0) ? EPSILON : (static_cast<float>(i) / static_cast<float>(N));
+	return t;
+}
+
+template <std::size_t N>
+consteval std::array<float, N> MakeInvSawTable()
+{
+	auto saw = MakeSawTable<N>();
+	for (std::size_t i = 0; i < N; ++i)
+		saw[i] = 1.0f - saw[i];
+	return saw;
+}
+
+template <std::size_t N>
+consteval std::array<float, N> MakeTriangleTable()
+{
+	std::array<float, N> t{};
+	// This matches your original shape, including EPSILON at i==0.
+	for (std::size_t i = 0; i < N; ++i)
+	{
+		if (i < N / 2)
+		{
+			if (i < N / 4)
+			{
+				t[i] = (i == 0) ? EPSILON : (static_cast<float>(i) / static_cast<float>(N / 4));
+			}
+			else
+			{
+				t[i] = 1.0f - t[i - (N / 4)];
+			}
+		}
+		else
+		{
+			t[i] = -t[i - (N / 2)];
+		}
+	}
+	return t;
+}
+
+static constexpr auto kSquare = MakeSquareTable<FUNCTABLE_SIZE>();
+static constexpr auto kSaw = MakeSawTable<FUNCTABLE_SIZE>();
+static constexpr auto kInvSaw = MakeInvSawTable<FUNCTABLE_SIZE>();
+static constexpr auto kTriangle = MakeTriangleTable<FUNCTABLE_SIZE>();
+
 
 /*
 ===============
@@ -1432,45 +1490,17 @@ void R_Init(void)
 	}
 	Com_Memset(tess.constantColor255, 255, sizeof(tess.constantColor255));
 
+	tr.squareTable = kSquare;
+	tr.sawToothTable = kSaw;
+	tr.inverseSawToothTable = kInvSaw;
+	tr.triangleTable = kTriangle;
+
 	//
 	// init function tables
 	//
 	for (i = 0; i < FUNCTABLE_SIZE; i++)
 	{
 		tr.sinTable[i] = sin( deg2rad( i * 360.0f / FUNCTABLE_SIZE ) + 0.0001f );
-		
-		tr.squareTable[i] = (i < FUNCTABLE_SIZE / 2) ? 1.0f : -1.0f;
-		if (i == 0)
-		{
-			tr.sawToothTable[i] = EPSILON;
-		}
-		else
-		{
-			tr.sawToothTable[i] = (float)i / FUNCTABLE_SIZE;
-		}
-		tr.inverseSawToothTable[i] = 1.0f - tr.sawToothTable[i];
-		if (i < FUNCTABLE_SIZE / 2)
-		{
-			if (i < FUNCTABLE_SIZE / 4)
-			{
-				if (i == 0)
-				{
-					tr.triangleTable[i] = EPSILON;
-				}
-				else
-				{
-					tr.triangleTable[i] = static_cast<float>(i / (FUNCTABLE_SIZE / 4));
-				}
-			}
-			else
-			{
-				tr.triangleTable[i] = 1.0f - tr.triangleTable[i - FUNCTABLE_SIZE / 4];
-			}
-		}
-		else
-		{
-			tr.triangleTable[i] = -tr.triangleTable[i - FUNCTABLE_SIZE / 2];
-		}
 	}
 
 	R_InitFogTable();

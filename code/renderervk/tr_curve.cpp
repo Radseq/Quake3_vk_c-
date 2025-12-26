@@ -43,22 +43,28 @@ srfGridMesh_t *R_SubdividePatchToGrid( int width, int height,
 LerpDrawVert
 ============
 */
-static void LerpDrawVert(const drawVert_t &a, const drawVert_t &b, drawVert_t &out)
+static void LerpDrawVert(const drawVert_t& a, const drawVert_t& b, drawVert_t& out) noexcept
 {
-	out.xyz[0] = 0.5f * (a.xyz[0] + b.xyz[0]);
-	out.xyz[1] = 0.5f * (a.xyz[1] + b.xyz[1]);
-	out.xyz[2] = 0.5f * (a.xyz[2] + b.xyz[2]);
+	constexpr float kHalf = 0.5f;
 
-	out.st[0] = 0.5f * (a.st[0] + b.st[0]);
-	out.st[1] = 0.5f * (a.st[1] + b.st[1]);
+	out.xyz[0] = (a.xyz[0] + b.xyz[0]) * kHalf;
+	out.xyz[1] = (a.xyz[1] + b.xyz[1]) * kHalf;
+	out.xyz[2] = (a.xyz[2] + b.xyz[2]) * kHalf;
 
-	out.lightmap[0] = 0.5f * (a.lightmap[0] + b.lightmap[0]);
-	out.lightmap[1] = 0.5f * (a.lightmap[1] + b.lightmap[1]);
+	out.st[0] = (a.st[0] + b.st[0]) * kHalf;
+	out.st[1] = (a.st[1] + b.st[1]) * kHalf;
 
-	out.color.rgba[0] = (a.color.rgba[0] + b.color.rgba[0]) >> 1;
-	out.color.rgba[1] = (a.color.rgba[1] + b.color.rgba[1]) >> 1;
-	out.color.rgba[2] = (a.color.rgba[2] + b.color.rgba[2]) >> 1;
-	out.color.rgba[3] = (a.color.rgba[3] + b.color.rgba[3]) >> 1;
+	out.lightmap[0] = (a.lightmap[0] + b.lightmap[0]) * kHalf;
+	out.lightmap[1] = (a.lightmap[1] + b.lightmap[1]) * kHalf;
+
+	std::uint32_t ca, cb;
+	std::memcpy(&ca, a.color.rgba, 4);
+	std::memcpy(&cb, b.color.rgba, 4);
+
+	constexpr std::uint32_t mask = 0xFEFEFEFEu;
+	const std::uint32_t avg = (ca & cb) + (((ca ^ cb) & mask) >> 1);
+
+	std::memcpy(out.color.rgba, &avg, 4);
 }
 
 /*
@@ -66,50 +72,55 @@ static void LerpDrawVert(const drawVert_t &a, const drawVert_t &b, drawVert_t &o
 Transpose
 ============
 */
-static void Transpose(const int width, const int height, drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE])
+static void Transpose(const int width, const int height,
+	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE]) noexcept
 {
-	int i, j;
-	drawVert_t temp;
+	// Square: in-place transpose
+	if (width == height)
+	{
+		for (int i = 0; i < width; ++i)
+		{
+			for (int j = i + 1; j < width; ++j)
+			{
+				const drawVert_t tmp = ctrl[i][j];
+				ctrl[i][j] = ctrl[j][i];
+				ctrl[j][i] = tmp;
+			}
+		}
+		return;
+	}
 
+	const int m = (width < height) ? width : height;
+
+	// Swap overlap square region
+	for (int i = 0; i < m; ++i)
+	{
+		for (int j = i + 1; j < m; ++j)
+		{
+			const drawVert_t tmp = ctrl[i][j];
+			ctrl[i][j] = ctrl[j][i];
+			ctrl[j][i] = tmp;
+		}
+	}
+
+	// Copy the "tail"
 	if (width > height)
 	{
-		for (i = 0; i < height; i++)
+		for (int i = 0; i < height; ++i)
 		{
-			for (j = i + 1; j < width; j++)
+			for (int j = height; j < width; ++j)
 			{
-				if (j < height)
-				{
-					// swap the value
-					temp = ctrl[j][i];
-					ctrl[j][i] = ctrl[i][j];
-					ctrl[i][j] = temp;
-				}
-				else
-				{
-					// just copy
-					ctrl[j][i] = ctrl[i][j];
-				}
+				ctrl[j][i] = ctrl[i][j];
 			}
 		}
 	}
-	else
+	else // height > width
 	{
-		for (i = 0; i < width; i++)
+		for (int i = 0; i < width; ++i)
 		{
-			for (j = i + 1; j < height; j++)
+			for (int j = width; j < height; ++j)
 			{
-				if (j < width)
-				{
-					// swap the value
-					temp = ctrl[i][j];
-					ctrl[i][j] = ctrl[j][i];
-					ctrl[j][i] = temp;
-				}
-				else
-				{
-					// just copy
-					ctrl[i][j] = ctrl[j][i];
-				}
+				ctrl[i][j] = ctrl[j][i];
 			}
 		}
 	}
@@ -396,21 +407,18 @@ R_SubdividePatchToGrid
 =================
 */
 srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
-									  drawVert_t points[MAX_PATCH_SIZE * MAX_PATCH_SIZE])
+	std::span<const drawVert_t> points)
 {
 	int i, j, k, l;
-	drawVert_t prev;
-	drawVert_t next;
-	drawVert_t mid;
+	drawVert_t prev{};
+	drawVert_t next{};
+	drawVert_t mid{};
 	float len, maxLen;
 	int n;
 	int t;
 	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE]{};
+	//std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE> ctrl{};
 	float errorTable[2][MAX_GRID_SIZE]{};
-
-	memset(&prev, 0, sizeof(prev));
-	memset(&next, 0, sizeof(next));
-	memset(&mid, 0, sizeof(mid));
 
 	for (i = 0; i < width; i++)
 	{

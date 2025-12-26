@@ -28,6 +28,8 @@ constexpr int MAX_VERTS_ON_POLY = 64;
 
 constexpr int MARKER_OFFSET = 0; // 1
 
+constexpr float defEpsilon = 0.5f;
+
 /*
 =============
 R_ChopPolyBehindPlane
@@ -37,7 +39,7 @@ Out must have space for two more vertexes than in
 */
 static void R_ChopPolyBehindPlane(int numInPoints, vec3_t inPoints[MAX_VERTS_ON_POLY],
 								  int *numOutPoints, vec3_t outPoints[MAX_VERTS_ON_POLY],
-								  const vec3_t &normal, const vec_t &dist, const vec_t &epsilon)
+								  const vec3_t &normal, const vec_t &dist, const float epsilon = defEpsilon)
 {
 	// don't clip if it might overflow
 	if (numInPoints >= MAX_VERTS_ON_POLY - 2)
@@ -235,7 +237,7 @@ static void R_AddMarkFragments(int numClipPoints, vec3_t clipPoints[2][MAX_VERTS
 
 		R_ChopPolyBehindPlane(numClipPoints, clipPoints[pingPong],
 							  &numClipPoints, clipPoints[!pingPong],
-							  normals[i], dists[i], 0.5);
+							  normals[i], dists[i]);
 		pingPong ^= 1;
 		if (numClipPoints == 0)
 		{
