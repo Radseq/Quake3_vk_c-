@@ -43,8 +43,10 @@ Used by both the front end (for DlightBmodel) and
 the back end (before doing the lighting calculation)
 ===============
 */
-void R_TransformDlights(const int count, dlight_t *dl, orientationr_t &ort)
+void R_TransformDlights(const int count, dlight_t *dl, const orientationr_t &ort)
 {
+    if (count == 0) return;
+
     int i;
     vec3_t temp{}, temp2{};
 
@@ -273,34 +275,49 @@ int R_LightForPoint(vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec
     return true;
 }
 
-static void LogLight(const trRefEntity_t &ent)
+//static void LogLight(const trRefEntity_t &ent)
+//{
+//    int max1, max2;
+//
+//    if (!(ent.e.renderfx & RF_FIRST_PERSON))
+//    {
+//        return;
+//    }
+//
+//    max1 = ent.ambientLight[0];
+//    if (ent.ambientLight[1] > max1)
+//    {
+//        max1 = ent.ambientLight[1];
+//    }
+//    else if (ent.ambientLight[2] > max1)
+//    {
+//        max1 = ent.ambientLight[2];
+//    }
+//
+//    max2 = ent.directedLight[0];
+//    if (ent.directedLight[1] > max2)
+//    {
+//        max2 = ent.directedLight[1];
+//    }
+//    else if (ent.directedLight[2] > max2)
+//    {
+//        max2 = ent.directedLight[2];
+//    }
+//
+//    ri.Printf(PRINT_ALL, "amb:%i  dir:%i\n", max1, max2);
+//}
+
+static void LogLight(const trRefEntity_t& ent)
 {
-    int max1, max2;
+    if (!(ent.e.renderfx & RF_FIRST_PERSON)) return;
 
-    if (!(ent.e.renderfx & RF_FIRST_PERSON))
-    {
-        return;
-    }
+    int max1 = static_cast<int>(ent.ambientLight[0]);
+    if (ent.ambientLight[1] > max1) max1 = static_cast<int>(ent.ambientLight[1]);
+    if (ent.ambientLight[2] > max1) max1 = static_cast<int>(ent.ambientLight[2]);
 
-    max1 = ent.ambientLight[0];
-    if (ent.ambientLight[1] > max1)
-    {
-        max1 = ent.ambientLight[1];
-    }
-    else if (ent.ambientLight[2] > max1)
-    {
-        max1 = ent.ambientLight[2];
-    }
-
-    max2 = ent.directedLight[0];
-    if (ent.directedLight[1] > max2)
-    {
-        max2 = ent.directedLight[1];
-    }
-    else if (ent.directedLight[2] > max2)
-    {
-        max2 = ent.directedLight[2];
-    }
+    int max2 = static_cast<int>(ent.directedLight[0]);
+    if (ent.directedLight[1] > max2) max2 = static_cast<int>(ent.directedLight[1]);
+    if (ent.directedLight[2] > max2) max2 = static_cast<int>(ent.directedLight[2]);
 
     ri.Printf(PRINT_ALL, "amb:%i  dir:%i\n", max1, max2);
 }
@@ -430,14 +447,29 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
 
     if (r_debugLight->integer)
     {
-        LogLight(ent);
+        [[unlikely]] LogLight(ent);
     }
 
     // save out the byte packet version
-    ((byte *)&ent.ambientLightInt)[0] = myftol(ent.ambientLight[0]); // -EC-: don't use ri.ftol to avoid precision losses
-    ((byte *)&ent.ambientLightInt)[1] = myftol(ent.ambientLight[1]);
-    ((byte *)&ent.ambientLightInt)[2] = myftol(ent.ambientLight[2]);
-    ((byte *)&ent.ambientLightInt)[3] = 0xff;
+    //((byte *)&ent.ambientLightInt)[0] = myftol(ent.ambientLight[0]); // -EC-: don't use ri.ftol to avoid precision losses
+    //((byte *)&ent.ambientLightInt)[1] = myftol(ent.ambientLight[1]);
+    //((byte *)&ent.ambientLightInt)[2] = myftol(ent.ambientLight[2]);
+    //((byte *)&ent.ambientLightInt)[3] = 0xff;
+
+    static_assert(sizeof(ent.ambientLightInt) == 4);
+    static_assert(CHAR_BIT == 8);
+
+    const std::array<std::uint8_t, 4> amb = {
+         static_cast<std::uint8_t>(myftol(ent.ambientLight[0])),
+        static_cast<std::uint8_t>(myftol(ent.ambientLight[1])),
+        static_cast<std::uint8_t>(myftol(ent.ambientLight[2])),
+        0xFFu
+    };
+
+    std::memcpy(&ent.ambientLightInt, amb.data(), amb.size());
+
+
+    //-10790053
 
     // transform the direction to local space
     VectorNormalize(lightDir);

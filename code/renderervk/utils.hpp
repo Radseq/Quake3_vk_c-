@@ -4,6 +4,28 @@
 #include <cstddef> // For std::size_t
 #include <cassert>
 #include <type_traits>
+#include <chrono>
+#include <cstdint>
+#include <utility>
+
+template <typename Func>
+[[nodiscard]] double benchmark_ns(Func&& func, std::size_t iterations = 1)
+{
+	using clock = std::chrono::steady_clock;
+
+	// Warm-up (important for branch prediction, caches, JIT-like effects)
+	func();
+
+	auto start = clock::now();
+	for (std::size_t i = 0; i < iterations; ++i)
+		func();
+	auto end = clock::now();
+
+	const auto total_ns =
+		std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+
+	return static_cast<double>(total_ns) / static_cast<double>(iterations);
+}
 
 template <typename T, std::size_t N>
 constexpr std::size_t arrayLen(const T(&)[N]) noexcept

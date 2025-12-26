@@ -1285,40 +1285,41 @@ void RB_CalcSpecularAlpha(unsigned char *alphas)
 **
 ** The basic vertex lighting calc
 */
-static void RB_CalcDiffuseColor_scalar(unsigned char *colors)
+static void RB_CalcDiffuseColor_scalar(unsigned char* colors)
 {
-	int i, j;
-	float *v, *normal;
-	float incoming;
-	const trRefEntity_t *ent = backEnd.currentEntity;
-	int ambientLightInt = ent->ambientLightInt;
-	int numVertexes = tess.numVertexes;
+	const trRefEntity_t* ent = backEnd.currentEntity;
+	const std::uint32_t  ambientLightInt = ent->ambientLightInt;
+
+	const int numVertexes = tess.numVertexes;
 
 	vec3_t ambientLight{}, lightDir{}, directedLight{};
-
 	VectorCopy(ent->ambientLight, ambientLight);
 	VectorCopy(ent->directedLight, directedLight);
 	VectorCopy(ent->lightDir, lightDir);
 
-	v = tess.xyz[0];
-	normal = tess.normal[0];
+	float* v = tess.xyz[0];
+	float* normal = tess.normal[0];
 
-	for (i = 0; i < numVertexes; i++, v += 4, normal += 4)
+	for (int i = 0; i < numVertexes; ++i, v += 4, normal += 4)
 	{
-		incoming = DotProduct(normal, lightDir);
-		if (incoming <= 0)
+		const float incoming = DotProduct(normal, lightDir);
+
+		unsigned char* out = colors + (i * 4);
+
+		if (incoming <= 0.0f)
 		{
-			*(int *)&colors[i * 4] = ambientLightInt;
+			// Defined in C++ (no strict-aliasing / alignment issues)
+			std::memcpy(out, &ambientLightInt, 4);
 			continue;
 		}
 
-		for (j = 0; j < 3; j++)
+		for (int j = 0; j < 3; ++j)
 		{
-			int diffuse = myftol(ambientLight[j] + incoming * directedLight[j]);
-			colors[i * 4 + j] = (diffuse > 255) ? 255 : diffuse;
+			const int diffuse = myftol(ambientLight[j] + incoming * directedLight[j]);
+			out[j] = (diffuse > 255) ? 255 : static_cast<unsigned char>(diffuse);
 		}
 
-		colors[i * 4 + 3] = 255;
+		out[3] = 255;
 	}
 }
 

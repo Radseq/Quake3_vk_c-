@@ -225,7 +225,7 @@ typedef struct
 	bool lightingCalculated;
 	vec3_t lightDir;	 // normalized direction towards light
 	vec3_t ambientLight; // color normalized to 0-255
-	int ambientLightInt; // 32 bit rgba packed
+	std::uint32_t ambientLightInt; // 32 bit rgba packed
 	vec3_t directedLight;
 #ifdef USE_PMLIGHT
 	vec3_t shadowLightDir; // normalized direction towards light
