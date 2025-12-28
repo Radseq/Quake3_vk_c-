@@ -1381,7 +1381,7 @@ DRAWSURF SORTING
 R_Radix
 ===============
 */
-static ID_INLINE void R_Radix(const int byte, const int size, const drawSurf_t *source, drawSurf_t *dest)
+static inline void R_Radix(const int byte, const int size, const drawSurf_t *source, drawSurf_t *dest)
 {
 	int count[256] = {};
 	int index[256] = {};
