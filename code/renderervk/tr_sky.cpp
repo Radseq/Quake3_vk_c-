@@ -525,7 +525,6 @@ static void DrawSkyBox(const shader_t &shader)
 		if (minS >= maxS || minT >= maxT)
 			continue;
 
-		ri.Printf(PRINT_ALL, "a = false\n");
 		// Convert to integer subdivision bounds
 		int mins[2] = {
 			std::clamp(static_cast<int>(minS * HALF_SKY_SUBDIVISIONS), -HALF_SKY_SUBDIVISIONS, HALF_SKY_SUBDIVISIONS),

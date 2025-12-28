@@ -31,26 +31,25 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // -EC-: avoid using ri.ftol
 #define WAVEVALUE(table, base, amplitude, phase, freq) ((base) + table[(int64_t)((((phase) + tess.shaderTime * (freq)) * FUNCTABLE_SIZE)) & FUNCTABLE_MASK] * (amplitude))
 
-static constexpr float *TableForFunc(genFunc_t func)
+static inline const float* TableForFunc(genFunc_t func) noexcept
 {
-	switch (func)
-	{
-	case genFunc_t::GF_SIN:
-		return tr.sinTable;
-	case genFunc_t::GF_TRIANGLE:
-		return tr.triangleTable;
-	case genFunc_t::GF_SQUARE:
-		return tr.squareTable;
-	case genFunc_t::GF_SAWTOOTH:
-		return tr.sawToothTable;
-	case genFunc_t::GF_INVERSE_SAWTOOTH:
-		return tr.inverseSawToothTable;
-	case genFunc_t::GF_NONE:
-	default:
-		return nullptr;
-	}
+	// Must match enum order exactly.
+	// GF_NOISE is mapped to nullptr (unless you add a noise table).
+	static const std::array<const float*, 7> kPtrLUT = {
+		/* GF_NONE             */ nullptr,
+		/* GF_SIN              */ tr.sinTable.data(),
+		/* GF_SQUARE           */ tr.squareTable.data(),
+		/* GF_TRIANGLE         */ tr.triangleTable.data(),
+		/* GF_SAWTOOTH         */ tr.sawToothTable.data(),
+		/* GF_INVERSE_SAWTOOTH */ tr.inverseSawToothTable.data(),
+		/* GF_NOISE            */ nullptr
+	};
 
-	return nullptr;
+	const auto idx = static_cast<std::uint8_t>(func);
+	if (idx >= kPtrLUT.size()) [[unlikely]]
+		return nullptr;
+
+	return kPtrLUT[idx];
 }
 
 /*
@@ -60,7 +59,7 @@ static constexpr float *TableForFunc(genFunc_t func)
 */
 static float EvalWaveForm(const waveForm_t &wf)
 {
-	float *table;
+	const float *table;
 
 	table = TableForFunc(wf.func);
 	if (table == nullptr)
@@ -128,7 +127,7 @@ static void RB_CalcDeformVertexes(deformStage_t &ds)
 	float scale;
 	float *xyz = (float *)tess.xyz;
 	float *normal = (float *)tess.normal;
-	float *table;
+	const float *table;
 
 	if (ds.deformationWave.frequency == 0)
 	{
@@ -244,7 +243,7 @@ static void RB_CalcMoveVertexes(deformStage_t &ds)
 {
 	int i;
 	float *xyz;
-	float *table;
+	const float *table;
 	float scale;
 	vec3_t offset{};
 
@@ -1285,40 +1284,41 @@ void RB_CalcSpecularAlpha(unsigned char *alphas)
 **
 ** The basic vertex lighting calc
 */
-static void RB_CalcDiffuseColor_scalar(unsigned char *colors)
+static void RB_CalcDiffuseColor_scalar(unsigned char* colors)
 {
-	int i, j;
-	float *v, *normal;
-	float incoming;
-	const trRefEntity_t *ent = backEnd.currentEntity;
-	int ambientLightInt = ent->ambientLightInt;
-	int numVertexes = tess.numVertexes;
+	const trRefEntity_t* ent = backEnd.currentEntity;
+	const std::uint32_t  ambientLightInt = ent->ambientLightInt;
+
+	const int numVertexes = tess.numVertexes;
 
 	vec3_t ambientLight{}, lightDir{}, directedLight{};
-
 	VectorCopy(ent->ambientLight, ambientLight);
 	VectorCopy(ent->directedLight, directedLight);
 	VectorCopy(ent->lightDir, lightDir);
 
-	v = tess.xyz[0];
-	normal = tess.normal[0];
+	float* v = tess.xyz[0];
+	float* normal = tess.normal[0];
 
-	for (i = 0; i < numVertexes; i++, v += 4, normal += 4)
+	for (int i = 0; i < numVertexes; ++i, v += 4, normal += 4)
 	{
-		incoming = DotProduct(normal, lightDir);
-		if (incoming <= 0)
+		const float incoming = DotProduct(normal, lightDir);
+
+		unsigned char* out = colors + (i * 4);
+
+		if (incoming <= 0.0f)
 		{
-			*(int *)&colors[i * 4] = ambientLightInt;
+			// Defined in C++ (no strict-aliasing / alignment issues)
+			std::memcpy(out, &ambientLightInt, 4);
 			continue;
 		}
 
-		for (j = 0; j < 3; j++)
+		for (int j = 0; j < 3; ++j)
 		{
-			int diffuse = myftol(ambientLight[j] + incoming * directedLight[j]);
-			colors[i * 4 + j] = (diffuse > 255) ? 255 : diffuse;
+			const int diffuse = myftol(ambientLight[j] + incoming * directedLight[j]);
+			out[j] = (diffuse > 255) ? 255 : static_cast<unsigned char>(diffuse);
 		}
 
-		colors[i * 4 + 3] = 255;
+		out[3] = 255;
 	}
 }
 

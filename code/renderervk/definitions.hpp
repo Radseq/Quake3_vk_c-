@@ -43,6 +43,8 @@ constexpr int MAX_VK_PIPELINES = ((1024 + 128) * 2);
 
 typedef unsigned char byte;
 
+constexpr float EPSILON = 1e-6f;
+
 enum class Vk_Depth_Range : uint8_t
 {
     DEPTH_RANGE_NORMAL, // [0..1]

@@ -173,18 +173,23 @@ inline constexpr bool strrchr_sv(std::string_view sv, char character)
     return false;
 }
 
-constexpr std::size_t CHAR_TABLE_SIZE = 256; // std::numeric_limits<unsigned char>::max() + 1;
+constexpr std::size_t CHAR_TABLE_SIZE = 256;
+
 constexpr auto generate_tolower_table()
 {
     std::array<unsigned char, CHAR_TABLE_SIZE> table{};
-    for (size_t i = 0; i < CHAR_TABLE_SIZE; ++i)
+
+    for (std::size_t i = 0; i < CHAR_TABLE_SIZE; ++i)
     {
-        table[i] = (i >= 'A' && i <= 'Z') ? (i + ('a' - 'A')) : i;
+        const unsigned char c = static_cast<unsigned char>(i);
+        table[i] = (c >= static_cast<unsigned char>('A') && c <= static_cast<unsigned char>('Z'))
+            ? static_cast<unsigned char>(c + (static_cast<unsigned char>('a') - static_cast<unsigned char>('A')))
+            : c;
     }
     return table;
 }
 
-constexpr std::array<unsigned char, CHAR_TABLE_SIZE> tolower_table = generate_tolower_table();
+constexpr auto tolower_table = generate_tolower_table();
 
 // portable case insensitive compare
 constexpr int Q_stricmp_cpp(std::string_view s1, std::string_view s2) noexcept

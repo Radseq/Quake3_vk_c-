@@ -38,27 +38,32 @@ srfGridMesh_t *R_SubdividePatchToGrid( int width, int height,
 
 */
 
+static_assert(std::is_trivially_copyable_v<drawVert_t>, "drawVert_t must be trivially copyable for memcpy.");
+
 /*
 ============
 LerpDrawVert
 ============
 */
-static void LerpDrawVert(const drawVert_t &a, const drawVert_t &b, drawVert_t &out)
+static void LerpDrawVert(const drawVert_t& a, const drawVert_t& b, drawVert_t& out) noexcept
 {
-	out.xyz[0] = 0.5f * (a.xyz[0] + b.xyz[0]);
-	out.xyz[1] = 0.5f * (a.xyz[1] + b.xyz[1]);
-	out.xyz[2] = 0.5f * (a.xyz[2] + b.xyz[2]);
+	constexpr float kHalf = 0.5f;
 
-	out.st[0] = 0.5f * (a.st[0] + b.st[0]);
-	out.st[1] = 0.5f * (a.st[1] + b.st[1]);
+	out.xyz[0] = (a.xyz[0] + b.xyz[0]) * kHalf;
+	out.xyz[1] = (a.xyz[1] + b.xyz[1]) * kHalf;
+	out.xyz[2] = (a.xyz[2] + b.xyz[2]) * kHalf;
 
-	out.lightmap[0] = 0.5f * (a.lightmap[0] + b.lightmap[0]);
-	out.lightmap[1] = 0.5f * (a.lightmap[1] + b.lightmap[1]);
+	out.st[0] = (a.st[0] + b.st[0]) * kHalf;
+	out.st[1] = (a.st[1] + b.st[1]) * kHalf;
 
-	out.color.rgba[0] = (a.color.rgba[0] + b.color.rgba[0]) >> 1;
-	out.color.rgba[1] = (a.color.rgba[1] + b.color.rgba[1]) >> 1;
-	out.color.rgba[2] = (a.color.rgba[2] + b.color.rgba[2]) >> 1;
-	out.color.rgba[3] = (a.color.rgba[3] + b.color.rgba[3]) >> 1;
+	out.lightmap[0] = (a.lightmap[0] + b.lightmap[0]) * kHalf;
+	out.lightmap[1] = (a.lightmap[1] + b.lightmap[1]) * kHalf;
+
+	const std::uint32_t ca = a.color.u32;
+	const std::uint32_t cb = b.color.u32;
+
+	constexpr std::uint32_t mask = 0xFEFEFEFEu;
+	out.color.u32 = (ca & cb) + (((ca ^ cb) & mask) >> 1);
 }
 
 /*
@@ -66,54 +71,70 @@ static void LerpDrawVert(const drawVert_t &a, const drawVert_t &b, drawVert_t &o
 Transpose
 ============
 */
-static void Transpose(const int width, const int height, drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE])
+static void Transpose(const int width, const int height,
+	std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE>& ctrl) noexcept
 {
-	int i, j;
-	drawVert_t temp;
+	// Square: in-place transpose
+	if (width == height)
+	{
+		for (int i = 0; i < width; ++i)
+		{
+			for (int j = i + 1; j < width; ++j)
+			{
+				const drawVert_t tmp = ctrl[i][j];
+				ctrl[i][j] = ctrl[j][i];
+				ctrl[j][i] = tmp;
+			}
+		}
+		return;
+	}
 
+	const int m = (width < height) ? width : height;
+
+	// Swap overlap square region
+	for (int i = 0; i < m; ++i)
+	{
+		for (int j = i + 1; j < m; ++j)
+		{
+			const drawVert_t tmp = ctrl[i][j];
+			ctrl[i][j] = ctrl[j][i];
+			ctrl[j][i] = tmp;
+		}
+	}
+
+	// Copy the "tail"
 	if (width > height)
 	{
-		for (i = 0; i < height; i++)
+		for (int i = 0; i < height; ++i)
 		{
-			for (j = i + 1; j < width; j++)
+			for (int j = height; j < width; ++j)
 			{
-				if (j < height)
-				{
-					// swap the value
-					temp = ctrl[j][i];
-					ctrl[j][i] = ctrl[i][j];
-					ctrl[i][j] = temp;
-				}
-				else
-				{
-					// just copy
-					ctrl[j][i] = ctrl[i][j];
-				}
+				ctrl[j][i] = ctrl[i][j];
 			}
 		}
 	}
-	else
+	else // height > width
 	{
-		for (i = 0; i < width; i++)
+		for (int i = 0; i < width; ++i)
 		{
-			for (j = i + 1; j < height; j++)
+			for (int j = width; j < height; ++j)
 			{
-				if (j < width)
-				{
-					// swap the value
-					temp = ctrl[i][j];
-					ctrl[i][j] = ctrl[j][i];
-					ctrl[j][i] = temp;
-				}
-				else
-				{
-					// just copy
-					ctrl[i][j] = ctrl[j][i];
-				}
+				ctrl[i][j] = ctrl[j][i];
 			}
 		}
 	}
 }
+
+static inline void WrapLikeOriginal(int& x, const int limit) noexcept {
+	if (x < 0) {
+		x = (limit - 1) + x;
+	}
+	else if (x >= limit) {
+		x = 1 + x - limit;
+	}
+}
+
+extern const std::uint8_t* g_needMaskPtr;
 
 /*
 =================
@@ -122,125 +143,103 @@ MakeMeshNormals
 Handles all the complicated wrapping and degenerate cases
 =================
 */
-static void MakeMeshNormals(const int width, const int height, drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE])
+
+static void MakeMeshNormals(
+	const int width, const int height,
+	std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE>& ctrl)
 {
 	int i, j, k, dist;
 	vec3_t normal;
 	vec3_t base{};
 	vec3_t delta{};
 	int x, y;
-	vec3_t around[8]{}, temp{};
-	bool good[8]{};
+	vec3_t around[8];   // not cleared each time
+	vec3_t temp{};
 	bool wrapWidth, wrapHeight;
 	float len;
+
 	static constexpr int neighbors[8][2] = {
-		{0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1}, {-1, -1}, {-1, 0}, {-1, 1}};
+		{0, 1}, {1, 1}, {1, 0}, {1, -1},
+		{0, -1}, {-1, -1}, {-1, 0}, {-1, 1}
+	};
+
+	// needMask encodes the *required neighbor bits* for each of the 8 cross-sum terms.
+	// Each entry defines which two neighbor directions must be present before we evaluate
+	// the corresponding contribution. This lets us replace an 8-way “if (good[i] && good[j])”
+	// cascade with a compact bit-test:
+	//
+	//   missing = (~validMask);
+	//   if (needMask[k] & missing) skip;   // at least one required neighbor is absent
+	//
+	// The pointer indirection (g_needMaskPtr) is intentional: it makes needMask look like
+	// externally-provided data to the optimizer, which prevents constant-propagation and
+	// “decision tree” expansion of the mask checks. In practice this keeps the generated
+	// assembly small and branch-light (better I-cache / front-end), especially inside the
+	// hot inner loop.
+	//
+	// NOTE: g_needMaskPtr is defined in a different translation unit (extern) to further
+	// discourage the compiler from “seeing through” the constant and reintroducing a large
+	// unrolled/cascaded control-flow structure.
+	static const std::uint8_t needMask[8] = { 0x03,0x06,0x0C,0x18,0x30,0x60,0xC0,0x81 };
+
+	const std::uint8_t* g_needMaskPtr = needMask;
 
 	wrapWidth = false;
-	for (i = 0; i < height; i++)
-	{
+	for (i = 0; i < height; i++) {
 		VectorSubtract(ctrl[i][0].xyz, ctrl[i][width - 1].xyz, delta);
 		len = VectorLengthSquared(delta);
-		if (len > 1.0)
-		{
-			break;
-		}
+		if (len > 1.0f) break;
 	}
-	if (i == height)
-	{
-		wrapWidth = true;
-	}
+	if (i == height) wrapWidth = true;
 
 	wrapHeight = false;
-	for (i = 0; i < width; i++)
-	{
+	for (i = 0; i < width; i++) {
 		VectorSubtract(ctrl[0][i].xyz, ctrl[height - 1][i].xyz, delta);
 		len = VectorLengthSquared(delta);
-		if (len > 1.0)
-		{
-			break;
-		}
+		if (len > 1.0f) break;
 	}
-	if (i == width)
-	{
-		wrapHeight = true;
-	}
+	if (i == width) wrapHeight = true;
 
-	for (i = 0; i < width; i++)
-	{
-		for (j = 0; j < height; j++)
-		{
-			drawVert_t &dv = ctrl[j][i];
+	for (i = 0; i < width; i++) {
+		for (j = 0; j < height; j++) {
+			drawVert_t& dv = ctrl[j][i];
 			VectorCopy(dv.xyz, base);
-			for (k = 0; k < 8; k++)
-			{
-				VectorClear(around[k]);
-				good[k] = false;
 
-				for (dist = 1; dist <= 3; dist++)
-				{
+			std::uint8_t goodMask = 0;
+
+			for (k = 0; k < 8; k++) {
+				for (dist = 1; dist <= 3; dist++) {
 					x = i + neighbors[k][0] * dist;
 					y = j + neighbors[k][1] * dist;
-					if (wrapWidth)
-					{
-						if (x < 0)
-						{
-							x = width - 1 + x;
-						}
-						else if (x >= width)
-						{
-							x = 1 + x - width;
-						}
-					}
-					if (wrapHeight)
-					{
-						if (y < 0)
-						{
-							y = height - 1 + y;
-						}
-						else if (y >= height)
-						{
-							y = 1 + y - height;
-						}
-					}
 
-					if (x < 0 || x >= width || y < 0 || y >= height)
-					{
-						break; // edge of patch
-					}
+					if (wrapWidth)  WrapLikeOriginal(x, width);
+					if (wrapHeight) WrapLikeOriginal(y, height);
+
+					if (x < 0 || x >= width || y < 0 || y >= height) break;
+
 					VectorSubtract(ctrl[y][x].xyz, base, temp);
-					if (VectorNormalize(temp) < 0.001f)
-					{
-						continue; // degenerate edge, get more dist
-					}
-					else
-					{
-						good[k] = true;
-						VectorCopy(temp, around[k]);
-						break; // good edge
-					}
+					if (VectorNormalize(temp) < 0.001f) continue;
+
+					goodMask |= static_cast<std::uint8_t>(1u << k);
+					VectorCopy(temp, around[k]);
+					break;
 				}
 			}
 
 			vec3_t sum{};
-			for (k = 0; k < 8; k++)
-			{
-				if (!good[k] || !good[(k + 1) & 7])
-				{
-					continue; // didn't get two points
-				}
-				CrossProduct(around[(k + 1) & 7], around[k], normal);
-				if (VectorNormalize(normal) < 0.001f)
-				{
-					continue;
-				}
+			for (k = 0; k < 8; k++) {
+				const std::uint8_t need = g_needMaskPtr[k];
+				if ((goodMask & need) != need) continue;
+
+				const int k2 = (k + 1) & 7;
+				CrossProduct(around[k2], around[k], normal);
+
+				if (VectorNormalize(normal) < 0.001f) continue;
 				VectorAdd(normal, sum, sum);
 			}
 
 			VectorNormalize2(sum, dv.normal);
-			for ( k = 0; k < 3; k++ ) {
-				dv.normal[k] = R_ClampDenorm( dv.normal[k] );
-			}
+			for (k = 0; k < 3; k++) dv.normal[k] = R_ClampDenorm(dv.normal[k]);
 		}
 	}
 }
@@ -250,7 +249,7 @@ static void MakeMeshNormals(const int width, const int height, drawVert_t ctrl[M
 InvertCtrl
 ============
 */
-static void InvertCtrl(const int width, const int height, drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE])
+static void InvertCtrl(const int width, const int height, std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE>& ctrl)
 {
 	int i, j;
 	drawVert_t temp;
@@ -294,8 +293,8 @@ static void InvertErrorTable(float errorTable[2][MAX_GRID_SIZE], const int width
 PutPointsOnCurve
 ==================
 */
-static void PutPointsOnCurve(drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE],
-							 const int width, const int height)
+static void PutPointsOnCurve(std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE>& ctrl,
+	const int width, const int height)
 {
 	int i, j;
 	drawVert_t prev, next;
@@ -326,25 +325,25 @@ static void PutPointsOnCurve(drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE],
 R_CreateSurfaceGridMesh
 =================
 */
-static srfGridMesh_t *R_CreateSurfaceGridMesh(const int width, const int height,
-											  drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE], float errorTable[2][MAX_GRID_SIZE])
+static srfGridMesh_t* R_CreateSurfaceGridMesh(const int width, const int height,
+	std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE>& ctrl, float errorTable[2][MAX_GRID_SIZE])
 {
 	int i, j, size;
-	drawVert_t *vert;
+	drawVert_t* vert;
 	vec3_t tmpVec{};
-	srfGridMesh_t *grid;
+	srfGridMesh_t* grid;
 
 	// copy the results out to a grid
 	size = (width * height - 1) * sizeof(drawVert_t) + sizeof(*grid);
 
 #ifdef PATCH_STITCHING
-	grid = static_cast<srfGridMesh_t *>(ri.Malloc(size)) /*ri.Hunk_Alloc*/;
+	grid = static_cast<srfGridMesh_t*>(ri.Malloc(size)) /*ri.Hunk_Alloc*/;
 	Com_Memset(grid, 0, size);
 
-	grid->widthLodError = static_cast<float *>(/*ri.Hunk_Alloc*/ ri.Malloc(width * 4));
+	grid->widthLodError = static_cast<float*>(/*ri.Hunk_Alloc*/ ri.Malloc(width * 4));
 	Com_Memcpy(grid->widthLodError, errorTable[0], width * 4);
 
-	grid->heightLodError = /*ri.Hunk_Alloc*/ static_cast<float *>(ri.Malloc(height * 4));
+	grid->heightLodError = /*ri.Hunk_Alloc*/ static_cast<float*>(ri.Malloc(height * 4));
 	Com_Memcpy(grid->heightLodError, errorTable[1], height * 4);
 #else
 	grid = ri.Hunk_Alloc(size);
@@ -383,7 +382,7 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh(const int width, const int height,
 	return grid;
 }
 
-void R_FreeSurfaceGridMesh(srfGridMesh_t &grid)
+void R_FreeSurfaceGridMesh(srfGridMesh_t& grid)
 {
 	ri.Free(grid.widthLodError);
 	ri.Free(grid.heightLodError);
@@ -395,22 +394,19 @@ void R_FreeSurfaceGridMesh(srfGridMesh_t &grid)
 R_SubdividePatchToGrid
 =================
 */
-srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
-									  drawVert_t points[MAX_PATCH_SIZE * MAX_PATCH_SIZE])
+srfGridMesh_t* R_SubdividePatchToGrid(int width, int height,
+	std::span<const drawVert_t> points)
 {
 	int i, j, k, l;
-	drawVert_t prev;
-	drawVert_t next;
-	drawVert_t mid;
+	drawVert_t prev{};
+	drawVert_t next{};
+	drawVert_t mid{};
 	float len, maxLen;
 	int n;
 	int t;
-	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE]{};
+	//drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE]{};
+	std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE> ctrl{};
 	float errorTable[2][MAX_GRID_SIZE]{};
-
-	memset(&prev, 0, sizeof(prev));
-	memset(&next, 0, sizeof(next));
-	memset(&mid, 0, sizeof(mid));
 
 	for (i = 0; i < width; i++)
 	{
@@ -494,21 +490,31 @@ srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
 			errorTable[n][j + 2] = 1.0f / maxLen;
 
 			// insert two columns and replace the peak
-			width += 2;
-			for (i = 0; i < height; i++)
+			const int oldWidth = width;     // width before growth
+			width = oldWidth + 2;           // new width
+
+			for (i = 0; i < height; ++i)
 			{
 				LerpDrawVert(ctrl[i][j], ctrl[i][j + 1], prev);
 				LerpDrawVert(ctrl[i][j + 1], ctrl[i][j + 2], next);
 				LerpDrawVert(prev, next, mid);
 
-				for (k = width - 1; k > j + 3; k--)
+				// Shift [j+2 .. oldWidth-1] -> [j+4 .. width-1] (shift right by 2)
+				// This preserves old ctrl[i][j+2] by moving it to ctrl[i][j+4], etc.
+				const int src = j + 2;
+				const int dst = j + 4;
+				const int count = oldWidth - src; // number of elements to move
+				if (count > 0)
 				{
-					ctrl[i][k] = ctrl[i][k - 2];
+					drawVert_t* row = ctrl[i].data();
+					std::memmove(&row[dst], &row[src], static_cast<std::size_t>(count) * sizeof(drawVert_t));
 				}
+
 				ctrl[i][j + 1] = prev;
 				ctrl[i][j + 2] = mid;
 				ctrl[i][j + 3] = next;
 			}
+
 
 			// back up and recheck this set again, it may need more subdivision
 			j -= 2;
@@ -524,38 +530,42 @@ srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
 	PutPointsOnCurve(ctrl, width, height);
 
 	// cull out any rows or columns that are colinear
-	for (i = 1; i < width - 1; i++)
 	{
-		if (errorTable[0][i] != 999)
+		int dst = 0;
+		for (int src = 0; src < width; ++src)
 		{
-			continue;
-		}
-		for (j = i + 1; j < width; j++)
-		{
-			for (k = 0; k < height; k++)
+			const bool remove = (src > 0 && src < width - 1 && errorTable[0][src] == 999.0f);
+			if (remove) continue;
+
+			if (dst != src)
 			{
-				ctrl[k][j - 1] = ctrl[k][j];
+				for (int r = 0; r < height; ++r)
+				{
+					ctrl[r][dst] = ctrl[r][src];
+				}
+				errorTable[0][dst] = errorTable[0][src];
 			}
-			errorTable[0][j - 1] = errorTable[0][j];
+			++dst;
 		}
-		width--;
+		width = dst;
 	}
 
-	for (i = 1; i < height - 1; i++)
 	{
-		if (errorTable[1][i] != 999)
+		int dst = 0;
+		for (int src = 0; src < height; ++src)
 		{
-			continue;
-		}
-		for (j = i + 1; j < height; j++)
-		{
-			for (k = 0; k < width; k++)
+			const bool remove = (src > 0 && src < height - 1 && errorTable[1][src] == 999.0f);
+			if (remove) continue;
+
+			if (dst != src)
 			{
-				ctrl[j - 1][k] = ctrl[j][k];
+				//ctrl[dst] = ctrl[src];                // copies the whole row (MAX_GRID_SIZE drawVert_t)
+				std::memcpy(ctrl[dst].data(), ctrl[src].data(), static_cast<std::size_t>(width) * sizeof(drawVert_t));
+				errorTable[1][dst] = errorTable[1][src];
 			}
-			errorTable[1][j - 1] = errorTable[1][j];
+			++dst;
 		}
-		height--;
+		height = dst;
 	}
 
 #if 1
@@ -584,11 +594,12 @@ srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
 R_GridInsertColumn
 ===============
 */
-srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, const int column, const int row, const vec3_t &point, const float loderror)
+srfGridMesh_t* R_GridInsertColumn(srfGridMesh_t& grid, const int column, const int row, const vec3_t& point, const float loderror)
 {
 	int i, j;
 	int width, height, oldwidth;
-	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE]{};
+	std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE> ctrl{};
+
 	float errorTable[2][MAX_GRID_SIZE]{};
 	float lodRadius;
 	vec3_t lodOrigin{};
@@ -644,11 +655,11 @@ srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, const int column, const i
 R_GridInsertRow
 ===============
 */
-srfGridMesh_t *R_GridInsertRow(srfGridMesh_t &grid, const int row, const int column, const vec3_t &point, const float loderror)
+srfGridMesh_t* R_GridInsertRow(srfGridMesh_t& grid, const int row, const int column, const vec3_t& point, const float loderror)
 {
 	int i, j;
 	int width, height, oldheight;
-	drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE]{};
+	std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE> ctrl{};
 	float errorTable[2][MAX_GRID_SIZE]{};
 	float lodRadius;
 	vec3_t lodOrigin{};

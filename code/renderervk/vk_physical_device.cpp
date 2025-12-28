@@ -1,285 +1,607 @@
 #include "vk_physical_device.hpp"
-#include <algorithm>
+
 #include <cstring>
+#include <algorithm>
+#include <numeric>
+#include <array>
+#include <vector>
 
-// --- local utilities ---------------------------------------------------------
-static const char* device_type_name(vk::PhysicalDeviceType t) {
-    switch (t) {
-        case vk::PhysicalDeviceType::eDiscreteGpu:   return "Discrete";
-        case vk::PhysicalDeviceType::eIntegratedGpu: return "Integrated";
-        case vk::PhysicalDeviceType::eVirtualGpu:    return "Virtual";
-        case vk::PhysicalDeviceType::eCpu:           return "CPU";
-        default:                                     return "Other";
-    }
-}
+#include "tr_local.hpp"     // Vk_Instance, glConfig, cvars, ri, etc.
+#include "vk_utils.hpp"     // find_memory_type, VK_CHECK_ASSIGN, etc.
+#include "string_operations.hpp"
 
-void BuildRendererName(const vk::PhysicalDeviceProperties& props,
-                       std::string_view typeName,
-                       char (&dst)[256]) noexcept {
-    // props.deviceName is char[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE]
-    char local[256]{};
-    std::memcpy(local, props.deviceName.data(), std::min<size_t>(props.deviceName.size(), 255));
-    std::snprintf(dst, sizeof(dst), "%.*s %s, 0x%04x",
-                  int(typeName.size()), typeName.data(),
-                  local, props.deviceID);
-}
+constexpr int defaultVulkanApiVersion = VK_API_VERSION_1_0;
+static int vulkanApiVersion = defaultVulkanApiVersion;
 
-// Prefer B8G8R8A8 for WSI if available (Windows/Linux common), fallback to R8G8B8A8.
-static bool select_surface_format_impl(const vk::PhysicalDevice& phys,
-                                       vk::SurfaceKHR surface,
-                                       uint32_t desiredBits,
-                                       vk::SurfaceFormatKHR& outBase,
-                                       vk::SurfaceFormatKHR& outPresent)
+
+// -------------------------
+// Local helpers (private)
+// -------------------------
+
+static vk::Format get_hdr_format(const vk::Format base_format)
 {
-    auto formats = phys.getSurfaceFormatsKHR(surface);
-    if (formats.empty()) return false;
+	if (r_fbo->integer == 0)
+		return base_format;
 
-    const auto prefer = [&](vk::Format f)->int {
-        // Rank formats: exact match first, then UNORM of similar bitness.
-        int score = 0;
-        if (f == vk::Format::eB8G8R8A8Unorm) score += 100;
-        if (f == vk::Format::eR8G8B8A8Unorm) score += 90;
-        // Favor exact bit match when desiredBits (24/30/36 etc.) is set
-        // Note: for simplicity treat 24/32 as near. You can expand this mapping.
-        if (desiredBits >= 30) {
-            if (f == vk::Format::eA2R10G10B10UnormPack32 ||
-                f == vk::Format::eA2B10G10R10UnormPack32) score += 15;
-        }
-        return score;
-    };
-
-    // Choose “base” (engine friendly) and “present” (exact surface) formats.
-    // If SRGB variants are required, you can extend this; this keeps parity with your current code.
-    std::sort(formats.begin(), formats.end(), [&](const auto& a, const auto& b){
-        return prefer(a.format) > prefer(b.format);
-    });
-
-    outBase    = formats.front();   // engine-preferred
-    outPresent = outBase;           // default same; can diverge later if needed
-
-    // If FBO path is disabled, force present==base (matches your current logic).
-    if (!r_fbo->integer) outPresent = outBase;
-    return true;
+	switch (r_hdr->integer)
+	{
+	case -1: return vk::Format::eB4G4R4A4UnormPack16;
+	case  1: return vk::Format::eR16G16B16A16Unorm;
+	default: return base_format;
+	}
 }
 
-vk::Format ChooseDepthFormat(const vk::PhysicalDevice& phys)
+typedef struct
 {
-    // Preserve your policy: prefer D24S8 when stencilBits>0 otherwise D32 or D16.
-    const bool wantStencil = (glConfig.stencilBits > 0);
-    const std::array<vk::Format, 2> candidatesStencil{
-        vk::Format::eD24UnormS8Uint,
-        vk::Format::eD32SfloatS8Uint
-    };
-    const std::array<vk::Format, 3> candidatesNoStencil{
-        vk::Format::eD32Sfloat,
-        vk::Format::eX8D24UnormPack32,
-        vk::Format::eD16Unorm
-    };
+	int       bits;
+	vk::Format rgb;
+	vk::Format bgr;
+} present_format_t;
 
-    auto supports = [&](vk::Format f)->bool{
-        const auto props = phys.getFormatProperties(f);
-        const auto req = vk::FormatFeatureFlagBits::eDepthStencilAttachment;
-        return bool(props.optimalTilingFeatures & req);
-    };
+static constexpr present_format_t present_formats[] = {
+	{16, vk::Format::eB5G6R5UnormPack16,  vk::Format::eR5G6B5UnormPack16},
+	{24, vk::Format::eB8G8R8A8Unorm,      vk::Format::eR8G8B8A8Unorm},
+	{30, vk::Format::eA2B10G10R10UnormPack32, vk::Format::eA2R10G10B10UnormPack32},
+};
 
-    if (wantStencil) {
-        for (auto f : candidatesStencil) if (supports(f)) return f;
-    } else {
-        for (auto f : candidatesNoStencil) if (supports(f)) return f;
-    }
-    throw std::runtime_error("Vulkan: failed to find a suitable depth format");
+static void get_present_format(const int present_bits, vk::Format& bgr, vk::Format& rgb)
+{
+	const present_format_t* sel = nullptr;
+	for (const auto& pf : present_formats)
+		if (pf.bits <= present_bits) sel = &pf;
+
+	if (!sel)
+	{
+		bgr = vk::Format::eB8G8R8A8Unorm;
+		rgb = vk::Format::eR8G8B8A8Unorm;
+	}
+	else
+	{
+		bgr = sel->bgr;
+		rgb = sel->rgb;
+	}
 }
 
-bool CanBlitFormats(const vk::PhysicalDevice& phys, vk::Format src, vk::Format dst)
+static vk::Format get_depth_format(const vk::PhysicalDevice& physical_device)
 {
-    const auto s = phys.getFormatProperties(src);
-    if (!(s.optimalTilingFeatures & vk::FormatFeatureFlagBits::eBlitSrc)) return false;
-    const auto d = phys.getFormatProperties(dst);
-    if (!(d.optimalTilingFeatures & vk::FormatFeatureFlagBits::eBlitDst)) return false;
-    return true;
+	vk::FormatProperties props{};
+	std::array<vk::Format, 2> formats{};
+
+	if (glConfig.stencilBits > 0)
+	{
+		formats[0] = glConfig.depthBits == 16 ? vk::Format::eD16UnormS8Uint : vk::Format::eD24UnormS8Uint;
+		formats[1] = vk::Format::eD32SfloatS8Uint;
+		glConfig.stencilBits = 8;
+	}
+	else
+	{
+		formats[0] = glConfig.depthBits == 16 ? vk::Format::eD16Unorm : vk::Format::eX8D24UnormPack32;
+		formats[1] = vk::Format::eD32Sfloat;
+		glConfig.stencilBits = 0;
+	}
+
+	for (const auto& format : formats)
+	{
+		props = physical_device.getFormatProperties(format);
+		if ((props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) != vk::FormatFeatureFlags{})
+			return format;
+	}
+
+	ri.Error(ERR_FATAL, "get_depth_format: failed to find depth attachment format");
+	return vk::Format::eUndefined;
 }
 
-bool ChooseSurfaceFormat(const vk::PhysicalDevice& phys,
-                         vk::SurfaceKHR surface,
-                         uint32_t desiredColorBits,
-                         vk::SurfaceFormatKHR& outBase,
-                         vk::SurfaceFormatKHR& outPresent)
+static bool vk_blit_enabled(const vk::PhysicalDevice& physical_device, vk::Format srcFormat, vk::Format dstFormat)
 {
-    return select_surface_format_impl(phys, surface, desiredColorBits, outBase, outPresent);
+	vk::FormatProperties srcProps = physical_device.getFormatProperties(srcFormat);
+	if ((srcProps.optimalTilingFeatures & vk::FormatFeatureFlagBits::eBlitSrc) == vk::FormatFeatureFlags{})
+		return false;
+
+	vk::FormatProperties dstProps = physical_device.getFormatProperties(dstFormat);
+	if ((dstProps.linearTilingFeatures & vk::FormatFeatureFlagBits::eBlitDst) == vk::FormatFeatureFlags{})
+		return false;
+
+	return true;
 }
 
-// Find queue family indices (graphics + present).
-static bool pick_queue_families(const vk::PhysicalDevice& phys,
-                                vk::SurfaceKHR surface,
-                                uint32_t& outGraphicsQF,
-                                uint32_t& outPresentQF)
+static bool select_surface_format(
+	Vk_Instance& vk_inst,
+	const vk::PhysicalDevice& physical_device,
+	const vk::SurfaceKHR& surface)
 {
-    const auto families = phys.getQueueFamilyProperties();
-    uint32_t bestGraphics = VK_QUEUE_FAMILY_IGNORED;
-    uint32_t bestPresent  = VK_QUEUE_FAMILY_IGNORED;
+	vk::Format base_bgr{}, base_rgb{};
+	vk::Format ext_bgr{}, ext_rgb{};
 
-    for (uint32_t i = 0; i < families.size(); ++i) {
-        const bool graphics = (families[i].queueFlags & vk::QueueFlagBits::eGraphics) &&
-                              families[i].queueCount > 0;
-        const bool present  = phys.getSurfaceSupportKHR(i, surface);
+	std::vector<vk::SurfaceFormatKHR> candidates;
+	VK_CHECK_ASSIGN(candidates, physical_device.getSurfaceFormatsKHR(surface));
 
-        if (graphics && bestGraphics == VK_QUEUE_FAMILY_IGNORED) bestGraphics = i;
-        if (present  && bestPresent  == VK_QUEUE_FAMILY_IGNORED) bestPresent  = i;
-        if (bestGraphics != VK_QUEUE_FAMILY_IGNORED &&
-            bestPresent  != VK_QUEUE_FAMILY_IGNORED) break;
-    }
+	if (candidates.empty())
+	{
+		ri.Printf(PRINT_ERROR, "...no surface formats found\n");
+		return false;
+	}
 
-    if (bestGraphics == VK_QUEUE_FAMILY_IGNORED ||
-        bestPresent  == VK_QUEUE_FAMILY_IGNORED) return false;
+	get_present_format(24, base_bgr, base_rgb);
 
-    outGraphicsQF = bestGraphics;
-    outPresentQF  = bestPresent;
-    return true;
+	if (r_fbo->integer)
+		get_present_format(r_presentBits->integer, ext_bgr, ext_rgb);
+	else
+	{
+		ext_bgr = base_bgr;
+		ext_rgb = base_rgb;
+	}
+
+	if (candidates.size() == 1 && candidates[0].format == vk::Format::eUndefined)
+	{
+		vk_inst.base_format.format = base_bgr;
+		vk_inst.base_format.colorSpace = vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear;
+		vk_inst.present_format.format = ext_bgr;
+		vk_inst.present_format.colorSpace = vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear;
+	}
+	else
+	{
+		// base format
+		{
+			bool found = false;
+			for (const auto& c : candidates)
+			{
+				if ((c.format == base_bgr || c.format == base_rgb) &&
+					c.colorSpace == vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear)
+				{
+					vk_inst.base_format = c;
+					found = true;
+					break;
+				}
+			}
+			if (!found) vk_inst.base_format = candidates[0];
+		}
+
+		// present format (HDR / presentBits)
+		{
+			bool found = false;
+			for (const auto& c : candidates)
+			{
+				if ((c.format == ext_bgr || c.format == ext_rgb) &&
+					c.colorSpace == vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear)
+				{
+					vk_inst.present_format = c;
+					found = true;
+					break;
+				}
+			}
+			if (!found) vk_inst.present_format = vk_inst.base_format;
+		}
+	}
+
+	if (!r_fbo->integer)
+		vk_inst.present_format = vk_inst.base_format;
+
+	return true;
 }
 
-// Rank devices similar to your current r_device policy.
-static int rank_device(const vk::PhysicalDevice& d, int requestedIndex, uint32_t actualIndex)
+static void setup_surface_formats(Vk_Instance& vk_inst, const vk::PhysicalDevice& physical_device)
 {
-    if (requestedIndex >= 0) {
-        // explicit index: return high score only if matches
-        return (int(actualIndex) == requestedIndex) ? 1'000'000 : -1;
-    }
+	vk_inst.depth_format = get_depth_format(physical_device);
+	vk_inst.color_format = get_hdr_format(vk_inst.base_format.format);
+	vk_inst.capture_format = vk::Format::eR8G8B8A8Unorm;
+	vk_inst.bloom_format = vk_inst.base_format.format;
 
-    const auto props = d.getProperties();
-    switch (requestedIndex) {
-        case -1: // prefer discrete
-            return props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu ? 2 : 1;
-        case -2: // prefer integrated
-            return props.deviceType == vk::PhysicalDeviceType::eIntegratedGpu ? 2 : 1;
-        default:
-            return 1;
-    }
+	vk_inst.blitEnabled = vk_blit_enabled(physical_device, vk_inst.color_format, vk_inst.capture_format);
+	if (!vk_inst.blitEnabled)
+		vk_inst.capture_format = vk_inst.color_format;
 }
 
-bool PickPhysicalDevice(vk::Instance instance,
-                        vk::SurfaceKHR surface,
-                        const DevicePickArgs& args,
-                        DeviceCaps& out)
+static bool find_graphics_present_queue(
+	Vk_Instance& vk_inst,
+	const vk::PhysicalDevice& physical_device,
+	const vk::SurfaceKHR& surface)
 {
-    const auto devices = instance.enumeratePhysicalDevices();
-    if (devices.empty()) return false;
+	const auto queue_families = physical_device.getQueueFamilyProperties();
 
-    int bestScore = -1;
-    vk::PhysicalDevice best{};
-    uint32_t bestG = 0, bestP = 0;
+	vk_inst.queue_family_index = ~0u;
 
-    for (uint32_t i = 0; i < devices.size(); ++i) {
-        uint32_t g = 0, p = 0;
-        if (!pick_queue_families(devices[i], surface, g, p)) continue;
+	for (uint32_t i = 0; i < queue_families.size(); ++i)
+	{
+		vk::Bool32 presentation_supported{};
+		VK_CHECK_ASSIGN(presentation_supported, physical_device.getSurfaceSupportKHR(i, surface));
 
-        const int score = rank_device(devices[i], args.requestedIndex, i);
-        if (score > bestScore) {
-            bestScore = score; best = devices[i]; bestG = g; bestP = p;
-        }
-    }
-    if (!best) return false;
+		const bool graphics = (queue_families[i].queueFlags & vk::QueueFlagBits::eGraphics) != vk::QueueFlags{};
+		if (presentation_supported && graphics)
+		{
+			vk_inst.queue_family_index = i;
+			return true;
+		}
+	}
 
-    out.phys = best;
-    out.graphicsQF = bestG;
-    out.presentQF  = bestP;
-    out.props      = best.getProperties();
-    out.features   = best.getFeatures();
-    out.mem        = best.getMemoryProperties();
-
-    // Formats
-    if (!ChooseSurfaceFormat(best, surface, uint32_t(r_presentBits->integer),
-                             out.baseFormat, out.presentFormat))
-        return false;
-
-    out.depthFormat = ChooseDepthFormat(best);
-
-    // MSAA support caps
-    const auto limits = out.props.limits;
-    out.supportedSamples = limits.framebufferColorSampleCounts & limits.framebufferDepthSampleCounts;
-
-    // Your logic: clamp to user’s desired (from CVARs) or just highest supported when enabled.
-    const uint32_t wantSamples = r_ext_multisample->integer ? std::max(1, r_ext_multisample->integer) : 1;
-    out.msaaSamples = vk_clamp_samples(out.supportedSamples, wantSamples);
-
-    // Blit
-    out.blitEnabled = CanBlitFormats(best, out.baseFormat.format, out.baseFormat.format);
-
-    // Feature flags mirrored from your code
-    out.samplerAnisotropy = out.features.samplerAnisotropy;
-    out.wideLines         = out.features.wideLines;
-    out.fragmentStores    = out.features.fragmentStoresAndAtomics;
-
-    // Vendor quirks / dedicated allocation / debug markers toggles you maintain elsewhere
-    out.dedicatedAllocation = true; // you gate via KHR_get_memory_requirements2 + dedicated_allocation
-    out.debugMarkers        = vk_debug_markers_supported;
-
-    BuildRendererName(out.props, device_type_name(out.props.deviceType), out.renderer);
-    return true;
+	ri.Printf(PRINT_ERROR, "...failed to find graphics queue family\n");
+	return false;
 }
 
-vk::Device CreateLogicalDevice(const DeviceCaps& caps,
-                               std::span<const char* const> extraExtensions,
-                               std::span<const void* const>  pNextFeatureChain,
-                               vk::Queue* outGraphicsQueue,
-                               vk::Queue* outPresentQueue)
+static bool create_logical_device(
+	Vk_Instance& vk_inst,
+	const vk::PhysicalDevice& physical_device)
 {
-    // Required device extensions for WSI
-    std::vector<const char*> exts{
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
-    };
-    exts.insert(exts.end(), extraExtensions.begin(), extraExtensions.end());
+	// Enumerate device extensions and build list.
+	std::vector<const char*> device_extension_list;
+	bool swapchainSupported = false;
+
+	bool dedicatedAllocation = false;
+	bool memoryRequirements2 = false;
 
 #ifdef USE_VK_VALIDATION
-    // If you enable debug marker/tag extensions only when available
-    if (caps.debugMarkers) {
-        exts.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
-    }
+	bool debugMarker = false;
+	bool timelineSemaphore = false;
+	bool memoryModel = false;
+	bool devAddrFeat = false;
+	bool storage8bit = false;
+
+	vk::PhysicalDeviceTimelineSemaphoreFeatures     timeline_semaphore{};
+	vk::PhysicalDeviceVulkanMemoryModelFeatures     memory_model{};
+	vk::PhysicalDeviceBufferDeviceAddressFeatures   devaddr_features{};
+	vk::PhysicalDevice8BitStorageFeatures           storage_8bit_features{};
 #endif
 
-    // Queue setup (dedicated or shared)
-    const bool sameQ = (caps.graphicsQF == caps.presentQF);
-    const float prio = 1.0f;
+	std::vector<vk::ExtensionProperties> exts;
+	VK_CHECK_ASSIGN(exts, physical_device.enumerateDeviceExtensionProperties());
 
-    std::vector<vk::DeviceQueueCreateInfo> qcis;
-    qcis.reserve(sameQ ? 1 : 2);
-    qcis.emplace_back(vk::DeviceQueueCreateInfo{}
-        .setQueueFamilyIndex(caps.graphicsQF)
-        .setQueueCount(1)
-        .setPQueuePriorities(&prio));
-    if (!sameQ) {
-        qcis.emplace_back(vk::DeviceQueueCreateInfo{}
-            .setQueueFamilyIndex(caps.presentQF)
-            .setQueueCount(1)
-            .setPQueuePriorities(&prio));
-    }
+	// Fill glConfig.extensions_string like your original does.
+	char* str = glConfig.extensions_string;
+	*str = '\0';
+	const char* end = &glConfig.extensions_string[sizeof(glConfig.extensions_string) - 1];
 
-    // Base features: we reuse probed features but you can mask to safe subset here.
-    vk::PhysicalDeviceFeatures enabledFeatures = {};
-    enabledFeatures.samplerAnisotropy = caps.samplerAnisotropy ? VK_TRUE : VK_FALSE;
-    enabledFeatures.wideLines         = caps.wideLines ? VK_TRUE : VK_FALSE;
-    enabledFeatures.fragmentStoresAndAtomics = caps.fragmentStores ? VK_TRUE : VK_FALSE;
+	for (size_t i = 0; i < exts.size(); ++i)
+	{
+		const auto ext = std::string_view(exts[i].extensionName.data());
 
-    // Build pNext chain from provided feature structs (timeline semaphores, memory model, etc.)
-    const void* pNextHead = nullptr;
-    if (!pNextFeatureChain.empty()) {
-        // Chain is pre-linked on caller side; just pass first head
-        pNextHead = pNextFeatureChain.front();
-    }
+		// append to glConfig.extensions_string
+		if (i != 0)
+		{
+			if (str + 1 < end) str = Q_stradd(str, " ");
+		}
+		if (str + ext.size() < end) str = Q_stradd(str, ext.data());
 
-    vk::DeviceCreateInfo dci{};
-    dci.setQueueCreateInfos(qcis)
-       .setPEnabledFeatures(&enabledFeatures)
-       .setPEnabledExtensionNames(exts)
-       .setPNext(pNextHead);
+		// Vulkan 1.0 compatibility: (your legacy path)
+		if (vk::apiVersionMajor(vulkanApiVersion) == 1 && vk::apiVersionMinor(vulkanApiVersion) == 0)
+		{
+			if (ext == vk::KHRDedicatedAllocationExtensionName)
+			{
+				dedicatedAllocation = true;
+				continue;
+			}
+			else if (ext == vk::KHRGetMemoryRequirements2ExtensionName)
+			{
+				memoryRequirements2 = true;
+				device_extension_list.push_back(vk::KHRDedicatedAllocationExtensionName);
+				device_extension_list.push_back(vk::KHRGetMemoryRequirements2ExtensionName);
+				continue;
+			}
+		}
 
-#ifndef USE_VK_VALIDATION
-    // Vulkan-Hpp without exceptions prefers error codes; but we built with exceptions as well.
+		if (ext == vk::KHRSwapchainExtensionName)
+		{
+			swapchainSupported = true;
+		}
+#ifdef USE_VK_VALIDATION
+		else if (ext == vk::EXTDebugUtilsExtensionName)
+		{
+			debugMarker = true;
+		}
+		else if (ext == vk::KHRTimelineSemaphoreExtensionName)
+		{
+			timelineSemaphore = true;
+		}
+		else if (ext == vk::KHRVulkanMemoryModelExtensionName)
+		{
+			memoryModel = true;
+		}
+		else if (ext == vk::KHRBufferDeviceAddressExtensionName)
+		{
+			devAddrFeat = true;
+		}
+		else if (ext == vk::KHR8BitStorageExtensionName)
+		{
+			storage8bit = true;
+		}
+#endif
+	}
+
+	if (!swapchainSupported)
+	{
+		ri.Printf(PRINT_ERROR, "...required device extension is not available: %s\n", vk::KHRSwapchainExtensionName);
+		return false;
+	}
+
+	if (!memoryRequirements2) dedicatedAllocation = false;
+
+	vk_inst.dedicatedAllocation = dedicatedAllocation;
+#ifndef USE_DEDICATED_ALLOCATION
+	vk_inst.dedicatedAllocation = false;
 #endif
 
-    vk::Device device = caps.phys.createDevice(dci);
+	device_extension_list.push_back(vk::KHRSwapchainExtensionName);
 
-    if (outGraphicsQueue) *outGraphicsQueue = device.getQueue(caps.graphicsQF, 0);
-    if (outPresentQueue)  *outPresentQueue  = device.getQueue(caps.presentQF,  0);
+#ifdef USE_VK_VALIDATION
+	if (debugMarker)
+	{
+		device_extension_list.push_back(vk::EXTDebugUtilsExtensionName);
+		vk_inst.debugMarkers = true;
+	}
+	if (timelineSemaphore) device_extension_list.push_back(vk::KHRTimelineSemaphoreExtensionName);
+	if (memoryModel)       device_extension_list.push_back(vk::KHRVulkanMemoryModelExtensionName);
+	if (devAddrFeat)       device_extension_list.push_back(vk::KHRBufferDeviceAddressExtensionName);
+	if (storage8bit)       device_extension_list.push_back(vk::KHR8BitStorageExtensionName);
+#endif
 
-    return device;
+	// Required core features.
+	vk::PhysicalDeviceFeatures device_features = physical_device.getFeatures();
+	if (device_features.fillModeNonSolid == vk::False)
+	{
+		ri.Printf(PRINT_ERROR, "...fillModeNonSolid feature is not supported\n");
+		return false;
+	}
+
+	const float priority = 1.0f;
+	vk::DeviceQueueCreateInfo queue_desc{ {}, vk_inst.queue_family_index, 
+	1, &priority };
+
+	vk::PhysicalDeviceFeatures features{};
+	features.fillModeNonSolid = vk::True;
+
+#ifdef USE_VK_VALIDATION
+	if (device_features.shaderInt64)
+		features.shaderInt64 = vk::True;
+#endif
+
+	if (device_features.wideLines)
+	{
+		features.wideLines = vk::True;
+		vk_inst.wideLines = true;
+	}
+
+	if (device_features.fragmentStoresAndAtomics && device_features.vertexPipelineStoresAndAtomics)
+	{
+		features.vertexPipelineStoresAndAtomics = vk::True;
+		features.fragmentStoresAndAtomics = vk::True;
+		vk_inst.fragmentStores = true;
+	}
+
+	if (r_ext_texture_filter_anisotropic->integer && device_features.samplerAnisotropy)
+	{
+		features.samplerAnisotropy = vk::True;
+		vk_inst.samplerAnisotropy = true;
+	}
+
+	vk::DeviceCreateInfo device_desc{
+		{},
+		1, &queue_desc,
+		0, nullptr,
+		static_cast<uint32_t>(device_extension_list.size()),
+		device_extension_list.data(),
+		&features
+	};
+
+#ifdef USE_VK_VALIDATION
+	// pNext chain (as you had)
+	const void** pNextPtr = (const void**)&device_desc.pNext;
+
+	if (timelineSemaphore)
+	{
+		timeline_semaphore.sType = vk::StructureType::ePhysicalDeviceTimelineSemaphoreFeatures;
+		timeline_semaphore.timelineSemaphore = vk::True;
+		timeline_semaphore.pNext = nullptr;
+		*pNextPtr = &timeline_semaphore;
+		pNextPtr = (const void**)&timeline_semaphore.pNext;
+	}
+	if (memoryModel)
+	{
+		memory_model.sType = vk::StructureType::ePhysicalDeviceVulkanMemoryModelFeatures;
+		memory_model.vulkanMemoryModel = VK_TRUE;
+		memory_model.vulkanMemoryModelAvailabilityVisibilityChains = VK_FALSE;
+		memory_model.vulkanMemoryModelDeviceScope = VK_TRUE;
+		memory_model.pNext = nullptr;
+		*pNextPtr = &memory_model;
+		pNextPtr = (const void**)&memory_model.pNext;
+	}
+	if (devAddrFeat)
+	{
+		devaddr_features.sType = vk::StructureType::ePhysicalDeviceBufferDeviceAddressFeatures;
+		devaddr_features.bufferDeviceAddress = VK_TRUE;
+		devaddr_features.bufferDeviceAddressCaptureReplay = VK_FALSE;
+		devaddr_features.bufferDeviceAddressMultiDevice = VK_FALSE;
+		devaddr_features.pNext = nullptr;
+		*pNextPtr = &devaddr_features;
+		pNextPtr = (const void**)&devaddr_features.pNext;
+	}
+	if (storage8bit)
+	{
+		storage_8bit_features.sType = vk::StructureType::ePhysicalDevice8BitStorageFeatures;
+		storage_8bit_features.storageBuffer8BitAccess = VK_TRUE;
+		storage_8bit_features.uniformAndStorageBuffer8BitAccess = VK_TRUE;
+		storage_8bit_features.storagePushConstant8 = VK_FALSE;
+		storage_8bit_features.pNext = nullptr;
+		*pNextPtr = &storage_8bit_features;
+		pNextPtr = (const void**)&storage_8bit_features.pNext;
+	}
+#endif
+
+	VK_CHECK_ASSIGN(vk_inst.device, physical_device.createDevice(device_desc));
+	return true;
 }
+
+// -------------------------
+// Public API
+// -------------------------
+
+
+const char* renderer_name(const vk::PhysicalDeviceProperties& props)
+{
+	static char buf[sizeof(props.deviceName) + 64];
+	const char* device_type = "OTHER";
+
+	switch (props.deviceType)
+	{
+	case vk::PhysicalDeviceType::eIntegratedGpu: device_type = "Integrated"; break;
+	case vk::PhysicalDeviceType::eDiscreteGpu:   device_type = "Discrete";   break;
+	case vk::PhysicalDeviceType::eVirtualGpu:    device_type = "Virtual";    break;
+	case vk::PhysicalDeviceType::eCpu:           device_type = "CPU";        break;
+	default: break;
+	}
+
+	char name[256];
+	std::memcpy(name, props.deviceName.data(), 256);
+	Com_sprintf(buf, sizeof(buf), "%s %s, 0x%04x", device_type, name, props.deviceID);
+	return buf;
+}
+
+std::vector<vk::PhysicalDevice> enumerate_devices(vk::Instance instance, bool verbose)
+{
+	std::vector<vk::PhysicalDevice> gpus;
+	VK_CHECK_ASSIGN(gpus, instance.enumeratePhysicalDevices());
+
+	if (verbose)
+	{
+		ri.Printf(PRINT_ALL, ".......................\nAvailable physical devices:\n");
+		for (uint32_t i = 0; i < gpus.size(); ++i)
+		{
+			const auto props = gpus[i].getProperties();
+			ri.Printf(PRINT_ALL, " %i: %s\n", i, renderer_name(props));
+		}
+		ri.Printf(PRINT_ALL, ".......................\n");
+	}
+
+	return gpus;
+}
+
+int choose_initial_device_index(const std::vector<vk::PhysicalDevice>& gpus, int r_device_value)
+{
+	if (gpus.empty()) return -1;
+
+	// explicit index
+	if (r_device_value >= 0)
+		return std::min(r_device_value, static_cast<int>(gpus.size() - 1));
+
+	// -1 => discrete, -2 => integrated
+	if (r_device_value == -1 || r_device_value == -2)
+	{
+		const auto want = (r_device_value == -1)
+			? vk::PhysicalDeviceType::eDiscreteGpu
+			: vk::PhysicalDeviceType::eIntegratedGpu;
+
+		for (int i = 0; i < static_cast<int>(gpus.size()); ++i)
+		{
+			if (gpus[i].getProperties().deviceType == want)
+				return i;
+		}
+	}
+
+	// fallback
+	return 0;
+}
+
+static void fill_vendor_renderer_strings_and_workarounds(Vk_Instance& vk_inst,
+                                                         const vk::PhysicalDeviceProperties& props)
+{
+    char buf[64]{};
+    const char* vendor_name = nullptr;
+
+    // Default: allow offscreen unless a vendor workaround disables it
+    // (keep your existing initialization semantics; if vk_inst.offscreenRender is already set elsewhere,
+    // you may omit this line).
+    // vk_inst.offscreenRender = true;
+
+    if (props.vendorID == 0x1002)
+    {
+        vendor_name = "Advanced Micro Devices, Inc.";
+    }
+    else if (props.vendorID == 0x106B)
+    {
+        vendor_name = "Apple Inc.";
+    }
+    else if (props.vendorID == 0x10DE)
+    {
+        // https://github.com/SaschaWillems/Vulkan/issues/493
+        // we can't render to offscreen presentation surfaces on nvidia
+        vk_inst.offscreenRender = false;
+        vendor_name = "NVIDIA";
+    }
+    else if (props.vendorID == 0x14E4)
+    {
+        vendor_name = "Broadcom Inc.";
+    }
+    else if (props.vendorID == 0x1AE0)
+    {
+        vendor_name = "Google Inc.";
+    }
+    else if (props.vendorID == 0x8086)
+    {
+        vendor_name = "Intel Corporation";
+    }
+#ifdef VK_VENDOR_ID_MESA
+    else if (props.vendorID == VK_VENDOR_ID_MESA)
+    {
+        vendor_name = "MESA";
+    }
+#endif
+    else
+    {
+        Com_sprintf(buf, sizeof(buf), "VendorID: %04x", props.vendorID);
+        vendor_name = buf;
+    }
+
+    Q_strncpyz(glConfig.vendor_string, vendor_name, sizeof(glConfig.vendor_string));
+    Q_strncpyz(glConfig.renderer_string, renderer_name(props), sizeof(glConfig.renderer_string));
+}
+
+
+bool pick_and_create_device(
+	Vk_Instance& vk_inst,
+	vk::Instance   instance,
+	vk::SurfaceKHR surface,
+	int            r_device_value,
+	bool           verbose)
+{
+	auto gpus = enumerate_devices(instance, verbose);
+	if (gpus.empty())
+	{
+		ri.Error(ERR_FATAL, "Vulkan: no physical devices found");
+		return false;
+	}
+
+	const int startIndex = choose_initial_device_index(gpus, r_device_value);
+
+	// Try starting from startIndex, then wrap around.
+	for (int attempt = 0; attempt < static_cast<int>(gpus.size()); ++attempt)
+	{
+		int idx = startIndex + attempt;
+		if (idx >= static_cast<int>(gpus.size())) idx %= static_cast<int>(gpus.size());
+		if (idx < 0) idx = 0;
+
+		const auto& gpu = gpus[idx];
+		ri.Printf(PRINT_ALL, "...selected physical device candidate: %i\n", idx);
+
+		// Surface format selection
+		if (!select_surface_format(vk_inst, gpu, surface))
+			continue;
+
+		setup_surface_formats(vk_inst, gpu);
+
+		// Queue family selection
+		if (!find_graphics_present_queue(vk_inst, gpu, surface))
+			continue;
+
+		// Logical device creation
+		if (!create_logical_device(vk_inst, gpu))
+			continue;
+
+		vk_inst.physical_device = gpu;
+		ri.Printf(PRINT_ALL, "...selected physical device: %i (%s)\n", idx, renderer_name(gpu.getProperties()));
+
+		const vk::PhysicalDeviceProperties props = gpu.getProperties();
+		fill_vendor_renderer_strings_and_workarounds(vk_inst, props);
+		return true;
+	}
+
+	ri.Error(ERR_FATAL, "Vulkan: unable to find any suitable physical device");
+	return false;
+}
+

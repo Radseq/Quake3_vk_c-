@@ -168,7 +168,7 @@ static void vk_alloc_attachments()
 		vk::DeviceSize alignment = attachments[i].reqs.alignment;
 #endif
 		memoryTypeBits &= attachments[i].reqs.memoryTypeBits;
-		offset = PAD(offset, alignment);
+		offset = pad_up(offset, alignment);
 		attachments[i].memory_offset = offset;
 		offset += attachments[i].reqs.size;
 #ifdef DEBUG

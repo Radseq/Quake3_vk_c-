@@ -5,7 +5,7 @@
 
 void R_FreeSurfaceGridMesh(srfGridMesh_t &grid);
 srfGridMesh_t *R_SubdividePatchToGrid(int width, int height,
-									  drawVert_t points[MAX_PATCH_SIZE * MAX_PATCH_SIZE]);
+	std::span<const drawVert_t> points);
 srfGridMesh_t *R_GridInsertColumn(srfGridMesh_t &grid, int column, int row, const vec3_t &point, float loderror);
 srfGridMesh_t *R_GridInsertRow(srfGridMesh_t &grid, int row, int column, const vec3_t &point, float loderror);
 

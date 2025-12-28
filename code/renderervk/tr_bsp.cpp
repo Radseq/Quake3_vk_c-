@@ -499,7 +499,7 @@ static void R_LoadVisibility(const lump_t &l)
 	int len;
 	byte *buf;
 
-	len = PAD(s_worldData.numClusters, 64);
+	len = pad_up_ct<int, 64>(s_worldData.numClusters);
 	s_worldData.novis = static_cast<byte *>(ri.Hunk_Alloc(len, h_low));
 	Com_Memset(s_worldData.novis, 0xff, len);
 
@@ -796,7 +796,8 @@ static void ParseMesh(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 	srfGridMesh_t *grid;
 	int i, j;
 	int width, height, numPoints;
-	drawVert_t points[MAX_PATCH_SIZE * MAX_PATCH_SIZE]{};
+	//drawVert_t points[MAX_PATCH_SIZE * MAX_PATCH_SIZE]{};
+	std::array<drawVert_t, MAX_PATCH_SIZE* MAX_PATCH_SIZE> points{};
 	int lightmapNum;
 	float lightmapX, lightmapY;
 	vec3_t bounds[2]{};

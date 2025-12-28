@@ -3,7 +3,7 @@
 
 #include "tr_local.hpp"
 
-void R_TransformDlights(const int count, dlight_t *dl, orientationr_t &ort);
+void R_TransformDlights(const int count, dlight_t *dl, const orientationr_t &ort);
 #ifdef USE_LEGACY_DLIGHTS
 void R_DlightBmodel(bmodel_t &bmodel);
 #endif // USE_LEGACY_DLIGHTS
