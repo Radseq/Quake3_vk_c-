@@ -29,6 +29,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_light.hpp"
 #include "math.hpp"
 #include "utils.hpp"
+#include "tr_soa_frame.hpp"
+#include "tr_soa_stage2.hpp"
 
 static float ProjectRadius(const float r, const vec3_t &location)
 {
@@ -171,6 +173,22 @@ static int R_CullModel(md3Header_t *header, const trRefEntity_t &ent, vec3_t bou
 
 int R_ComputeLOD(trRefEntity_t &ent)
 {
+#if defined(USE_AoS_to_SoA_SIMD) 
+	// SoA fast path (per-view)
+	{
+		auto& soa = trsoa::GetFrameSoA();
+		if (trsoa::SoA_ValidThisFrame(soa))
+		{
+			const int entNum = static_cast<int>(&ent - tr.refdef.entities);
+			if (static_cast<unsigned>(entNum) < trsoa::kMaxRefEntities)
+			{
+				const int slot = soa.modelSlotOfEnt[entNum];
+				if (slot >= 0)
+					return static_cast<int>(soa.modelDerived.lod[slot]);
+			}
+		}
+	}
+#endif
 	float radius;
 	float flod, lodscale;
 	float projectedRadius;
@@ -355,6 +373,21 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	}
 
 #ifdef USE_PMLIGHT
+#if defined(USE_AoS_to_SoA_SIMD) 
+	numDlights = 0;
+	if (r_dlightMode->integer >= 2 && (!personalModel || tr.viewParms.portalView != portalView_t::PV_NONE))
+	{
+		auto& soa = trsoa::GetFrameSoA();
+		numDlights = trsoa::GatherAffectingViewDlights_PMLIGHT(
+			soa,
+			tr.ort,
+			bounds[0],
+			bounds[1],
+			dlights,
+			static_cast<int>(ARRAY_LEN(dlights))
+		);
+	}
+#else
 	numDlights = 0;
 	if (r_dlightMode->integer >= 2 && (!personalModel || tr.viewParms.portalView != portalView_t::PV_NONE))
 	{
@@ -366,6 +399,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 				dlights[numDlights++] = dl;
 		}
 	}
+#endif
 #endif
 
 	//

@@ -89,7 +89,7 @@ typedef struct flare_s
 	vec3_t color;
 } flare_t;
 
-static flare_t r_flareStructs[MAX_FLARES];
+static std::array<flare_t, MAX_FLARES> r_flareStructs{};
 static flare_t *r_activeFlares, *r_inactiveFlares;
 
 /*
@@ -102,7 +102,7 @@ void R_ClearFlares(void)
 	if (!vk_inst.fragmentStores)
 		return;
 
-	Com_Memset(r_flareStructs, 0, sizeof(r_flareStructs));
+	r_flareStructs.fill(flare_t{});
 	r_activeFlares = nullptr;
 	r_inactiveFlares = nullptr;
 
@@ -336,9 +336,10 @@ static void RB_TestFlare(flare_t *f)
 		then our flare WAS visible (as we're working with 1-frame delay),
 		multisampled image will cause multiple fragment shader invocations.
 	*/
-
+	assert(f >= r_flareStructs.data() && f < r_flareStructs.data() + r_flareStructs.size());
+	auto index = static_cast<std::size_t>(f - r_flareStructs.data());
 	// we neeed only single uint32_t but take care of alignment
-	offset = (f - r_flareStructs) * vk_inst.storage_alignment;
+	offset = index * vk_inst.storage_alignment;
 
 	if (f->testCount)
 	{

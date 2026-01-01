@@ -51,7 +51,9 @@ static const imageExtToLoaderMap_t imageLoaders[] =
 
 static byte s_intensitytable[256];
 static unsigned char s_gammatable[256];
-static unsigned char s_gammatable_linear[256];
+
+// initialize linear gamma table before setting color mappings for the first time
+static  std::array<unsigned char, 256> s_gammatable_linear = make_linear_gamma_table();
 
 constexpr int FILE_HASH_SIZE = 1024;
 static image_t *hashTable[FILE_HASH_SIZE];
@@ -274,7 +276,7 @@ void R_SetColorMappings()
 	if (gls.deviceSupportsGamma)
 	{
 		if (vk_inst.fboActive)
-			ri.GLimp_SetGamma(s_gammatable_linear, s_gammatable_linear, s_gammatable_linear);
+			ri.GLimp_SetGamma(s_gammatable_linear.data(), s_gammatable_linear.data(), s_gammatable_linear.data());
 		else
 		{
 			if (applyGamma)
@@ -1235,37 +1237,38 @@ static void R_CreateFogImage(void)
 	ri.Hunk_FreeTempMemory(data);
 }
 
-static void R_CreateDlightImage(void)
-{
-	int x, y;
-	byte data[DLIGHT_SIZE][DLIGHT_SIZE][4]{};
-	int b;
+// make a centered inverse-square falloff blob for dynamic lighting
+static consteval std::array<byte, DLIGHT_SIZE* DLIGHT_SIZE * 4> MakeDlightBlobRGBA() {
+	std::array<byte, DLIGHT_SIZE* DLIGHT_SIZE * 4> out{};
 
-	// make a centered inverse-square falloff blob for dynamic lighting
-	for (x = 0; x < DLIGHT_SIZE; x++)
-	{
-		for (y = 0; y < DLIGHT_SIZE; y++)
-		{
-			float d;
+	for (int y = 0; y < DLIGHT_SIZE; ++y) {
+		for (int x = 0; x < DLIGHT_SIZE; ++x) {
+			// denom == 4*d from the original float code (exact for DLIGHT_SIZE=16)
+			const int ox = (DLIGHT_SIZE - 1) - 2 * x; // 15,13,...,-15
+			const int oy = (DLIGHT_SIZE - 1) - 2 * y;
+			const int denom = ox * ox + oy * oy;      // minimum is 2, never 0
 
-			d = (DLIGHT_SIZE / 2 - 0.5f - x) * (DLIGHT_SIZE / 2 - 0.5f - x) +
-				(DLIGHT_SIZE / 2 - 0.5f - y) * (DLIGHT_SIZE / 2 - 0.5f - y);
-			b = 4000 / d;
-			if (b > 255)
-			{
-				b = 255;
-			}
-			else if (b < 75)
-			{
-				b = 0;
-			}
-			data[y][x][0] =
-				data[y][x][1] =
-					data[y][x][2] = b;
-			data[y][x][3] = 255;
+			int b = 16000 / denom;                   // == int(4000 / d) for this grid
+
+			if (b > 255)       b = 255;
+			else if (b < 75)   b = 0;
+
+			const std::size_t base = (static_cast<std::size_t>(y) * DLIGHT_SIZE + static_cast<std::size_t>(x)) * 4u;
+			out[base + 0] = static_cast<byte>(b);
+			out[base + 1] = static_cast<byte>(b);
+			out[base + 2] = static_cast<byte>(b);
+			out[base + 3] = 255;
 		}
 	}
-	tr.dlightImage = R_CreateImage("*dlight", {}, (byte *)data, DLIGHT_SIZE, DLIGHT_SIZE, imgFlags_t::IMGFLAG_CLAMPTOEDGE);
+
+	return out;
+}
+
+static constexpr auto kDlightBlobRGBA = MakeDlightBlobRGBA();
+
+static void R_CreateDlightImage(void)
+{
+	tr.dlightImage = R_CreateImage("*dlight", {}, (byte *)kDlightBlobRGBA.data(), DLIGHT_SIZE, DLIGHT_SIZE, imgFlags_t::IMGFLAG_CLAMPTOEDGE);
 }
 
 // Lookup table for hexadecimal characters
@@ -1373,11 +1376,31 @@ static bool R_BuildDefaultImage(const char *format)
 	return true;
 }
 
+static consteval std::array<byte, DEFAULT_SIZE* DEFAULT_SIZE * 4> MakeDefaultImageData() {
+	std::array<byte, DEFAULT_SIZE* DEFAULT_SIZE * 4> out{};
+	out.fill(32); // same as Com_Memset(data, 32, sizeof(data))
+
+	auto set_px = [&](int y, int x, byte v) consteval {
+		const std::size_t base = (static_cast<std::size_t>(y) * DEFAULT_SIZE + static_cast<std::size_t>(x)) * 4u;
+		out[base + 0] = v;
+		out[base + 1] = v;
+		out[base + 2] = v;
+		out[base + 3] = v;
+		};
+
+	for (int x = 0; x < DEFAULT_SIZE; ++x) {
+		set_px(0, x, 255);                // top
+		set_px(x, 0, 255);                // left
+		set_px(DEFAULT_SIZE - 1, x, 255);                // bottom
+		set_px(x, DEFAULT_SIZE - 1, 255);                // right
+	}
+
+	return out;
+}
+static constexpr auto kDefaultImageData = MakeDefaultImageData();
+
 static void R_CreateDefaultImage(void)
 {
-	int x;
-	byte data[DEFAULT_SIZE][DEFAULT_SIZE][4];
-
 	if (r_defaultImage->string[0])
 	{
 		// build from format
@@ -1389,32 +1412,7 @@ static void R_CreateDefaultImage(void)
 			return;
 	}
 
-	// the default image will be a box, to allow you to see the mapping coordinates
-	Com_Memset(data, 32, sizeof(data));
-	for (x = 0; x < DEFAULT_SIZE; x++)
-	{
-		data[0][x][0] =
-			data[0][x][1] =
-				data[0][x][2] =
-					data[0][x][3] = 255;
-
-		data[x][0][0] =
-			data[x][0][1] =
-				data[x][0][2] =
-					data[x][0][3] = 255;
-
-		data[DEFAULT_SIZE - 1][x][0] =
-			data[DEFAULT_SIZE - 1][x][1] =
-				data[DEFAULT_SIZE - 1][x][2] =
-					data[DEFAULT_SIZE - 1][x][3] = 255;
-
-		data[x][DEFAULT_SIZE - 1][0] =
-			data[x][DEFAULT_SIZE - 1][1] =
-				data[x][DEFAULT_SIZE - 1][2] =
-					data[x][DEFAULT_SIZE - 1][3] = 255;
-	}
-
-	tr.defaultImage = R_CreateImage("*default", {}, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, imgFlags_t::IMGFLAG_MIPMAP);
+	tr.defaultImage = R_CreateImage("*default", {}, (byte *)kDefaultImageData.data(), DEFAULT_SIZE, DEFAULT_SIZE, imgFlags_t::IMGFLAG_MIPMAP);
 }
 
 static void R_CreateBuiltinImages(void)
@@ -1458,12 +1456,6 @@ static void R_CreateBuiltinImages(void)
 
 void R_InitImages(void)
 {
-	// initialize linear gamma table before setting color mappings for the first time
-	int i;
-
-	for (i = 0; i < 256; i++)
-		s_gammatable_linear[i] = (unsigned char)i;
-
 	memset(hashTable, 0, sizeof(hashTable));
 	// std::fill(std::begin(hashTable), std::end(hashTable), nullptr);
 

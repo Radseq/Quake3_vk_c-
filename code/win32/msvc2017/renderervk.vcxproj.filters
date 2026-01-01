@@ -257,5 +257,11 @@
     <ClInclude Include="..\..\renderervk\vk_physical_device.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\renderervk\tr_soa_frame.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\renderervk\tr_soa_stage2.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

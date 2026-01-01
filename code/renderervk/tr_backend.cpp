@@ -37,13 +37,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_render_pass.hpp"
 #include "vk_pipeline.hpp"
 
-backEndData_t *backEndData;
+backEndData_t* backEndData;
 backEndState_t backEnd;
 
 /*
 ** GL_Bind
 */
-void Bind(image_t *image)
+void Bind(image_t* image)
 {
 	if (!image)
 	{
@@ -130,7 +130,7 @@ static void RB_Hyperspace(void)
 	c.rgba[3] = 255;
 
 	RB_AddQuadStamp2(backEnd.refdef.x, backEnd.refdef.y, backEnd.refdef.width, backEnd.refdef.height,
-					 0.0, 0.0, 0.0, 0.0, c);
+		0.0, 0.0, 0.0, 0.0, c);
 
 	RB_EndSurface();
 
@@ -156,12 +156,13 @@ Any mirrored ort portaled views have already been drawn, so prepare
 to actually render the visible surfaces for this view
 =================
 */
-static void RB_BeginDrawingView( void ) {
+static void RB_BeginDrawingView(void) {
 	// sync with gl if needed
-	if ( r_finish->integer == 1 && !glState.finishCalled ) {
+	if (r_finish->integer == 1 && !glState.finishCalled) {
 		vk_queue_wait_idle();
 		glState.finishCalled = true;
-	} else if ( r_finish->integer == 0 ) {
+	}
+	else if (r_finish->integer == 0) {
 		glState.finishCalled = true;
 	}
 
@@ -174,20 +175,21 @@ static void RB_BeginDrawingView( void ) {
 	//
 	SetViewportAndScissor();
 
-	vk_clear_depth( true );
+	vk_clear_depth(true);
 
-	if ( backEnd.refdef.rdflags & RDF_HYPERSPACE ) {
+	if (backEnd.refdef.rdflags & RDF_HYPERSPACE) {
 		RB_Hyperspace();
 		backEnd.projection2D = false;
 		SetViewportAndScissor();
-	} else {
+	}
+	else {
 		backEnd.isHyperspace = false;
 	}
 
 	glState.faceCulling = static_cast<cullType_t>(-1); // force face culling to set next time
-		// force face culling to set next time
+	// force face culling to set next time
 
-	// we will only draw a sun if there was sky rendered in this view
+// we will only draw a sun if there was sky rendered in this view
 	backEnd.skyRenderedThisView = false;
 }
 
@@ -200,15 +202,15 @@ static void RB_LightingPass(void);
 RB_RenderDrawSurfList
 ==================
 */
-static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
+static void RB_RenderDrawSurfList(drawSurf_t* drawSurfs, const int numDrawSurfs)
 {
-	shader_t *shader, *oldShader;
+	shader_t* shader, * oldShader;
 	int fogNum;
 	int entityNum, oldEntityNum;
 	int dlighted;
 	bool depthRange, isCrosshair;
 	int i;
-	drawSurf_t *drawSurf;
+	drawSurf_t* drawSurf;
 	unsigned int oldSort;
 #ifdef USE_PMLIGHT
 	float oldShaderSort;
@@ -240,7 +242,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 		}
 
 		R_DecomposeSort(drawSurf->sort, entityNum, &shader, fogNum, dlighted);
-		if (vk_inst.renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP && 
+		if (vk_inst.renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP &&
 			entityNum != REFENTITYNUM_WORLD && backEnd.refdef.entities[entityNum].e.renderfx & RF_DEPTHHACK)
 		{
 			continue;
@@ -253,7 +255,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 		{
 			//if (oldShader != NULL)
 			//{
-				RB_EndSurface();
+			RB_EndSurface();
 			//}
 #ifdef USE_PMLIGHT
 #define INSERT_POINT shaderSort_t::SS_FOG
@@ -382,13 +384,13 @@ static void RB_BeginDrawingLitSurfs(void)
 RB_RenderLitSurfList
 ==================
 */
-static void RB_RenderLitSurfList(dlight_t &dl)
+static void RB_RenderLitSurfList(dlight_t& dl)
 {
-	shader_t *shader, *oldShader;
+	shader_t* shader, * oldShader;
 	int fogNum;
 	int entityNum, oldEntityNum;
 	bool depthRange, isCrosshair;
-	const litSurf_t *litSurf;
+	const litSurf_t* litSurf;
 	unsigned int oldSort;
 	double originalTime; // -EC-
 
@@ -548,7 +550,7 @@ Stretches a raw 32 bit power of 2 bitmap image over the given screen rectangle.
 Used for cinematics.
 =============
 */
-void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data, int client, bool dirty)
+void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte* data, int client, bool dirty)
 {
 	if (!tr.registered)
 	{
@@ -589,9 +591,9 @@ void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data, i
 	RE_StretchPic(x, y, w, h, 0.5f / cols, 0.5f / rows, 1.0f - 0.5f / cols, 1.0f - 0.5 / rows, tr.cinematicShader->index);
 }
 
-void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client, bool dirty)
+void RE_UploadCinematic(int w, int h, int cols, int rows, byte* data, int client, bool dirty)
 {
-	image_t *image;
+	image_t* image;
 
 	if (!tr.scratchImage[client])
 	{
@@ -622,16 +624,16 @@ void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client
 RB_SetColor
 =============
 */
-static const void *RB_SetColor(const void *data)
+static const void* RB_SetColor(const void* data)
 {
-	const setColorCommand_t *cmd = (const setColorCommand_t *)data;
+	const setColorCommand_t* cmd = (const setColorCommand_t*)data;
 
 	backEnd.color2D.rgba[0] = cmd->color[0] * 255;
 	backEnd.color2D.rgba[1] = cmd->color[1] * 255;
 	backEnd.color2D.rgba[2] = cmd->color[2] * 255;
 	backEnd.color2D.rgba[3] = cmd->color[3] * 255;
 
-	return (const void *)(cmd + 1);
+	return (const void*)(cmd + 1);
 }
 
 /*
@@ -639,12 +641,12 @@ static const void *RB_SetColor(const void *data)
 RB_StretchPic
 =============
 */
-static const void *RB_StretchPic(const void *data)
+static const void* RB_StretchPic(const void* data)
 {
-	const stretchPicCommand_t *cmd;
-	shader_t *shader;
+	const stretchPicCommand_t* cmd;
+	shader_t* shader;
 
-	cmd = (const stretchPicCommand_t *)data;
+	cmd = (const stretchPicCommand_t*)data;
 
 	shader = cmd->shader;
 	if (shader != tess.shader)
@@ -673,7 +675,7 @@ static const void *RB_StretchPic(const void *data)
 
 	RB_AddQuadStamp2(cmd->x, cmd->y, cmd->w, cmd->h, cmd->s1, cmd->t1, cmd->s2, cmd->t2, backEnd.color2D);
 
-	return (const void *)(cmd + 1);
+	return (const void*)(cmd + 1);
 }
 
 #ifdef USE_PMLIGHT
@@ -691,7 +693,7 @@ static void RB_LightingPass(void)
 
 	for (i = 0; i < backEnd.viewParms.num_dlights; i++)
 	{
-		dlight_t &dl = backEnd.viewParms.dlights[i];
+		dlight_t& dl = backEnd.viewParms.dlights[i];
 		if (dl.head)
 		{
 			tess.light = &dl;
@@ -705,9 +707,9 @@ static void RB_LightingPass(void)
 }
 #endif
 
-static void transform_to_eye_space(const vec3_t v, vec3_t &v_eye)
+static void transform_to_eye_space(const vec3_t v, vec3_t& v_eye)
 {
-	const float *m = backEnd.viewParms.world.modelMatrix;
+	const float* m = backEnd.viewParms.world.modelMatrix;
 	v_eye[0] = m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12];
 	v_eye[1] = m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13];
 	v_eye[2] = m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14];
@@ -718,7 +720,7 @@ static void transform_to_eye_space(const vec3_t v, vec3_t &v_eye)
 RB_DebugPolygon
 ================
 */
-static void RB_DebugPolygon(const int color, const int numPoints, float *points)
+static void RB_DebugPolygon(const int color, const int numPoints, float* points)
 {
 	if (numPoints < 3)
 	{
@@ -819,14 +821,14 @@ static void RB_DebugGraphics(void)
 RB_DrawSurfs
 =============
 */
-static const void *RB_DrawSurfs(const void *data)
+static const void* RB_DrawSurfs(const void* data)
 {
-	const drawSurfsCommand_t *cmd;
+	const drawSurfsCommand_t* cmd;
 
 	// finish any 2D drawing if needed
 	RB_EndSurface();
 
-	cmd = (const drawSurfsCommand_t *)data;
+	cmd = (const drawSurfsCommand_t*)data;
 
 	backEnd.refdef = cmd->refdef;
 	backEnd.viewParms = cmd->viewParms;
@@ -876,7 +878,7 @@ static const void *RB_DrawSurfs(const void *data)
 	// TODO Maybe check for rdf_noworld stuff but q3mme has full 3d ui
 	backEnd.doneSurfaces = true; // for bloom
 
-	return (const void *)(cmd + 1);
+	return (const void*)(cmd + 1);
 }
 
 /*
@@ -884,11 +886,11 @@ static const void *RB_DrawSurfs(const void *data)
 RB_DrawBuffer
 =============
 */
-static const void *RB_DrawBuffer(const void *data)
+static const void* RB_DrawBuffer(const void* data)
 {
-	const drawBufferCommand_t *cmd;
+	const drawBufferCommand_t* cmd;
 
-	cmd = (const drawBufferCommand_t *)data;
+	cmd = (const drawBufferCommand_t*)data;
 
 	vk_begin_frame();
 
@@ -897,15 +899,15 @@ static const void *RB_DrawBuffer(const void *data)
 	// force depth range and viewport/scissor updates
 	vk_inst.cmd->depth_range = Vk_Depth_Range::DEPTH_RANGE_COUNT;
 
-	if ( r_clear->integer && vk_inst.clearAttachment )
+	if (r_clear->integer && vk_inst.clearAttachment)
 	{
-		constexpr vec4_t color = {1, 0, 0.5, 1};
+		constexpr vec4_t color = { 1, 0, 0.5, 1 };
 		backEnd.projection2D = true; // to ensure we have viewport that occupies entire window
 		vk_clear_color(color);
 		backEnd.projection2D = false;
 	}
 
-	return (const void *)(cmd + 1);
+	return (const void*)(cmd + 1);
 }
 
 /*
@@ -961,13 +963,13 @@ void RB_ShowImages(void)
 	tess.xyz[3][0] = (float)glConfig.vidWidth;
 	tess.xyz[3][1] = (float)glConfig.vidHeight;
 
-	vk_bind_pipeline( vk_inst.images_debug_pipeline2 );
-	vk_bind_geometry( TESS_XYZ | TESS_RGBA0 | TESS_ST0 );
-	vk_draw_geometry( Vk_Depth_Range::DEPTH_RANGE_NORMAL, false );
+	vk_bind_pipeline(vk_inst.images_debug_pipeline2);
+	vk_bind_geometry(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, false);
 
 	for (i = 0; i < tr.numImages; i++)
 	{
-		image_t *image = tr.images[i];
+		image_t* image = tr.images[i];
 
 		float w = glConfig.vidWidth / 20;
 		float h = glConfig.vidHeight / 15;
@@ -993,7 +995,7 @@ void RB_ShowImages(void)
 		tess.xyz[3][0] = x + w;
 		tess.xyz[3][1] = y + h;
 
-		Bind( image );
+		Bind(image);
 
 		vk_bind_pipeline(vk_inst.images_debug_pipeline);
 		vk_bind_geometry(TESS_XYZ);
@@ -1009,12 +1011,12 @@ void RB_ShowImages(void)
 RB_ColorMask
 =============
 */
-static const void *RB_ColorMask(const void *data)
+static const void* RB_ColorMask(const void* data)
 {
-	const colorMaskCommand_t *cmd = static_cast<const colorMaskCommand_t *>(data);
+	const colorMaskCommand_t* cmd = static_cast<const colorMaskCommand_t*>(data);
 	// TODO: implement! ZZZZZZZZZZZ  in gl qglColorMask( cmd->rgba[0], cmd->rgba[1], cmd->rgba[2], cmd->rgba[3] );
 
-	return (const void *)(cmd + 1);
+	return (const void*)(cmd + 1);
 }
 
 /*
@@ -1022,15 +1024,15 @@ static const void *RB_ColorMask(const void *data)
 RB_ClearDepth
 =============
 */
-static const void *RB_ClearDepth(const void *data)
+static const void* RB_ClearDepth(const void* data)
 {
-	const clearDepthCommand_t *cmd = static_cast<const clearDepthCommand_t *>(data);
+	const clearDepthCommand_t* cmd = static_cast<const clearDepthCommand_t*>(data);
 
 	RB_EndSurface();
 
 	vk_clear_depth(r_shadows->integer == 2 ? true : false);
 
-	return (const void *)(cmd + 1);
+	return (const void*)(cmd + 1);
 }
 
 /*
@@ -1038,15 +1040,15 @@ static const void *RB_ClearDepth(const void *data)
 RB_ClearColor
 =============
 */
-static const void *RB_ClearColor(const void *data)
+static const void* RB_ClearColor(const void* data)
 {
-	const clearColorCommand_t *cmd = static_cast<const clearColorCommand_t *>(data);
+	const clearColorCommand_t* cmd = static_cast<const clearColorCommand_t*>(data);
 
 	backEnd.projection2D = true;
 	vk_clear_color(colorBlackCxpr);
 	backEnd.projection2D = false;
 
-	return (const void *)(cmd + 1);
+	return (const void*)(cmd + 1);
 }
 
 /*
@@ -1054,9 +1056,9 @@ static const void *RB_ClearColor(const void *data)
 RB_FinishBloom
 =============
 */
-static const void *RB_FinishBloom(const void *data)
+static const void* RB_FinishBloom(const void* data)
 {
-	const finishBloomCommand_t *cmd = static_cast<const finishBloomCommand_t *>(data);
+	const finishBloomCommand_t* cmd = static_cast<const finishBloomCommand_t*>(data);
 
 	RB_EndSurface();
 
@@ -1073,13 +1075,13 @@ static const void *RB_FinishBloom(const void *data)
 
 	backEnd.drawConsole = true;
 
-	return (const void *)(cmd + 1);
+	return (const void*)(cmd + 1);
 }
 
-static const void *RB_SwapBuffers(const void *data)
+static const void* RB_SwapBuffers(const void* data)
 {
 
-	const swapBuffersCommand_t *cmd;
+	const swapBuffersCommand_t* cmd;
 
 	// finish any 2D drawing if needed
 	RB_EndSurface();
@@ -1090,13 +1092,13 @@ static const void *RB_SwapBuffers(const void *data)
 		RB_ShowImages();
 	}
 
-	cmd = (const swapBuffersCommand_t *)data;
+	cmd = (const swapBuffersCommand_t*)data;
 
 	tr.needScreenMap = 0;
 
 	vk_end_frame();
 
-	if ( backEnd.doneSurfaces && !glState.finishCalled ) {
+	if (backEnd.doneSurfaces && !glState.finishCalled) {
 		vk_queue_wait_idle();
 	}
 
@@ -1144,7 +1146,7 @@ static const void *RB_SwapBuffers(const void *data)
 	backEnd.drawConsole = false;
 	backEnd.doneBloom = false;
 
-	return (const void *)(cmd + 1);
+	return (const void*)(cmd + 1);
 }
 
 /*
@@ -1152,15 +1154,15 @@ static const void *RB_SwapBuffers(const void *data)
 RB_ExecuteRenderCommands
 ====================
 */
-void RB_ExecuteRenderCommands(const void *data)
+void RB_ExecuteRenderCommands(const void* data)
 {
 	backEnd.pc.msec = ri.Milliseconds();
 
 	while (1)
 	{
-		data = PADP(data, sizeof(void *));
+		data = PADP(data, sizeof(void*));
 
-		switch (static_cast<renderCommand_t>(*(const int *)data))
+		switch (static_cast<renderCommand_t>(*(const int*)data))
 		{
 		case renderCommand_t::RC_SET_COLOR:
 			data = RB_SetColor(data);

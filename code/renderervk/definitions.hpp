@@ -20,6 +20,8 @@
 #define USE_DEDICATED_ALLOCATION
 #endif
 
+#define USE_AoS_to_SoA_SIMD
+
 #define USE_VBO // store static world geometry in VBO
 #define USE_FOG_ONLY
 #define USE_FOG_COLLAPSE // not compatible with legacy dlights

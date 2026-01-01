@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 static bool R_LoadMD3(model_t &mod, int lod, void *buffer, std::size_t fileSize, std::string_view name);
 static bool R_LoadMDR(model_t &mod, void *buffer, int filesize, std::string_view name);
 
-constexpr std::string_view extract_base_and_ext(std::string_view name, std::string_view &extOut, std::string_view fallbackExt)
+static constexpr std::string_view extract_base_and_ext(std::string_view name, std::string_view &extOut, std::string_view fallbackExt)
 {
 	auto dot = name.find('.');
 	if (dot == std::string_view::npos)

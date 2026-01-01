@@ -87,7 +87,7 @@
     <OutDir>.\output\</OutDir>
     <IntDir>.\build\$(ProjectName)_$(Configuration)_$(PlatformTarget)\</IntDir>
     <TargetName>renderer</TargetName>
-    <IncludePath>D:\Programming\vulkanSDK\Include;C:\VulkanSDK\1.4.321.1\Include;$(IncludePath)</IncludePath>
+    <IncludePath>D:\Programming\vulkanSDK\Include;C:\VulkanSDK\1.4.321.1\Include;C:\Users\Radseq_prog\Desktop\Quake3\code\OutsideReferences;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <OutDir>.\output\</OutDir>
@@ -109,7 +109,7 @@
     <OutDir>.\output\</OutDir>
     <IntDir>.\build\$(ProjectName)_$(Configuration)_$(PlatformTarget)\</IntDir>
     <TargetName>renderer</TargetName>
-    <IncludePath>D:\Programming\vulkanSDK\Include;C:\VulkanSDK\1.4.321.1\Include;$(IncludePath)</IncludePath>
+    <IncludePath>D:\Programming\vulkanSDK\Include;C:\VulkanSDK\1.4.321.1\Include;C:\Users\Radseq_prog\Desktop\Quake3\code\OutsideReferences;$(IncludePath)</IncludePath>
     <LibraryPath>D:\Programming\vulkanSDK\Lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
@@ -291,6 +291,8 @@
     <ClInclude Include="..\..\renderervk\tr_shade_calc.hpp" />
     <ClInclude Include="..\..\renderervk\tr_shadows.hpp" />
     <ClInclude Include="..\..\renderervk\tr_sky.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_soa_frame.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_soa_stage2.hpp" />
     <ClInclude Include="..\..\renderervk\tr_surface.hpp" />
     <ClInclude Include="..\..\renderervk\tr_world.hpp" />
     <ClInclude Include="..\..\renderervk\utils.hpp" />
