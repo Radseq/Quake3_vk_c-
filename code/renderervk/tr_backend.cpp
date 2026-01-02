@@ -37,6 +37,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_render_pass.hpp"
 #include "vk_pipeline.hpp"
 
+#if defined(USE_AoS_to_SoA_SIMD)
+#include "tr_soa_stage2.hpp"
+#endif
+
+
 backEndData_t* backEndData;
 backEndState_t backEnd;
 
@@ -223,6 +228,9 @@ static void RB_RenderDrawSurfList(drawSurf_t* drawSurfs, const int numDrawSurfs)
 	// draw everything
 	oldEntityNum = -1;
 	backEnd.currentEntity = &tr.worldEntity;
+	backEnd.currentEntityNum = REFENTITYNUM_WORLD;
+	backEnd.currentModelSlot = -1;
+
 	oldShader = nullptr;
 	oldSort = MAX_UINT;
 #ifdef USE_PMLIGHT
@@ -251,7 +259,7 @@ static void RB_RenderDrawSurfList(drawSurf_t* drawSurfs, const int numDrawSurfs)
 		// change the tess parameters if needed
 		// a "entityMergable" shader is a shader that can have surfaces from separate
 		// entities merged into a single batch, like smoke and blood puff sprites
-		if (((oldSort ^ drawSurfs->sort) & ~QSORT_REFENTITYNUM_MASK) || !shader->entityMergable)
+		if (((oldSort ^ drawSurf->sort) & ~QSORT_REFENTITYNUM_MASK) || !shader->entityMergable)
 		{
 			//if (oldShader != NULL)
 			//{
@@ -283,13 +291,52 @@ static void RB_RenderDrawSurfList(drawSurf_t* drawSurfs, const int numDrawSurfs)
 			if (entityNum != REFENTITYNUM_WORLD)
 			{
 				backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
+				backEnd.currentEntityNum = entityNum;
+
+#if defined(USE_AoS_to_SoA_SIMD)
+				{
+					auto& soa = trsoa::GetFrameSoA();
+					if (trsoa::SoA_ValidThisFrame(soa))
+					{
+						const int slot = static_cast<int>(soa.modelSlotOfEnt[entityNum]);
+						backEnd.currentModelSlot = slot;
+						if (slot >= 0)
+						{
+							// floatTime z SoA (bez dotykania AoS)
+							const std::uint32_t raw = soa.models.shader.shaderTimeRaw[slot];
+							if (soa.models.lighting.intShaderTime[slot])
+							{
+								int si{};
+								std::memcpy(&si, &raw, 4);
+								backEnd.refdef.floatTime = originalTime - (double)si * 0.001;
+							}
+							else
+							{
+								float sf{};
+								std::memcpy(&sf, &raw, 4);
+								backEnd.refdef.floatTime = originalTime - (double)sf;
+							}
+
+							// ort z SoA
+							trsoa::ApplyModelOrientationFromSoA(soa, slot, backEnd.ort);
+							goto ort_done_draw;
+						}
+					}
+					backEnd.currentModelSlot = -1;
+				}
+#endif
+
+				// fallback AoS
 				if (backEnd.currentEntity->intShaderTime)
 					backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
 				else
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
-				// set up the transformation matrix
 				R_RotateForEntity(*backEnd.currentEntity, backEnd.viewParms, backEnd.ort);
+
+			ort_done_draw:
+				(void)0;
+
 				// set up the dynamic lighting if needed
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
@@ -297,14 +344,18 @@ static void RB_RenderDrawSurfList(drawSurf_t* drawSurfs, const int numDrawSurfs)
 #endif
 					if (backEnd.currentEntity->needDlights)
 					{
+#if defined(USE_AoS_to_SoA_SIMD)
+						trsoa::TransformDlights_FromOr(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+#else
 						R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+#endif
+
 					}
 #endif // USE_LEGACY_DLIGHTS
+
 				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
 				{
-					// hack the depth range to prevent view model from poking into walls
 					depthRange = true;
-
 					if (backEnd.currentEntity->e.renderfx & RF_CROSSHAIR)
 						isCrosshair = true;
 				}
@@ -312,15 +363,25 @@ static void RB_RenderDrawSurfList(drawSurf_t* drawSurfs, const int numDrawSurfs)
 			else
 			{
 				backEnd.currentEntity = &tr.worldEntity;
+				backEnd.currentEntityNum = REFENTITYNUM_WORLD;
+				backEnd.currentModelSlot = -1;
+
 				backEnd.refdef.floatTime = originalTime;
 				backEnd.ort = backEnd.viewParms.world;
+
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
 				if (!r_dlightMode->integer)
 #endif
+#if defined(USE_AoS_to_SoA_SIMD)
+					trsoa::TransformDlights_FromOr(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+#else
 					R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+#endif
+
 #endif // USE_LEGACY_DLIGHTS
 			}
+
 
 			// we have to reset the shaderTime as well otherwise image animations on
 			// the world (like water) continue with the wrong frame
@@ -400,6 +461,11 @@ static void RB_RenderLitSurfList(dlight_t& dl)
 	// draw everything
 	oldEntityNum = -1;
 	backEnd.currentEntity = &tr.worldEntity;
+
+	backEnd.currentEntityNum = REFENTITYNUM_WORLD;
+	backEnd.currentModelSlot = -1;
+
+
 	oldShader = NULL;
 	oldSort = MAX_UINT;
 	depthRange = false;
@@ -455,20 +521,71 @@ static void RB_RenderLitSurfList(dlight_t& dl)
 			if (entityNum != REFENTITYNUM_WORLD)
 			{
 				backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
+				backEnd.currentEntityNum = entityNum;
 
+#if defined(USE_AoS_to_SoA_SIMD)
+				{
+					auto& soa = trsoa::GetFrameSoA();
+					if (trsoa::SoA_ValidThisFrame(soa))
+					{
+						const int slot = static_cast<int>(soa.modelSlotOfEnt[entityNum]);
+						backEnd.currentModelSlot = slot;
+						if (slot >= 0)
+						{
+							// floatTime z SoA (bez dotykania AoS)
+							const std::uint32_t raw = soa.models.shader.shaderTimeRaw[slot];
+							if (soa.models.lighting.intShaderTime[slot])
+							{
+								int si{};
+								std::memcpy(&si, &raw, 4);
+								backEnd.refdef.floatTime = originalTime - (double)si * 0.001;
+							}
+							else
+							{
+								float sf{};
+								std::memcpy(&sf, &raw, 4);
+								backEnd.refdef.floatTime = originalTime - (double)sf;
+							}
+
+							// ort z SoA
+							trsoa::ApplyModelOrientationFromSoA(soa, slot, backEnd.ort);
+							goto ort_done_lit;
+						}
+					}
+					backEnd.currentModelSlot = -1;
+				}
+#endif
+
+				// fallback AoS
 				if (backEnd.currentEntity->intShaderTime)
 					backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
 				else
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
-				// set up the transformation matrix
 				R_RotateForEntity(*backEnd.currentEntity, backEnd.viewParms, backEnd.ort);
+
+			ort_done_lit:
+				(void)0;
+
+				// set up the dynamic lighting if needed
+#ifdef USE_LEGACY_DLIGHTS
+#ifdef USE_PMLIGHT
+				if (!r_dlightMode->integer)
+#endif
+					if (backEnd.currentEntity->needDlights)
+					{
+#if defined(USE_AoS_to_SoA_SIMD)
+						trsoa::TransformDlights_FromOr(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+#else
+						R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+#endif
+
+					}
+#endif // USE_LEGACY_DLIGHTS
 
 				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
 				{
-					// hack the depth range to prevent view model from poking into walls
 					depthRange = true;
-
 					if (backEnd.currentEntity->e.renderfx & RF_CROSSHAIR)
 						isCrosshair = true;
 				}
@@ -476,16 +593,37 @@ static void RB_RenderLitSurfList(dlight_t& dl)
 			else
 			{
 				backEnd.currentEntity = &tr.worldEntity;
+				backEnd.currentEntityNum = REFENTITYNUM_WORLD;
+				backEnd.currentModelSlot = -1;
+
 				backEnd.refdef.floatTime = originalTime;
 				backEnd.ort = backEnd.viewParms.world;
+
+#ifdef USE_LEGACY_DLIGHTS
+#ifdef USE_PMLIGHT
+				if (!r_dlightMode->integer)
+#endif
+#if defined(USE_AoS_to_SoA_SIMD)
+					trsoa::TransformDlights_FromOr(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+#else
+					R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+#endif
+#endif // USE_LEGACY_DLIGHTS
+
 			}
+
 
 			// we have to reset the shaderTime as well otherwise image animations on
 			// the world (like water) continue with the wrong frame
 			tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
 
 			// set up the dynamic lighting
+#if defined(USE_AoS_to_SoA_SIMD)
+			trsoa::TransformDlights_FromOr(1, &dl, backEnd.ort);
+#else
 			R_TransformDlights(1, &dl, backEnd.ort);
+#endif
+
 			tess.dlightUpdateParams = true;
 
 			tess.depthRange = depthRange ? Vk_Depth_Range::DEPTH_RANGE_WEAPON : Vk_Depth_Range::DEPTH_RANGE_NORMAL;
@@ -656,6 +794,8 @@ static const void* RB_StretchPic(const void* data)
 			RB_EndSurface();
 		}
 		backEnd.currentEntity = &backEnd.entity2D;
+		backEnd.currentEntityNum = -1;
+		backEnd.currentModelSlot = -1;
 		RB_BeginSurface(*shader, 0);
 	}
 

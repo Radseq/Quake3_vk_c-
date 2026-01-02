@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -506,3 +506,323 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
     }
 #endif
 }
+
+#if defined(USE_AoS_to_SoA_SIMD)
+
+static inline float Vec3Len3(const float x, const float y, const float z) noexcept
+{
+    return std::sqrt(x * x + y * y + z * z);
+}
+
+static inline void Vec3Normalize3(float& x, float& y, float& z) noexcept
+{
+    const float len2 = x * x + y * y + z * z;
+    if (len2 <= 0.0f) { x = y = z = 0.0f; return; }
+    const float inv = 1.0f / std::sqrt(len2);
+    x *= inv; y *= inv; z *= inv;
+}
+
+void R_SetupEntityLighting_SoA_Batch(const trRefdef_t& refdef, trsoa::FrameSoA& soa) noexcept
+{
+    const int count = soa.models.count;
+    if (count <= 0) return;
+
+#ifdef USE_PMLIGHT
+    // tryby specjalne (shadowLightDir / direct-only) -> nie dotykamy, zostaw scalar
+    if (r_dlightMode->integer == 2)
+    {
+        for (int i = 0; i < soa.visibleModelCount; ++i)
+        {
+            const int slot = static_cast<int>(soa.visibleModelSlots[i]);
+            const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
+            trRefEntity_t& ent = tr.refdef.entities[entNum];
+            R_SetupEntityLighting(refdef, ent);
+        }
+        return;
+    }
+#endif
+
+    // małe sceny -> scalar (szybciej niż setup SIMD)
+    if (refdef.num_dlights < 2 || count < 16)
+    {
+        for (int i = 0; i < soa.visibleModelCount; ++i)
+        {
+            const int slot = static_cast<int>(soa.visibleModelSlots[i]);
+            const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
+            trRefEntity_t& ent = tr.refdef.entities[entNum];
+            R_SetupEntityLighting(refdef, ent);
+        }
+        return;
+    }
+
+    // scratch (world-space accumulated light direction)
+    static thread_local std::array<float, trsoa::kMaxRefEntities> acc_x;
+    static thread_local std::array<float, trsoa::kMaxRefEntities> acc_y;
+    static thread_local std::array<float, trsoa::kMaxRefEntities> acc_z;
+    static thread_local std::array<std::uint8_t, trsoa::kMaxRefEntities> need{};
+    need.fill(0);
+
+    auto& L = soa.models.lighting;
+    const auto& T = soa.models.transform;
+
+    // -------------------------
+    // A) baza: grid lub fallback + minlight + init acc
+    // -------------------------
+    for (int i = 0; i < soa.visibleModelCount; ++i)
+    {
+        const int slot = static_cast<int>(soa.visibleModelSlots[i]);
+        const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
+        trRefEntity_t& ent = tr.refdef.entities[entNum];
+
+        if (ent.lightingCalculated) { continue; }
+        ent.lightingCalculated = true;
+
+        if (!(refdef.rdflags & RDF_NOWORLDMODEL) && tr.world->lightGridData)
+        {
+            R_SetupEntityLightingGrid(ent);
+        }
+        else
+        {
+            ent.ambientLight[0] = ent.ambientLight[1] = ent.ambientLight[2] = tr.identityLight * 150;
+            ent.directedLight[0] = ent.directedLight[1] = ent.directedLight[2] = tr.identityLight * 150;
+            VectorCopy(tr.sunDirection, ent.lightDir);
+        }
+
+        // minlight (u ciebie zawsze ON, jak w kodzie)
+        ent.ambientLight[0] += tr.identityLight * 32;
+        ent.ambientLight[1] += tr.identityLight * 32;
+        ent.ambientLight[2] += tr.identityLight * 32;
+
+        // init acc = ent.lightDir * |directedLight|
+        const float dl = Vec3Len3(ent.directedLight[0], ent.directedLight[1], ent.directedLight[2]);
+        acc_x[slot] = ent.lightDir[0] * dl;
+        acc_y[slot] = ent.lightDir[1] * dl;
+        acc_z[slot] = ent.lightDir[2] * dl;
+
+        // mirror do SoA (dla SIMD)
+        L.directed_x[slot] = ent.directedLight[0];
+        L.directed_y[slot] = ent.directedLight[1];
+        L.directed_z[slot] = ent.directedLight[2];
+
+        L.ambient_x[slot] = ent.ambientLight[0];
+        L.ambient_y[slot] = ent.ambientLight[1];
+        L.ambient_z[slot] = ent.ambientLight[2];
+
+        need[slot] = 1u;
+    }
+
+    // jeżeli nic do roboty
+    bool anyNeed = false;
+    for (int slot = 0; slot < count; ++slot) { if (need[slot]) { anyNeed = true; break; } }
+    if (!anyNeed) return;
+
+    // -------------------------
+    // B) dynamic lights SIMD per-dlight
+    // -------------------------
+    constexpr float kMinR = 16.0f;        // DLIGHT_MINIMUM_RADIUS
+    constexpr float kAtRadius = 16.0f;    // DLIGHT_AT_RADIUS
+
+#if TR_HAS_XSIMD
+    using batch = xsimd::batch<float>;
+    constexpr int W = static_cast<int>(batch::size);
+
+    alignas(64) float activeLane[W];
+
+    for (int base = 0; base < count; base += W)
+    {
+        const int lanes = std::min(W, count - base);
+
+        bool any = false;
+        for (int l = 0; l < lanes; ++l)
+        {
+            const int s = base + l;
+            const bool act = (need[s] != 0u) && (soa.modelDerived.cullResult[s] != CULL_OUT);
+            activeLane[l] = act ? 1.0f : 0.0f;
+            any |= act;
+        }
+        for (int l = lanes; l < W; ++l) activeLane[l] = 0.0f;
+        if (!any) continue;
+
+        const batch active = xsimd::load_aligned(activeLane);
+
+        batch ox = xsimd::load_unaligned(&T.lightOrg_x[base]);
+        batch oy = xsimd::load_unaligned(&T.lightOrg_y[base]);
+        batch oz = xsimd::load_unaligned(&T.lightOrg_z[base]);
+
+        batch dxL = xsimd::load_unaligned(&L.directed_x[base]);
+        batch dyL = xsimd::load_unaligned(&L.directed_y[base]);
+        batch dzL = xsimd::load_unaligned(&L.directed_z[base]);
+
+        batch ax = xsimd::load_unaligned(&acc_x[base]);
+        batch ay = xsimd::load_unaligned(&acc_y[base]);
+        batch az = xsimd::load_unaligned(&acc_z[base]);
+
+        for (int di = 0; di < refdef.num_dlights; ++di)
+        {
+            const dlight_t& dl = refdef.dlights[di];
+#ifdef USE_PMLIGHT
+            if (dl.linear) continue;
+#endif
+            const float power = kAtRadius * (dl.radius * dl.radius);
+
+            const batch lx = batch(dl.origin[0]) - ox;
+            const batch ly = batch(dl.origin[1]) - oy;
+            const batch lz = batch(dl.origin[2]) - oz;
+
+            const batch dist2 = lx * lx + ly * ly + lz * lz;
+            batch dist = xsimd::sqrt(dist2);
+
+            // clamp dist
+            dist = xsimd::max(dist, batch(kMinR));
+
+            const batch invDist = batch(1.0f) / dist;
+
+            // normalized dir
+            const batch nx = lx * invDist;
+            const batch ny = ly * invDist;
+            const batch nz = lz * invDist;
+
+            // atten = power / (dist*dist)
+            const batch atten = (batch(power) / (dist * dist)) * active;
+
+            // directed += atten * dl.color
+            dxL = dxL + atten * batch(dl.color[0]);
+            dyL = dyL + atten * batch(dl.color[1]);
+            dzL = dzL + atten * batch(dl.color[2]);
+
+            // acc += atten * normalized_dir
+            ax = ax + atten * nx;
+            ay = ay + atten * ny;
+            az = az + atten * nz;
+        }
+
+        xsimd::store_unaligned(&L.directed_x[base], dxL);
+        xsimd::store_unaligned(&L.directed_y[base], dyL);
+        xsimd::store_unaligned(&L.directed_z[base], dzL);
+
+        xsimd::store_unaligned(&acc_x[base], ax);
+        xsimd::store_unaligned(&acc_y[base], ay);
+        xsimd::store_unaligned(&acc_z[base], az);
+    }
+#else
+    // fallback scalar (ale nadal per-SoA, bez wywołań na entity)
+    for (int slot = 0; slot < count; ++slot)
+    {
+        if (!need[slot]) continue;
+        if (soa.modelDerived.cullResult[slot] == CULL_OUT) continue;
+
+        const float ox = T.lightOrg_x[slot];
+        const float oy = T.lightOrg_y[slot];
+        const float oz = T.lightOrg_z[slot];
+
+        float dxL = L.directed_x[slot];
+        float dyL = L.directed_y[slot];
+        float dzL = L.directed_z[slot];
+
+        float ax = acc_x[slot];
+        float ay = acc_y[slot];
+        float az = acc_z[slot];
+
+        for (int di = 0; di < refdef.num_dlights; ++di)
+        {
+            const dlight_t& dl = refdef.dlights[di];
+#ifdef USE_PMLIGHT
+            if (dl.linear) continue;
+#endif
+            float vx = dl.origin[0] - ox;
+            float vy = dl.origin[1] - oy;
+            float vz = dl.origin[2] - oz;
+
+            float dist = std::sqrt(vx * vx + vy * vy + vz * vz);
+            if (dist < kMinR) dist = kMinR;
+
+            const float inv = 1.0f / dist;
+            vx *= inv; vy *= inv; vz *= inv;
+
+            const float power = kAtRadius * (dl.radius * dl.radius);
+            const float atten = power / (dist * dist);
+
+            dxL += atten * dl.color[0];
+            dyL += atten * dl.color[1];
+            dzL += atten * dl.color[2];
+
+            ax += atten * vx;
+            ay += atten * vy;
+            az += atten * vz;
+        }
+
+        L.directed_x[slot] = dxL;
+        L.directed_y[slot] = dyL;
+        L.directed_z[slot] = dzL;
+
+        acc_x[slot] = ax;
+        acc_y[slot] = ay;
+        acc_z[slot] = az;
+    }
+#endif
+
+    // -------------------------
+    // C) clamp ambient + pack + normalize(acc) + world->local (dot(axis))
+    // -------------------------
+    for (int i = 0; i < soa.visibleModelCount; ++i)
+    {
+        const int slot = static_cast<int>(soa.visibleModelSlots[i]);
+        if (!need[slot]) continue;
+        if (soa.modelDerived.cullResult[slot] == CULL_OUT) continue;
+
+        const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
+        trRefEntity_t& ent = tr.refdef.entities[entNum];
+
+        // clamp ambient
+        float amb0 = L.ambient_x[slot];
+        float amb1 = L.ambient_y[slot];
+        float amb2 = L.ambient_z[slot];
+
+        if (amb0 > tr.identityLightByte) amb0 = tr.identityLightByte;
+        if (amb1 > tr.identityLightByte) amb1 = tr.identityLightByte;
+        if (amb2 > tr.identityLightByte) amb2 = tr.identityLightByte;
+
+        // write AoS ambient + pack
+        ent.ambientLight[0] = amb0;
+        ent.ambientLight[1] = amb1;
+        ent.ambientLight[2] = amb2;
+
+        const std::array<std::uint8_t, 4> packed = {
+            static_cast<std::uint8_t>(myftol(amb0)),
+            static_cast<std::uint8_t>(myftol(amb1)),
+            static_cast<std::uint8_t>(myftol(amb2)),
+            0xFFu
+        };
+        std::memcpy(&ent.ambientLightInt, packed.data(), 4);
+        L.ambientPacked[slot] = ent.ambientLightInt;
+
+        // directed -> AoS
+        ent.directedLight[0] = L.directed_x[slot];
+        ent.directedLight[1] = L.directed_y[slot];
+        ent.directedLight[2] = L.directed_z[slot];
+
+        // normalize accumulated world light dir
+        float wx = acc_x[slot];
+        float wy = acc_y[slot];
+        float wz = acc_z[slot];
+        Vec3Normalize3(wx, wy, wz);
+
+        // world->local (dot with axis rows)
+        const float lx =
+            wx * T.ax0_x[slot] + wy * T.ax0_y[slot] + wz * T.ax0_z[slot];
+        const float ly =
+            wx * T.ax1_x[slot] + wy * T.ax1_y[slot] + wz * T.ax1_z[slot];
+        const float lz =
+            wx * T.ax2_x[slot] + wy * T.ax2_y[slot] + wz * T.ax2_z[slot];
+
+        ent.lightDir[0] = lx;
+        ent.lightDir[1] = ly;
+        ent.lightDir[2] = lz;
+
+        L.lightDir_x[slot] = lx;
+        L.lightDir_y[slot] = ly;
+        L.lightDir_z[slot] = lz;
+    }
+}
+
+#endif // USE_AoS_to_SoA_SIMD

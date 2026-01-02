@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -31,6 +31,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_descriptors.hpp"
 #include "vk_pipeline.hpp"
 #include "utils.hpp"
+
+#if defined(USE_AoS_to_SoA_SIMD)
+#include "tr_soa_frame.hpp"
+#endif
 
 shaderCommands_t tess;
 
@@ -182,9 +186,23 @@ void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
 			break;
 
 		case texMod_t::TMOD_ENTITY_TRANSLATE:
-			RB_CalcScrollTexCoords(backEnd.currentEntity->e.shaderTexCoord, (float *)src, (float *)dst);
+#if defined(USE_AoS_to_SoA_SIMD)
+		{
+			const int slot = backEnd.currentModelSlot;
+			auto& soa = trsoa::GetFrameSoA();
+			if (slot >= 0 && trsoa::SoA_ValidThisFrame(soa))
+			{
+				const float st[2]{ soa.models.shader.shaderTC0[slot], soa.models.shader.shaderTC1[slot] };
+				RB_CalcScrollTexCoords(st, (float*)src, (float*)dst);
+				src = dst;
+				break;
+			}
+		}
+#endif
+			RB_CalcScrollTexCoords(backEnd.currentEntity->e.shaderTexCoord, (float*)src, (float*)dst);
 			src = dst;
 			break;
+
 
 		case texMod_t::TMOD_SCROLL:
 			RB_CalcScrollTexCoords(bundle.texMods[tm].scroll, (float *)src, (float *)dst);
@@ -689,12 +707,33 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 				}
 				if (tess_flags & (TESS_ENT0 << i) && backEnd.currentEntity)
 				{
+#if defined(USE_AoS_to_SoA_SIMD)
+					const int slot = backEnd.currentModelSlot;
+					auto& soa = trsoa::GetFrameSoA();
+					if (slot >= 0 && trsoa::SoA_ValidThisFrame(soa))
+					{
+						color4ub_t c{};
+						const std::uint32_t packed = soa.models.shader.shaderColorPacked[slot];
+						std::memcpy(&c, &packed, 4);
+
+						uniform.ent.color[i][0] = c.rgba[0] * (1.0f / 255.0f);
+						uniform.ent.color[i][1] = c.rgba[1] * (1.0f / 255.0f);
+						uniform.ent.color[i][2] = c.rgba[2] * (1.0f / 255.0f);
+						uniform.ent.color[i][3] = (pStage->bundle[i].alphaGen == alphaGen_t::AGEN_IDENTITY)
+							? 1.0f
+							: (c.rgba[3] * (1.0f / 255.0f));
+
+						pushUniform = true;
+						continue;
+					}
+#endif
 					uniform.ent.color[i][0] = backEnd.currentEntity->e.shader.rgba[0] / 255.0;
 					uniform.ent.color[i][1] = backEnd.currentEntity->e.shader.rgba[1] / 255.0;
 					uniform.ent.color[i][2] = backEnd.currentEntity->e.shader.rgba[2] / 255.0;
 					uniform.ent.color[i][3] = pStage->bundle[i].alphaGen == alphaGen_t::AGEN_IDENTITY ? 1.0 : (backEnd.currentEntity->e.shader.rgba[3] / 255.0);
 					pushUniform = true;
 				}
+
 			}
 		}
 

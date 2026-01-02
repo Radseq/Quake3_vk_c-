@@ -1243,6 +1243,9 @@ typedef struct
 	backEndCounters_t pc;
 	bool isHyperspace;
 	const trRefEntity_t *currentEntity;
+	int currentEntityNum;   // 0..num_entities-1, REFENTITYNUM_WORLD, albo -1 (2D)
+	int currentModelSlot;   // slot w SoA.models, -1 gdy brak/invalid
+
 	bool skyRenderedThisView; // flag for drawing sun
 
 	bool projection2D; // if qtrue, drawstretchpic doesn't need to change modes

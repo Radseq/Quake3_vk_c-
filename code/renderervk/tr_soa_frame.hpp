@@ -27,7 +27,7 @@ namespace trsoa
 
 	[[nodiscard]] static inline float VectorLength_Exact(const vec3_t v) noexcept
 	{
-		return (float)std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+		return std::sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 	}
 
 	[[nodiscard]] static inline bool Skip_FirstPersonWeapon_InPortal(const trRefEntity_t& ent, const viewParms_t& vp) noexcept
@@ -67,6 +67,14 @@ namespace trsoa
 		alignas(64) std::array<float, kMaxRefEntities> axisLenInv{};
 
 		// Lighting origin in worldspace; equals origin unless RF_LIGHTING_ORIGIN.
+		// Lighting origin (raw) from refEntity_t (RF_LIGHTING_ORIGIN).
+		// NOTE: refEntity_t is typically zero-initialized by the caller;
+		//       if you ever submit partially-initialized entities, ensure lightingOrigin is valid.
+		alignas(64) std::array<float, kMaxRefEntities> lightingOrigin_x{};
+		alignas(64) std::array<float, kMaxRefEntities> lightingOrigin_y{};
+		alignas(64) std::array<float, kMaxRefEntities> lightingOrigin_z{};
+
+		// Final lighting origin in worldspace; equals origin unless RF_LIGHTING_ORIGIN.
 		alignas(64) std::array<float, kMaxRefEntities> lightOrg_x{};
 		alignas(64) std::array<float, kMaxRefEntities> lightOrg_y{};
 		alignas(64) std::array<float, kMaxRefEntities> lightOrg_z{};
@@ -105,6 +113,22 @@ namespace trsoa
 		alignas(64) std::array<std::uint8_t, kMaxRefEntities> intShaderTime{};
 	};
 
+	struct EntityModelAnimSoA final
+	{
+		std::array<std::int32_t, kMaxRefEntities> frame{};
+		std::array<std::int32_t, kMaxRefEntities> oldframe{};
+		alignas(64) std::array<float, kMaxRefEntities> backlerp{};
+	};
+
+	struct EntityShaderSoA final
+	{
+		alignas(64) std::array<float, kMaxRefEntities> shaderTC0{};
+		alignas(64) std::array<float, kMaxRefEntities> shaderTC1{};
+		std::array<std::uint32_t, kMaxRefEntities> shaderColorPacked{}; // memcpy z color4ub_t
+		std::array<std::uint32_t, kMaxRefEntities> shaderTimeRaw{};     // memcpy z floatint_t
+	};
+
+
 	// Bucket = jedna spójna pula indeksów (brak branchy w pętli SIMD)
 	struct EntityBucketSoA final
 	{
@@ -113,9 +137,61 @@ namespace trsoa
 		EntityRenderSoA render{};
 		EntityTransformSoA transform{};
 		EntityLightingSoA lighting{};
+		EntityModelAnimSoA anim{}; // tylko RT_MODEL (dla FX nieużywane)
+		EntityShaderSoA shader{};
 
 		inline void clear() noexcept { count = 0; }
 	};
+
+	struct FxSpriteSoA final
+	{
+		int count{};
+
+		std::array<ent_index_t, kMaxRefEntities> entNum{};
+		std::array<std::int32_t, kMaxRefEntities> renderfx{};
+		std::array<qhandle_t, kMaxRefEntities> customShader{};
+		std::array<shader_t*, kMaxRefEntities> shaderPtr{}; // resolved per frame
+		std::array<std::int16_t, kMaxRefEntities> fogNum{};  // 0..numfogs-1
+
+
+		alignas(64) std::array<float, kMaxRefEntities> origin_x{};
+		alignas(64) std::array<float, kMaxRefEntities> origin_y{};
+		alignas(64) std::array<float, kMaxRefEntities> origin_z{};
+
+		alignas(64) std::array<float, kMaxRefEntities> radius{};
+		alignas(64) std::array<float, kMaxRefEntities> rotation{};
+		alignas(64) std::array<float, kMaxRefEntities> st0{};
+		alignas(64) std::array<float, kMaxRefEntities> st1{};
+
+		std::array<std::uint32_t, kMaxRefEntities> shaderPacked{}; // memcpy z color4ub_t
+
+		inline void clear() noexcept { count = 0; }
+	};
+
+	struct FxBeamSoA final
+	{
+		int count{};
+
+		std::array<ent_index_t, kMaxRefEntities> entNum{};
+		std::array<std::int32_t, kMaxRefEntities> renderfx{};
+		std::array<qhandle_t, kMaxRefEntities> customShader{};
+		std::array<shader_t*, kMaxRefEntities> shaderPtr{}; // resolved per frame
+		std::array<std::int16_t, kMaxRefEntities> fogNum{};  // 0..numfogs-1
+
+
+		alignas(64) std::array<float, kMaxRefEntities> from_x{};
+		alignas(64) std::array<float, kMaxRefEntities> from_y{};
+		alignas(64) std::array<float, kMaxRefEntities> from_z{};
+
+		alignas(64) std::array<float, kMaxRefEntities> to_x{};
+		alignas(64) std::array<float, kMaxRefEntities> to_y{};
+		alignas(64) std::array<float, kMaxRefEntities> to_z{};
+
+		std::array<std::int32_t, kMaxRefEntities> frameOrDiameter{}; // ent.e.frame (np. MODEL_BEAM)
+
+		inline void clear() noexcept { count = 0; }
+	};
+
 
 	struct DlightSoA final
 	{
@@ -154,8 +230,27 @@ namespace trsoa
 		alignas(64) std::array<float, kMaxRefEntities> boundRadius{}; // for LOD batch
 		alignas(64) std::array<std::uint8_t, kMaxRefEntities> lod{};  // final LOD per model slot
 
+		// sphere-cull prepass (tylko gdy !nonNormalizedAxes && frame==oldframe)
+		alignas(64) std::array<float, kMaxRefEntities> cullLocal_x{};
+		alignas(64) std::array<float, kMaxRefEntities> cullLocal_y{};
+		alignas(64) std::array<float, kMaxRefEntities> cullLocal_z{};
+		alignas(64) std::array<float, kMaxRefEntities> cullRadius{};
+		alignas(64) std::array<std::uint8_t, kMaxRefEntities> cullResult{}; // CULL_*
+
 		[[nodiscard]] inline float* mat_ptr(const int i) noexcept { return modelMatrix.data() + (i * 16); }
 		[[nodiscard]] inline const float* mat_ptr(const int i) const noexcept { return modelMatrix.data() + (i * 16); }
+
+		// cached per-slot model lookup (set in ComputeModelLODs_Batch)
+		alignas(64) std::array<std::uint8_t, kMaxRefEntities> modelType{}; // modtype_t or 0xFF
+		alignas(64) std::array<model_t*, kMaxRefEntities> modelPtr{};      // nullptr if invalid
+
+		alignas(64) std::array<std::int16_t, kMaxRefEntities> fogNum{}; // 0..numfogs-1
+
+		inline void clear() noexcept
+		{
+			// intencjonalnie puste: pola są nadpisywane dla [0..models.count) co klatkę
+			// brak kosztu runtime
+		}
 	};
 
 	// Per-frame SoA view
@@ -164,34 +259,77 @@ namespace trsoa
 		//int frameStamp{ -1 };
 		int viewStamp{ -1 }; // zamiast frameStamp
 
-		// RT_MODEL: Rotate/LOD/Cull/Lighting/TransformDlights
 		EntityBucketSoA models{};
 
-		// RT_SPRITE/BEAM/etc
-		EntityBucketSoA fx{};
+		FxSpriteSoA sprites{};
+		FxBeamSoA beams{};
+		FxBeamSoA lightning{};
+		FxBeamSoA rail_core{};
+		FxBeamSoA rail_rings{};
 
-		// split dlights:
-		// - refdef: used by lighting accumulation (R_SetupEntityLighting)
-		// - view: used by PMLIGHT (bounds/face cull per entity)
-		DlightSoA dlights_refdef{}; // refdef.dlights (lighting)
-		DlightSoA dlights_view{};   // viewParms.dlights (pm light + cull bounds)
-
-		// mapowanie: original ent index -> slot w bucket
-		alignas(64) std::array<std::int16_t, kMaxRefEntities> modelSlotOfEnt{};
-		alignas(64) std::array<std::int16_t, kMaxRefEntities> fxSlotOfEnt{};
+		DlightSoA dlights_refdef{};
+		DlightSoA dlights_view{};
 
 		ModelDerivedSoA modelDerived{};
+
+		// visible & typed slot lists (built after cull)
+		int visibleModelCount{};
+		alignas(64) std::array<std::uint16_t, kMaxRefEntities> visibleModelSlots{};
+
+		int md3Count{};
+		alignas(64) std::array<std::uint16_t, kMaxRefEntities> md3Slots{};
+
+		int mdrCount{};
+		alignas(64) std::array<std::uint16_t, kMaxRefEntities> mdrSlots{};
+
+		int iqmCount{};
+		alignas(64) std::array<std::uint16_t, kMaxRefEntities> iqmSlots{};
+
+		int brushCount{};
+		alignas(64) std::array<std::uint16_t, kMaxRefEntities> brushSlots{};
+
+		int otherCount{};
+		alignas(64) std::array<std::uint16_t, kMaxRefEntities> otherSlots{};
+
+
+		alignas(64) std::array<std::int16_t, kMaxRefEntities> modelSlotOfEnt{};
+		alignas(64) std::array<std::int16_t, kMaxRefEntities> spriteSlotOfEnt{};
+		alignas(64) std::array<std::int16_t, kMaxRefEntities> beamSlotOfEnt{};
+		alignas(64) std::array<std::int16_t, kMaxRefEntities> lightningSlotOfEnt{};
+		alignas(64) std::array<std::int16_t, kMaxRefEntities> railCoreSlotOfEnt{};
+		alignas(64) std::array<std::int16_t, kMaxRefEntities> railRingsSlotOfEnt{};
 
 		inline void clear() noexcept
 		{
 			models.clear();
-			fx.clear();
+
+			sprites.clear();
+			beams.clear();
+			lightning.clear();
+			rail_core.clear();
+			rail_rings.clear();
+
 			dlights_refdef.clear();
 			dlights_view.clear();
-			// -1 everywhere
-			std::memset(modelSlotOfEnt.data(), 0xFF, sizeof(modelSlotOfEnt));
-			std::memset(fxSlotOfEnt.data(), 0xFF, sizeof(fxSlotOfEnt));
+
+			modelDerived.clear();
+
+			modelSlotOfEnt.fill(-1);
+			spriteSlotOfEnt.fill(-1);
+			beamSlotOfEnt.fill(-1);
+			lightningSlotOfEnt.fill(-1);
+			railCoreSlotOfEnt.fill(-1);
+			railRingsSlotOfEnt.fill(-1);
+
+			visibleModelCount = 0;
+			md3Count = 0;
+			mdrCount = 0;
+			iqmCount = 0;
+			brushCount = 0;
+			otherCount = 0;
+
 		}
+
 	};
 
 	[[nodiscard]] static inline bool SoA_ValidThisFrame(const FrameSoA& s) noexcept
@@ -204,6 +342,28 @@ namespace trsoa
 		static thread_local FrameSoA s{};
 		return s;
 	}
+
+	struct SoAContextTLS final
+	{
+		int modelSlot{ -1 };
+	};
+
+	[[nodiscard]] static inline SoAContextTLS& GetSoAContextTLS() noexcept
+	{
+		static thread_local SoAContextTLS c{};
+		return c;
+	}
+
+	static inline void SetCurrentModelSlot(const int slot) noexcept
+	{
+		GetSoAContextTLS().modelSlot = slot;
+	}
+
+	[[nodiscard]] static inline int CurrentModelSlot() noexcept
+	{
+		return GetSoAContextTLS().modelSlot;
+	}
+
 
 	static inline void BuildDlightsSoA_FromAoS(const int count, const dlight_t* dl, DlightSoA& out) noexcept
 	{
@@ -239,7 +399,6 @@ namespace trsoa
 	// -------------------------------------------------------------------------
 	// Build (AoS -> SoA) per frame
 	// -------------------------------------------------------------------------
-
 	static inline void BuildEntitiesSoA(trRefdef_t& refdef, const viewParms_t& vp, FrameSoA& out) noexcept
 	{
 		out.clear();
@@ -255,108 +414,245 @@ namespace trsoa
 				continue;
 			}
 
-			const int reType = ent.e.reType;
+			const refEntityType_t reType = ent.e.reType;
 
-			std::int16_t* slotMap = nullptr;
-
-			// Bucket selection: RT_MODEL vs FX.
-			EntityBucketSoA* b = nullptr;
+			// ------------------------------------------------------------
+			// RT_MODEL -> models bucket
+			// ------------------------------------------------------------
 			if (reType == RT_MODEL)
 			{
-				b = &out.models;
-				slotMap = out.modelSlotOfEnt.data();
-			}
-			else
-			{
-				switch (reType)
+				auto& b = out.models;
+
+				if (b.count >= static_cast<int>(kMaxRefEntities))
 				{
-				case RT_SPRITE:
-				case RT_BEAM:
-				case RT_LIGHTNING:
-				case RT_RAIL_CORE:
-				case RT_RAIL_RINGS:
-					if (Skip_ThirdPersonFx_InPrimaryView(ent, vp))
-					{
-						continue;
-					}
-					b = &out.fx;
-					slotMap = out.fxSlotOfEnt.data();
 					break;
-
-				default:
-					// Portalsurface itd. zostają chwilowo na AoS.
-					continue;
 				}
+
+				const int i = b.count++;
+				out.modelSlotOfEnt[entNum] = static_cast<std::int16_t>(i);
+
+				b.render.entNum[i] = static_cast<ent_index_t>(entNum);
+				b.render.reType[i] = reType;
+				b.render.renderfx[i] = ent.e.renderfx;
+				b.render.hModel[i] = ent.e.hModel;
+				b.render.customShader[i] = ent.e.customShader;
+
+				// transform
+				b.transform.origin_x[i] = ent.e.origin[0];
+				b.transform.origin_y[i] = ent.e.origin[1];
+				b.transform.origin_z[i] = ent.e.origin[2];
+
+				b.transform.ax0_x[i] = ent.e.axis[0][0];
+				b.transform.ax0_y[i] = ent.e.axis[0][1];
+				b.transform.ax0_z[i] = ent.e.axis[0][2];
+
+				b.transform.ax1_x[i] = ent.e.axis[1][0];
+				b.transform.ax1_y[i] = ent.e.axis[1][1];
+				b.transform.ax1_z[i] = ent.e.axis[1][2];
+
+				b.transform.ax2_x[i] = ent.e.axis[2][0];
+				b.transform.ax2_y[i] = ent.e.axis[2][1];
+				b.transform.ax2_z[i] = ent.e.axis[2][2];
+
+				const bool nonNorm = !!ent.e.nonNormalizedAxes;
+				b.transform.nonNormalizedAxes[i] = static_cast<std::uint8_t>(nonNorm);
+
+				if (nonNorm)
+				{
+					const float len = VectorLength_Exact(ent.e.axis[0]);
+					b.transform.axisLenInv[i] = (len != 0.0f) ? (1.0f / len) : 0.0f;
+				}
+				else
+				{
+					b.transform.axisLenInv[i] = 1.0f;
+				}
+
+				const bool hasLO = (ent.e.renderfx & RF_LIGHTING_ORIGIN) != 0;
+				b.transform.hasLightingOrigin[i] = static_cast<std::uint8_t>(hasLO);
+				if (hasLO)
+				{
+					b.transform.lightOrg_x[i] = ent.e.lightingOrigin[0];
+					b.transform.lightOrg_y[i] = ent.e.lightingOrigin[1];
+					b.transform.lightOrg_z[i] = ent.e.lightingOrigin[2];
+				}
+				else
+				{
+					b.transform.lightOrg_x[i] = ent.e.origin[0];
+					b.transform.lightOrg_y[i] = ent.e.origin[1];
+					b.transform.lightOrg_z[i] = ent.e.origin[2];
+				}
+
+				// lighting mirror
+				b.lighting.lightingCalculated[i] = static_cast<std::uint8_t>(ent.lightingCalculated);
+				b.lighting.intShaderTime[i] = static_cast<std::uint8_t>(ent.intShaderTime);
+
+				b.lighting.lightDir_x[i] = ent.lightDir[0];
+				b.lighting.lightDir_y[i] = ent.lightDir[1];
+				b.lighting.lightDir_z[i] = ent.lightDir[2];
+
+				b.lighting.ambient_x[i] = ent.ambientLight[0];
+				b.lighting.ambient_y[i] = ent.ambientLight[1];
+				b.lighting.ambient_z[i] = ent.ambientLight[2];
+				b.lighting.ambientPacked[i] = ent.ambientLightInt;
+
+				b.lighting.directed_x[i] = ent.directedLight[0];
+				b.lighting.directed_y[i] = ent.directedLight[1];
+				b.lighting.directed_z[i] = ent.directedLight[2];
+
+				// anim hot fields (dla sphere-cull / lod)
+				b.anim.frame[i] = ent.e.frame;
+				b.anim.oldframe[i] = ent.e.oldframe;
+				b.anim.backlerp[i] = ent.e.backlerp;
+
+#ifdef USE_LEGACY_DLIGHTS
+				ent.needDlights = 0;
+#endif
+				continue;
 			}
 
-			if (b->count >= static_cast<int>(kMaxRefEntities)) { break; }
-			const int i = b->count++;
-			slotMap[entNum] = static_cast<std::int16_t>(i);
-
-			b->render.entNum[i] = static_cast<ent_index_t>(entNum);
-			b->render.reType[i] = reType;
-			b->render.renderfx[i] = ent.e.renderfx;
-			b->render.hModel[i] = ent.e.hModel;
-			b->render.customShader[i] = ent.e.customShader;
-
-			b->transform.origin_x[i] = ent.e.origin[0];
-			b->transform.origin_y[i] = ent.e.origin[1];
-			b->transform.origin_z[i] = ent.e.origin[2];
-
-			b->transform.ax0_x[i] = ent.e.axis[0][0];
-			b->transform.ax0_y[i] = ent.e.axis[0][1];
-			b->transform.ax0_z[i] = ent.e.axis[0][2];
-
-			b->transform.ax1_x[i] = ent.e.axis[1][0];
-			b->transform.ax1_y[i] = ent.e.axis[1][1];
-			b->transform.ax1_z[i] = ent.e.axis[1][2];
-
-			b->transform.ax2_x[i] = ent.e.axis[2][0];
-			b->transform.ax2_y[i] = ent.e.axis[2][1];
-			b->transform.ax2_z[i] = ent.e.axis[2][2];
-
-			const bool nonNorm = !!ent.e.nonNormalizedAxes;
-			b->transform.nonNormalizedAxes[i] = static_cast<std::uint8_t>(nonNorm);
-			if (nonNorm)
+			// ------------------------------------------------------------
+			// FX -> osobne buckety
+			// ------------------------------------------------------------
+			switch (reType)
 			{
-				const float len = VectorLength_Exact(ent.e.axis[0]);
-				b->transform.axisLenInv[i] = (len != 0.0f) ? (1.0f / len) : 0.0f;
-			}
-			else
+			case RT_SPRITE:
 			{
-				b->transform.axisLenInv[i] = 1.0f;
+				if (Skip_ThirdPersonFx_InPrimaryView(ent, vp)) { break; }
+
+				auto& bucket = out.sprites;
+				if (bucket.count >= static_cast<int>(kMaxRefEntities)) { break; }
+
+				const int i = bucket.count++;
+				out.spriteSlotOfEnt[entNum] = static_cast<std::int16_t>(i);
+
+				bucket.entNum[i] = static_cast<ent_index_t>(entNum);
+				bucket.renderfx[i] = ent.e.renderfx;
+				bucket.customShader[i] = ent.e.customShader;
+
+				bucket.origin_x[i] = ent.e.origin[0];
+				bucket.origin_y[i] = ent.e.origin[1];
+				bucket.origin_z[i] = ent.e.origin[2];
+
+				bucket.radius[i] = ent.e.radius;
+				bucket.rotation[i] = ent.e.rotation;
+
+				bucket.st0[i] = ent.e.shaderTexCoord[0];
+				bucket.st1[i] = ent.e.shaderTexCoord[1];
+
+				std::uint32_t packed{};
+				std::memcpy(&packed, &ent.e.shader, sizeof(packed));
+				bucket.shaderPacked[i] = packed;
+				break;
 			}
 
-			const bool hasLO = (ent.e.renderfx & RF_LIGHTING_ORIGIN) != 0;
-			b->transform.hasLightingOrigin[i] = static_cast<std::uint8_t>(hasLO);
-			if (hasLO)
+			case RT_BEAM:
 			{
-				b->transform.lightOrg_x[i] = ent.e.lightingOrigin[0];
-				b->transform.lightOrg_y[i] = ent.e.lightingOrigin[1];
-				b->transform.lightOrg_z[i] = ent.e.lightingOrigin[2];
+				if (Skip_ThirdPersonFx_InPrimaryView(ent, vp)) { break; }
+
+				auto& bucket = out.beams;
+				if (bucket.count >= static_cast<int>(kMaxRefEntities)) { break; }
+
+				const int i = bucket.count++;
+				out.beamSlotOfEnt[entNum] = static_cast<std::int16_t>(i);
+
+				bucket.entNum[i] = static_cast<ent_index_t>(entNum);
+				bucket.renderfx[i] = ent.e.renderfx;
+				bucket.customShader[i] = ent.e.customShader;
+
+				bucket.from_x[i] = ent.e.origin[0];
+				bucket.from_y[i] = ent.e.origin[1];
+				bucket.from_z[i] = ent.e.origin[2];
+
+				bucket.to_x[i] = ent.e.oldorigin[0];
+				bucket.to_y[i] = ent.e.oldorigin[1];
+				bucket.to_z[i] = ent.e.oldorigin[2];
+
+				bucket.frameOrDiameter[i] = ent.e.frame;
+				break;
 			}
-			else
+
+			case RT_LIGHTNING:
 			{
-				b->transform.lightOrg_x[i] = ent.e.origin[0];
-				b->transform.lightOrg_y[i] = ent.e.origin[1];
-				b->transform.lightOrg_z[i] = ent.e.origin[2];
+				if (Skip_ThirdPersonFx_InPrimaryView(ent, vp)) { break; }
+
+				auto& bucket = out.lightning;
+				if (bucket.count >= static_cast<int>(kMaxRefEntities)) { break; }
+
+				const int i = bucket.count++;
+				out.lightningSlotOfEnt[entNum] = static_cast<std::int16_t>(i);
+
+				bucket.entNum[i] = static_cast<ent_index_t>(entNum);
+				bucket.renderfx[i] = ent.e.renderfx;
+				bucket.customShader[i] = ent.e.customShader;
+
+				bucket.from_x[i] = ent.e.origin[0];
+				bucket.from_y[i] = ent.e.origin[1];
+				bucket.from_z[i] = ent.e.origin[2];
+
+				bucket.to_x[i] = ent.e.oldorigin[0];
+				bucket.to_y[i] = ent.e.oldorigin[1];
+				bucket.to_z[i] = ent.e.oldorigin[2];
+
+				bucket.frameOrDiameter[i] = ent.e.frame;
+				break;
 			}
 
-			b->lighting.lightingCalculated[i] = static_cast<std::uint8_t>(ent.lightingCalculated);
-			b->lighting.intShaderTime[i] = static_cast<std::uint8_t>(ent.intShaderTime);
+			case RT_RAIL_CORE:
+			{
+				if (Skip_ThirdPersonFx_InPrimaryView(ent, vp)) { break; }
 
-			b->lighting.lightDir_x[i] = ent.lightDir[0];
-			b->lighting.lightDir_y[i] = ent.lightDir[1];
-			b->lighting.lightDir_z[i] = ent.lightDir[2];
+				auto& bucket = out.rail_core;
+				if (bucket.count >= static_cast<int>(kMaxRefEntities)) { break; }
 
-			b->lighting.ambient_x[i] = ent.ambientLight[0];
-			b->lighting.ambient_y[i] = ent.ambientLight[1];
-			b->lighting.ambient_z[i] = ent.ambientLight[2];
-			b->lighting.ambientPacked[i] = ent.ambientLightInt;
+				const int i = bucket.count++;
+				out.railCoreSlotOfEnt[entNum] = static_cast<std::int16_t>(i);
 
-			b->lighting.directed_x[i] = ent.directedLight[0];
-			b->lighting.directed_y[i] = ent.directedLight[1];
-			b->lighting.directed_z[i] = ent.directedLight[2];
+				bucket.entNum[i] = static_cast<ent_index_t>(entNum);
+				bucket.renderfx[i] = ent.e.renderfx;
+				bucket.customShader[i] = ent.e.customShader;
+
+				bucket.from_x[i] = ent.e.origin[0];
+				bucket.from_y[i] = ent.e.origin[1];
+				bucket.from_z[i] = ent.e.origin[2];
+
+				bucket.to_x[i] = ent.e.oldorigin[0];
+				bucket.to_y[i] = ent.e.oldorigin[1];
+				bucket.to_z[i] = ent.e.oldorigin[2];
+
+				bucket.frameOrDiameter[i] = ent.e.frame;
+				break;
+			}
+
+			case RT_RAIL_RINGS:
+			{
+				if (Skip_ThirdPersonFx_InPrimaryView(ent, vp)) { break; }
+
+				auto& bucket = out.rail_rings;
+				if (bucket.count >= static_cast<int>(kMaxRefEntities)) { break; }
+
+				const int i = bucket.count++;
+				out.railRingsSlotOfEnt[entNum] = static_cast<std::int16_t>(i);
+
+				bucket.entNum[i] = static_cast<ent_index_t>(entNum);
+				bucket.renderfx[i] = ent.e.renderfx;
+				bucket.customShader[i] = ent.e.customShader;
+
+				bucket.from_x[i] = ent.e.origin[0];
+				bucket.from_y[i] = ent.e.origin[1];
+				bucket.from_z[i] = ent.e.origin[2];
+
+				bucket.to_x[i] = ent.e.oldorigin[0];
+				bucket.to_y[i] = ent.e.oldorigin[1];
+				bucket.to_z[i] = ent.e.oldorigin[2];
+
+				bucket.frameOrDiameter[i] = ent.e.frame;
+				break;
+			}
+
+			default:
+				// Portalsurface itd. zostają na AoS
+				break;
+			}
 
 #ifdef USE_LEGACY_DLIGHTS
 			ent.needDlights = 0;
@@ -364,16 +660,136 @@ namespace trsoa
 		}
 	}
 
+	static inline void PostCompute_ModelTransform(EntityTransformSoA& t, const int count) noexcept
+	{
+		if (count <= 0) return;
+
+#if TR_HAS_XSIMD
+		using batch = xsimd::batch<float>;
+		constexpr int W = static_cast<int>(batch::size);
+
+		alignas(64) float nnLane[W];
+		alignas(64) float loLane[W];
+
+		int base = 0;
+		for (; base + W <= count; base += W)
+		{
+			unsigned anyNN = 0;
+			unsigned anyLO = 0;
+			for (int l = 0; l < W; ++l)
+			{
+				const int s = base + l;
+				const unsigned nn = static_cast<unsigned>(t.nonNormalizedAxes[s] != 0);
+				const unsigned lo = static_cast<unsigned>(t.hasLightingOrigin[s] != 0);
+				nnLane[l] = nn ? 1.0f : 0.0f;
+				loLane[l] = lo ? 1.0f : 0.0f;
+				anyNN |= nn;
+				anyLO |= lo;
+			}
+
+			// axisLenInv
+			if (!anyNN)
+			{
+				// common case: normalized axes
+				batch(1.0f).store_aligned(t.axisLenInv.data() + base);
+			}
+			else
+			{
+				const batch nn = xsimd::load_aligned(nnLane);
+				const auto nnMask = (nn != batch(0.0f));
+
+				const batch ax0x = batch::load_aligned(t.ax0_x.data() + base);
+				const batch ax0y = batch::load_aligned(t.ax0_y.data() + base);
+				const batch ax0z = batch::load_aligned(t.ax0_z.data() + base);
+
+				const batch len2 = ax0x * ax0x + ax0y * ax0y + ax0z * ax0z;
+				const batch len = xsimd::sqrt(len2);
+
+				batch inv = batch(1.0f) / len;
+				inv = xsimd::select((len != batch(0.0f)), inv, batch(0.0f)); // len==0 => 0
+				inv = xsimd::select(nnMask, inv, batch(1.0f));              // !nonNorm => 1
+
+				inv.store_aligned(t.axisLenInv.data() + base);
+			}
+
+			// lightOrg
+			if (!anyLO)
+			{
+				// common case: no RF_LIGHTING_ORIGIN
+				const batch ox = batch::load_aligned(t.origin_x.data() + base);
+				const batch oy = batch::load_aligned(t.origin_y.data() + base);
+				const batch oz = batch::load_aligned(t.origin_z.data() + base);
+				ox.store_aligned(t.lightOrg_x.data() + base);
+				oy.store_aligned(t.lightOrg_y.data() + base);
+				oz.store_aligned(t.lightOrg_z.data() + base);
+			}
+			else
+			{
+				const batch hasLO = xsimd::load_aligned(loLane);
+				const auto loMask = (hasLO != batch(0.0f));
+
+				const batch ox = batch::load_aligned(t.origin_x.data() + base);
+				const batch oy = batch::load_aligned(t.origin_y.data() + base);
+				const batch oz = batch::load_aligned(t.origin_z.data() + base);
+
+				const batch lx = batch::load_aligned(t.lightingOrigin_x.data() + base);
+				const batch ly = batch::load_aligned(t.lightingOrigin_y.data() + base);
+				const batch lz = batch::load_aligned(t.lightingOrigin_z.data() + base);
+
+				const batch outX = xsimd::select(loMask, lx, ox);
+				const batch outY = xsimd::select(loMask, ly, oy);
+				const batch outZ = xsimd::select(loMask, lz, oz);
+
+				outX.store_aligned(t.lightOrg_x.data() + base);
+				outY.store_aligned(t.lightOrg_y.data() + base);
+				outZ.store_aligned(t.lightOrg_z.data() + base);
+			}
+		}
+
+		// tail
+		for (int i = base; i < count; ++i)
+		{
+			if (t.nonNormalizedAxes[i])
+			{
+				const float x = t.ax0_x[i];
+				const float y = t.ax0_y[i];
+				const float z = t.ax0_z[i];
+				const float len = std::sqrtf(x * x + y * y + z * z);
+				t.axisLenInv[i] = (len != 0.0f) ? (1.0f / len) : 0.0f;
+			}
+			else
+			{
+				t.axisLenInv[i] = 1.0f;
+			}
+
+			if (t.hasLightingOrigin[i])
+			{
+				t.lightOrg_x[i] = t.lightingOrigin_x[i];
+				t.lightOrg_y[i] = t.lightingOrigin_y[i];
+				t.lightOrg_z[i] = t.lightingOrigin_z[i];
+			}
+			else
+			{
+				t.lightOrg_x[i] = t.origin_x[i];
+				t.lightOrg_y[i] = t.origin_y[i];
+				t.lightOrg_z[i] = t.origin_z[i];
+			}
+		}
+#else
+		// scalar fallback ...
+#endif
+	}
+
 	static inline void BuildFrameSoA(trRefdef_t& refdef, const viewParms_t& vp, FrameSoA& out) noexcept
 	{
 		out.viewStamp = tr.viewCount;
 
 		BuildEntitiesSoA(refdef, vp, out);
+		PostCompute_ModelTransform(out.models.transform, out.models.count);
 
 		BuildDlightsSoA_FromAoS(static_cast<int>(refdef.num_dlights), refdef.dlights, out.dlights_refdef);
 		BuildDlightsSoA_FromAoS(static_cast<int>(vp.num_dlights), vp.dlights, out.dlights_view);
 	}
-
 } // namespace trsoa
 
 #endif // TR_SOA_FRAME_HPP

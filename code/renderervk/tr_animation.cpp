@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_vbo.hpp"
 #include "tr_light.hpp"
 #include "tr_main.hpp"
+#include "tr_soa_frame.hpp"
 
 /*
 
@@ -237,14 +238,61 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 	// cull the entire model if merged bounding box of both frames
 	// is outside the view frustum.
 	//
+#if defined(USE_AoS_to_SoA_SIMD)
+	{
+		auto& soa = trsoa::GetFrameSoA();
+		if (trsoa::SoA_ValidThisFrame(soa))
+		{
+			int slot = trsoa::CurrentModelSlot();
+
+			if (slot < 0)
+			{
+				const int entNum = (tr.currentEntity == &ent) ? tr.currentEntityNum : static_cast<int>(&ent - tr.refdef.entities);
+				if (static_cast<unsigned>(entNum) < trsoa::kMaxRefEntities)
+					slot = soa.modelSlotOfEnt[entNum];
+			}
+
+			if (slot >= 0)
+			{
+				const std::uint8_t cr = soa.modelDerived.cullResult[slot];
+				if (cr == CULL_OUT)
+					return;
+
+				if (cr == CULL_IN)
+				{
+					cull = CULL_IN;
+					goto mdr_cull_done;
+				}
+			}
+		}
+	}
+#endif
+
+
 	cull = R_MDRCullModel(header, ent);
 	if (cull == CULL_OUT)
 	{
 		return;
 	}
 
+mdr_cull_done:
+	(void)0;
+
+
 	// figure out the current LOD of the model we're rendering, and set the lod pointer respectively.
+#if defined(USE_AoS_to_SoA_SIMD)
+	{
+		auto& soa = trsoa::GetFrameSoA();
+		const int slot = trsoa::CurrentModelSlot();
+		if (slot >= 0 && trsoa::SoA_ValidThisFrame(soa))
+			lodnum = static_cast<int>(soa.modelDerived.lod[slot]);
+		else
+			lodnum = R_ComputeLOD(ent);
+	}
+#else
 	lodnum = R_ComputeLOD(ent);
+#endif
+
 	// check whether this model has as that many LODs at all. If not, try the closest thing we got.
 	if (header.numLODs <= 0)
 		return;
@@ -265,7 +313,32 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 	}
 
 	// fogNum?
+#if defined(USE_AoS_to_SoA_SIMD)
+	{
+		auto& soa = trsoa::GetFrameSoA();
+		if (trsoa::SoA_ValidThisFrame(soa))
+		{
+			int slot = trsoa::CurrentModelSlot();
+
+			if (slot < 0)
+			{
+				const int entNum = (tr.currentEntity == &ent) ? tr.currentEntityNum : static_cast<int>(&ent - tr.refdef.entities);
+				if (static_cast<unsigned>(entNum) < trsoa::kMaxRefEntities)
+					slot = soa.modelSlotOfEnt[entNum];
+			}
+
+			if (slot >= 0)
+			{
+				fogNum = static_cast<int>(soa.modelDerived.fogNum[slot]);
+				goto mdr_fog_done;
+			}
+		}
+	}
+#endif
 	fogNum = R_MDRComputeFogNum(header, ent);
+mdr_fog_done:
+	(void)0;
+
 
 	surface = (mdrSurface_t *)((byte *)lod + lod->ofsSurfaces);
 

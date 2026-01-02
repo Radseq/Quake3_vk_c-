@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -173,22 +173,28 @@ static int R_CullModel(md3Header_t *header, const trRefEntity_t &ent, vec3_t bou
 
 int R_ComputeLOD(trRefEntity_t &ent)
 {
-#if defined(USE_AoS_to_SoA_SIMD) 
-	// SoA fast path (per-view)
+#if defined(USE_AoS_to_SoA_SIMD)
 	{
 		auto& soa = trsoa::GetFrameSoA();
 		if (trsoa::SoA_ValidThisFrame(soa))
 		{
-			const int entNum = static_cast<int>(&ent - tr.refdef.entities);
+			// 1) hot-path: slot ustawiony przez tr_main.cpp
+			const int slot = trsoa::CurrentModelSlot();
+			if (slot >= 0)
+				return static_cast<int>(soa.modelDerived.lod[slot]);
+
+			// 2) fallback: jeżeli ktoś wywołał bez ustawienia slotu
+			const int entNum = (tr.currentEntity == &ent) ? tr.currentEntityNum : static_cast<int>(&ent - tr.refdef.entities);
 			if (static_cast<unsigned>(entNum) < trsoa::kMaxRefEntities)
 			{
-				const int slot = soa.modelSlotOfEnt[entNum];
-				if (slot >= 0)
-					return static_cast<int>(soa.modelDerived.lod[slot]);
+				const int s = soa.modelSlotOfEnt[entNum];
+				if (s >= 0)
+					return static_cast<int>(soa.modelDerived.lod[s]);
 			}
 		}
 	}
 #endif
+
 	float radius;
 	float flod, lodscale;
 	float projectedRadius;
@@ -350,7 +356,18 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	//
 	// compute LOD
 	//
+#if defined(USE_AoS_to_SoA_SIMD)
+	{
+		auto& soa = trsoa::GetFrameSoA();
+		const int slot = trsoa::CurrentModelSlot();
+		if (slot >= 0 && trsoa::SoA_ValidThisFrame(soa))
+			lod = static_cast<int>(soa.modelDerived.lod[slot]);
+		else
+			lod = R_ComputeLOD(ent);
+	}
+#else
 	lod = R_ComputeLOD(ent);
+#endif
 
 	header = tr.currentModel->md3[lod];
 
@@ -358,11 +375,54 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	// cull the entire model if merged bounding box of both frames
 	// is outside the view frustum.
 	//
+#if defined(USE_AoS_to_SoA_SIMD)
+	{
+		auto& soa = trsoa::GetFrameSoA();
+		if (trsoa::SoA_ValidThisFrame(soa))
+		{
+			int slot = trsoa::CurrentModelSlot();
+
+			// fallback gdy ktoś wywoła bez ustawienia slotu
+			if (slot < 0)
+			{
+				const int entNum = (tr.currentEntity == &ent) ? tr.currentEntityNum : static_cast<int>(&ent - tr.refdef.entities);
+				if (static_cast<unsigned>(entNum) < trsoa::kMaxRefEntities)
+					slot = soa.modelSlotOfEnt[entNum];
+			}
+
+			if (slot >= 0)
+			{
+				const std::uint8_t cr = soa.modelDerived.cullResult[slot];
+				if (cr == CULL_OUT)
+					return;
+
+				if (cr == CULL_IN)
+				{
+					const float lx = soa.modelDerived.cullLocal_x[slot];
+					const float ly = soa.modelDerived.cullLocal_y[slot];
+					const float lz = soa.modelDerived.cullLocal_z[slot];
+					const float r = soa.modelDerived.cullRadius[slot];
+
+					bounds[0][0] = lx - r; bounds[0][1] = ly - r; bounds[0][2] = lz - r;
+					bounds[1][0] = lx + r; bounds[1][1] = ly + r; bounds[1][2] = lz + r;
+
+					cull = CULL_IN;
+					goto cull_done;
+				}
+			}
+		}
+	}
+#endif
+
+
 	cull = R_CullModel(header, ent, bounds);
 	if (cull == CULL_OUT)
 	{
 		return;
 	}
+
+cull_done:
+	(void)0;
 
 	//
 	// set up lighting now that we know we aren't culled
@@ -405,7 +465,33 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	//
 	// see if we are in a fog volume
 	//
+#if defined(USE_AoS_to_SoA_SIMD)
+	{
+		auto& soa = trsoa::GetFrameSoA();
+		if (trsoa::SoA_ValidThisFrame(soa))
+		{
+			int slot = trsoa::CurrentModelSlot();
+
+			if (slot < 0)
+			{
+				const int entNum = (tr.currentEntity == &ent) ? tr.currentEntityNum : static_cast<int>(&ent - tr.refdef.entities);
+				if (static_cast<unsigned>(entNum) < trsoa::kMaxRefEntities)
+					slot = soa.modelSlotOfEnt[entNum];
+			}
+
+			if (slot >= 0)
+			{
+				fogNum = static_cast<int>(soa.modelDerived.fogNum[slot]);
+				goto fog_done;
+			}
+		}
+	}
+#endif
+
 	fogNum = R_ComputeFogNum(header, ent);
+fog_done:
+	(void)0;
+
 
 	//
 	// draw all surfaces
