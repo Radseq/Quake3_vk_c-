@@ -1385,7 +1385,7 @@ struct trGlobals_t
 	int numSkins;
 	skin_t *skins[MAX_SKINS];
 
-	float fogTable[FOG_TABLE_SIZE];
+	std::array<float, FOG_TABLE_SIZE> fogTable{};
 
 	alignas(64) std::array<float, FUNCTABLE_SIZE> sinTable{};
 	alignas(64) std::array<float, FUNCTABLE_SIZE> squareTable{};

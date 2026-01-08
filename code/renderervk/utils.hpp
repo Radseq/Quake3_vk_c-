@@ -14,7 +14,7 @@ template <typename Func>
 	using clock = std::chrono::steady_clock;
 
 	// Warm-up (important for branch prediction, caches, JIT-like effects)
-	func();
+	//func();
 
 	auto start = clock::now();
 	for (std::size_t i = 0; i < iterations; ++i)
@@ -25,6 +25,20 @@ template <typename Func>
 		std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
 	return static_cast<double>(total_ns) / static_cast<double>(iterations);
+	/*
+	double ns = benchmark_ns([&] {
+	// code you want to measure
+		do_work();
+	}, 1'000'000);
+
+	std::cout << "do_work(): " << ns << " ns/call\n";
+*/
+}
+
+constexpr std::array<std::uint8_t, 256> make_linear_gamma_table() {
+	return[]<std::size_t... I>(std::index_sequence<I...>) {
+		return std::array<std::uint8_t, 256>{ static_cast<std::uint8_t>(I)... };
+	}(std::make_index_sequence<256>{});
 }
 
 template <typename T, std::size_t N>

@@ -41,20 +41,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // Note that the ordering indicates the order of preference used
 // when there are multiple images of different formats available
 static const imageExtToLoaderMap_t imageLoaders[] =
-	{
-		{"png", R_LoadPNG},
-		{"tga", R_LoadTGA},
-		{"jpg", R_LoadJPG},
-		{"jpeg", R_LoadJPG},
-		{"pcx", R_LoadPCX},
-		{"bmp", R_LoadBMP}};
+{
+	{"png", R_LoadPNG},
+	{"tga", R_LoadTGA},
+	{"jpg", R_LoadJPG},
+	{"jpeg", R_LoadJPG},
+	{"pcx", R_LoadPCX},
+	{"bmp", R_LoadBMP} };
 
 static byte s_intensitytable[256];
 static unsigned char s_gammatable[256];
-static unsigned char s_gammatable_linear[256];
+
+// initialize linear gamma table before setting color mappings for the first time
+static  std::array<unsigned char, 256> s_gammatable_linear = make_linear_gamma_table();
 
 constexpr int FILE_HASH_SIZE = 1024;
-static image_t *hashTable[FILE_HASH_SIZE];
+static image_t* hashTable[FILE_HASH_SIZE];
 
 static const int numImageLoaders = arrayLen(imageLoaders);
 
@@ -67,9 +69,9 @@ constexpr textureMode_t modes[6] = { // Texture modes
 	{"GL_NEAREST_MIPMAP_NEAREST", glCompat::GL_NEAREST_MIPMAP_NEAREST, glCompat::GL_NEAREST},
 	{"GL_LINEAR_MIPMAP_NEAREST", glCompat::GL_LINEAR_MIPMAP_NEAREST, glCompat::GL_LINEAR},
 	{"GL_NEAREST_MIPMAP_LINEAR", glCompat::GL_NEAREST_MIPMAP_LINEAR, glCompat::GL_NEAREST},
-	{"GL_LINEAR_MIPMAP_LINEAR", glCompat::GL_LINEAR_MIPMAP_LINEAR, glCompat::GL_LINEAR}};
+	{"GL_LINEAR_MIPMAP_LINEAR", glCompat::GL_LINEAR_MIPMAP_LINEAR, glCompat::GL_LINEAR} };
 
-skin_t *R_GetSkinByHandle(qhandle_t hSkin)
+skin_t* R_GetSkinByHandle(qhandle_t hSkin)
 {
 	if (hSkin < 1 || hSkin >= tr.numSkins)
 	{
@@ -80,7 +82,7 @@ skin_t *R_GetSkinByHandle(qhandle_t hSkin)
 
 int R_SumOfUsedImages()
 {
-	const image_t *img;
+	const image_t* img;
 	int i, total = 0;
 
 	for (i = 0; i < tr.numImages; i++)
@@ -145,15 +147,15 @@ void R_SkinList_f()
 
 	for (int i = 0; i < tr.numSkins; ++i)
 	{
-		const skin_t &skin = *tr.skins[i]; // Use reference instead of pointer
+		const skin_t& skin = *tr.skins[i]; // Use reference instead of pointer
 
 		ri.Printf(PRINT_ALL, "%3i:%s (%d surfaces)\n", i, skin.name, skin.numSurfaces);
 		for (int j = 0; j < skin.numSurfaces; ++j)
 		{
-			const skinSurface_t &surface = skin.surfaces[j]; // Use reference instead of pointer
+			const skinSurface_t& surface = skin.surfaces[j]; // Use reference instead of pointer
 
 			// Check if shader is valid before printing
-			const char *shaderName = surface.shader ? surface.shader->name : "Unknown";
+			const char* shaderName = surface.shader ? surface.shader->name : "Unknown";
 
 			ri.Printf(PRINT_ALL, "       %s = %s\n", surface.name, shaderName);
 		}
@@ -162,7 +164,7 @@ void R_SkinList_f()
 	ri.Printf(PRINT_ALL, "------------------\n");
 }
 
-void R_GammaCorrect(byte *buffer, const int bufSize)
+void R_GammaCorrect(byte* buffer, const int bufSize)
 {
 	if (vk_inst.capture.image)
 		return;
@@ -274,7 +276,7 @@ void R_SetColorMappings()
 	if (gls.deviceSupportsGamma)
 	{
 		if (vk_inst.fboActive)
-			ri.GLimp_SetGamma(s_gammatable_linear, s_gammatable_linear, s_gammatable_linear);
+			ri.GLimp_SetGamma(s_gammatable_linear.data(), s_gammatable_linear.data(), s_gammatable_linear.data());
 		else
 		{
 			if (applyGamma)
@@ -293,7 +295,7 @@ Scale up the pixel values in a texture to increase the
 lighting range
 ================
 */
-static void R_LightScaleTexture(byte *in, int inwidth, int inheight, bool only_gamma)
+static void R_LightScaleTexture(byte* in, int inwidth, int inheight, bool only_gamma)
 {
 	if (in == NULL)
 		return;
@@ -303,9 +305,9 @@ static void R_LightScaleTexture(byte *in, int inwidth, int inheight, bool only_g
 		if (!glConfig.deviceSupportsGamma && !vk_inst.fboActive)
 		{
 			int i, c;
-			byte *p;
+			byte* p;
 
-			p = (byte *)in;
+			p = (byte*)in;
 
 			c = inwidth * inheight;
 			for (i = 0; i < c; i++, p += 4)
@@ -319,9 +321,9 @@ static void R_LightScaleTexture(byte *in, int inwidth, int inheight, bool only_g
 	else
 	{
 		int i, c;
-		byte *p;
+		byte* p;
 
-		p = (byte *)in;
+		p = (byte*)in;
 
 		c = inwidth * inheight;
 
@@ -348,8 +350,8 @@ static void R_LightScaleTexture(byte *in, int inwidth, int inheight, bool only_g
 
 void TextureMode(std::string_view sv_mode)
 {
-	const textureMode_t *mode{};
-	image_t *img;
+	const textureMode_t* mode{};
+	image_t* img;
 	int i;
 
 	for (i = 0; i < static_cast<int>(arrayLen(modes)); i++)
@@ -370,7 +372,7 @@ void TextureMode(std::string_view sv_mode)
 	gl_filter_min = std::to_underlying(mode->minimize);
 	gl_filter_max = std::to_underlying(mode->maximize);
 
-	if ( gl_filter_min == vk_inst.samplers.filter_min && gl_filter_max == vk_inst.samplers.filter_max ) {
+	if (gl_filter_min == vk_inst.samplers.filter_min && gl_filter_max == vk_inst.samplers.filter_max) {
 		return;
 	}
 
@@ -380,7 +382,7 @@ void TextureMode(std::string_view sv_mode)
 	vk_inst.samplers.filter_min = gl_filter_min;
 	vk_inst.samplers.filter_max = gl_filter_max;
 	vk_update_attachment_descriptors();
-	for ( i = 0; i < tr.numImages; i++ ) 
+	for (i = 0; i < tr.numImages; i++)
 	{
 		img = tr.images[i];
 		if (HasFlag(img->flags, imgFlags_t::IMGFLAG_MIPMAP))
@@ -393,18 +395,18 @@ void TextureMode(std::string_view sv_mode)
 void R_ImageList_f(void)
 {
 	int i, estTotalSize = 0;
-	char *name, buf[MAX_QPATH * 2 + 5];
+	char* name, buf[MAX_QPATH * 2 + 5];
 
 	ri.Printf(PRINT_ALL, "\n -n- --w-- --h-- type  -size- --name-------\n");
 
 	for (i = 0; i < tr.numImages; i++)
 	{
-		const char *format = "???? ";
-		const char *sizeSuffix;
+		const char* format = "???? ";
+		const char* sizeSuffix;
 		int estSize;
 		int displaySize;
 
-		const image_t *image = tr.images[i];
+		const image_t* image = tr.images[i];
 		estSize = image->uploadHeight * image->uploadWidth;
 
 		switch (image->internalFormat)
@@ -466,7 +468,7 @@ void R_ImageList_f(void)
 		else
 		{
 			Com_sprintf(buf, sizeof(buf), "%s => " S_COLOR_YELLOW "%s",
-						image->imgName, image->imgName2);
+				image->imgName, image->imgName2);
 			name = buf;
 		}
 
@@ -479,7 +481,7 @@ void R_ImageList_f(void)
 	ri.Printf(PRINT_ALL, " %i total images\n\n", tr.numImages);
 }
 
-static bool RawImage_HasAlpha(const byte *scan, const int numPixels)
+static bool RawImage_HasAlpha(const byte* scan, const int numPixels)
 {
 	if (!scan)
 		return true;
@@ -502,7 +504,7 @@ R_BlendOverTexture
 Apply a color blend over a set of pixels
 ==================
 */
-static void R_BlendOverTexture(byte *data, int pixelCount, int mipLevel)
+static void R_BlendOverTexture(byte* data, int pixelCount, int mipLevel)
 {
 	if (data == NULL)
 		return;
@@ -516,16 +518,16 @@ static void R_BlendOverTexture(byte *data, int pixelCount, int mipLevel)
 		{0, 255, 0, 128},
 		{0, 255, 255, 128},
 		{0, 0, 255, 128},
-		{255, 0, 255, 128}};
+		{255, 0, 255, 128} };
 
-	const byte *blend = blendColors[(mipLevel - 1) % arrayLen(blendColors)];
+	const byte* blend = blendColors[(mipLevel - 1) % arrayLen(blendColors)];
 
 	int i;
 	int inverseAlpha = 255 - blend[3];
 	int premult[3]{
 		blend[0] * blend[3],
 		blend[1] * blend[3],
-		blend[2] * blend[3]};
+		blend[2] * blend[3] };
 
 	for (i = 0; i < pixelCount; i++, data += 4)
 	{
@@ -548,15 +550,15 @@ If a larger shrinking is needed, use the mipmap function
 before or after.
 ================
 */
-static void ResampleTexture(unsigned *in, int inwidth, int inheight, unsigned *out,
-							int outwidth, int outheight)
+static void ResampleTexture(unsigned* in, int inwidth, int inheight, unsigned* out,
+	int outwidth, int outheight)
 {
 	int i, j;
-	unsigned *inrow, *inrow2;
+	unsigned* inrow, * inrow2;
 	unsigned frac, fracstep;
 	std::array<unsigned, MAX_TEXTURE_SIZE> p1{};
 	std::array<unsigned, MAX_TEXTURE_SIZE> p2{};
-	byte *pix1, *pix2, *pix3, *pix4;
+	byte* pix1, * pix2, * pix3, * pix4;
 
 	if (outwidth > static_cast<int>(p1.size()))
 		ri.Error(ERR_DROP, "ResampleTexture: max width");
@@ -582,14 +584,14 @@ static void ResampleTexture(unsigned *in, int inwidth, int inheight, unsigned *o
 		inrow2 = in + inwidth * (int)((i + 0.75) * inheight / outheight);
 		for (j = 0; j < outwidth; j++)
 		{
-			pix1 = (byte *)inrow + p1[j];
-			pix2 = (byte *)inrow + p2[j];
-			pix3 = (byte *)inrow2 + p1[j];
-			pix4 = (byte *)inrow2 + p2[j];
-			((byte *)(out + j))[0] = (pix1[0] + pix2[0] + pix3[0] + pix4[0]) >> 2;
-			((byte *)(out + j))[1] = (pix1[1] + pix2[1] + pix3[1] + pix4[1]) >> 2;
-			((byte *)(out + j))[2] = (pix1[2] + pix2[2] + pix3[2] + pix4[2]) >> 2;
-			((byte *)(out + j))[3] = (pix1[3] + pix2[3] + pix3[3] + pix4[3]) >> 2;
+			pix1 = (byte*)inrow + p1[j];
+			pix2 = (byte*)inrow + p2[j];
+			pix3 = (byte*)inrow2 + p1[j];
+			pix4 = (byte*)inrow2 + p2[j];
+			((byte*)(out + j))[0] = (pix1[0] + pix2[0] + pix3[0] + pix4[0]) >> 2;
+			((byte*)(out + j))[1] = (pix1[1] + pix2[1] + pix3[1] + pix4[1]) >> 2;
+			((byte*)(out + j))[2] = (pix1[2] + pix2[2] + pix3[2] + pix4[2]) >> 2;
+			((byte*)(out + j))[3] = (pix1[3] + pix2[3] + pix3[3] + pix4[3]) >> 2;
 		}
 	}
 }
@@ -602,20 +604,20 @@ Operates in place, quartering the size of the texture
 Proper linear filter
 ================
 */
-static void R_MipMap2(unsigned *const out, unsigned *const in, int inWidth, int inHeight)
+static void R_MipMap2(unsigned* const out, unsigned* const in, int inWidth, int inHeight)
 {
 	int i, j, k;
-	byte *outpix;
+	byte* outpix;
 	int inWidthMask, inHeightMask;
 	int total;
 	int outWidth, outHeight;
-	unsigned *temp;
+	unsigned* temp;
 
 	outWidth = inWidth >> 1;
 	outHeight = inHeight >> 1;
 
 	if (out == in)
-		temp = static_cast<unsigned int *>(ri.Hunk_AllocateTempMemory(outWidth * outHeight * 4));
+		temp = static_cast<unsigned int*>(ri.Hunk_AllocateTempMemory(outWidth * outHeight * 4));
 	else
 		temp = out;
 
@@ -626,29 +628,29 @@ static void R_MipMap2(unsigned *const out, unsigned *const in, int inWidth, int 
 	{
 		for (j = 0; j < outWidth; j++)
 		{
-			outpix = (byte *)(temp + i * outWidth + j);
+			outpix = (byte*)(temp + i * outWidth + j);
 			for (k = 0; k < 4; k++)
 			{
 				total =
-					1 * ((byte *)&in[((i * 2 - 1) & inHeightMask) * inWidth + ((j * 2 - 1) & inWidthMask)])[k] +
-					2 * ((byte *)&in[((i * 2 - 1) & inHeightMask) * inWidth + ((j * 2) & inWidthMask)])[k] +
-					2 * ((byte *)&in[((i * 2 - 1) & inHeightMask) * inWidth + ((j * 2 + 1) & inWidthMask)])[k] +
-					1 * ((byte *)&in[((i * 2 - 1) & inHeightMask) * inWidth + ((j * 2 + 2) & inWidthMask)])[k] +
+					1 * ((byte*)&in[((i * 2 - 1) & inHeightMask) * inWidth + ((j * 2 - 1) & inWidthMask)])[k] +
+					2 * ((byte*)&in[((i * 2 - 1) & inHeightMask) * inWidth + ((j * 2) & inWidthMask)])[k] +
+					2 * ((byte*)&in[((i * 2 - 1) & inHeightMask) * inWidth + ((j * 2 + 1) & inWidthMask)])[k] +
+					1 * ((byte*)&in[((i * 2 - 1) & inHeightMask) * inWidth + ((j * 2 + 2) & inWidthMask)])[k] +
 
-					2 * ((byte *)&in[((i * 2) & inHeightMask) * inWidth + ((j * 2 - 1) & inWidthMask)])[k] +
-					4 * ((byte *)&in[((i * 2) & inHeightMask) * inWidth + ((j * 2) & inWidthMask)])[k] +
-					4 * ((byte *)&in[((i * 2) & inHeightMask) * inWidth + ((j * 2 + 1) & inWidthMask)])[k] +
-					2 * ((byte *)&in[((i * 2) & inHeightMask) * inWidth + ((j * 2 + 2) & inWidthMask)])[k] +
+					2 * ((byte*)&in[((i * 2) & inHeightMask) * inWidth + ((j * 2 - 1) & inWidthMask)])[k] +
+					4 * ((byte*)&in[((i * 2) & inHeightMask) * inWidth + ((j * 2) & inWidthMask)])[k] +
+					4 * ((byte*)&in[((i * 2) & inHeightMask) * inWidth + ((j * 2 + 1) & inWidthMask)])[k] +
+					2 * ((byte*)&in[((i * 2) & inHeightMask) * inWidth + ((j * 2 + 2) & inWidthMask)])[k] +
 
-					2 * ((byte *)&in[((i * 2 + 1) & inHeightMask) * inWidth + ((j * 2 - 1) & inWidthMask)])[k] +
-					4 * ((byte *)&in[((i * 2 + 1) & inHeightMask) * inWidth + ((j * 2) & inWidthMask)])[k] +
-					4 * ((byte *)&in[((i * 2 + 1) & inHeightMask) * inWidth + ((j * 2 + 1) & inWidthMask)])[k] +
-					2 * ((byte *)&in[((i * 2 + 1) & inHeightMask) * inWidth + ((j * 2 + 2) & inWidthMask)])[k] +
+					2 * ((byte*)&in[((i * 2 + 1) & inHeightMask) * inWidth + ((j * 2 - 1) & inWidthMask)])[k] +
+					4 * ((byte*)&in[((i * 2 + 1) & inHeightMask) * inWidth + ((j * 2) & inWidthMask)])[k] +
+					4 * ((byte*)&in[((i * 2 + 1) & inHeightMask) * inWidth + ((j * 2 + 1) & inWidthMask)])[k] +
+					2 * ((byte*)&in[((i * 2 + 1) & inHeightMask) * inWidth + ((j * 2 + 2) & inWidthMask)])[k] +
 
-					1 * ((byte *)&in[((i * 2 + 2) & inHeightMask) * inWidth + ((j * 2 - 1) & inWidthMask)])[k] +
-					2 * ((byte *)&in[((i * 2 + 2) & inHeightMask) * inWidth + ((j * 2) & inWidthMask)])[k] +
-					2 * ((byte *)&in[((i * 2 + 2) & inHeightMask) * inWidth + ((j * 2 + 1) & inWidthMask)])[k] +
-					1 * ((byte *)&in[((i * 2 + 2) & inHeightMask) * inWidth + ((j * 2 + 2) & inWidthMask)])[k];
+					1 * ((byte*)&in[((i * 2 + 2) & inHeightMask) * inWidth + ((j * 2 - 1) & inWidthMask)])[k] +
+					2 * ((byte*)&in[((i * 2 + 2) & inHeightMask) * inWidth + ((j * 2) & inWidthMask)])[k] +
+					2 * ((byte*)&in[((i * 2 + 2) & inHeightMask) * inWidth + ((j * 2 + 1) & inWidthMask)])[k] +
+					1 * ((byte*)&in[((i * 2 + 2) & inHeightMask) * inWidth + ((j * 2 + 2) & inWidthMask)])[k];
 				outpix[k] = total / 36;
 			}
 		}
@@ -668,7 +670,7 @@ R_MipMap
 Operates in place, quartering the size of the texture
 ================
 */
-static void R_MipMap(byte *out, byte *in, int width, int height)
+static void R_MipMap(byte* out, byte* in, int width, int height)
 {
 	int i, j;
 	int row;
@@ -678,7 +680,7 @@ static void R_MipMap(byte *out, byte *in, int width, int height)
 
 	if (!r_simpleMipMaps->integer)
 	{
-		R_MipMap2((unsigned *)out, (unsigned *)in, width, height);
+		R_MipMap2((unsigned*)out, (unsigned*)in, width, height);
 		return;
 	}
 
@@ -716,16 +718,16 @@ static void R_MipMap(byte *out, byte *in, int width, int height)
 	}
 }
 
-static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_Data *upload_data)
+static void generate_image_upload_data(image_t* image, byte* data, Image_Upload_Data* upload_data)
 {
 
 	bool mipmap = HasFlag(image->flags, imgFlags_t::IMGFLAG_MIPMAP);
 	bool picmip = HasFlag(image->flags, imgFlags_t::IMGFLAG_PICMIP);
-	byte *resampled_buffer = NULL;
+	byte* resampled_buffer = NULL;
 	int scaled_width, scaled_height;
 	int width = image->width;
 	int height = image->height;
-	unsigned *scaled_buffer;
+	unsigned* scaled_buffer;
 	int mip_level_size;
 	int miplevel = 0;
 
@@ -766,7 +768,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 		scaled_height >>= 1;
 	}
 
-	upload_data->buffer = (byte *)ri.Hunk_AllocateTempMemory(2 * 4 * scaled_width * scaled_height);
+	upload_data->buffer = (byte*)ri.Hunk_AllocateTempMemory(2 * 4 * scaled_width * scaled_height);
 	if (data == NULL)
 	{
 		Com_Memset(upload_data->buffer, 0, 2 * 4 * scaled_width * scaled_height);
@@ -774,8 +776,8 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 
 	if ((scaled_width != width || scaled_height != height) && data)
 	{
-		resampled_buffer = (byte *)ri.Hunk_AllocateTempMemory(scaled_width * scaled_height * 4);
-		ResampleTexture((unsigned *)data, width, height, (unsigned *)resampled_buffer, scaled_width, scaled_height);
+		resampled_buffer = (byte*)ri.Hunk_AllocateTempMemory(scaled_width * scaled_height * 4);
+		ResampleTexture((unsigned*)data, width, height, (unsigned*)resampled_buffer, scaled_width, scaled_height);
 		data = resampled_buffer;
 	}
 
@@ -790,7 +792,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 	{
 		if (HasFlag(image->flags, imgFlags_t::IMGFLAG_COLORSHIFT))
 		{
-			byte *p = data;
+			byte* p = data;
 			int i, n = width * height;
 			for (i = 0; i < n; i++, p += 4)
 			{
@@ -859,12 +861,12 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 
 	// At this point width == scaled_width and height == scaled_height.
 
-	scaled_buffer = (unsigned int *)ri.Hunk_AllocateTempMemory(sizeof(unsigned) * scaled_width * scaled_height);
+	scaled_buffer = (unsigned int*)ri.Hunk_AllocateTempMemory(sizeof(unsigned) * scaled_width * scaled_height);
 	Com_Memcpy(scaled_buffer, data, scaled_width * scaled_height * 4);
 
 	if (!HasFlag(image->flags, imgFlags_t::IMGFLAG_NOLIGHTSCALE))
 	{
-		R_LightScaleTexture((byte *)scaled_buffer, scaled_width, scaled_height, !mipmap);
+		R_LightScaleTexture((byte*)scaled_buffer, scaled_width, scaled_height, !mipmap);
 	}
 
 	mip_level_size = scaled_width * scaled_height * 4;
@@ -876,7 +878,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 	{
 		while (scaled_width > 1 && scaled_height > 1)
 		{
-			R_MipMap((byte *)scaled_buffer, (byte *)scaled_buffer, scaled_width, scaled_height);
+			R_MipMap((byte*)scaled_buffer, (byte*)scaled_buffer, scaled_width, scaled_height);
 
 			scaled_width >>= 1;
 			if (scaled_width < 1)
@@ -891,7 +893,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 
 			if (r_colorMipLevels->integer)
 			{
-				R_BlendOverTexture((byte *)scaled_buffer, scaled_width * scaled_height, miplevel);
+				R_BlendOverTexture((byte*)scaled_buffer, scaled_width * scaled_height, miplevel);
 			}
 
 			Com_Memcpy(&upload_data->buffer[upload_data->buffer_size], scaled_buffer, mip_level_size);
@@ -907,7 +909,7 @@ static void generate_image_upload_data(image_t *image, byte *data, Image_Upload_
 		ri.Hunk_FreeTempMemory(resampled_buffer);
 }
 
-static void upload_vk_image(image_t *image, byte *pic)
+static void upload_vk_image(image_t* image, byte* pic)
 {
 
 	Image_Upload_Data upload_data;
@@ -946,9 +948,9 @@ This is the only way any image_t are created
 Picture data may be modified in-place during mipmap processing
 ================
 */
-image_t *R_CreateImage(std::string_view name, std::string_view name2, byte *pic, int width, int height, imgFlags_t flags)
+image_t* R_CreateImage(std::string_view name, std::string_view name2, byte* pic, int width, int height, imgFlags_t flags)
 {
-	image_t *image;
+	image_t* image;
 	long hash;
 	int namelen, namelen2;
 
@@ -978,8 +980,8 @@ image_t *R_CreateImage(std::string_view name, std::string_view name2, byte *pic,
 		ri.Error(ERR_DROP, "R_CreateImage: MAX_DRAWIMAGES hit");
 	}
 
-	image = static_cast<image_t *>(ri.Hunk_Alloc(sizeof(*image) + namelen + namelen2, h_low));
-	image->imgName = (char *)(image + 1);
+	image = static_cast<image_t*>(ri.Hunk_Alloc(sizeof(*image) + namelen + namelen2, h_low));
+	image->imgName = (char*)(image + 1);
 	strcpy(image->imgName, name.data());
 	// std::memcpy(image->imgName, name.data(), name.size());
 	if (namelen2)
@@ -1033,7 +1035,7 @@ Loads any of the supported image types into a canonical
 32 bit format.
 =================
 */
-static std::array<char, MAX_QPATH> R_LoadImage(std::string_view name, byte **pic, int *width, int *height)
+static std::array<char, MAX_QPATH> R_LoadImage(std::string_view name, byte** pic, int* width, int* height)
 {
 	static std::array<char, MAX_QPATH> localName;
 	std::string_view altName;
@@ -1118,12 +1120,12 @@ Finds or loads the given image.
 Returns NULL if it fails, not a default image.
 ==============
 */
-image_t *R_FindImageFile(std::string_view name, imgFlags_t flags)
+image_t* R_FindImageFile(std::string_view name, imgFlags_t flags)
 {
-	image_t *image;
+	image_t* image;
 	std::array<char, MAX_QPATH> strippedName;
 	int width, height;
-	byte *pic;
+	byte* pic;
 	int hash;
 
 	// ri.Printf(PRINT_ALL, "name %s \n", name.data());
@@ -1184,7 +1186,7 @@ image_t *R_FindImageFile(std::string_view name, imgFlags_t flags)
 
 	if (tr.mapLoading && r_mapGreyScale->value > 0)
 	{
-		byte *img;
+		byte* img;
 		int i;
 		for (i = 0, img = pic; i < width * height; i++, img += 4)
 		{
@@ -1213,10 +1215,10 @@ image_t *R_FindImageFile(std::string_view name, imgFlags_t flags)
 static void R_CreateFogImage(void)
 {
 	int x, y;
-	byte *data;
+	byte* data;
 	float d;
 
-	data = static_cast<byte *>(ri.Hunk_AllocateTempMemory(FOG_S * FOG_T * 4));
+	data = static_cast<byte*>(ri.Hunk_AllocateTempMemory(FOG_S * FOG_T * 4));
 
 	// S is distance, T is depth
 	for (x = 0; x < FOG_S; x++)
@@ -1227,7 +1229,7 @@ static void R_CreateFogImage(void)
 
 			data[(y * FOG_S + x) * 4 + 0] =
 				data[(y * FOG_S + x) * 4 + 1] =
-					data[(y * FOG_S + x) * 4 + 2] = 255;
+				data[(y * FOG_S + x) * 4 + 2] = 255;
 			data[(y * FOG_S + x) * 4 + 3] = 255 * d;
 		}
 	}
@@ -1235,37 +1237,38 @@ static void R_CreateFogImage(void)
 	ri.Hunk_FreeTempMemory(data);
 }
 
-static void R_CreateDlightImage(void)
-{
-	int x, y;
-	byte data[DLIGHT_SIZE][DLIGHT_SIZE][4]{};
-	int b;
+// make a centered inverse-square falloff blob for dynamic lighting
+static consteval std::array<byte, DLIGHT_SIZE* DLIGHT_SIZE * 4> MakeDlightBlobRGBA() {
+	std::array<byte, DLIGHT_SIZE* DLIGHT_SIZE * 4> out{};
 
-	// make a centered inverse-square falloff blob for dynamic lighting
-	for (x = 0; x < DLIGHT_SIZE; x++)
-	{
-		for (y = 0; y < DLIGHT_SIZE; y++)
-		{
-			float d;
+	for (int y = 0; y < DLIGHT_SIZE; ++y) {
+		for (int x = 0; x < DLIGHT_SIZE; ++x) {
+			// denom == 4*d from the original float code (exact for DLIGHT_SIZE=16)
+			const int ox = (DLIGHT_SIZE - 1) - 2 * x; // 15,13,...,-15
+			const int oy = (DLIGHT_SIZE - 1) - 2 * y;
+			const int denom = ox * ox + oy * oy;      // minimum is 2, never 0
 
-			d = (DLIGHT_SIZE / 2 - 0.5f - x) * (DLIGHT_SIZE / 2 - 0.5f - x) +
-				(DLIGHT_SIZE / 2 - 0.5f - y) * (DLIGHT_SIZE / 2 - 0.5f - y);
-			b = 4000 / d;
-			if (b > 255)
-			{
-				b = 255;
-			}
-			else if (b < 75)
-			{
-				b = 0;
-			}
-			data[y][x][0] =
-				data[y][x][1] =
-					data[y][x][2] = b;
-			data[y][x][3] = 255;
+			int b = 16000 / denom;                   // == int(4000 / d) for this grid
+
+			if (b > 255)       b = 255;
+			else if (b < 75)   b = 0;
+
+			const std::size_t base = (static_cast<std::size_t>(y) * DLIGHT_SIZE + static_cast<std::size_t>(x)) * 4u;
+			out[base + 0] = static_cast<byte>(b);
+			out[base + 1] = static_cast<byte>(b);
+			out[base + 2] = static_cast<byte>(b);
+			out[base + 3] = 255;
 		}
 	}
-	tr.dlightImage = R_CreateImage("*dlight", {}, (byte *)data, DLIGHT_SIZE, DLIGHT_SIZE, imgFlags_t::IMGFLAG_CLAMPTOEDGE);
+
+	return out;
+}
+
+static constexpr auto kDlightBlobRGBA = MakeDlightBlobRGBA();
+
+static void R_CreateDlightImage(void)
+{
+	tr.dlightImage = R_CreateImage("*dlight", {}, (byte*)kDlightBlobRGBA.data(), DLIGHT_SIZE, DLIGHT_SIZE, imgFlags_t::IMGFLAG_CLAMPTOEDGE);
 }
 
 // Lookup table for hexadecimal characters
@@ -1312,7 +1315,7 @@ Create solid color texture from following input formats (hex):
 #rrggbb
 ==================
 */
-static bool R_BuildDefaultImage(const char *format)
+static bool R_BuildDefaultImage(const char* format)
 {
 	byte data[DEFAULT_SIZE][DEFAULT_SIZE][4]{};
 	byte color[4]{};
@@ -1368,16 +1371,36 @@ static bool R_BuildDefaultImage(const char *format)
 		}
 	}
 
-	tr.defaultImage = R_CreateImage("*default", {}, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, imgFlags_t::IMGFLAG_MIPMAP);
+	tr.defaultImage = R_CreateImage("*default", {}, (byte*)data, DEFAULT_SIZE, DEFAULT_SIZE, imgFlags_t::IMGFLAG_MIPMAP);
 
 	return true;
 }
 
+static consteval std::array<byte, DEFAULT_SIZE* DEFAULT_SIZE * 4> MakeDefaultImageData() {
+	std::array<byte, DEFAULT_SIZE* DEFAULT_SIZE * 4> out{};
+	out.fill(32); // same as Com_Memset(data, 32, sizeof(data))
+
+	auto set_px = [&](int y, int x, byte v) consteval {
+		const std::size_t base = (static_cast<std::size_t>(y) * DEFAULT_SIZE + static_cast<std::size_t>(x)) * 4u;
+		out[base + 0] = v;
+		out[base + 1] = v;
+		out[base + 2] = v;
+		out[base + 3] = v;
+		};
+
+	for (int x = 0; x < DEFAULT_SIZE; ++x) {
+		set_px(0, x, 255);                // top
+		set_px(x, 0, 255);                // left
+		set_px(DEFAULT_SIZE - 1, x, 255);                // bottom
+		set_px(x, DEFAULT_SIZE - 1, 255);                // right
+	}
+
+	return out;
+}
+static constexpr auto kDefaultImageData = MakeDefaultImageData();
+
 static void R_CreateDefaultImage(void)
 {
-	int x;
-	byte data[DEFAULT_SIZE][DEFAULT_SIZE][4];
-
 	if (r_defaultImage->string[0])
 	{
 		// build from format
@@ -1389,32 +1412,7 @@ static void R_CreateDefaultImage(void)
 			return;
 	}
 
-	// the default image will be a box, to allow you to see the mapping coordinates
-	Com_Memset(data, 32, sizeof(data));
-	for (x = 0; x < DEFAULT_SIZE; x++)
-	{
-		data[0][x][0] =
-			data[0][x][1] =
-				data[0][x][2] =
-					data[0][x][3] = 255;
-
-		data[x][0][0] =
-			data[x][0][1] =
-				data[x][0][2] =
-					data[x][0][3] = 255;
-
-		data[DEFAULT_SIZE - 1][x][0] =
-			data[DEFAULT_SIZE - 1][x][1] =
-				data[DEFAULT_SIZE - 1][x][2] =
-					data[DEFAULT_SIZE - 1][x][3] = 255;
-
-		data[x][DEFAULT_SIZE - 1][0] =
-			data[x][DEFAULT_SIZE - 1][1] =
-				data[x][DEFAULT_SIZE - 1][2] =
-					data[x][DEFAULT_SIZE - 1][3] = 255;
-	}
-
-	tr.defaultImage = R_CreateImage("*default", {}, (byte *)data, DEFAULT_SIZE, DEFAULT_SIZE, imgFlags_t::IMGFLAG_MIPMAP);
+	tr.defaultImage = R_CreateImage("*default", {}, (byte*)kDefaultImageData.data(), DEFAULT_SIZE, DEFAULT_SIZE, imgFlags_t::IMGFLAG_MIPMAP);
 }
 
 static void R_CreateBuiltinImages(void)
@@ -1425,11 +1423,11 @@ static void R_CreateBuiltinImages(void)
 	R_CreateDefaultImage();
 
 	Com_Memset(data, 0, sizeof(data));
-	tr.blackImage = R_CreateImage("*black", {}, (byte *)data, 8, 8, imgFlags_t::IMGFLAG_NONE);
+	tr.blackImage = R_CreateImage("*black", {}, (byte*)data, 8, 8, imgFlags_t::IMGFLAG_NONE);
 
 	// we use a solid white image instead of disabling texturing
 	Com_Memset(data, 255, sizeof(data));
-	tr.whiteImage = R_CreateImage("*white", {}, (byte *)data, 8, 8, imgFlags_t::IMGFLAG_NONE);
+	tr.whiteImage = R_CreateImage("*white", {}, (byte*)data, 8, 8, imgFlags_t::IMGFLAG_NONE);
 
 	// with overbright bits active, we need an image which is some fraction of full color,
 	// for default lightmaps, etc
@@ -1439,12 +1437,12 @@ static void R_CreateBuiltinImages(void)
 		{
 			data[y][x][0] =
 				data[y][x][1] =
-					data[y][x][2] = tr.identityLightByte;
+				data[y][x][2] = tr.identityLightByte;
 			data[y][x][3] = 255;
 		}
 	}
 
-	tr.identityLightImage = R_CreateImage("*identityLight", {}, (byte *)data, 8, 8, imgFlags_t::IMGFLAG_NONE);
+	tr.identityLightImage = R_CreateImage("*identityLight", {}, (byte*)data, 8, 8, imgFlags_t::IMGFLAG_NONE);
 
 	// for ( x = 0; x < arrayLen2( tr.scratchImage ); x++ ) {
 	//  scratchimage is usually used for cinematic drawing
@@ -1458,12 +1456,6 @@ static void R_CreateBuiltinImages(void)
 
 void R_InitImages(void)
 {
-	// initialize linear gamma table before setting color mappings for the first time
-	int i;
-
-	for (i = 0; i < 256; i++)
-		s_gammatable_linear[i] = (unsigned char)i;
-
 	memset(hashTable, 0, sizeof(hashTable));
 	// std::fill(std::begin(hashTable), std::end(hashTable), nullptr);
 
@@ -1478,7 +1470,7 @@ void R_InitImages(void)
 
 void R_DeleteTextures(void)
 {
-	if ( tr.numImages == 0 ) {
+	if (tr.numImages == 0) {
 		return;
 	}
 
@@ -1489,7 +1481,7 @@ void R_DeleteTextures(void)
 
 	for (i = 0; i < tr.numImages; i++)
 	{
-		image_t *img = tr.images[i];
+		image_t* img = tr.images[i];
 		vk_destroy_image_resources(img->handle, img->view);
 
 		// img->descriptor will be released with pool reset
@@ -1510,10 +1502,10 @@ This is unfortunate, but the skin files aren't
 compatible with our normal parsing rules.
 ==================
 */
-static const char *CommaParse(const char **data_p)
+static const char* CommaParse(const char** data_p)
 {
 	int c, len;
-	const char *data;
+	const char* data;
 	static char com_token[MAX_TOKEN_CHARS];
 
 	data = *data_p;
@@ -1617,19 +1609,19 @@ static const char *CommaParse(const char **data_p)
 	return com_token;
 }
 
-qhandle_t RE_RegisterSkin(const char *name)
+qhandle_t RE_RegisterSkin(const char* name)
 {
 	skinSurface_t parseSurfaces[MAX_SKIN_SURFACES]{};
 	qhandle_t hSkin;
-	skin_t *skin;
-	skinSurface_t *surf;
+	skin_t* skin;
+	skinSurface_t* surf;
 	union
 	{
-		char *c;
-		void *v;
+		char* c;
+		void* v;
 	} text{};
-	const char *text_p;
-	const char *token;
+	const char* text_p;
+	const char* token;
 	char surfName[MAX_QPATH];
 	int totalSurfaces;
 
@@ -1666,7 +1658,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 		return 0;
 	}
 	tr.numSkins++;
-	skin = reinterpret_cast<skin_t *>(ri.Hunk_Alloc(sizeof(skin_t), h_low));
+	skin = reinterpret_cast<skin_t*>(ri.Hunk_Alloc(sizeof(skin_t), h_low));
 	tr.skins[hSkin] = skin;
 	Q_strncpyz(skin->name, name, sizeof(skin->name));
 	skin->numSurfaces = 0;
@@ -1675,7 +1667,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 	if (strcmp(name + strlen(name) - 5, ".skin"))
 	{
 		skin->numSurfaces = 1;
-		skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
+		skin->surfaces = reinterpret_cast<skinSurface_t*>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
 		skin->surfaces[0].shader = R_FindShader(name, LIGHTMAP_NONE, true);
 		return hSkin;
 	}
@@ -1732,7 +1724,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 	if (totalSurfaces > MAX_SKIN_SURFACES)
 	{
 		ri.Printf(PRINT_WARNING, "WARNING: Ignoring excess surfaces (found %d, max is %d) in skin '%s'!\n",
-				  totalSurfaces, MAX_SKIN_SURFACES, name);
+			totalSurfaces, MAX_SKIN_SURFACES, name);
 	}
 
 	// never let a skin have 0 shaders
@@ -1742,7 +1734,7 @@ qhandle_t RE_RegisterSkin(const char *name)
 	}
 
 	// copy surfaces to skin
-	skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc(skin->numSurfaces * sizeof(skinSurface_t), h_low));
+	skin->surfaces = reinterpret_cast<skinSurface_t*>(ri.Hunk_Alloc(skin->numSurfaces * sizeof(skinSurface_t), h_low));
 	memcpy(skin->surfaces, parseSurfaces, skin->numSurfaces * sizeof(skinSurface_t));
 
 	return hSkin;
@@ -1750,14 +1742,14 @@ qhandle_t RE_RegisterSkin(const char *name)
 
 void R_InitSkins(void)
 {
-	skin_t *skin;
+	skin_t* skin;
 
 	tr.numSkins = 1;
 
 	// make the default skin have all default shaders
-	skin = tr.skins[0] = reinterpret_cast<skin_t *>(ri.Hunk_Alloc(sizeof(skin_t), h_low));
+	skin = tr.skins[0] = reinterpret_cast<skin_t*>(ri.Hunk_Alloc(sizeof(skin_t), h_low));
 	Q_strncpyz(skin->name, "<default skin>", sizeof(skin->name));
 	skin->numSurfaces = 1;
-	skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
+	skin->surfaces = reinterpret_cast<skinSurface_t*>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
 	skin->surfaces[0].shader = tr.defaultShader;
 }
