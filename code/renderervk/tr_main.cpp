@@ -1698,7 +1698,6 @@ static void R_SortDrawSurfs(drawSurf_t & drawSurfs, const int numDrawSurfs)
 R_AddEntitySurfaces
 =============
 */
-static std::vector<double> adsf{};
 static void R_AddEntitySurfaces()
 {
 	shader_t* shader;
@@ -1714,6 +1713,32 @@ static void R_AddEntitySurfaces()
 		if (trsoa::SoA_ValidThisFrame(soa))
 		{
 			trsoa::SetCurrentModelSlot(-1);
+
+			const viewParms_t& vp = tr.viewParms;
+
+			auto SetCurrentEnt = [&](const int entNum) noexcept -> trRefEntity_t&
+				{
+					tr.currentEntityNum = entNum;
+					tr.currentEntity = &tr.refdef.entities[entNum];
+					trRefEntity_t& ent = *tr.currentEntity;
+#ifdef USE_LEGACY_DLIGHTS
+					ent.needDlights = 0;
+#endif
+					tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
+					return ent;
+				};
+
+			auto SkipFP = [&](const trRefEntity_t& ent) noexcept -> bool
+				{
+					return trsoa::Skip_FirstPerson_InPortalView(ent, vp);
+				};
+
+			auto SkipTPFx = [&](const trRefEntity_t& ent) noexcept -> bool
+				{
+					return trsoa::Skip_ThirdPersonFx_InPrimaryView(ent, vp);
+				};
+
+
 			// -----------------------------------------------------------------
 			// 1) Portalsurface (rzadkie) - zostaje AoS
 			// -----------------------------------------------------------------
@@ -1732,13 +1757,10 @@ static void R_AddEntitySurfaces()
 			// -----------------------------------------------------------------
 			const auto AddFxDrawSurf_FromSoA = [&](const int entNum, shader_t* sh, const int fogNum) noexcept
 				{
-					tr.currentEntityNum = entNum;
-					tr.currentEntity = &tr.refdef.entities[entNum];
-					trRefEntity_t& ent = *tr.currentEntity;
+					trRefEntity_t& ent = SetCurrentEnt(entNum);
+					if (SkipFP(ent)) return;
+					if (SkipTPFx(ent)) return;
 
-#ifdef USE_LEGACY_DLIGHTS
-					ent.needDlights = 0;
-#endif
 					tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
 
 					shader = sh ? sh : tr.defaultShader;
@@ -1755,6 +1777,13 @@ static void R_AddEntitySurfaces()
 				AddFxDrawSurf_FromSoA(static_cast<int>(soa.sprites.entNum[i]),
 					soa.sprites.shaderPtr[i],
 					static_cast<int>(soa.sprites.fogNum[i]));
+			}
+
+			for (int i = 0; i < soa.beams.count; ++i)
+			{
+				AddFxDrawSurf_FromSoA(static_cast<int>(soa.beams.entNum[i]),
+					soa.beams.shaderPtr[i],
+					static_cast<int>(soa.beams.fogNum[i]));
 			}
 
 			for (int i = 0; i < soa.lightning.count; ++i)
@@ -1781,135 +1810,69 @@ static void R_AddEntitySurfaces()
 			// 3) MODELE - tylko SoA models (bez skanowania całego AoS)
 			// -----------------------------------------------------------------
 			// --- MD3/MESH
+
+			auto SetupModelCommon = [&](const int slot) noexcept -> trRefEntity_t*
+				{
+					const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
+					trRefEntity_t& ent = SetCurrentEnt(entNum);
+
+					// IMPORTANT: SoA mogło znormalizować (WRAP/CLAMP) frame/oldframe dla bezpieczeństwa i spójności cull/LOD.
+					ent.e.frame = soa.models.anim.frame[slot];
+					ent.e.oldframe = soa.models.anim.oldframe[slot];
+					ent.e.backlerp = soa.models.anim.backlerp[slot];
+
+					trsoa::ApplyModelOrientationFromSoA(soa, slot, tr.ort);
+
+					tr.currentModel = soa.modelDerived.modelPtr[slot];
+					if (!tr.currentModel)
+					{
+						R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
+						return nullptr;
+					}
+
+					trsoa::SetCurrentModelSlot(slot);
+					return &ent;
+				};
+
+
 			for (int i = 0; i < soa.md3Count; ++i)
 			{
 				const int slot = static_cast<int>(soa.md3Slots[i]);
-				const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
-
-				tr.currentEntityNum = entNum;
-				tr.currentEntity = &tr.refdef.entities[entNum];
-				trRefEntity_t& ent = *tr.currentEntity;
-
-#ifdef USE_LEGACY_DLIGHTS
-				ent.needDlights = 0;
-#endif
-				tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
-
-				trsoa::ApplyModelOrientationFromSoA(soa, slot, tr.ort);
-
-				tr.currentModel = soa.modelDerived.modelPtr[slot];
-				if (!tr.currentModel)
-				{
-					R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
-					continue;
-				}
-
-				trsoa::SetCurrentModelSlot(slot);
-				R_AddMD3Surfaces(ent);
+				if (trRefEntity_t* ent = SetupModelCommon(slot))
+					R_AddMD3Surfaces(*ent);
 			}
+
 
 			// --- MDR
 			for (int i = 0; i < soa.mdrCount; ++i)
 			{
 				const int slot = static_cast<int>(soa.mdrSlots[i]);
-				const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
-
-				tr.currentEntityNum = entNum;
-				tr.currentEntity = &tr.refdef.entities[entNum];
-				trRefEntity_t& ent = *tr.currentEntity;
-
-#ifdef USE_LEGACY_DLIGHTS
-				ent.needDlights = 0;
-#endif
-				tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
-
-				trsoa::ApplyModelOrientationFromSoA(soa, slot, tr.ort);
-
-				tr.currentModel = soa.modelDerived.modelPtr[slot];
-				if (!tr.currentModel)
-				{
-					R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
-					continue;
-				}
-
-				trsoa::SetCurrentModelSlot(slot);
-				R_MDRAddAnimSurfaces(ent);
+				if (trRefEntity_t* ent = SetupModelCommon(slot))
+					R_MDRAddAnimSurfaces(*ent);
 			}
 
 			// --- IQM
 			for (int i = 0; i < soa.iqmCount; ++i)
 			{
 				const int slot = static_cast<int>(soa.iqmSlots[i]);
-				const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
-
-				tr.currentEntityNum = entNum;
-				tr.currentEntity = &tr.refdef.entities[entNum];
-				trRefEntity_t& ent = *tr.currentEntity;
-
-#ifdef USE_LEGACY_DLIGHTS
-				ent.needDlights = 0;
-#endif
-				tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
-
-				trsoa::ApplyModelOrientationFromSoA(soa, slot, tr.ort);
-
-				tr.currentModel = soa.modelDerived.modelPtr[slot];
-				if (!tr.currentModel)
-				{
-					R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
-					continue;
-				}
-
-				trsoa::SetCurrentModelSlot(slot);
-				R_AddIQMSurfaces(ent);
+				if (trRefEntity_t* ent = SetupModelCommon(slot))
+					R_AddIQMSurfaces(*ent);
 			}
 
 			// --- BRUSH
 			for (int i = 0; i < soa.brushCount; ++i)
 			{
 				const int slot = static_cast<int>(soa.brushSlots[i]);
-				const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
-
-				tr.currentEntityNum = entNum;
-				tr.currentEntity = &tr.refdef.entities[entNum];
-				trRefEntity_t& ent = *tr.currentEntity;
-
-#ifdef USE_LEGACY_DLIGHTS
-				ent.needDlights = 0;
-#endif
-				tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
-
-				trsoa::ApplyModelOrientationFromSoA(soa, slot, tr.ort);
-
-				tr.currentModel = soa.modelDerived.modelPtr[slot];
-				if (!tr.currentModel)
-				{
-					R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
-					continue;
-				}
-				trsoa::SetCurrentModelSlot(slot);
-				R_AddBrushModelSurfaces(ent);
+				if (trRefEntity_t* ent = SetupModelCommon(slot))
+					R_AddBrushModelSurfaces(*ent);
 			}
 
 			// --- OTHER/UNKNOWN
 			for (int i = 0; i < soa.otherCount; ++i)
 			{
 				const int slot = static_cast<int>(soa.otherSlots[i]);
-				const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
-
-				tr.currentEntityNum = entNum;
-				tr.currentEntity = &tr.refdef.entities[entNum];
-				trRefEntity_t& ent = *tr.currentEntity;
-
-#ifdef USE_LEGACY_DLIGHTS
-				ent.needDlights = 0;
-#endif
-				tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
-
-				trsoa::ApplyModelOrientationFromSoA(soa, slot, tr.ort);
-
-				// jeśli null lub nieobsługiwany typ
-				R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
+				if (trRefEntity_t* ent = SetupModelCommon(slot))
+					R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
 			}
 
 			trsoa::SetCurrentModelSlot(-1);
@@ -1917,11 +1880,7 @@ static void R_AddEntitySurfaces()
 			return;
 		}
 	}
-#endif // USE_AoS_to_SoA_SIMD
-
-	// ---------------------------------------------------------------------
-	// fallback: stara AoS ścieżka (zostaw jak było)
-	// ---------------------------------------------------------------------
+#else
 	for (tr.currentEntityNum = 0;
 		tr.currentEntityNum < tr.refdef.num_entities;
 		tr.currentEntityNum++)
@@ -1931,22 +1890,32 @@ static void R_AddEntitySurfaces()
 #ifdef USE_LEGACY_DLIGHTS
 		ent.needDlights = 0;
 #endif
+		// preshift the value we are going to OR into the drawsurf sort
 		tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
 
+		//
+		// the weapon model must be handled special --
+		// we don't want the hacked first person weapon position showing in
+		// mirrors, because the true body position will already be drawn
+		//
 		if ((ent.e.renderfx & RF_FIRST_PERSON) && (tr.viewParms.portalView != portalView_t::PV_NONE))
 		{
 			continue;
 		}
 
+		// simple generated models, like sprites and beams, are not culled
 		switch (ent.e.reType)
 		{
 		case RT_PORTALSURFACE:
-			break;
+			break; // don't draw anything
 		case RT_SPRITE:
 		case RT_BEAM:
 		case RT_LIGHTNING:
 		case RT_RAIL_CORE:
 		case RT_RAIL_RINGS:
+			// self blood sprites, talk balloons, etc should not be drawn in the primary
+			// view.  We can't just do this check for all entities, because md3
+			// entities may still want to cast shadows from them
 			if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE))
 			{
 				continue;
@@ -1956,22 +1925,9 @@ static void R_AddEntitySurfaces()
 			break;
 
 		case RT_MODEL:
-#if defined(USE_AoS_to_SoA_SIMD)
-		{
-			auto& soa = trsoa::GetFrameSoA();
-			const int slot = soa.modelSlotOfEnt[tr.currentEntityNum];
-			if (slot >= 0)
-			{
-				trsoa::ApplyModelOrientationFromSoA(soa, slot, tr.ort);
-			}
-			else
-			{
-				R_RotateForEntity(ent, tr.viewParms, tr.ort);
-			}
-		}
-#else
+			// we must set up parts of tr.ort for model culling
 			R_RotateForEntity(ent, tr.viewParms, tr.ort);
-#endif
+
 			tr.currentModel = R_GetModelByHandle(ent.e.hModel);
 			if (!tr.currentModel)
 			{
@@ -1993,25 +1949,32 @@ static void R_AddEntitySurfaces()
 				case modtype_t::MOD_BRUSH:
 					R_AddBrushModelSurfaces(ent);
 					break;
-				default:
+				case modtype_t::MOD_BAD: // null model axis
+					if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE))
+					{
+						break;
+					}
 					R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
+					break;
+				default:
+					ri.Error(ERR_DROP, "R_AddEntitySurfaces: Bad modeltype");
 					break;
 				}
 			}
 			break;
-
 		default:
-			break;
+			ri.Error(ERR_DROP, "R_AddEntitySurfaces: Bad reType");
 		}
 	}
+#endif
 }
-
-
 /*
 ====================
 R_GenerateDrawSurfs
 ====================
 */
+static std::array<float, 1024> samples{};
+static int idx = 0;
 static void R_GenerateDrawSurfs(void)
 {
 	R_AddWorldSurfaces();
@@ -2034,17 +1997,15 @@ static void R_GenerateDrawSurfs(void)
 	double t_work = benchmark_ns([&] {
 
 #if defined(USE_AoS_to_SoA_SIMD) 
-	auto& soa = trsoa::GetFrameSoA();
+		auto& soa = trsoa::GetFrameSoA();
 
 		if (!trsoa::SoA_ValidThisFrame(soa))
 		{
 			trsoa::BuildFrameSoA(tr.refdef, tr.viewParms, soa);
 			trsoa::ComputeModelLODs_Batch(soa, tr.refdef);
 			trsoa::ComputeModelCullSphere_Batch(soa, tr.viewParms);
-
-
-
-			trsoa::BuildVisibleModelLists(soa);
+			trsoa::ComputeBrushCullOBB_Batch(soa, tr.viewParms);
+			trsoa::BuildVisibleModelLists(soa, tr.viewParms);
 			trsoa::ComputeModelFogNums_Batch(soa, tr.refdef);
 			R_SetupEntityLighting_SoA_Batch(tr.refdef, soa);
 			trsoa::ResolveFxShaders(soa);
@@ -2057,19 +2018,18 @@ static void R_GenerateDrawSurfs(void)
 #else
 		R_AddEntitySurfaces();
 #endif
-	});
-	adsf.emplace_back(t_work - t_empty);
+		});
+	samples[idx++] = t_work - t_empty;
 
-	if (adsf.size() % 1000 == 0) {
-		const float suma = std::accumulate(adsf.begin(), adsf.end(), 0.0f);
-		auto g = suma / static_cast<float>(adsf.size());
-
-		ri.Printf(PRINT_ALL, "%.3f \n", g);
-		adsf.reserve(1000);
-		adsf.clear();
+	if (idx == static_cast<int>(samples.size()))
+	{
+		float sum = 0.0f;
+		for (float v : samples) sum += v;
+		ri.Printf(PRINT_ALL, "%.3f\n", sum / samples.size());
+		idx = 0;
 	}
 
-	
+
 }
 
 /*

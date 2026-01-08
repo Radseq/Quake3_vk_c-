@@ -249,7 +249,7 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 			{
 				const int entNum = (tr.currentEntity == &ent) ? tr.currentEntityNum : static_cast<int>(&ent - tr.refdef.entities);
 				if (static_cast<unsigned>(entNum) < trsoa::kMaxRefEntities)
-					slot = soa.modelSlotOfEnt[entNum];
+					slot = soa.modelSlotOfEnt.get(entNum);
 			}
 
 			if (slot >= 0)
@@ -307,10 +307,16 @@ mdr_cull_done:
 	}
 
 	// set up lighting
-	if (!personalModel || r_shadows->integer > 1)
+#if defined(USE_AoS_to_SoA_SIMD)
+	if (trsoa::CurrentModelSlot() < 0) // AoS path / brak slotu
+#endif
 	{
-		R_SetupEntityLighting(tr.refdef, ent);
+		if (!personalModel || r_shadows->integer > 1)
+		{
+			R_SetupEntityLighting(tr.refdef, ent);
+		}
 	}
+
 
 	// fogNum?
 #if defined(USE_AoS_to_SoA_SIMD)
@@ -324,7 +330,7 @@ mdr_cull_done:
 			{
 				const int entNum = (tr.currentEntity == &ent) ? tr.currentEntityNum : static_cast<int>(&ent - tr.refdef.entities);
 				if (static_cast<unsigned>(entNum) < trsoa::kMaxRefEntities)
-					slot = soa.modelSlotOfEnt[entNum];
+					slot = soa.modelSlotOfEnt.get(entNum);
 			}
 
 			if (slot >= 0)

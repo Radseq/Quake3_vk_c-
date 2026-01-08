@@ -522,307 +522,430 @@ static inline void Vec3Normalize3(float& x, float& y, float& z) noexcept
     x *= inv; y *= inv; z *= inv;
 }
 
-void R_SetupEntityLighting_SoA_Batch(const trRefdef_t& refdef, trsoa::FrameSoA& soa) noexcept
+struct LightGridCtx final
 {
-    const int count = soa.models.count;
-    if (count <= 0) return;
+    const byte* gridData{};
+    vec3_t gridOrigin{};
+    vec3_t invSize{};
+    int bounds[3]{};
+    int step[3]{};
 
-#ifdef USE_PMLIGHT
-    // tryby specjalne (shadowLightDir / direct-only) -> nie dotykamy, zostaw scalar
-    if (r_dlightMode->integer == 2)
+    float ambientScale{};
+    float directedScale{};
+    std::span<const float> sinTable;
+};
+
+static TR_FORCEINLINE void SetupEntityLightingGrid_SoA_One(
+    const LightGridCtx& c,
+    const float lightOrgX, const float lightOrgY, const float lightOrgZ,
+    float& outAmb0, float& outAmb1, float& outAmb2,
+    float& outDir0, float& outDir1, float& outDir2,
+    float& outWDirX, float& outWDirY, float& outWDirZ) noexcept
+{
+    // default
+    outAmb0 = outAmb1 = outAmb2 = 0.0f;
+    outDir0 = outDir1 = outDir2 = 0.0f;
+    outWDirX = outWDirY = outWDirZ = 0.0f;
+
+    int pos0, pos1, pos2;
+    float frac0, frac1, frac2;
+
+    // world -> grid space
     {
-        for (int i = 0; i < soa.visibleModelCount; ++i)
-        {
-            const int slot = static_cast<int>(soa.visibleModelSlots[i]);
-            const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
-            trRefEntity_t& ent = tr.refdef.entities[entNum];
-            R_SetupEntityLighting(refdef, ent);
-        }
-        return;
+        const float v0 = (lightOrgX - c.gridOrigin[0]) * c.invSize[0];
+        const float v1 = (lightOrgY - c.gridOrigin[1]) * c.invSize[1];
+        const float v2 = (lightOrgZ - c.gridOrigin[2]) * c.invSize[2];
+
+        pos0 = static_cast<int>(std::floor(v0)); frac0 = v0 - static_cast<float>(pos0);
+        pos1 = static_cast<int>(std::floor(v1)); frac1 = v1 - static_cast<float>(pos1);
+        pos2 = static_cast<int>(std::floor(v2)); frac2 = v2 - static_cast<float>(pos2);
+
+        // clamp (jak upstream)
+        if (pos0 < 0) pos0 = 0; else if (pos0 > c.bounds[0] - 1) pos0 = c.bounds[0] - 1;
+        if (pos1 < 0) pos1 = 0; else if (pos1 > c.bounds[1] - 1) pos1 = c.bounds[1] - 1;
+        if (pos2 < 0) pos2 = 0; else if (pos2 > c.bounds[2] - 1) pos2 = c.bounds[2] - 1;
     }
-#endif
 
-    // małe sceny -> scalar (szybciej niż setup SIMD)
-    if (refdef.num_dlights < 2 || count < 16)
-    {
-        for (int i = 0; i < soa.visibleModelCount; ++i)
+    const bool canX = (pos0 < c.bounds[0] - 1);
+    const bool canY = (pos1 < c.bounds[1] - 1);
+    const bool canZ = (pos2 < c.bounds[2] - 1);
+
+    const float om0 = 1.0f - frac0;
+    const float om1 = 1.0f - frac1;
+    const float om2 = 1.0f - frac2;
+
+    // 8 corners factors
+    const float f000 = om0 * om1 * om2;
+    const float f100 = frac0 * om1 * om2;
+    const float f010 = om0 * frac1 * om2;
+    const float f110 = frac0 * frac1 * om2;
+    const float f001 = om0 * om1 * frac2;
+    const float f101 = frac0 * om1 * frac2;
+    const float f011 = om0 * frac1 * frac2;
+    const float f111 = frac0 * frac1 * frac2;
+
+    auto Sample = [&](int dx, int dy, int dz, float factor) noexcept -> bool
         {
-            const int slot = static_cast<int>(soa.visibleModelSlots[i]);
-            const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
-            trRefEntity_t& ent = tr.refdef.entities[entNum];
-            R_SetupEntityLighting(refdef, ent);
-        }
-        return;
+            if (factor <= 0.0f) return false;
+            if ((dx && !canX) || (dy && !canY) || (dz && !canZ)) return false;
+
+            const int ix = pos0 + dx;
+            const int iy = pos1 + dy;
+            const int iz = pos2 + dz;
+
+            const byte* data = c.gridData + ((ix * c.step[0] + iy * c.step[1] + iz * c.step[2]) << 3);
+
+            if ((data[0] + data[1] + data[2]) == 0) return false;
+
+            outAmb0 += factor * float(data[0]);
+            outAmb1 += factor * float(data[1]);
+            outAmb2 += factor * float(data[2]);
+
+            outDir0 += factor * float(data[3]);
+            outDir1 += factor * float(data[4]);
+            outDir2 += factor * float(data[5]);
+
+            const int lat = int(data[7]) * (FUNCTABLE_SIZE / 256);
+            const int lng = int(data[6]) * (FUNCTABLE_SIZE / 256);
+
+            const float sinLat = c.sinTable[lat];
+            const float cosLat = c.sinTable[(lat + FUNCTABLE_SIZE / 4) & FUNCTABLE_MASK];
+            const float sinLng = c.sinTable[lng];
+            const float cosLng = c.sinTable[(lng + FUNCTABLE_SIZE / 4) & FUNCTABLE_MASK];
+
+            const float nx = cosLat * sinLng;
+            const float ny = sinLat * sinLng;
+            const float nz = cosLng;
+
+            outWDirX += factor * nx;
+            outWDirY += factor * ny;
+            outWDirZ += factor * nz;
+
+            return true;
+        };
+
+    float totalFactor = 0.0f;
+
+    const bool energyLoss = false;//(r_soaGridEnergyLoss && r_soaGridEnergyLoss->integer != 0);
+
+    auto SampleAcc = [&](int dx, int dy, int dz, float f) noexcept
+        {
+            const bool used = Sample(dx, dy, dz, f);
+            if (energyLoss)
+            {
+                // "efekt": licz wagę zawsze, nawet jak próbka odpadła
+                totalFactor += f;
+            }
+            else
+            {
+                // AoS: licz wagę tylko dla faktycznie użytej próbki
+                if (used) totalFactor += f;
+            }
+        };
+
+    SampleAcc(0, 0, 0, f000);
+    SampleAcc(1, 0, 0, f100);
+    SampleAcc(0, 1, 0, f010);
+    SampleAcc(1, 1, 0, f110);
+    SampleAcc(0, 0, 1, f001);
+    SampleAcc(1, 0, 1, f101);
+    SampleAcc(0, 1, 1, f011);
+    SampleAcc(1, 1, 1, f111);
+
+    if (!energyLoss && totalFactor > 0.0f && totalFactor < 0.99f)
+    {
+        const float inv = 1.0f / totalFactor;
+        outAmb0 *= inv; outAmb1 *= inv; outAmb2 *= inv;
+        outDir0 *= inv; outDir1 *= inv; outDir2 *= inv;
+        outWDirX *= inv; outWDirY *= inv; outWDirZ *= inv;
     }
 
-    // scratch (world-space accumulated light direction)
-    static thread_local std::array<float, trsoa::kMaxRefEntities> acc_x;
-    static thread_local std::array<float, trsoa::kMaxRefEntities> acc_y;
-    static thread_local std::array<float, trsoa::kMaxRefEntities> acc_z;
-    static thread_local std::array<std::uint8_t, trsoa::kMaxRefEntities> need{};
-    need.fill(0);
+    // scales
+    outAmb0 *= c.ambientScale; outAmb1 *= c.ambientScale; outAmb2 *= c.ambientScale;
+    outDir0 *= c.directedScale; outDir1 *= c.directedScale; outDir2 *= c.directedScale;
 
-    auto& L = soa.models.lighting;
-    const auto& T = soa.models.transform;
-
-    // -------------------------
-    // A) baza: grid lub fallback + minlight + init acc
-    // -------------------------
-    for (int i = 0; i < soa.visibleModelCount; ++i)
+    // normalize direction with AoS-like fallback
     {
-        const int slot = static_cast<int>(soa.visibleModelSlots[i]);
-        const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
-        trRefEntity_t& ent = tr.refdef.entities[entNum];
-
-        if (ent.lightingCalculated) { continue; }
-        ent.lightingCalculated = true;
-
-        if (!(refdef.rdflags & RDF_NOWORLDMODEL) && tr.world->lightGridData)
+        const float len2 = outWDirX * outWDirX + outWDirY * outWDirY + outWDirZ * outWDirZ;
+        if (len2 > 0.0f)
         {
-            R_SetupEntityLightingGrid(ent);
+            const float inv = 1.0f / std::sqrt(len2);
+            outWDirX *= inv; outWDirY *= inv; outWDirZ *= inv;
         }
         else
         {
-            ent.ambientLight[0] = ent.ambientLight[1] = ent.ambientLight[2] = tr.identityLight * 150;
-            ent.directedLight[0] = ent.directedLight[1] = ent.directedLight[2] = tr.identityLight * 150;
-            VectorCopy(tr.sunDirection, ent.lightDir);
+            outWDirX = 0.0f; outWDirY = 0.0f; outWDirZ = 1.0f;
         }
+    }
+}
 
-        // minlight (u ciebie zawsze ON, jak w kodzie)
-        ent.ambientLight[0] += tr.identityLight * 32;
-        ent.ambientLight[1] += tr.identityLight * 32;
-        ent.ambientLight[2] += tr.identityLight * 32;
+void R_SetupEntityLighting_SoA_Batch(const trRefdef_t& refdef, trsoa::FrameSoA& soa) noexcept
+{
+    const int visCount = soa.visibleModelCount;
+    if (visCount <= 0) return;
 
-        // init acc = ent.lightDir * |directedLight|
-        const float dl = Vec3Len3(ent.directedLight[0], ent.directedLight[1], ent.directedLight[2]);
-        acc_x[slot] = ent.lightDir[0] * dl;
-        acc_y[slot] = ent.lightDir[1] * dl;
-        acc_z[slot] = ent.lightDir[2] * dl;
+    auto& T = soa.models.transform;
+    auto& L = soa.models.lighting;
 
-        // mirror do SoA (dla SIMD)
-        L.directed_x[slot] = ent.directedLight[0];
-        L.directed_y[slot] = ent.directedLight[1];
-        L.directed_z[slot] = ent.directedLight[2];
+    // scratch (world-space accumulated dir * intensity)
+    static thread_local std::array<float, trsoa::kMaxRefEntitiesPadded> acc_x;
+    static thread_local std::array<float, trsoa::kMaxRefEntitiesPadded> acc_y;
+    static thread_local std::array<float, trsoa::kMaxRefEntitiesPadded> acc_z;
 
-        L.ambient_x[slot] = ent.ambientLight[0];
-        L.ambient_y[slot] = ent.ambientLight[1];
-        L.ambient_z[slot] = ent.ambientLight[2];
+    const bool useGrid =
+        !(refdef.rdflags & RDF_NOWORLDMODEL) &&
+        tr.world && tr.world->lightGridData;
 
-        need[slot] = 1u;
+    LightGridCtx ctx{};
+    if (useGrid)
+    {
+        ctx.gridData = tr.world->lightGridData;
+        VectorCopy(tr.world->lightGridOrigin, ctx.gridOrigin);
+        VectorCopy(tr.world->lightGridInverseSize, ctx.invSize);
+        ctx.bounds[0] = tr.world->lightGridBounds[0];
+        ctx.bounds[1] = tr.world->lightGridBounds[1];
+        ctx.bounds[2] = tr.world->lightGridBounds[2];
+
+/*        ctx.step[0] = tr.world->lightGridBounds[1] * tr.world->lightGridBounds[2];
+        ctx.step[1] = tr.world->lightGridBounds[2];
+        ctx.step[2] = 1*/;
+
+        const int bx = ctx.bounds[0];
+        const int by = ctx.bounds[1];
+
+        ctx.step[0] = 1;
+        ctx.step[1] = bx;
+        ctx.step[2] = bx * by;
+
+        ctx.ambientScale = r_ambientScale->value;
+        ctx.directedScale = r_directedScale->value;
+        ctx.sinTable = tr.sinTable;
     }
 
-    // jeżeli nic do roboty
-    bool anyNeed = false;
-    for (int slot = 0; slot < count; ++slot) { if (need[slot]) { anyNeed = true; break; } }
-    if (!anyNeed) return;
+    // A) base lighting (grid / fallback) + minlight + init acc
+    trsoa::ForEachConsecutiveRun(soa.visibleModelSlots.data(), visCount,
+        [&](int base, int len) noexcept
+        {
+            const int end = base + len;
+            for (int slot = base; slot < end; ++slot)
+            {
+                float amb0, amb1, amb2, dir0, dir1, dir2, wdx, wdy, wdz;
 
-    // -------------------------
-    // B) dynamic lights SIMD per-dlight
-    // -------------------------
-    constexpr float kMinR = 16.0f;        // DLIGHT_MINIMUM_RADIUS
-    constexpr float kAtRadius = 16.0f;    // DLIGHT_AT_RADIUS
+                if (useGrid)
+                {
+                    SetupEntityLightingGrid_SoA_One(
+                        ctx,
+                        T.lightOrg_x[slot], T.lightOrg_y[slot], T.lightOrg_z[slot],
+                        amb0, amb1, amb2,
+                        dir0, dir1, dir2,
+                        wdx, wdy, wdz);
+                }
+                else
+                {
+                    const float v = tr.identityLight * 150.0f;
+                    amb0 = amb1 = amb2 = v;
+                    dir0 = dir1 = dir2 = v;
+                    wdx = tr.sunDirection[0];
+                    wdy = tr.sunDirection[1];
+                    wdz = tr.sunDirection[2];
+                }
+
+                // minlight (Twoja logika)
+                const float minL = tr.identityLight * 32.0f;
+                amb0 += minL; amb1 += minL; amb2 += minL;
+
+                // write SoA
+                L.ambient_x[slot] = amb0; L.ambient_y[slot] = amb1; L.ambient_z[slot] = amb2;
+                L.directed_x[slot] = dir0; L.directed_y[slot] = dir1; L.directed_z[slot] = dir2;
+
+                // init acc = wdir * |directed|
+                const float dl = Vec3Len3(dir0, dir1, dir2);
+                acc_x[slot] = wdx * dl;
+                acc_y[slot] = wdy * dl;
+                acc_z[slot] = wdz * dl;
+            }
+        });
+
+    // B) dynamic lights (SIMD tylko tu, jeśli są)
+    if (refdef.num_dlights > 0)
+    {
+        constexpr float kMinR = 16.0f;
+        constexpr float kAtRadius = 16.0f;
 
 #if TR_HAS_XSIMD
-    using batch = xsimd::batch<float>;
-    constexpr int W = static_cast<int>(batch::size);
+        using batch = xsimd::batch<float>;
+        constexpr int W = static_cast<int>(batch::size);
 
-    alignas(64) float activeLane[W];
+        trsoa::ForEachConsecutiveRun(soa.visibleModelSlots.data(), visCount,
+            [&](int base, int len) noexcept
+            {
+                const int end = base + len;
 
-    for (int base = 0; base < count; base += W)
-    {
-        const int lanes = std::min(W, count - base);
+                for (int i = base; i < end; i += W)
+                {
+                    const int lanes = std::min(W, end - i);
 
-        bool any = false;
-        for (int l = 0; l < lanes; ++l)
-        {
-            const int s = base + l;
-            const bool act = (need[s] != 0u) && (soa.modelDerived.cullResult[s] != CULL_OUT);
-            activeLane[l] = act ? 1.0f : 0.0f;
-            any |= act;
-        }
-        for (int l = lanes; l < W; ++l) activeLane[l] = 0.0f;
-        if (!any) continue;
+                    batch ox = xsimd::load_aligned(&T.lightOrg_x[i]);
+                    batch oy = xsimd::load_aligned(&T.lightOrg_y[i]);
+                    batch oz = xsimd::load_aligned(&T.lightOrg_z[i]);
 
-        const batch active = xsimd::load_aligned(activeLane);
+                    batch dxL = xsimd::load_aligned(&L.directed_x[i]);
+                    batch dyL = xsimd::load_aligned(&L.directed_y[i]);
+                    batch dzL = xsimd::load_aligned(&L.directed_z[i]);
 
-        batch ox = xsimd::load_unaligned(&T.lightOrg_x[base]);
-        batch oy = xsimd::load_unaligned(&T.lightOrg_y[base]);
-        batch oz = xsimd::load_unaligned(&T.lightOrg_z[base]);
+                    batch ax = xsimd::load_aligned(&acc_x[i]);
+                    batch ay = xsimd::load_aligned(&acc_y[i]);
+                    batch az = xsimd::load_aligned(&acc_z[i]);
 
-        batch dxL = xsimd::load_unaligned(&L.directed_x[base]);
-        batch dyL = xsimd::load_unaligned(&L.directed_y[base]);
-        batch dzL = xsimd::load_unaligned(&L.directed_z[base]);
+                    // lane mask tylko dla ogona
+                    batch laneMask(1.0f);
+                    if (lanes != W)
+                    {
+                        alignas(64) float m[W];
+                        for (int l = 0;l < W;++l) m[l] = (l < lanes) ? 1.0f : 0.0f;
+                        laneMask = xsimd::load_aligned(m);
+                    }
 
-        batch ax = xsimd::load_unaligned(&acc_x[base]);
-        batch ay = xsimd::load_unaligned(&acc_y[base]);
-        batch az = xsimd::load_unaligned(&acc_z[base]);
-
-        for (int di = 0; di < refdef.num_dlights; ++di)
-        {
-            const dlight_t& dl = refdef.dlights[di];
+                    for (int di = 0; di < refdef.num_dlights; ++di)
+                    {
+                        const dlight_t& dl = refdef.dlights[di];
 #ifdef USE_PMLIGHT
-            if (dl.linear) continue;
+                        if (dl.linear) continue;
 #endif
-            const float power = kAtRadius * (dl.radius * dl.radius);
+                        const float power = kAtRadius * (dl.radius * dl.radius);
 
-            const batch lx = batch(dl.origin[0]) - ox;
-            const batch ly = batch(dl.origin[1]) - oy;
-            const batch lz = batch(dl.origin[2]) - oz;
+                        const batch lx = batch(dl.origin[0]) - ox;
+                        const batch ly = batch(dl.origin[1]) - oy;
+                        const batch lz = batch(dl.origin[2]) - oz;
 
-            const batch dist2 = lx * lx + ly * ly + lz * lz;
-            batch dist = xsimd::sqrt(dist2);
+                        batch dist2 = lx * lx + ly * ly + lz * lz;
+                        batch dist = xsimd::sqrt(dist2);
+                        dist = xsimd::max(dist, batch(kMinR));
 
-            // clamp dist
-            dist = xsimd::max(dist, batch(kMinR));
+                        const batch invDist = batch(1.0f) / dist;
+                        const batch nx = lx * invDist;
+                        const batch ny = ly * invDist;
+                        const batch nz = lz * invDist;
 
-            const batch invDist = batch(1.0f) / dist;
+                        const batch atten = (batch(power) / (dist * dist)) * laneMask;
 
-            // normalized dir
-            const batch nx = lx * invDist;
-            const batch ny = ly * invDist;
-            const batch nz = lz * invDist;
+                        dxL = dxL + atten * batch(dl.color[0]);
+                        dyL = dyL + atten * batch(dl.color[1]);
+                        dzL = dzL + atten * batch(dl.color[2]);
 
-            // atten = power / (dist*dist)
-            const batch atten = (batch(power) / (dist * dist)) * active;
+                        ax = ax + atten * nx;
+                        ay = ay + atten * ny;
+                        az = az + atten * nz;
+                    }
 
-            // directed += atten * dl.color
-            dxL = dxL + atten * batch(dl.color[0]);
-            dyL = dyL + atten * batch(dl.color[1]);
-            dzL = dzL + atten * batch(dl.color[2]);
+                    xsimd::store_aligned(&L.directed_x[i], dxL);
+                    xsimd::store_aligned(&L.directed_y[i], dyL);
+                    xsimd::store_aligned(&L.directed_z[i], dzL);
 
-            // acc += atten * normalized_dir
-            ax = ax + atten * nx;
-            ay = ay + atten * ny;
-            az = az + atten * nz;
-        }
-
-        xsimd::store_unaligned(&L.directed_x[base], dxL);
-        xsimd::store_unaligned(&L.directed_y[base], dyL);
-        xsimd::store_unaligned(&L.directed_z[base], dzL);
-
-        xsimd::store_unaligned(&acc_x[base], ax);
-        xsimd::store_unaligned(&acc_y[base], ay);
-        xsimd::store_unaligned(&acc_z[base], az);
-    }
+                    xsimd::store_aligned(&acc_x[i], ax);
+                    xsimd::store_aligned(&acc_y[i], ay);
+                    xsimd::store_aligned(&acc_z[i], az);
+                }
+            });
 #else
-    // fallback scalar (ale nadal per-SoA, bez wywołań na entity)
-    for (int slot = 0; slot < count; ++slot)
-    {
-        if (!need[slot]) continue;
-        if (soa.modelDerived.cullResult[slot] == CULL_OUT) continue;
+        // scalar dlights (nadal SoA, bez AoS calls)
+        trsoa::ForEachConsecutiveRun(soa.visibleModelSlots.data(), visCount,
+            [&](int base, int len) noexcept
+            {
+                const int end = base + len;
+                for (int slot = base; slot < end; ++slot)
+                {
+                    float ox = T.lightOrg_x[slot], oy = T.lightOrg_y[slot], oz = T.lightOrg_z[slot];
+                    float dxL = L.directed_x[slot], dyL = L.directed_y[slot], dzL = L.directed_z[slot];
+                    float ax = acc_x[slot], ay = acc_y[slot], az = acc_z[slot];
 
-        const float ox = T.lightOrg_x[slot];
-        const float oy = T.lightOrg_y[slot];
-        const float oz = T.lightOrg_z[slot];
-
-        float dxL = L.directed_x[slot];
-        float dyL = L.directed_y[slot];
-        float dzL = L.directed_z[slot];
-
-        float ax = acc_x[slot];
-        float ay = acc_y[slot];
-        float az = acc_z[slot];
-
-        for (int di = 0; di < refdef.num_dlights; ++di)
-        {
-            const dlight_t& dl = refdef.dlights[di];
+                    for (int di = 0; di < refdef.num_dlights; ++di)
+                    {
+                        const dlight_t& dl = refdef.dlights[di];
 #ifdef USE_PMLIGHT
-            if (dl.linear) continue;
+                        if (dl.linear) continue;
 #endif
-            float vx = dl.origin[0] - ox;
-            float vy = dl.origin[1] - oy;
-            float vz = dl.origin[2] - oz;
+                        float vx = dl.origin[0] - ox;
+                        float vy = dl.origin[1] - oy;
+                        float vz = dl.origin[2] - oz;
 
-            float dist = std::sqrt(vx * vx + vy * vy + vz * vz);
-            if (dist < kMinR) dist = kMinR;
+                        float dist = std::sqrt(vx * vx + vy * vy + vz * vz);
+                        if (dist < kMinR) dist = kMinR;
 
-            const float inv = 1.0f / dist;
-            vx *= inv; vy *= inv; vz *= inv;
+                        const float inv = 1.0f / dist;
+                        vx *= inv; vy *= inv; vz *= inv;
 
-            const float power = kAtRadius * (dl.radius * dl.radius);
-            const float atten = power / (dist * dist);
+                        const float power = kAtRadius * (dl.radius * dl.radius);
+                        const float atten = power / (dist * dist);
 
-            dxL += atten * dl.color[0];
-            dyL += atten * dl.color[1];
-            dzL += atten * dl.color[2];
+                        dxL += atten * dl.color[0];
+                        dyL += atten * dl.color[1];
+                        dzL += atten * dl.color[2];
 
-            ax += atten * vx;
-            ay += atten * vy;
-            az += atten * vz;
-        }
+                        ax += atten * vx;
+                        ay += atten * vy;
+                        az += atten * vz;
+                    }
 
-        L.directed_x[slot] = dxL;
-        L.directed_y[slot] = dyL;
-        L.directed_z[slot] = dzL;
-
-        acc_x[slot] = ax;
-        acc_y[slot] = ay;
-        acc_z[slot] = az;
-    }
+                    L.directed_x[slot] = dxL; L.directed_y[slot] = dyL; L.directed_z[slot] = dzL;
+                    acc_x[slot] = ax; acc_y[slot] = ay; acc_z[slot] = az;
+                }
+            });
 #endif
-
-    // -------------------------
-    // C) clamp ambient + pack + normalize(acc) + world->local (dot(axis))
-    // -------------------------
-    for (int i = 0; i < soa.visibleModelCount; ++i)
-    {
-        const int slot = static_cast<int>(soa.visibleModelSlots[i]);
-        if (!need[slot]) continue;
-        if (soa.modelDerived.cullResult[slot] == CULL_OUT) continue;
-
-        const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
-        trRefEntity_t& ent = tr.refdef.entities[entNum];
-
-        // clamp ambient
-        float amb0 = L.ambient_x[slot];
-        float amb1 = L.ambient_y[slot];
-        float amb2 = L.ambient_z[slot];
-
-        if (amb0 > tr.identityLightByte) amb0 = tr.identityLightByte;
-        if (amb1 > tr.identityLightByte) amb1 = tr.identityLightByte;
-        if (amb2 > tr.identityLightByte) amb2 = tr.identityLightByte;
-
-        // write AoS ambient + pack
-        ent.ambientLight[0] = amb0;
-        ent.ambientLight[1] = amb1;
-        ent.ambientLight[2] = amb2;
-
-        const std::array<std::uint8_t, 4> packed = {
-            static_cast<std::uint8_t>(myftol(amb0)),
-            static_cast<std::uint8_t>(myftol(amb1)),
-            static_cast<std::uint8_t>(myftol(amb2)),
-            0xFFu
-        };
-        std::memcpy(&ent.ambientLightInt, packed.data(), 4);
-        L.ambientPacked[slot] = ent.ambientLightInt;
-
-        // directed -> AoS
-        ent.directedLight[0] = L.directed_x[slot];
-        ent.directedLight[1] = L.directed_y[slot];
-        ent.directedLight[2] = L.directed_z[slot];
-
-        // normalize accumulated world light dir
-        float wx = acc_x[slot];
-        float wy = acc_y[slot];
-        float wz = acc_z[slot];
-        Vec3Normalize3(wx, wy, wz);
-
-        // world->local (dot with axis rows)
-        const float lx =
-            wx * T.ax0_x[slot] + wy * T.ax0_y[slot] + wz * T.ax0_z[slot];
-        const float ly =
-            wx * T.ax1_x[slot] + wy * T.ax1_y[slot] + wz * T.ax1_z[slot];
-        const float lz =
-            wx * T.ax2_x[slot] + wy * T.ax2_y[slot] + wz * T.ax2_z[slot];
-
-        ent.lightDir[0] = lx;
-        ent.lightDir[1] = ly;
-        ent.lightDir[2] = lz;
-
-        L.lightDir_x[slot] = lx;
-        L.lightDir_y[slot] = ly;
-        L.lightDir_z[slot] = lz;
     }
+
+    // C) clamp + pack + normalize(acc) + world->local + commit do AoS
+    trsoa::ForEachConsecutiveRun(soa.visibleModelSlots.data(), visCount,
+        [&](int base, int len) noexcept
+        {
+            const int end = base + len;
+
+            for (int slot = base; slot < end; ++slot)
+            {
+                float amb0 = L.ambient_x[slot];
+                float amb1 = L.ambient_y[slot];
+                float amb2 = L.ambient_z[slot];
+
+                if (amb0 > tr.identityLightByte) amb0 = tr.identityLightByte;
+                if (amb1 > tr.identityLightByte) amb1 = tr.identityLightByte;
+                if (amb2 > tr.identityLightByte) amb2 = tr.identityLightByte;
+
+                // normalize accumulated world dir
+                float wx = acc_x[slot], wy = acc_y[slot], wz = acc_z[slot];
+                Vec3Normalize3(wx, wy, wz);
+
+                // world->local
+                const float lx = wx * T.ax0_x[slot] + wy * T.ax0_y[slot] + wz * T.ax0_z[slot];
+                const float ly = wx * T.ax1_x[slot] + wy * T.ax1_y[slot] + wz * T.ax1_z[slot];
+                const float lz = wx * T.ax2_x[slot] + wy * T.ax2_y[slot] + wz * T.ax2_z[slot];
+
+                L.lightDir_x[slot] = lx;
+                L.lightDir_y[slot] = ly;
+                L.lightDir_z[slot] = lz;
+
+                // pack ambient
+                const std::uint32_t a0 = static_cast<std::uint32_t>(myftol(amb0)) & 0xFFu;
+                const std::uint32_t a1 = static_cast<std::uint32_t>(myftol(amb1)) & 0xFFu;
+                const std::uint32_t a2 = static_cast<std::uint32_t>(myftol(amb2)) & 0xFFu;
+                const std::uint32_t packed = (a0) | (a1 << 8) | (a2 << 16) | (0xFFu << 24);
+                L.ambientPacked[slot] = packed;
+
+                // commit do AoS (tylko tu dotykasz ent)
+                const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
+                trRefEntity_t& ent = tr.refdef.entities[entNum];
+
+                ent.lightingCalculated = true;
+
+                ent.ambientLight[0] = amb0; ent.ambientLight[1] = amb1; ent.ambientLight[2] = amb2;
+                ent.ambientLightInt = packed;
+
+                ent.directedLight[0] = L.directed_x[slot];
+                ent.directedLight[1] = L.directed_y[slot];
+                ent.directedLight[2] = L.directed_z[slot];
+
+                ent.lightDir[0] = lx; ent.lightDir[1] = ly; ent.lightDir[2] = lz;
+            }
+        });
 }
 
 #endif // USE_AoS_to_SoA_SIMD

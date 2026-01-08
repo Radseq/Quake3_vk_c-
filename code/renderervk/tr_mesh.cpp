@@ -32,7 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_soa_frame.hpp"
 #include "tr_soa_stage2.hpp"
 
-static float ProjectRadius(const float r, const vec3_t &location)
+static float ProjectRadius(const float r, const vec3_t& location)
 {
 	float pr;
 	float dist;
@@ -49,7 +49,7 @@ static float ProjectRadius(const float r, const vec3_t &location)
 	vec3_t p{
 		0,
 		fabs(r),
-		-dist};
+		-dist };
 
 #if 0
 	projected[0] = p[0] * tr.viewParms.projectionMatrix[0] +
@@ -58,9 +58,9 @@ static float ProjectRadius(const float r, const vec3_t &location)
 		tr.viewParms.projectionMatrix[12];
 #endif
 	projected[1] = p[0] * tr.viewParms.projectionMatrix[1] +
-				   p[1] * tr.viewParms.projectionMatrix[5] +
-				   p[2] * tr.viewParms.projectionMatrix[9] +
-				   tr.viewParms.projectionMatrix[13];
+		p[1] * tr.viewParms.projectionMatrix[5] +
+		p[2] * tr.viewParms.projectionMatrix[9] +
+		tr.viewParms.projectionMatrix[13];
 #if 0
 	projected[2] = p[0] * tr.viewParms.projectionMatrix[2] +
 		p[1] * tr.viewParms.projectionMatrix[6] +
@@ -68,9 +68,9 @@ static float ProjectRadius(const float r, const vec3_t &location)
 		tr.viewParms.projectionMatrix[14];
 #endif
 	projected[3] = p[0] * tr.viewParms.projectionMatrix[3] +
-				   p[1] * tr.viewParms.projectionMatrix[7] +
-				   p[2] * tr.viewParms.projectionMatrix[11] +
-				   tr.viewParms.projectionMatrix[15];
+		p[1] * tr.viewParms.projectionMatrix[7] +
+		p[2] * tr.viewParms.projectionMatrix[11] +
+		tr.viewParms.projectionMatrix[15];
 
 	pr = projected[1] / projected[3];
 
@@ -85,15 +85,15 @@ static float ProjectRadius(const float r, const vec3_t &location)
 R_CullModel
 =============
 */
-static int R_CullModel(md3Header_t *header, const trRefEntity_t &ent, vec3_t bounds[])
+static int R_CullModel(md3Header_t* header, const trRefEntity_t& ent, vec3_t bounds[])
 {
 	// vec3_t bounds[2];
-	md3Frame_t *oldFrame, *newFrame;
+	md3Frame_t* oldFrame, * newFrame;
 	int i;
 
 	// compute frame pointers
-	newFrame = (md3Frame_t *)((byte *)header + header->ofsFrames) + ent.e.frame;
-	oldFrame = (md3Frame_t *)((byte *)header + header->ofsFrames) + ent.e.oldframe;
+	newFrame = (md3Frame_t*)((byte*)header + header->ofsFrames) + ent.e.frame;
+	oldFrame = (md3Frame_t*)((byte*)header + header->ofsFrames) + ent.e.oldframe;
 
 	// calculate a bounding box in the current coordinate system
 	for (i = 0; i < 3; i++)
@@ -171,7 +171,7 @@ static int R_CullModel(md3Header_t *header, const trRefEntity_t &ent, vec3_t bou
 	}
 }
 
-int R_ComputeLOD(trRefEntity_t &ent)
+int R_ComputeLOD(trRefEntity_t& ent)
 {
 #if defined(USE_AoS_to_SoA_SIMD)
 	{
@@ -187,7 +187,7 @@ int R_ComputeLOD(trRefEntity_t &ent)
 			const int entNum = (tr.currentEntity == &ent) ? tr.currentEntityNum : static_cast<int>(&ent - tr.refdef.entities);
 			if (static_cast<unsigned>(entNum) < trsoa::kMaxRefEntities)
 			{
-				const int s = soa.modelSlotOfEnt[entNum];
+				const int s = soa.modelSlotOfEnt.get(entNum);
 				if (s >= 0)
 					return static_cast<int>(soa.modelDerived.lod[s]);
 			}
@@ -195,77 +195,77 @@ int R_ComputeLOD(trRefEntity_t &ent)
 	}
 #endif
 
-	float radius;
-	float flod, lodscale;
-	float projectedRadius;
-	md3Frame_t *frame;
-	mdrHeader_t *mdr;
-	mdrFrame_t *mdrframe;
-	int lod;
+float radius;
+float flod, lodscale;
+float projectedRadius;
+md3Frame_t* frame;
+mdrHeader_t* mdr;
+mdrFrame_t* mdrframe;
+int lod;
 
-	if (tr.currentModel->numLods < 2)
+if (tr.currentModel->numLods < 2)
+{
+	// model has only 1 LOD level, skip computations and bias
+	lod = 0;
+}
+else
+{
+	// multiple LODs exist, so compute projected bounding sphere
+	// and use that as a criteria for selecting LOD
+
+	if (tr.currentModel->type == modtype_t::MOD_MDR)
 	{
-		// model has only 1 LOD level, skip computations and bias
-		lod = 0;
+		int frameSize;
+		mdr = (mdrHeader_t*)tr.currentModel->modelData;
+		frameSize = (size_t)(&((mdrFrame_t*)0)->bones[mdr->numBones]);
+
+		mdrframe = (mdrFrame_t*)((byte*)mdr + mdr->ofsFrames + frameSize * ent.e.frame);
+
+		radius = RadiusFromBounds(mdrframe->bounds[0], mdrframe->bounds[1]);
 	}
 	else
 	{
-		// multiple LODs exist, so compute projected bounding sphere
-		// and use that as a criteria for selecting LOD
+		frame = (md3Frame_t*)(((unsigned char*)tr.currentModel->md3[0]) + tr.currentModel->md3[0]->ofsFrames);
 
-		if (tr.currentModel->type == modtype_t::MOD_MDR)
-		{
-			int frameSize;
-			mdr = (mdrHeader_t *)tr.currentModel->modelData;
-			frameSize = (size_t)(&((mdrFrame_t *)0)->bones[mdr->numBones]);
+		frame += ent.e.frame;
 
-			mdrframe = (mdrFrame_t *)((byte *)mdr + mdr->ofsFrames + frameSize * ent.e.frame);
-
-			radius = RadiusFromBounds(mdrframe->bounds[0], mdrframe->bounds[1]);
-		}
-		else
-		{
-			frame = (md3Frame_t *)(((unsigned char *)tr.currentModel->md3[0]) + tr.currentModel->md3[0]->ofsFrames);
-
-			frame += ent.e.frame;
-
-			radius = RadiusFromBounds(frame->bounds[0], frame->bounds[1]);
-		}
-
-		if ((projectedRadius = ProjectRadius(radius, ent.e.origin)) != 0)
-		{
-			lodscale = r_lodscale->value;
-			if (lodscale > 20)
-				lodscale = 20;
-			flod = 1.0f - projectedRadius * lodscale;
-		}
-		else
-		{
-			// object intersects near view plane, e.g. view weapon
-			flod = 0;
-		}
-
-		flod *= tr.currentModel->numLods;
-		lod = myftol(flod);
-
-		if (lod < 0)
-		{
-			lod = 0;
-		}
-		else if (lod >= tr.currentModel->numLods)
-		{
-			lod = tr.currentModel->numLods - 1;
-		}
+		radius = RadiusFromBounds(frame->bounds[0], frame->bounds[1]);
 	}
 
-	lod += r_lodbias->integer;
+	if ((projectedRadius = ProjectRadius(radius, ent.e.origin)) != 0)
+	{
+		lodscale = r_lodscale->value;
+		if (lodscale > 20)
+			lodscale = 20;
+		flod = 1.0f - projectedRadius * lodscale;
+	}
+	else
+	{
+		// object intersects near view plane, e.g. view weapon
+		flod = 0;
+	}
 
-	if (lod >= tr.currentModel->numLods)
-		lod = tr.currentModel->numLods - 1;
+	flod *= tr.currentModel->numLods;
+	lod = myftol(flod);
+
 	if (lod < 0)
+	{
 		lod = 0;
+	}
+	else if (lod >= tr.currentModel->numLods)
+	{
+		lod = tr.currentModel->numLods - 1;
+	}
+}
 
-	return lod;
+lod += r_lodbias->integer;
+
+if (lod >= tr.currentModel->numLods)
+lod = tr.currentModel->numLods - 1;
+if (lod < 0)
+	lod = 0;
+
+return lod;
 }
 
 /*
@@ -273,11 +273,11 @@ int R_ComputeLOD(trRefEntity_t &ent)
 R_ComputeFogNum
 =================
 */
-static int R_ComputeFogNum(md3Header_t *header, const trRefEntity_t &ent)
+static int R_ComputeFogNum(md3Header_t* header, const trRefEntity_t& ent)
 {
 	int i, j;
-	const fog_t *fog;
-	md3Frame_t *md3Frame;
+	const fog_t* fog;
+	md3Frame_t* md3Frame;
 	vec3_t localOrigin{};
 
 	if (tr.refdef.rdflags & RDF_NOWORLDMODEL)
@@ -286,7 +286,7 @@ static int R_ComputeFogNum(md3Header_t *header, const trRefEntity_t &ent)
 	}
 
 	// FIXME: non-normalized axis issues
-	md3Frame = (md3Frame_t *)((byte *)header + header->ofsFrames) + ent.e.frame;
+	md3Frame = (md3Frame_t*)((byte*)header + header->ofsFrames) + ent.e.frame;
 	VectorAdd(ent.e.origin, md3Frame->localOrigin, localOrigin);
 	for (i = 1; i < tr.world->numfogs; i++)
 	{
@@ -311,21 +311,21 @@ static int R_ComputeFogNum(md3Header_t *header, const trRefEntity_t &ent)
 	return 0;
 }
 
-void R_AddMD3Surfaces(trRefEntity_t &ent)
+void R_AddMD3Surfaces(trRefEntity_t& ent)
 {
 	vec3_t bounds[2];
 	int i;
-	md3Header_t *header = NULL;
-	md3Surface_t *surface = NULL;
-	md3Shader_t *md3Shader = NULL;
-	shader_t *shader = NULL;
+	md3Header_t* header = NULL;
+	md3Surface_t* surface = NULL;
+	md3Shader_t* md3Shader = NULL;
+	shader_t* shader = NULL;
 	int cull;
 	int lod;
 	int fogNum;
 	bool personalModel;
 #ifdef USE_PMLIGHT
-	dlight_t *dl;
-	dlight_t *dlights[ARRAY_LEN(backEndData->dlights)]{};
+	dlight_t* dl;
+	dlight_t* dlights[ARRAY_LEN(backEndData->dlights)]{};
 	int numDlights;
 #endif
 
@@ -347,8 +347,8 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	if ((ent.e.frame >= tr.currentModel->md3[0]->numFrames) || (ent.e.frame < 0) || (ent.e.oldframe >= tr.currentModel->md3[0]->numFrames) || (ent.e.oldframe < 0))
 	{
 		ri.Printf(PRINT_DEVELOPER, "R_AddMD3Surfaces: no such frame %d to %d for '%s'\n",
-				  ent.e.oldframe, ent.e.frame,
-				  tr.currentModel->name.data());
+			ent.e.oldframe, ent.e.frame,
+			tr.currentModel->name.data());
 		ent.e.frame = 0;
 		ent.e.oldframe = 0;
 	}
@@ -387,7 +387,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 			{
 				const int entNum = (tr.currentEntity == &ent) ? tr.currentEntityNum : static_cast<int>(&ent - tr.refdef.entities);
 				if (static_cast<unsigned>(entNum) < trsoa::kMaxRefEntities)
-					slot = soa.modelSlotOfEnt[entNum];
+					slot = soa.modelSlotOfEnt.get(entNum);
 			}
 
 			if (slot >= 0)
@@ -398,13 +398,25 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 
 				if (cr == CULL_IN)
 				{
-					const float lx = soa.modelDerived.cullLocal_x[slot];
-					const float ly = soa.modelDerived.cullLocal_y[slot];
-					const float lz = soa.modelDerived.cullLocal_z[slot];
-					const float r = soa.modelDerived.cullRadius[slot];
+					if (soa.modelDerived.aabbValid[slot])
+					{
+						bounds[0][0] = soa.modelDerived.aabbMin_x[slot];
+						bounds[0][1] = soa.modelDerived.aabbMin_y[slot];
+						bounds[0][2] = soa.modelDerived.aabbMin_z[slot];
+						bounds[1][0] = soa.modelDerived.aabbMax_x[slot];
+						bounds[1][1] = soa.modelDerived.aabbMax_y[slot];
+						bounds[1][2] = soa.modelDerived.aabbMax_z[slot];
+					}
+					else
+					{
+						const float lx = soa.modelDerived.cullLocal_x[slot];
+						const float ly = soa.modelDerived.cullLocal_y[slot];
+						const float lz = soa.modelDerived.cullLocal_z[slot];
+						const float r = soa.modelDerived.cullRadius[slot];
 
-					bounds[0][0] = lx - r; bounds[0][1] = ly - r; bounds[0][2] = lz - r;
-					bounds[1][0] = lx + r; bounds[1][1] = ly + r; bounds[1][2] = lz + r;
+						bounds[0][0] = lx - r; bounds[0][1] = ly - r; bounds[0][2] = lz - r;
+						bounds[1][0] = lx + r; bounds[1][1] = ly + r; bounds[1][2] = lz + r;
+					}
 
 					cull = CULL_IN;
 					goto cull_done;
@@ -424,13 +436,16 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 cull_done:
 	(void)0;
 
-	//
-	// set up lighting now that we know we aren't culled
-	//
-	if (!personalModel || r_shadows->integer > 1)
+#if defined(USE_AoS_to_SoA_SIMD)
+	if (trsoa::CurrentModelSlot() < 0) // AoS path / brak slotu
+#endif
 	{
-		R_SetupEntityLighting(tr.refdef, ent);
+		if (!personalModel || r_shadows->integer > 1)
+		{
+			R_SetupEntityLighting(tr.refdef, ent);
+		}
 	}
+
 
 #ifdef USE_PMLIGHT
 #if defined(USE_AoS_to_SoA_SIMD) 
@@ -476,7 +491,7 @@ cull_done:
 			{
 				const int entNum = (tr.currentEntity == &ent) ? tr.currentEntityNum : static_cast<int>(&ent - tr.refdef.entities);
 				if (static_cast<unsigned>(entNum) < trsoa::kMaxRefEntities)
-					slot = soa.modelSlotOfEnt[entNum];
+					slot = soa.modelSlotOfEnt.get(entNum);
 			}
 
 			if (slot >= 0)
@@ -496,7 +511,7 @@ fog_done:
 	//
 	// draw all surfaces
 	//
-	surface = (md3Surface_t *)((byte *)header + header->ofsSurfaces);
+	surface = (md3Surface_t*)((byte*)header + header->ofsSurfaces);
 	for (i = 0; i < header->numSurfaces; i++)
 	{
 
@@ -506,7 +521,7 @@ fog_done:
 		}
 		else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
 		{
-			const skin_t *skin;
+			const skin_t* skin;
 			int j;
 
 			skin = R_GetSkinByHandle(ent.e.customSkin);
@@ -537,7 +552,7 @@ fog_done:
 		}
 		else
 		{
-			md3Shader = (md3Shader_t *)((byte *)surface + surface->ofsShaders);
+			md3Shader = (md3Shader_t*)((byte*)surface + surface->ofsShaders);
 			md3Shader += ent.e.skinNum % surface->numShaders;
 			shader = tr.shaders[md3Shader->shaderIndex];
 		}
@@ -545,22 +560,22 @@ fog_done:
 		// we will add shadows even if the main object isn't visible in the view
 
 		// stencil shadows can't do personal models unless I polyhedron clip
-		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 
+		if (!personalModel && r_shadows->integer == 2 && fogNum == 0
 			&& !(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.shadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
 		if (r_shadows->integer == 3 && fogNum == 0 && (ent.e.renderfx & RF_SHADOW_PLANE) && shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.projectionShadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *tr.projectionShadowShader, 0, 0);
 		}
 
 		// don't add third_person objects if not viewing through a portal
 		if (!personalModel)
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *shader, fogNum, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *shader, fogNum, 0);
 			tr.needScreenMap |= shader->hasScreenMap;
 		}
 
@@ -571,11 +586,11 @@ fog_done:
 			{
 				dl = dlights[n];
 				tr.light = dl;
-				R_AddLitSurf(*reinterpret_cast<surfaceType_t *>(surface), *shader, fogNum);
+				R_AddLitSurf(*reinterpret_cast<surfaceType_t*>(surface), *shader, fogNum);
 			}
 		}
 #endif
 
-		surface = (md3Surface_t *)((byte *)surface + surface->ofsEnd);
+		surface = (md3Surface_t*)((byte*)surface + surface->ofsEnd);
 	}
 }

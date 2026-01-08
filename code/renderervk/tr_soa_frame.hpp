@@ -22,6 +22,29 @@ namespace trsoa
 	static_assert(MAX_REFENTITIES <= 0xFFFF);
 	using ent_index_t = std::uint16_t;
 
+	// -------------------------------------------------------------------------
+	// SIMD padding helpers (remove tail loops in hot SIMD paths)
+	// -------------------------------------------------------------------------
+#if TR_HAS_XSIMD
+	using simd_f32_batch = xsimd::batch<float>;
+	static constexpr int kSimdW_F32 = static_cast<int>(simd_f32_batch::size);
+#else
+	static constexpr int kSimdW_F32 = 4;
+#endif
+
+	[[nodiscard]] static constexpr std::size_t RoundUpTo(std::size_t n, std::size_t m) noexcept
+	{
+		return (m > 0) ? ((n + m - 1) / m) * m : n;
+	}
+
+	static constexpr std::size_t kMaxRefEntitiesPadded =
+		RoundUpTo(kMaxRefEntities, static_cast<std::size_t>(kSimdW_F32));
+
+	[[nodiscard]] static inline int RoundUpToSimdW_F32(const int n) noexcept
+	{
+		return static_cast<int>(RoundUpTo(static_cast<std::size_t>(n), static_cast<std::size_t>(kSimdW_F32)));
+	}
+
 	// MAX_DLIGHTS jest w upstream headers.
 	static constexpr std::size_t kMaxDlights = static_cast<std::size_t>(MAX_DLIGHTS);
 
@@ -30,7 +53,7 @@ namespace trsoa
 		return std::sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 	}
 
-	[[nodiscard]] static inline bool Skip_FirstPersonWeapon_InPortal(const trRefEntity_t& ent, const viewParms_t& vp) noexcept
+	[[nodiscard]] static inline bool Skip_FirstPerson_InPortalView(const trRefEntity_t& ent, const viewParms_t& vp) noexcept
 	{
 		return (ent.e.renderfx & RF_FIRST_PERSON) && (vp.portalView != portalView_t::PV_NONE);
 	}
@@ -40,99 +63,109 @@ namespace trsoa
 		return (ent.e.renderfx & RF_THIRD_PERSON) && (vp.portalView == portalView_t::PV_NONE);
 	}
 
+	[[nodiscard]] static inline bool Skip_FirstPerson_InPortalViewFx(const int renderfx, const viewParms_t& vp) noexcept
+	{
+		return (renderfx & RF_FIRST_PERSON) && (vp.portalView != portalView_t::PV_NONE);
+	}
+
+	[[nodiscard]] static inline bool Skip_ThirdPersonFx_InPrimaryViewFx(const int renderfx, const viewParms_t& vp) noexcept
+	{
+		return (renderfx & RF_THIRD_PERSON) && (vp.portalView == portalView_t::PV_NONE);
+	}
+
 	// -------------------------------------------------------------------------
 	// SoA “systems”
 	// -------------------------------------------------------------------------
 
 	struct EntityTransformSoA final
 	{
-		alignas(64) std::array<float, kMaxRefEntities> origin_x{};
-		alignas(64) std::array<float, kMaxRefEntities> origin_y{};
-		alignas(64) std::array<float, kMaxRefEntities> origin_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> origin_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> origin_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> origin_z{};
 
 		// axis[0..2] rows (AoS: ent.e.axis[3][3])
-		alignas(64) std::array<float, kMaxRefEntities> ax0_x{};
-		alignas(64) std::array<float, kMaxRefEntities> ax0_y{};
-		alignas(64) std::array<float, kMaxRefEntities> ax0_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> ax0_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> ax0_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> ax0_z{};
 
-		alignas(64) std::array<float, kMaxRefEntities> ax1_x{};
-		alignas(64) std::array<float, kMaxRefEntities> ax1_y{};
-		alignas(64) std::array<float, kMaxRefEntities> ax1_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> ax1_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> ax1_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> ax1_z{};
 
-		alignas(64) std::array<float, kMaxRefEntities> ax2_x{};
-		alignas(64) std::array<float, kMaxRefEntities> ax2_y{};
-		alignas(64) std::array<float, kMaxRefEntities> ax2_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> ax2_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> ax2_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> ax2_z{};
 
 		// If nonNormalizedAxes: axisLenInv = 1/|axis0|, else 1.0f
-		alignas(64) std::array<float, kMaxRefEntities> axisLenInv{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> axisLenInv{};
 
 		// Lighting origin in worldspace; equals origin unless RF_LIGHTING_ORIGIN.
 		// Lighting origin (raw) from refEntity_t (RF_LIGHTING_ORIGIN).
 		// NOTE: refEntity_t is typically zero-initialized by the caller;
 		//       if you ever submit partially-initialized entities, ensure lightingOrigin is valid.
-		alignas(64) std::array<float, kMaxRefEntities> lightingOrigin_x{};
-		alignas(64) std::array<float, kMaxRefEntities> lightingOrigin_y{};
-		alignas(64) std::array<float, kMaxRefEntities> lightingOrigin_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> lightingOrigin_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> lightingOrigin_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> lightingOrigin_z{};
 
 		// Final lighting origin in worldspace; equals origin unless RF_LIGHTING_ORIGIN.
-		alignas(64) std::array<float, kMaxRefEntities> lightOrg_x{};
-		alignas(64) std::array<float, kMaxRefEntities> lightOrg_y{};
-		alignas(64) std::array<float, kMaxRefEntities> lightOrg_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> lightOrg_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> lightOrg_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> lightOrg_z{};
 
-		alignas(64) std::array<std::uint8_t, kMaxRefEntities> nonNormalizedAxes{};
-		alignas(64) std::array<std::uint8_t, kMaxRefEntities> hasLightingOrigin{};
+		alignas(64) std::array<std::uint8_t, kMaxRefEntitiesPadded> nonNormalizedAxes{};
+		alignas(64) std::array<std::uint8_t, kMaxRefEntitiesPadded> hasLightingOrigin{};
 	};
 
 	struct EntityRenderSoA final
 	{
-		std::array<ent_index_t, kMaxRefEntities> entNum{}; // original tr.refdef.entities index
+		std::array<ent_index_t, kMaxRefEntitiesPadded> entNum{}; // original tr.refdef.entities index
 
 		// 32-bit jak upstream (ABI/znaki)
-		std::array<std::int32_t, kMaxRefEntities> reType{};
-		std::array<std::int32_t, kMaxRefEntities> renderfx{};
-		std::array<std::int32_t, kMaxRefEntities> hModel{};
-		std::array<std::int32_t, kMaxRefEntities> customShader{};
+		std::array<std::int32_t, kMaxRefEntitiesPadded> reType{};
+		std::array<std::int32_t, kMaxRefEntitiesPadded> renderfx{};
+		std::array<std::int32_t, kMaxRefEntitiesPadded> hModel{};
+		std::array<std::int32_t, kMaxRefEntitiesPadded> customShader{};
 	};
 
 	struct EntityLightingSoA final
 	{
-		alignas(64) std::array<float, kMaxRefEntities> lightDir_x{};
-		alignas(64) std::array<float, kMaxRefEntities> lightDir_y{};
-		alignas(64) std::array<float, kMaxRefEntities> lightDir_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> lightDir_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> lightDir_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> lightDir_z{};
 
-		alignas(64) std::array<float, kMaxRefEntities> ambient_x{};
-		alignas(64) std::array<float, kMaxRefEntities> ambient_y{};
-		alignas(64) std::array<float, kMaxRefEntities> ambient_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> ambient_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> ambient_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> ambient_z{};
 
-		alignas(64) std::array<float, kMaxRefEntities> directed_x{};
-		alignas(64) std::array<float, kMaxRefEntities> directed_y{};
-		alignas(64) std::array<float, kMaxRefEntities> directed_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> directed_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> directed_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> directed_z{};
 
-		std::array<std::uint32_t, kMaxRefEntities> ambientPacked{};
-		alignas(64) std::array<std::uint8_t, kMaxRefEntities> lightingCalculated{};
-		alignas(64) std::array<std::uint8_t, kMaxRefEntities> intShaderTime{};
+		std::array<std::uint32_t, kMaxRefEntitiesPadded> ambientPacked{};
+		alignas(64) std::array<std::uint8_t, kMaxRefEntitiesPadded> lightingCalculated{};
+		alignas(64) std::array<std::uint8_t, kMaxRefEntitiesPadded> intShaderTime{};
 	};
 
 	struct EntityModelAnimSoA final
 	{
-		std::array<std::int32_t, kMaxRefEntities> frame{};
-		std::array<std::int32_t, kMaxRefEntities> oldframe{};
-		alignas(64) std::array<float, kMaxRefEntities> backlerp{};
+		std::array<std::int32_t, kMaxRefEntitiesPadded> frame{};
+		std::array<std::int32_t, kMaxRefEntitiesPadded> oldframe{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> backlerp{};
 	};
 
 	struct EntityShaderSoA final
 	{
-		alignas(64) std::array<float, kMaxRefEntities> shaderTC0{};
-		alignas(64) std::array<float, kMaxRefEntities> shaderTC1{};
-		std::array<std::uint32_t, kMaxRefEntities> shaderColorPacked{}; // memcpy z color4ub_t
-		std::array<std::uint32_t, kMaxRefEntities> shaderTimeRaw{};     // memcpy z floatint_t
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> shaderTC0{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> shaderTC1{};
+		std::array<std::uint32_t, kMaxRefEntitiesPadded> shaderColorPacked{}; // memcpy z color4ub_t
+		std::array<std::uint32_t, kMaxRefEntitiesPadded> shaderTimeRaw{};     // memcpy z floatint_t
 	};
-
 
 	// Bucket = jedna spójna pula indeksów (brak branchy w pętli SIMD)
 	struct EntityBucketSoA final
 	{
 		int count{};
+		int countPadded{};
 
 		EntityRenderSoA render{};
 		EntityTransformSoA transform{};
@@ -140,56 +173,57 @@ namespace trsoa
 		EntityModelAnimSoA anim{}; // tylko RT_MODEL (dla FX nieużywane)
 		EntityShaderSoA shader{};
 
-		inline void clear() noexcept { count = 0; }
+		inline void clear() noexcept { count = 0; countPadded = 0; }
 	};
 
 	struct FxSpriteSoA final
 	{
 		int count{};
+		int countPadded{};
 
-		std::array<ent_index_t, kMaxRefEntities> entNum{};
-		std::array<std::int32_t, kMaxRefEntities> renderfx{};
-		std::array<qhandle_t, kMaxRefEntities> customShader{};
-		std::array<shader_t*, kMaxRefEntities> shaderPtr{}; // resolved per frame
-		std::array<std::int16_t, kMaxRefEntities> fogNum{};  // 0..numfogs-1
+		std::array<ent_index_t, kMaxRefEntitiesPadded> entNum{};
+		std::array<std::int32_t, kMaxRefEntitiesPadded> renderfx{};
+		std::array<qhandle_t, kMaxRefEntitiesPadded> customShader{};
+		std::array<shader_t*, kMaxRefEntitiesPadded> shaderPtr{};
+		std::array<std::int16_t, kMaxRefEntitiesPadded> fogNum{};
 
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> origin_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> origin_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> origin_z{};
 
-		alignas(64) std::array<float, kMaxRefEntities> origin_x{};
-		alignas(64) std::array<float, kMaxRefEntities> origin_y{};
-		alignas(64) std::array<float, kMaxRefEntities> origin_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> radius{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> rotation{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> st0{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> st1{};
 
-		alignas(64) std::array<float, kMaxRefEntities> radius{};
-		alignas(64) std::array<float, kMaxRefEntities> rotation{};
-		alignas(64) std::array<float, kMaxRefEntities> st0{};
-		alignas(64) std::array<float, kMaxRefEntities> st1{};
+		std::array<std::uint32_t, kMaxRefEntitiesPadded> shaderPacked{};
 
-		std::array<std::uint32_t, kMaxRefEntities> shaderPacked{}; // memcpy z color4ub_t
-
-		inline void clear() noexcept { count = 0; }
+		inline void clear() noexcept { count = 0; countPadded = 0; }
 	};
+
 
 	struct FxBeamSoA final
 	{
 		int count{};
+		int countPadded{};
 
-		std::array<ent_index_t, kMaxRefEntities> entNum{};
-		std::array<std::int32_t, kMaxRefEntities> renderfx{};
-		std::array<qhandle_t, kMaxRefEntities> customShader{};
-		std::array<shader_t*, kMaxRefEntities> shaderPtr{}; // resolved per frame
-		std::array<std::int16_t, kMaxRefEntities> fogNum{};  // 0..numfogs-1
+		std::array<ent_index_t, kMaxRefEntitiesPadded> entNum{};
+		std::array<std::int32_t, kMaxRefEntitiesPadded> renderfx{};
+		std::array<qhandle_t, kMaxRefEntitiesPadded> customShader{};
+		std::array<shader_t*, kMaxRefEntitiesPadded> shaderPtr{};
+		std::array<std::int16_t, kMaxRefEntitiesPadded> fogNum{};
 
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> from_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> from_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> from_z{};
 
-		alignas(64) std::array<float, kMaxRefEntities> from_x{};
-		alignas(64) std::array<float, kMaxRefEntities> from_y{};
-		alignas(64) std::array<float, kMaxRefEntities> from_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> to_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> to_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> to_z{};
 
-		alignas(64) std::array<float, kMaxRefEntities> to_x{};
-		alignas(64) std::array<float, kMaxRefEntities> to_y{};
-		alignas(64) std::array<float, kMaxRefEntities> to_z{};
+		std::array<std::int32_t, kMaxRefEntitiesPadded> frameOrDiameter{};
 
-		std::array<std::int32_t, kMaxRefEntities> frameOrDiameter{}; // ent.e.frame (np. MODEL_BEAM)
-
-		inline void clear() noexcept { count = 0; }
+		inline void clear() noexcept { count = 0; countPadded = 0; }
 	};
 
 
@@ -222,34 +256,87 @@ namespace trsoa
 	struct ModelDerivedSoA final
 	{
 		// 16 floats per entity, contiguous: [i*16 + 0..15]
-		alignas(64) std::array<float, 16 * kMaxRefEntities> modelMatrix{};
-		alignas(64) std::array<float, kMaxRefEntities> viewOrigin_x{};
-		alignas(64) std::array<float, kMaxRefEntities> viewOrigin_y{};
-		alignas(64) std::array<float, kMaxRefEntities> viewOrigin_z{};
+		alignas(64) std::array<float, 16 * kMaxRefEntitiesPadded> modelMatrix{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> viewOrigin_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> viewOrigin_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> viewOrigin_z{};
 
-		alignas(64) std::array<float, kMaxRefEntities> boundRadius{}; // for LOD batch
-		alignas(64) std::array<std::uint8_t, kMaxRefEntities> lod{};  // final LOD per model slot
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> boundRadius{}; // for LOD batch
+		alignas(64) std::array<std::uint8_t, kMaxRefEntitiesPadded> lod{};  // final LOD per model slot
 
 		// sphere-cull prepass (tylko gdy !nonNormalizedAxes && frame==oldframe)
-		alignas(64) std::array<float, kMaxRefEntities> cullLocal_x{};
-		alignas(64) std::array<float, kMaxRefEntities> cullLocal_y{};
-		alignas(64) std::array<float, kMaxRefEntities> cullLocal_z{};
-		alignas(64) std::array<float, kMaxRefEntities> cullRadius{};
-		alignas(64) std::array<std::uint8_t, kMaxRefEntities> cullResult{}; // CULL_*
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> cullLocal_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> cullLocal_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> cullLocal_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> cullRadius{};
+		alignas(64) std::array<std::uint8_t, kMaxRefEntitiesPadded> cullResult{}; // CULL_*
+
+		// merged local AABB (dla poprawności i box-cull ścieżek AoS)
+		// valid=1: prawdziwe boundsy z modelu (MD3/MDR/IQM z bounds / BRUSH)
+		// valid=0: brak bounds (np. IQM bez bounds) -> NIE WOLNO robić OUT na podstawie prepassu
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> aabbMin_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> aabbMin_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> aabbMin_z{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> aabbMax_x{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> aabbMax_y{};
+		alignas(64) std::array<float, kMaxRefEntitiesPadded> aabbMax_z{};
+		alignas(64) std::array<std::uint8_t, kMaxRefEntitiesPadded> aabbValid{}; // 0/1
 
 		[[nodiscard]] inline float* mat_ptr(const int i) noexcept { return modelMatrix.data() + (i * 16); }
 		[[nodiscard]] inline const float* mat_ptr(const int i) const noexcept { return modelMatrix.data() + (i * 16); }
 
 		// cached per-slot model lookup (set in ComputeModelLODs_Batch)
-		alignas(64) std::array<std::uint8_t, kMaxRefEntities> modelType{}; // modtype_t or 0xFF
-		alignas(64) std::array<model_t*, kMaxRefEntities> modelPtr{};      // nullptr if invalid
+		alignas(64) std::array<std::uint8_t, kMaxRefEntitiesPadded> modelType{}; // modtype_t or 0xFF
+		alignas(64) std::array<model_t*, kMaxRefEntitiesPadded> modelPtr{};      // nullptr if invalid
 
-		alignas(64) std::array<std::int16_t, kMaxRefEntities> fogNum{}; // 0..numfogs-1
+		alignas(64) std::array<std::int16_t, kMaxRefEntitiesPadded> fogNum{}; // 0..numfogs-1
 
 		inline void clear() noexcept
 		{
 			// intencjonalnie puste: pola są nadpisywane dla [0..models.count) co klatkę
 			// brak kosztu runtime
+		}
+	};
+
+	// -------------------------------------------------------------------------
+	// Sparse mapping: entNum -> slot without per-view fill(-1)
+	//
+	// Previous code did multiple fill(-1) passes over kMaxRefEntities every view.
+	// That is pure bandwidth cost (scales with MAX_REFENTITIES even for small N).
+	//
+	// Stamping eliminates the clears:
+	// - reset_for_new_build() increments a stamp counter
+	// - set() writes slot + current stamp
+	// - get() returns -1 if stamp mismatches
+	//
+	// Wrap-around is handled by a one-time full reset.
+	// -------------------------------------------------------------------------
+	struct EntToSlotMap16 final
+	{
+		alignas(64) std::array<std::int16_t, kMaxRefEntities> slot{};   // last written slot
+		alignas(64) std::array<std::uint32_t, kMaxRefEntities> stamp{}; // stamp per ent
+		std::uint32_t currentStamp{ 1u };                               // 0 reserved as "invalid"
+
+		inline void reset_for_new_build() noexcept
+		{
+			++currentStamp;
+			if (currentStamp == 0u)
+			{
+				slot.fill(static_cast<std::int16_t>(-1));
+				stamp.fill(0u);
+				currentStamp = 1u;
+			}
+		}
+
+		inline void set(const int entNum, const std::int16_t s) noexcept
+		{
+			slot[entNum] = s;
+			stamp[entNum] = currentStamp;
+		}
+
+		[[nodiscard]] inline std::int16_t get(const int entNum) const noexcept
+		{
+			return (stamp[entNum] == currentStamp) ? slot[entNum] : static_cast<std::int16_t>(-1);
 		}
 	};
 
@@ -272,6 +359,10 @@ namespace trsoa
 
 		ModelDerivedSoA modelDerived{};
 
+		// sparse slot lists (built during AoS->SoA)
+		int modelNonNormCount{};
+		alignas(64) std::array<std::uint16_t, kMaxRefEntities> modelNonNormSlots{};
+
 		// visible & typed slot lists (built after cull)
 		int visibleModelCount{};
 		alignas(64) std::array<std::uint16_t, kMaxRefEntities> visibleModelSlots{};
@@ -291,13 +382,12 @@ namespace trsoa
 		int otherCount{};
 		alignas(64) std::array<std::uint16_t, kMaxRefEntities> otherSlots{};
 
-
-		alignas(64) std::array<std::int16_t, kMaxRefEntities> modelSlotOfEnt{};
-		alignas(64) std::array<std::int16_t, kMaxRefEntities> spriteSlotOfEnt{};
-		alignas(64) std::array<std::int16_t, kMaxRefEntities> beamSlotOfEnt{};
-		alignas(64) std::array<std::int16_t, kMaxRefEntities> lightningSlotOfEnt{};
-		alignas(64) std::array<std::int16_t, kMaxRefEntities> railCoreSlotOfEnt{};
-		alignas(64) std::array<std::int16_t, kMaxRefEntities> railRingsSlotOfEnt{};
+		EntToSlotMap16 modelSlotOfEnt{};
+		EntToSlotMap16 spriteSlotOfEnt{};
+		EntToSlotMap16 beamSlotOfEnt{};
+		EntToSlotMap16 lightningSlotOfEnt{};
+		EntToSlotMap16 railCoreSlotOfEnt{};
+		EntToSlotMap16 railRingsSlotOfEnt{};
 
 		inline void clear() noexcept
 		{
@@ -313,13 +403,12 @@ namespace trsoa
 			dlights_view.clear();
 
 			modelDerived.clear();
-
-			modelSlotOfEnt.fill(-1);
-			spriteSlotOfEnt.fill(-1);
-			beamSlotOfEnt.fill(-1);
-			lightningSlotOfEnt.fill(-1);
-			railCoreSlotOfEnt.fill(-1);
-			railRingsSlotOfEnt.fill(-1);
+			modelSlotOfEnt.reset_for_new_build();
+			spriteSlotOfEnt.reset_for_new_build();
+			beamSlotOfEnt.reset_for_new_build();
+			lightningSlotOfEnt.reset_for_new_build();
+			railCoreSlotOfEnt.reset_for_new_build();
+			railRingsSlotOfEnt.reset_for_new_build();
 
 			visibleModelCount = 0;
 			md3Count = 0;
@@ -327,9 +416,8 @@ namespace trsoa
 			iqmCount = 0;
 			brushCount = 0;
 			otherCount = 0;
-
+			modelNonNormCount = 0;
 		}
-
 	};
 
 	[[nodiscard]] static inline bool SoA_ValidThisFrame(const FrameSoA& s) noexcept
@@ -363,7 +451,6 @@ namespace trsoa
 	{
 		return GetSoAContextTLS().modelSlot;
 	}
-
 
 	static inline void BuildDlightsSoA_FromAoS(const int count, const dlight_t* dl, DlightSoA& out) noexcept
 	{
@@ -409,7 +496,7 @@ namespace trsoa
 			trRefEntity_t& ent = refdef.entities[entNum];
 
 			// mirror/portal weapon suppression (jak w AoS)
-			if (Skip_FirstPersonWeapon_InPortal(ent, vp))
+			if (Skip_FirstPerson_InPortalView(ent, vp))
 			{
 				continue;
 			}
@@ -429,7 +516,7 @@ namespace trsoa
 				}
 
 				const int i = b.count++;
-				out.modelSlotOfEnt[entNum] = static_cast<std::int16_t>(i);
+				out.modelSlotOfEnt.set(entNum, static_cast<std::int16_t>(i));
 
 				b.render.entNum[i] = static_cast<ent_index_t>(entNum);
 				b.render.reType[i] = reType;
@@ -459,27 +546,27 @@ namespace trsoa
 
 				if (nonNorm)
 				{
-					const float len = VectorLength_Exact(ent.e.axis[0]);
-					b.transform.axisLenInv[i] = (len != 0.0f) ? (1.0f / len) : 0.0f;
-				}
-				else
-				{
-					b.transform.axisLenInv[i] = 1.0f;
+					out.modelNonNormSlots[out.modelNonNormCount++] = static_cast<std::uint16_t>(i);
 				}
 
+				// axisLenInv + lightOrg are computed in PostCompute_ModelTransform (SIMD bulk + sparse fixups)
+				b.transform.axisLenInv[i] = 1.0f;
+
+				// Always write lightingOrigin_* to a valid value (effective lighting origin).
+				// This avoids reading uninitialized data in PostCompute and enables branch-free bulk copy.
 				const bool hasLO = (ent.e.renderfx & RF_LIGHTING_ORIGIN) != 0;
 				b.transform.hasLightingOrigin[i] = static_cast<std::uint8_t>(hasLO);
 				if (hasLO)
 				{
-					b.transform.lightOrg_x[i] = ent.e.lightingOrigin[0];
-					b.transform.lightOrg_y[i] = ent.e.lightingOrigin[1];
-					b.transform.lightOrg_z[i] = ent.e.lightingOrigin[2];
+					b.transform.lightingOrigin_x[i] = ent.e.lightingOrigin[0];
+					b.transform.lightingOrigin_y[i] = ent.e.lightingOrigin[1];
+					b.transform.lightingOrigin_z[i] = ent.e.lightingOrigin[2];
 				}
 				else
 				{
-					b.transform.lightOrg_x[i] = ent.e.origin[0];
-					b.transform.lightOrg_y[i] = ent.e.origin[1];
-					b.transform.lightOrg_z[i] = ent.e.origin[2];
+					b.transform.lightingOrigin_x[i] = ent.e.origin[0];
+					b.transform.lightingOrigin_y[i] = ent.e.origin[1];
+					b.transform.lightingOrigin_z[i] = ent.e.origin[2];
 				}
 
 				// lighting mirror
@@ -523,7 +610,7 @@ namespace trsoa
 				if (bucket.count >= static_cast<int>(kMaxRefEntities)) { break; }
 
 				const int i = bucket.count++;
-				out.spriteSlotOfEnt[entNum] = static_cast<std::int16_t>(i);
+				out.spriteSlotOfEnt.set(entNum, static_cast<std::int16_t>(i));
 
 				bucket.entNum[i] = static_cast<ent_index_t>(entNum);
 				bucket.renderfx[i] = ent.e.renderfx;
@@ -553,7 +640,7 @@ namespace trsoa
 				if (bucket.count >= static_cast<int>(kMaxRefEntities)) { break; }
 
 				const int i = bucket.count++;
-				out.beamSlotOfEnt[entNum] = static_cast<std::int16_t>(i);
+				out.beamSlotOfEnt.set(entNum, static_cast<std::int16_t>(i));
 
 				bucket.entNum[i] = static_cast<ent_index_t>(entNum);
 				bucket.renderfx[i] = ent.e.renderfx;
@@ -579,7 +666,7 @@ namespace trsoa
 				if (bucket.count >= static_cast<int>(kMaxRefEntities)) { break; }
 
 				const int i = bucket.count++;
-				out.lightningSlotOfEnt[entNum] = static_cast<std::int16_t>(i);
+				out.lightningSlotOfEnt.set(entNum, static_cast<std::int16_t>(i));
 
 				bucket.entNum[i] = static_cast<ent_index_t>(entNum);
 				bucket.renderfx[i] = ent.e.renderfx;
@@ -605,7 +692,7 @@ namespace trsoa
 				if (bucket.count >= static_cast<int>(kMaxRefEntities)) { break; }
 
 				const int i = bucket.count++;
-				out.railCoreSlotOfEnt[entNum] = static_cast<std::int16_t>(i);
+				out.railCoreSlotOfEnt.set(entNum, static_cast<std::int16_t>(i));
 
 				bucket.entNum[i] = static_cast<ent_index_t>(entNum);
 				bucket.renderfx[i] = ent.e.renderfx;
@@ -631,7 +718,7 @@ namespace trsoa
 				if (bucket.count >= static_cast<int>(kMaxRefEntities)) { break; }
 
 				const int i = bucket.count++;
-				out.railRingsSlotOfEnt[entNum] = static_cast<std::int16_t>(i);
+				out.railRingsSlotOfEnt.set(entNum, static_cast<std::int16_t>(i));
 
 				bucket.entNum[i] = static_cast<ent_index_t>(entNum);
 				bucket.renderfx[i] = ent.e.renderfx;
@@ -660,124 +747,224 @@ namespace trsoa
 		}
 	}
 
-	static inline void PostCompute_ModelTransform(EntityTransformSoA& t, const int count) noexcept
+	static inline void PostCompute_ModelTransform(
+		EntityTransformSoA& t,
+		const std::uint16_t* nonNormSlots,
+		const int nonNormCount,
+		const int countPadded) noexcept
 	{
-		if (count <= 0) return;
+		if (countPadded <= 0) return;
 
 #if TR_HAS_XSIMD
 		using batch = xsimd::batch<float>;
 		constexpr int W = static_cast<int>(batch::size);
 
-		alignas(64) float nnLane[W];
-		alignas(64) float loLane[W];
-
-		int base = 0;
-		for (; base + W <= count; base += W)
+		// 1) axisLenInv = 1.0f (bulk)
 		{
-			unsigned anyNN = 0;
-			unsigned anyLO = 0;
-			for (int l = 0; l < W; ++l)
+			for (int i = 0; i < countPadded; i += W)
 			{
-				const int s = base + l;
-				const unsigned nn = static_cast<unsigned>(t.nonNormalizedAxes[s] != 0);
-				const unsigned lo = static_cast<unsigned>(t.hasLightingOrigin[s] != 0);
-				nnLane[l] = nn ? 1.0f : 0.0f;
-				loLane[l] = lo ? 1.0f : 0.0f;
-				anyNN |= nn;
-				anyLO |= lo;
-			}
-
-			// axisLenInv
-			if (!anyNN)
-			{
-				// common case: normalized axes
-				batch(1.0f).store_aligned(t.axisLenInv.data() + base);
-			}
-			else
-			{
-				const batch nn = xsimd::load_aligned(nnLane);
-				const auto nnMask = (nn != batch(0.0f));
-
-				const batch ax0x = batch::load_aligned(t.ax0_x.data() + base);
-				const batch ax0y = batch::load_aligned(t.ax0_y.data() + base);
-				const batch ax0z = batch::load_aligned(t.ax0_z.data() + base);
-
-				const batch len2 = ax0x * ax0x + ax0y * ax0y + ax0z * ax0z;
-				const batch len = xsimd::sqrt(len2);
-
-				batch inv = batch(1.0f) / len;
-				inv = xsimd::select((len != batch(0.0f)), inv, batch(0.0f)); // len==0 => 0
-				inv = xsimd::select(nnMask, inv, batch(1.0f));              // !nonNorm => 1
-
-				inv.store_aligned(t.axisLenInv.data() + base);
-			}
-
-			// lightOrg
-			if (!anyLO)
-			{
-				// common case: no RF_LIGHTING_ORIGIN
-				const batch ox = batch::load_aligned(t.origin_x.data() + base);
-				const batch oy = batch::load_aligned(t.origin_y.data() + base);
-				const batch oz = batch::load_aligned(t.origin_z.data() + base);
-				ox.store_aligned(t.lightOrg_x.data() + base);
-				oy.store_aligned(t.lightOrg_y.data() + base);
-				oz.store_aligned(t.lightOrg_z.data() + base);
-			}
-			else
-			{
-				const batch hasLO = xsimd::load_aligned(loLane);
-				const auto loMask = (hasLO != batch(0.0f));
-
-				const batch ox = batch::load_aligned(t.origin_x.data() + base);
-				const batch oy = batch::load_aligned(t.origin_y.data() + base);
-				const batch oz = batch::load_aligned(t.origin_z.data() + base);
-
-				const batch lx = batch::load_aligned(t.lightingOrigin_x.data() + base);
-				const batch ly = batch::load_aligned(t.lightingOrigin_y.data() + base);
-				const batch lz = batch::load_aligned(t.lightingOrigin_z.data() + base);
-
-				const batch outX = xsimd::select(loMask, lx, ox);
-				const batch outY = xsimd::select(loMask, ly, oy);
-				const batch outZ = xsimd::select(loMask, lz, oz);
-
-				outX.store_aligned(t.lightOrg_x.data() + base);
-				outY.store_aligned(t.lightOrg_y.data() + base);
-				outZ.store_aligned(t.lightOrg_z.data() + base);
+				batch(1.0f).store_aligned(t.axisLenInv.data() + i);
 			}
 		}
 
-		// tail
-		for (int i = base; i < count; ++i)
+		// 2) sparse fixups for nonNormalizedAxes (avoid per-lane staging / selects)
+		for (int k = 0; k < nonNormCount; ++k)
 		{
-			if (t.nonNormalizedAxes[i])
-			{
-				const float x = t.ax0_x[i];
-				const float y = t.ax0_y[i];
-				const float z = t.ax0_z[i];
-				const float len = std::sqrtf(x * x + y * y + z * z);
-				t.axisLenInv[i] = (len != 0.0f) ? (1.0f / len) : 0.0f;
-			}
-			else
-			{
-				t.axisLenInv[i] = 1.0f;
-			}
+			const int i = static_cast<int>(nonNormSlots[k]);
 
-			if (t.hasLightingOrigin[i])
+			const float x = t.ax0_x[i];
+			const float y = t.ax0_y[i];
+			const float z = t.ax0_z[i];
+			const float len = std::sqrtf(x * x + y * y + z * z);
+			t.axisLenInv[i] = (len != 0.0f) ? (1.0f / len) : 0.0f;
+		}
+
+		// 3) lightOrg = lightingOrigin (bulk, branch-free)
+		{
+			for (int i = 0; i < countPadded; i += W)
 			{
-				t.lightOrg_x[i] = t.lightingOrigin_x[i];
-				t.lightOrg_y[i] = t.lightingOrigin_y[i];
-				t.lightOrg_z[i] = t.lightingOrigin_z[i];
-			}
-			else
-			{
-				t.lightOrg_x[i] = t.origin_x[i];
-				t.lightOrg_y[i] = t.origin_y[i];
-				t.lightOrg_z[i] = t.origin_z[i];
+				const batch lx = batch::load_aligned(t.lightingOrigin_x.data() + i);
+				const batch ly = batch::load_aligned(t.lightingOrigin_y.data() + i);
+				const batch lz = batch::load_aligned(t.lightingOrigin_z.data() + i);
+
+				lx.store_aligned(t.lightOrg_x.data() + i);
+				ly.store_aligned(t.lightOrg_y.data() + i);
+				lz.store_aligned(t.lightOrg_z.data() + i);
 			}
 		}
 #else
-		// scalar fallback ...
+		// scalar fallback
+		for (int i = 0; i < countPadded; ++i)
+			t.axisLenInv[i] = 1.0f;
+
+		for (int k = 0; k < nonNormCount; ++k)
+		{
+			const int i = static_cast<int>(nonNormSlots[k]);
+
+			const float x = t.ax0_x[i];
+			const float y = t.ax0_y[i];
+			const float z = t.ax0_z[i];
+			const float len = std::sqrtf(x * x + y * y + z * z);
+			t.axisLenInv[i] = (len != 0.0f) ? (1.0f / len) : 0.0f;
+		}
+
+		for (int i = 0; i < countPadded; ++i)
+		{
+			t.lightOrg_x[i] = t.lightingOrigin_x[i];
+			t.lightOrg_y[i] = t.lightingOrigin_y[i];
+			t.lightOrg_z[i] = t.lightingOrigin_z[i];
+		}
 #endif
+	}
+
+	static inline void PadOneFxSprite(FxSpriteSoA& fx) noexcept
+	{
+		fx.countPadded = RoundUpToSimdW_F32(fx.count);
+		const int c = fx.count;
+		const int p = fx.countPadded;
+		if (p <= c) return;
+
+		for (int i = c; i < p; ++i)
+		{
+			fx.entNum[i] = 0;
+			fx.renderfx[i] = RF_CROSSHAIR; // => fog always 0
+			fx.customShader[i] = 0;
+			fx.shaderPtr[i] = nullptr;
+			fx.fogNum[i] = 0;
+
+			fx.origin_x[i] = 0.0f; fx.origin_y[i] = 0.0f; fx.origin_z[i] = 0.0f;
+			fx.radius[i] = 0.0f;
+			fx.rotation[i] = 0.0f;
+			fx.st0[i] = 0.0f; fx.st1[i] = 0.0f;
+
+			fx.shaderPacked[i] = 0;
+		}
+	}
+
+	static inline void PadOneFxBeam(FxBeamSoA& fx) noexcept
+	{
+		fx.countPadded = RoundUpToSimdW_F32(fx.count);
+		const int c = fx.count;
+		const int p = fx.countPadded;
+		if (p <= c) return;
+
+		for (int i = c; i < p; ++i)
+		{
+			fx.entNum[i] = 0;
+			fx.renderfx[i] = RF_CROSSHAIR; // => fog always 0
+			fx.customShader[i] = 0;
+			fx.shaderPtr[i] = nullptr;
+			fx.fogNum[i] = 0;
+
+			fx.from_x[i] = 0.0f; fx.from_y[i] = 0.0f; fx.from_z[i] = 0.0f;
+			fx.to_x[i] = 0.0f;   fx.to_y[i] = 0.0f;   fx.to_z[i] = 0.0f;
+
+			fx.frameOrDiameter[i] = 0;
+		}
+	}
+
+	static inline void PadFxForSIMD(FrameSoA& out) noexcept
+	{
+		PadOneFxSprite(out.sprites);
+		PadOneFxBeam(out.beams);
+		PadOneFxBeam(out.lightning);
+		PadOneFxBeam(out.rail_core);
+		PadOneFxBeam(out.rail_rings);
+	}
+
+
+	static inline void PadModelsForSIMD(FrameSoA& out) noexcept
+	{
+		auto& b = out.models;
+		b.countPadded = RoundUpToSimdW_F32(b.count);
+
+		const int count = b.count;
+		const int pad = b.countPadded;
+		if (pad <= count) return;
+
+		// Models bucket tail padding (neutral defaults)
+		for (int i = count; i < pad; ++i)
+		{
+			// render
+			b.render.entNum[i] = 0;
+			b.render.reType[i] = 0;
+			b.render.renderfx[i] = 0;
+			b.render.hModel[i] = 0;
+			b.render.customShader[i] = 0;
+
+			// transform (identity-ish, but neutral)
+			b.transform.origin_x[i] = 0.0f;
+			b.transform.origin_y[i] = 0.0f;
+			b.transform.origin_z[i] = 0.0f;
+
+			b.transform.ax0_x[i] = 1.0f; b.transform.ax0_y[i] = 0.0f; b.transform.ax0_z[i] = 0.0f;
+			b.transform.ax1_x[i] = 0.0f; b.transform.ax1_y[i] = 1.0f; b.transform.ax1_z[i] = 0.0f;
+			b.transform.ax2_x[i] = 0.0f; b.transform.ax2_y[i] = 0.0f; b.transform.ax2_z[i] = 1.0f;
+
+			b.transform.axisLenInv[i] = 1.0f;
+
+			// effective lighting origin already (always valid)
+			b.transform.lightingOrigin_x[i] = 0.0f;
+			b.transform.lightingOrigin_y[i] = 0.0f;
+			b.transform.lightingOrigin_z[i] = 0.0f;
+
+			b.transform.lightOrg_x[i] = 0.0f;
+			b.transform.lightOrg_y[i] = 0.0f;
+			b.transform.lightOrg_z[i] = 0.0f;
+
+			b.transform.nonNormalizedAxes[i] = 0;
+			b.transform.hasLightingOrigin[i] = 0;
+
+			// anim
+			b.anim.frame[i] = 0;
+			b.anim.oldframe[i] = 0;
+			b.anim.backlerp[i] = 0.0f;
+
+			// lighting
+			b.lighting.lightDir_x[i] = 0.0f;
+			b.lighting.lightDir_y[i] = 0.0f;
+			b.lighting.lightDir_z[i] = 0.0f;
+			b.lighting.ambient_x[i] = 0.0f;
+			b.lighting.ambient_y[i] = 0.0f;
+			b.lighting.ambient_z[i] = 0.0f;
+			b.lighting.directed_x[i] = 0.0f;
+			b.lighting.directed_y[i] = 0.0f;
+			b.lighting.directed_z[i] = 0.0f;
+			b.lighting.ambientPacked[i] = 0;
+			b.lighting.lightingCalculated[i] = 0;
+			b.lighting.intShaderTime[i] = 0;
+
+			// shader
+			b.shader.shaderTC0[i] = 0.0f;
+			b.shader.shaderTC1[i] = 0.0f;
+			b.shader.shaderColorPacked[i] = 0;
+			b.shader.shaderTimeRaw[i] = 0;
+		}
+
+		// Derived tail padding (so hot SIMD loops can run to countPadded)
+		auto& md = out.modelDerived;
+		for (int i = count; i < pad; ++i)
+		{
+			md.viewOrigin_x[i] = 0.0f;
+			md.viewOrigin_y[i] = 0.0f;
+			md.viewOrigin_z[i] = 0.0f;
+
+			md.boundRadius[i] = 0.0f;
+			md.lod[i] = 0;
+
+			md.cullLocal_x[i] = 0.0f;
+			md.cullLocal_y[i] = 0.0f;
+			md.cullLocal_z[i] = 0.0f;
+			md.cullRadius[i] = 0.0f;
+			md.cullResult[i] = CULL_OUT;
+
+			md.modelType[i] = 0xFF;
+			md.modelPtr[i] = nullptr;
+			md.fogNum[i] = 0;
+
+			float* m = md.mat_ptr(i);
+			for (int k = 0; k < 16; ++k) m[k] = 0.0f;
+		}
 	}
 
 	static inline void BuildFrameSoA(trRefdef_t& refdef, const viewParms_t& vp, FrameSoA& out) noexcept
@@ -785,7 +972,13 @@ namespace trsoa
 		out.viewStamp = tr.viewCount;
 
 		BuildEntitiesSoA(refdef, vp, out);
-		PostCompute_ModelTransform(out.models.transform, out.models.count);
+		PadModelsForSIMD(out);
+		PadFxForSIMD(out);
+		PostCompute_ModelTransform(
+			out.models.transform,
+			out.modelNonNormSlots.data(),
+			out.modelNonNormCount,
+			out.models.countPadded);
 
 		BuildDlightsSoA_FromAoS(static_cast<int>(refdef.num_dlights), refdef.dlights, out.dlights_refdef);
 		BuildDlightsSoA_FromAoS(static_cast<int>(vp.num_dlights), vp.dlights, out.dlights_view);

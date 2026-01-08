@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -25,6 +25,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_model.hpp"
 #include "math.hpp"
 
+#if defined(USE_AoS_to_SoA_SIMD) && defined(USE_PMLIGHT)
+#include "tr_soa_stage2.hpp"
+#endif
+
 /*
 =================
 R_CullTriSurf
@@ -33,7 +37,7 @@ Returns true if the grid is completely culled away.
 Also sets the clipped hint bit in tess
 =================
 */
-static bool R_CullTriSurf(srfTriangles_t *cv)
+static bool R_CullTriSurf(srfTriangles_t* cv)
 {
 	int boxCull;
 
@@ -54,7 +58,7 @@ Returns true if the grid is completely culled away.
 Also sets the clipped hint bit in tess
 =================
 */
-static bool R_CullGrid(srfGridMesh_t *cv)
+static bool R_CullGrid(srfGridMesh_t* cv)
 {
 	if (r_nocurves->integer)
 	{
@@ -117,9 +121,9 @@ added to the sorting list.
 This will also allow mirrors on both sides of a model without recursion.
 ================
 */
-static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
+static bool R_CullSurface(const surfaceType_t* surface, shader_t& shader)
 {
-	srfSurfaceFace_t *sface;
+	srfSurfaceFace_t* sface;
 	float d;
 
 	if (r_nocull->integer)
@@ -139,12 +143,12 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 
 	if (*surface == surfaceType_t::SF_GRID)
 	{
-		return R_CullGrid((srfGridMesh_t *)surface);
+		return R_CullGrid((srfGridMesh_t*)surface);
 	}
 
 	if (*surface == surfaceType_t::SF_TRIANGLES)
 	{
-		return R_CullTriSurf((srfTriangles_t *)surface);
+		return R_CullTriSurf((srfTriangles_t*)surface);
 	}
 
 	// face culling
@@ -153,7 +157,7 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 		return false;
 	}
 
-	sface = (srfSurfaceFace_t *)surface;
+	sface = (srfSurfaceFace_t*)surface;
 	d = DotProduct(tr.ort.viewOrigin, sface->plane.normal);
 
 	// don't cull exactly on the plane, because there are levels of rounding
@@ -181,29 +185,29 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 // Checks whether a dynamic light (dl) is completely outside a bounding box defined by mins and maxs.
 // Returns true if the light does not affect the bounding box (i.e., it can be culled).
 bool R_LightCullBounds(const dlight_t& dl, const vec3_t& mins, const vec3_t& maxs) {
-    // Lambda that tests if a light position + radius is outside the bounding box on any axis.
-    auto isCulled = [&](const vec3_t& pos) {
-        bool result = false;
-        for (int i = 0; i < 3; ++i) {
-            // Check if the light sphere is entirely outside along axis `i`.
-            // Bitwise OR is used to avoid short-circuiting (branchless behavior).
-            const bool axisCulled =
-                (pos[i] - dl.radius > maxs[i]) |   // Light's left edge is right of the box
-                (pos[i] + dl.radius < mins[i]);    // Light's right edge is left of the box
-            result |= axisCulled;
-        }
-        return result;  // True if any axis culls the light completely.
-    };
+	// Lambda that tests if a light position + radius is outside the bounding box on any axis.
+	auto isCulled = [&](const vec3_t& pos) {
+		bool result = false;
+		for (int i = 0; i < 3; ++i) {
+			// Check if the light sphere is entirely outside along axis `i`.
+			// Bitwise OR is used to avoid short-circuiting (branchless behavior).
+			const bool axisCulled =
+				(pos[i] - dl.radius > maxs[i]) |   // Light's left edge is right of the box
+				(pos[i] + dl.radius < mins[i]);    // Light's right edge is left of the box
+			result |= axisCulled;
+		}
+		return result;  // True if any axis culls the light completely.
+		};
 
-    // For linear lights (like a beam or elongated light), cull only if both endpoints are outside.
-    // For point lights, cull if the single center position is outside.
-    return dl.linear
-        ? (isCulled(dl.transformed) & isCulled(dl.transformed2)) // both endpoints outside
-        : isCulled(dl.transformed);                              // single point outside
+	// For linear lights (like a beam or elongated light), cull only if both endpoints are outside.
+	// For point lights, cull if the single center position is outside.
+	return dl.linear
+		? (isCulled(dl.transformed) & isCulled(dl.transformed2)) // both endpoints outside
+		: isCulled(dl.transformed);                              // single point outside
 }
 
 
-static bool R_LightCullFace(const srfSurfaceFace_t &face, const dlight_t &dl)
+static bool R_LightCullFace(const srfSurfaceFace_t& face, const dlight_t& dl)
 {
 	float d = DotProduct(dl.transformed, face.plane.normal) - face.plane.dist;
 	if (dl.linear)
@@ -223,20 +227,20 @@ static bool R_LightCullFace(const srfSurfaceFace_t &face, const dlight_t &dl)
 	return false;
 }
 
-static bool R_LightCullSurface(const surfaceType_t &surface, const dlight_t &dl)
+static bool R_LightCullSurface(const surfaceType_t& surface, const dlight_t& dl)
 {
 	switch (surface)
 	{
 	case surfaceType_t::SF_FACE:
-		return R_LightCullFace((const srfSurfaceFace_t &)surface, dl);
+		return R_LightCullFace((const srfSurfaceFace_t&)surface, dl);
 	case surfaceType_t::SF_GRID:
 	{
-		const srfGridMesh_t &grid = (const srfGridMesh_t &)surface;
+		const srfGridMesh_t& grid = (const srfGridMesh_t&)surface;
 		return R_LightCullBounds(dl, grid.meshBounds[0], grid.meshBounds[1]);
 	}
 	case surfaceType_t::SF_TRIANGLES:
 	{
-		const srfTriangles_t &tris = (const srfTriangles_t &)surface;
+		const srfTriangles_t& tris = (const srfTriangles_t&)surface;
 		return R_LightCullBounds(dl, tris.bounds[0], tris.bounds[1]);
 	}
 	default:
@@ -246,7 +250,7 @@ static bool R_LightCullSurface(const surfaceType_t &surface, const dlight_t &dl)
 #endif // USE_PMLIGHT
 
 #ifdef USE_LEGACY_DLIGHTS
-static int R_DlightFace(srfSurfaceFace_t &face, int dlightBits)
+static int R_DlightFace(srfSurfaceFace_t& face, int dlightBits)
 {
 	float d;
 	uint32_t i;
@@ -257,7 +261,7 @@ static int R_DlightFace(srfSurfaceFace_t &face, int dlightBits)
 		{
 			continue;
 		}
-		const dlight_t &dl = tr.refdef.dlights[i];
+		const dlight_t& dl = tr.refdef.dlights[i];
 		d = DotProduct(dl.transformed, face.plane.normal) - face.plane.dist;
 		if (d < -dl.radius || d > dl.radius)
 		{
@@ -275,7 +279,7 @@ static int R_DlightFace(srfSurfaceFace_t &face, int dlightBits)
 	return dlightBits;
 }
 
-static int R_DlightGrid(srfGridMesh_t &grid, int dlightBits)
+static int R_DlightGrid(srfGridMesh_t& grid, int dlightBits)
 {
 	uint32_t i;
 
@@ -285,7 +289,7 @@ static int R_DlightGrid(srfGridMesh_t &grid, int dlightBits)
 		{
 			continue;
 		}
-		const dlight_t &dl = tr.refdef.dlights[i];
+		const dlight_t& dl = tr.refdef.dlights[i];
 		if (dl.origin[0] - dl.radius > grid.meshBounds[1][0] ||
 			dl.origin[0] + dl.radius < grid.meshBounds[0][0] ||
 			dl.origin[1] - dl.radius > grid.meshBounds[1][1] ||
@@ -307,7 +311,7 @@ static int R_DlightGrid(srfGridMesh_t &grid, int dlightBits)
 	return dlightBits;
 }
 
-static int R_DlightTrisurf(srfTriangles_t &surf, int dlightBits)
+static int R_DlightTrisurf(srfTriangles_t& surf, int dlightBits)
 {
 	// FIXME: more dlight culling to trisurfs...
 	surf.dlightBits = dlightBits;
@@ -350,19 +354,19 @@ that is touched by one or more dlights, so try to throw out
 more dlights if possible.
 ====================
 */
-static int R_DlightSurface(msurface_t &surf, int dlightBits)
+static int R_DlightSurface(msurface_t& surf, int dlightBits)
 {
 	if (*surf.data == surfaceType_t::SF_FACE)
 	{
-		dlightBits = R_DlightFace(reinterpret_cast<srfSurfaceFace_t &>(*surf.data), dlightBits);
+		dlightBits = R_DlightFace(reinterpret_cast<srfSurfaceFace_t&>(*surf.data), dlightBits);
 	}
 	else if (*surf.data == surfaceType_t::SF_GRID)
 	{
-		dlightBits = R_DlightGrid(reinterpret_cast<srfGridMesh_t &>(*surf.data), dlightBits);
+		dlightBits = R_DlightGrid(reinterpret_cast<srfGridMesh_t&>(*surf.data), dlightBits);
 	}
 	else if (*surf.data == surfaceType_t::SF_TRIANGLES)
 	{
-		dlightBits = R_DlightTrisurf(reinterpret_cast<srfTriangles_t &>(*surf.data), dlightBits);
+		dlightBits = R_DlightTrisurf(reinterpret_cast<srfTriangles_t&>(*surf.data), dlightBits);
 	}
 	else
 	{
@@ -383,7 +387,7 @@ static int R_DlightSurface(msurface_t &surf, int dlightBits)
 R_AddWorldSurface
 ======================
 */
-static void R_AddWorldSurface(msurface_t &surf, int dlightBits)
+static void R_AddWorldSurface(msurface_t& surf, int dlightBits)
 {
 	if (surf.viewCount == tr.viewCount)
 	{
@@ -428,7 +432,7 @@ static void R_AddWorldSurface(msurface_t &surf, int dlightBits)
 =============================================================
 */
 #ifdef USE_PMLIGHT
-static void R_AddLitSurface(msurface_t &surf, const dlight_t &light)
+static void R_AddLitSurface(msurface_t& surf, const dlight_t& light)
 {
 	// since we're not worried about offscreen lights casting into the frustum (ATM !!!)
 	// only add the "lit" version of this surface if it was already added to the view
@@ -463,10 +467,10 @@ static void R_AddLitSurface(msurface_t &surf, const dlight_t &light)
 	R_AddLitSurf(*surf.data, *surf.shader, surf.fogIndex);
 }
 
-static void R_RecursiveLightNode(const mnode_t *node)
+static void R_RecursiveLightNode(const mnode_t* node)
 {
-	msurface_t **mark;
-	msurface_t *surf;
+	msurface_t** mark;
+	msurface_t* surf;
 	float d;
 	int c;
 	do
@@ -478,7 +482,7 @@ static void R_RecursiveLightNode(const mnode_t *node)
 		if (static_cast<uint32_t>(node->contents) != CONTENTS_NODE)
 			break;
 
-		bool children[2]{false, false};
+		bool children[2]{ false, false };
 
 		d = DotProduct(tr.light->origin, node->plane->normal) - node->plane->dist;
 		if (d > -tr.light->radius)
@@ -551,65 +555,145 @@ static void R_RecursiveLightNode(const mnode_t *node)
 R_AddBrushModelSurfaces
 =================
 */
-void R_AddBrushModelSurfaces(trRefEntity_t &ent)
+void R_AddBrushModelSurfaces(trRefEntity_t& ent)
 {
-	int clip;
-	const model_t *pModel;
-	uint32_t i;
+	const model_t* const pModel = R_GetModelByHandle(ent.e.hModel);
+	bmodel_t& bmodel = *pModel->bmodel;
 
-	pModel = R_GetModelByHandle(ent.e.hModel);
+	int cull = CULL_CLIP;
 
-	bmodel_t &bmodel = *pModel->bmodel;
-
-	clip = R_CullLocalBox(bmodel.bounds);
-	if (clip == CULL_OUT)
+#if defined(USE_AoS_to_SoA_SIMD)
 	{
-		return;
+		auto& soa = trsoa::GetFrameSoA();
+		if (trsoa::SoA_ValidThisFrame(soa) && !r_nocull->integer)
+		{
+			const int slot = trsoa::CurrentModelSlot();
+			if (slot >= 0 &&
+				soa.modelDerived.modelType[slot] == static_cast<std::uint8_t>(modtype_t::MOD_BRUSH))
+			{
+				cull = soa.modelDerived.cullResult[slot];
+				if (cull == CULL_OUT) return;
+			}
+			else
+			{
+				cull = R_CullLocalBox(bmodel.bounds);
+				if (cull == CULL_OUT) return;
+			}
+		}
+		else
+		{
+			cull = R_CullLocalBox(bmodel.bounds);
+			if (cull == CULL_OUT) return;
+		}
 	}
+#else
+	cull = R_CullLocalBox(bmodel.bounds);
+	if (cull == CULL_OUT) return;
+#endif
 
 #ifdef USE_PMLIGHT
 #ifdef USE_LEGACY_DLIGHTS
+	// W trybie PMLIGHT tylko gdy r_dlightMode != 0 (jak w oryginale)
 	if (r_dlightMode->integer)
 #endif
 	{
-		int s;
-
-		for (s = 0; s < bmodel.numSurfaces; s++)
+		for (int s = 0; s < bmodel.numSurfaces; s++)
 		{
 			R_AddWorldSurface(*(bmodel.firstSurface + s), 0);
 		}
 
-		R_SetupEntityLighting(tr.refdef, ent);
 
-		R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, tr.ort);
-
-		for (i = 0; i < tr.viewParms.num_dlights; i++)
+		// 2) Lighting: jeśli SoA już policzyło w tym frame, NIE licz ponownie
+		if (!ent.lightingCalculated)
 		{
-			dlight_t &dl = tr.viewParms.dlights[i];
-			if (!R_LightCullBounds(dl, bmodel.bounds[0], bmodel.bounds[1]))
+			R_SetupEntityLighting(tr.refdef, ent);
+		}
+
+		// 3) Dlights: SoA gather (transform + cull) zamiast R_TransformDlights per-entity
+		const uint32_t viewDlights = tr.viewParms.num_dlights;
+		if (viewDlights != 0)
+		{
+			dlight_t* dlightPtrs[128];
+			int num = 0;
+
+#if defined(USE_AoS_to_SoA_SIMD)
 			{
+				// Gather zwraca wskaźniki do tr.viewParms.dlights
+				auto& soa = trsoa::GetFrameSoA();
+				if (trsoa::SoA_ValidThisFrame(soa))
+				{
+					num = trsoa::GatherAffectingViewDlights_PMLIGHT(
+						soa,
+						tr.ort,
+						bmodel.bounds[0],
+						bmodel.bounds[1],
+						dlightPtrs,
+						static_cast<int>(std::size(dlightPtrs)));
+				}
+				else
+				{
+					// fallback: klasyczna ścieżka
+					R_TransformDlights(viewDlights, tr.viewParms.dlights, tr.ort);
+
+					const uint32_t cap = static_cast<uint32_t>(std::size(dlightPtrs));
+					for (uint32_t i = 0; i < viewDlights && static_cast<uint32_t>(num) < cap; ++i)
+					{
+						dlight_t& dl = tr.viewParms.dlights[i];
+						if (!R_LightCullBounds(dl, bmodel.bounds[0], bmodel.bounds[1]))
+						{
+							dlightPtrs[num++] = &dl;
+						}
+					}
+				}
+			}
+#else
+			R_TransformDlights(viewDlights, tr.viewParms.dlights, tr.ort);
+
+			const uint32_t cap = static_cast<uint32_t>(std::size(dlightPtrs));
+			for (uint32_t i = 0; i < viewDlights && static_cast<uint32_t>(num) < cap; ++i)
+			{
+				dlight_t& dl = tr.viewParms.dlights[i];
+				if (!R_LightCullBounds(dl, bmodel.bounds[0], bmodel.bounds[1]))
+				{
+					dlightPtrs[num++] = &dl;
+				}
+			}
+#endif
+
+			// 4) Dodaj lit-surfaces tylko dla trafionych dlightów
+			for (int n = 0; n < num; ++n)
+			{
+				dlight_t& dl = *dlightPtrs[n];
 				tr.lightCount++;
 				tr.light = &dl;
-				for (s = 0; s < bmodel.numSurfaces; s++)
+
+				for (int s = 0; s < bmodel.numSurfaces; s++)
 				{
 					R_AddLitSurface(*(bmodel.firstSurface + s), dl);
 				}
 			}
 		}
+
 		return;
 	}
 #endif // USE_PMLIGHT
 
 #ifdef USE_LEGACY_DLIGHTS
-	R_SetupEntityLighting(tr.refdef, ent);
+	// Legacy path (bez PMLIGHT): też nie licz lighting drugi raz
+	if (!ent.lightingCalculated)
+	{
+		R_SetupEntityLighting(tr.refdef, ent);
+	}
+
 	R_DlightBmodel(bmodel);
 
-	for (i = 0; i < static_cast<uint32_t>(bmodel.numSurfaces); i++)
+	for (uint32_t i = 0; i < static_cast<uint32_t>(bmodel.numSurfaces); ++i)
 	{
 		R_AddWorldSurface(*(bmodel.firstSurface + i), tr.currentEntity->needDlights);
 	}
 #endif
 }
+
 
 /*
 =============================================================
@@ -624,7 +708,7 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 R_RecursiveWorldNode
 ================
 */
-static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, unsigned int dlightBits)
+static void R_RecursiveWorldNode(const mnode_t* node, unsigned int planeBits, unsigned int dlightBits)
 {
 	do
 	{
@@ -716,7 +800,7 @@ static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, un
 				{
 					if (dlightBits & (1 << i))
 					{
-						const dlight_t &dl = tr.refdef.dlights[i];
+						const dlight_t& dl = tr.refdef.dlights[i];
 						float dist = DotProduct(dl.origin, node->plane->normal) - node->plane->dist;
 
 						if (dist > -dl.radius)
@@ -774,13 +858,13 @@ static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, un
 		}
 
 		// add the individual surfaces
-		msurface_t **mark = node->firstmarksurface;
+		msurface_t** mark = node->firstmarksurface;
 
 		for (int i = 0; i < node->nummarksurfaces; ++i)
 		{
 			// the surface may have already been added if it
 			// spans multiple leafs
-			msurface_t *surf = mark[i];
+			msurface_t* surf = mark[i];
 			R_AddWorldSurface(*surf, dlightBits);
 		}
 	}
@@ -791,16 +875,16 @@ static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, un
 R_PointInLeaf
 ===============
 */
-static mnode_t *R_PointInLeaf(const vec3_t p)
+static mnode_t* R_PointInLeaf(const vec3_t p)
 {
 	if (!tr.world)
 	{
 		ri.Error(ERR_DROP, "R_PointInLeaf: bad model");
 	}
 
-	mnode_t *node;
+	mnode_t* node;
 	float d;
-	const cplane_t *plane;
+	const cplane_t* plane;
 
 	node = tr.world->nodes;
 	while (1)
@@ -829,7 +913,7 @@ static mnode_t *R_PointInLeaf(const vec3_t p)
 R_ClusterPVS
 ==============
 */
-static const byte *R_ClusterPVS(const int cluster)
+static const byte* R_ClusterPVS(const int cluster)
 {
 	if (!tr.world->vis || cluster < 0 || cluster >= tr.world->numClusters)
 	{
@@ -846,8 +930,8 @@ R_inPVS
 */
 bool R_inPVS(const vec3_t p1, const vec3_t p2)
 {
-	const mnode_t *leaf;
-	const byte *vis;
+	const mnode_t* leaf;
+	const byte* vis;
 
 	leaf = R_PointInLeaf(p1);
 	vis = ri.CM_ClusterPVS(leaf->cluster);
@@ -877,8 +961,8 @@ static void R_MarkLeaves(void)
 		return;
 	}
 
-	const byte *vis;
-	mnode_t *leaf, *parent;
+	const byte* vis;
+	mnode_t* leaf, * parent;
 	int i;
 	int cluster;
 
@@ -999,7 +1083,7 @@ void R_AddWorldSurfaces(void)
 	R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, tr.viewParms.world);
 	for (uint32_t i = 0; i < tr.viewParms.num_dlights; i++)
 	{
-		dlight_t &dl = tr.viewParms.dlights[i];
+		dlight_t& dl = tr.viewParms.dlights[i];
 		dl.head = dl.tail = NULL;
 		if (R_CullDlight(dl) == CULL_OUT)
 		{

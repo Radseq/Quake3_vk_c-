@@ -298,7 +298,7 @@ static void RB_RenderDrawSurfList(drawSurf_t* drawSurfs, const int numDrawSurfs)
 					auto& soa = trsoa::GetFrameSoA();
 					if (trsoa::SoA_ValidThisFrame(soa))
 					{
-						const int slot = static_cast<int>(soa.modelSlotOfEnt[entityNum]);
+						const int slot = static_cast<int>(soa.modelSlotOfEnt.get(entityNum));
 						backEnd.currentModelSlot = slot;
 						if (slot >= 0)
 						{
@@ -528,7 +528,7 @@ static void RB_RenderLitSurfList(dlight_t& dl)
 					auto& soa = trsoa::GetFrameSoA();
 					if (trsoa::SoA_ValidThisFrame(soa))
 					{
-						const int slot = static_cast<int>(soa.modelSlotOfEnt[entityNum]);
+						const int slot = static_cast<int>(soa.modelSlotOfEnt.get(entityNum));
 						backEnd.currentModelSlot = slot;
 						if (slot >= 0)
 						{

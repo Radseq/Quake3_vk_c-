@@ -60,6 +60,17 @@ namespace trsoa
 	using b4 = xsimd::batch<float>;
 #endif
 
+	TR_FORCEINLINE void WrapClampFrame(int& f, const int numFrames, const int renderfx) noexcept
+	{
+		if (numFrames <= 0) { f = 0; return; }
+		if (renderfx & RF_WRAP_FRAMES)
+		{
+			f %= numFrames;
+			if (f < 0) f += numFrames;
+		}
+		if ((unsigned)f >= (unsigned)numFrames) f = 0;
+	}
+
 	TR_FORCEINLINE void MultAxisOriginWithWorldMatrix_sse_preB(
 		const __m128 B0, const __m128 B1, const __m128 B2, const __m128 B3,
 		const float ax0x, const float ax0y, const float ax0z,
@@ -335,359 +346,360 @@ namespace trsoa
 		return pr;
 	}
 
-//	struct LodConsts final
-//	{
-//		float lodscale;
-//		int   bias;
-//		float c;
-//		float pm5, pm9, pm13, pm7, pm11, pm15;
-//		float ax0x, ax0y, ax0z;
-//	};
-//
-//	static inline LodConsts MakeLodConsts() noexcept
-//	{
-//		LodConsts lc{};
-//		lc.lodscale = r_lodscale->value;
-//		if (lc.lodscale > 20.0f) lc.lodscale = 20.0f;
-//		lc.bias = r_lodbias->integer;
-//
-//		const vec3_t& ax0 = tr.viewParms.ort.axis[0];
-//		lc.ax0x = ax0[0]; lc.ax0y = ax0[1]; lc.ax0z = ax0[2];
-//		lc.c = DotProduct(ax0, tr.viewParms.ort.origin);
-//
-//		lc.pm5 = tr.viewParms.projectionMatrix[5];
-//		lc.pm9 = tr.viewParms.projectionMatrix[9];
-//		lc.pm13 = tr.viewParms.projectionMatrix[13];
-//		lc.pm7 = tr.viewParms.projectionMatrix[7];
-//		lc.pm11 = tr.viewParms.projectionMatrix[11];
-//		lc.pm15 = tr.viewParms.projectionMatrix[15];
-//		return lc;
-//	}
-//
-//	static inline void ComputeLODsAndCullSphere_MD3(FrameSoA& soa, const LodConsts& lc) noexcept
-//	{
-//		auto& md = soa.modelDerived;
-//		const auto& t = soa.models.transform;
-//		const auto& a = soa.models.anim;
-//
-//		for (int i = 0; i < soa.md3Count; ++i)
-//		{
-//			const int slot = static_cast<int>(soa.md3Slots[i]);
-//			model_t* const m = md.modelPtr[slot];
-//			if (!m) continue; // safety
-//			// zakładamy: m->type == MOD_MESH
-//
-//			const int frame = a.frame[slot];
-//
-//			// radius/localOrigin z md3[0] (jak w Twoim switch-case)
-//			md3Frame_t* fr0 = (md3Frame_t*)(((unsigned char*)m->md3[0]) + m->md3[0]->ofsFrames);
-//			fr0 += frame;
-//
-//			const float radius0 = fr0->radius;
-//			md.boundRadius[slot] = radius0;
-//
-//			// wstępnie wpisz cull sphere (i tak nadpiszemy z md3[lod] po wyliczeniu lod)
-//			md.cullLocal_x[slot] = fr0->localOrigin[0];
-//			md.cullLocal_y[slot] = fr0->localOrigin[1];
-//			md.cullLocal_z[slot] = fr0->localOrigin[2];
-//			md.cullRadius[slot] = radius0;
-//
-//			int lod = 0;
-//			if (m->numLods >= 2)
-//			{
-//				const float ox = t.origin_x[slot];
-//				const float oy = t.origin_y[slot];
-//				const float oz = t.origin_z[slot];
-//				const float dist = (ox * lc.ax0x + oy * lc.ax0y + oz * lc.ax0z) - lc.c;
-//
-//				if (dist <= 0.0f)
-//				{
-//					lod = 0;
-//				}
-//				else
-//				{
-//					const float pr = ProjectRadiusFast(radius0, dist, lc.pm5, lc.pm9, lc.pm13, lc.pm7, lc.pm11, lc.pm15);
-//					float flod = 1.0f - pr * lc.lodscale;
-//					flod *= (float)m->numLods;
-//					lod = myftol(flod);
-//
-//					if (lod < 0) lod = 0;
-//					else if (lod >= m->numLods) lod = m->numLods - 1;
-//				}
-//
-//				lod += lc.bias;
-//				if (lod >= m->numLods) lod = m->numLods - 1;
-//				if (lod < 0) lod = 0;
-//			}
-//
-//			md.lod[slot] = static_cast<std::uint8_t>(lod);
-//
-//			// cull sphere musi być z md3[lod] (jak w Twoim kodzie)
-//			md3Header_t* hdr = m->md3[lod];
-//			md3Frame_t* fr = (md3Frame_t*)(((unsigned char*)hdr) + hdr->ofsFrames);
-//			fr += frame;
-//
-//			md.cullLocal_x[slot] = fr->localOrigin[0];
-//			md.cullLocal_y[slot] = fr->localOrigin[1];
-//			md.cullLocal_z[slot] = fr->localOrigin[2];
-//			md.cullRadius[slot] = fr->radius;
-//		}
-//	}
-//
-//	static inline void ComputeLODsAndCullSphere_MDR(FrameSoA& soa, const LodConsts& lc) noexcept
-//	{
-//		auto& md = soa.modelDerived;
-//		const auto& t = soa.models.transform;
-//		const auto& a = soa.models.anim;
-//
-//		for (int i = 0; i < soa.mdrCount; ++i)
-//		{
-//			const int slot = static_cast<int>(soa.mdrSlots[i]);
-//			model_t* const m = md.modelPtr[slot];
-//			if (!m) continue; // safety
-//			// zakładamy: m->type == MOD_MDR
-//
-//			const int frame = a.frame[slot];
-//
-//			mdrHeader_t* mdr = (mdrHeader_t*)m->modelData;
-//			const int frameSize = (int)(size_t)(&((mdrFrame_t*)0)->bones[mdr->numBones]);
-//			mdrFrame_t* f = (mdrFrame_t*)((byte*)mdr + mdr->ofsFrames + frameSize * frame);
-//
-//			const float radius = f->radius;
-//
-//			md.boundRadius[slot] = radius;
-//			md.cullLocal_x[slot] = f->localOrigin[0];
-//			md.cullLocal_y[slot] = f->localOrigin[1];
-//			md.cullLocal_z[slot] = f->localOrigin[2];
-//			md.cullRadius[slot] = radius;
-//
-//			int lod = 0;
-//			if (m->numLods >= 2)
-//			{
-//				const float ox = t.origin_x[slot];
-//				const float oy = t.origin_y[slot];
-//				const float oz = t.origin_z[slot];
-//				const float dist = (ox * lc.ax0x + oy * lc.ax0y + oz * lc.ax0z) - lc.c;
-//
-//				if (dist <= 0.0f)
-//				{
-//					lod = 0;
-//				}
-//				else
-//				{
-//					const float pr = ProjectRadiusFast(radius, dist, lc.pm5, lc.pm9, lc.pm13, lc.pm7, lc.pm11, lc.pm15);
-//					float flod = 1.0f - pr * lc.lodscale;
-//					flod *= (float)m->numLods;
-//					lod = myftol(flod);
-//
-//					if (lod < 0) lod = 0;
-//					else if (lod >= m->numLods) lod = m->numLods - 1;
-//				}
-//
-//				lod += lc.bias;
-//				if (lod >= m->numLods) lod = m->numLods - 1;
-//				if (lod < 0) lod = 0;
-//			}
-//
-//			md.lod[slot] = static_cast<std::uint8_t>(lod);
-//
-//			// MDR: cull sphere nie zależy od lod headera tak jak md3[lod] (zostaw jak masz)
-//		}
-//	}
-//
-//	static inline void ComputeCullFrustum_ForSlotRuns(FrameSoA& soa, const std::uint16_t* slots, int n, const viewParms_t& vp) noexcept
-//	{
-//		auto& md = soa.modelDerived;
-//		const auto& t = soa.models.transform;
-//		const auto& a = soa.models.anim;
-//
-//		if (n <= 0) return;
-//
-//		// zgodnie z Twoim ComputeModelCullSphere_Batch: nocull -> CLIP
-//		if (r_nocull->integer)
-//		{
-//			for (int i = 0; i < n; ++i)
-//				md.cullResult[static_cast<int>(slots[i])] = CULL_CLIP;
-//			return;
-//		}
-//
-//#if TR_HAS_XSIMD
-//		using batch = xsimd::batch<float>;
-//		constexpr int W = (int)batch::size;
-//
-//		alignas(64) float activeLane[W];
-//		alignas(64) float outLane[W];
-//
-//		const batch fOut(static_cast<float>(CULL_OUT));
-//		const batch fClip(static_cast<float>(CULL_CLIP));
-//		const batch fIn(static_cast<float>(CULL_IN));
-//
-//		ForEachConsecutiveRun(slots, n, [&](int base, int len) noexcept
-//			{
-//				// doprowadź base do alignmentu W
-//				while (len > 0 && (base & (W - 1)) != 0)
-//				{
-//					const bool ok =
-//						(t.nonNormalizedAxes[base] == 0) &&
-//						(a.frame[base] == a.oldframe[base]) &&
-//						(md.cullRadius[base] > 0.0f);
-//
-//					if (!ok) { md.cullResult[base] = CULL_CLIP; ++base; --len; continue; }
-//
-//					// scalar frustum test
-//					const float ox = t.origin_x[base], oy = t.origin_y[base], oz = t.origin_z[base];
-//					const float ax0x = t.ax0_x[base], ax0y = t.ax0_y[base], ax0z = t.ax0_z[base];
-//					const float ax1x = t.ax1_x[base], ax1y = t.ax1_y[base], ax1z = t.ax1_z[base];
-//					const float ax2x = t.ax2_x[base], ax2y = t.ax2_y[base], ax2z = t.ax2_z[base];
-//
-//					const float lx = md.cullLocal_x[base], ly = md.cullLocal_y[base], lz = md.cullLocal_z[base];
-//					const float r = md.cullRadius[base];
-//
-//					const float cx = ox + ax0x * lx + ax1x * ly + ax2x * lz;
-//					const float cy = oy + ax0y * lx + ax1y * ly + ax2y * lz;
-//					const float cz = oz + ax0z * lx + ax1z * ly + ax2z * lz;
-//
-//					std::uint8_t res = CULL_IN;
-//					for (int p = 0; p < 4; ++p)
-//					{
-//						const cplane_t& fr = vp.frustum[p];
-//						const float dist = cx * fr.normal[0] + cy * fr.normal[1] + cz * fr.normal[2] - fr.dist;
-//						if (dist < -r) { res = CULL_OUT; break; }
-//						if (dist < r) { res = CULL_CLIP; }
-//					}
-//					md.cullResult[base] = res;
-//
-//					++base; --len;
-//				}
-//
-//				int i = 0;
-//				for (; i + W <= len; i += W)
-//				{
-//					const int s = base + i;
-//
-//					bool anyActive = false;
-//					for (int l = 0; l < W; ++l)
-//					{
-//						const int slot = s + l;
-//						const bool ok =
-//							(t.nonNormalizedAxes[slot] == 0) &&
-//							(a.frame[slot] == a.oldframe[slot]) &&
-//							(md.cullRadius[slot] > 0.0f);
-//
-//						activeLane[l] = ok ? 1.0f : 0.0f;
-//						anyActive |= ok;
-//					}
-//
-//					if (!anyActive)
-//					{
-//						std::memset(md.cullResult.data() + s, CULL_CLIP, (std::size_t)W);
-//						continue;
-//					}
-//
-//					const batch active = batch::load_aligned(activeLane);
-//
-//					const batch ox = batch::load_aligned(t.origin_x.data() + s);
-//					const batch oy = batch::load_aligned(t.origin_y.data() + s);
-//					const batch oz = batch::load_aligned(t.origin_z.data() + s);
-//
-//					const batch ax0x = batch::load_aligned(t.ax0_x.data() + s);
-//					const batch ax0y = batch::load_aligned(t.ax0_y.data() + s);
-//					const batch ax0z = batch::load_aligned(t.ax0_z.data() + s);
-//
-//					const batch ax1x = batch::load_aligned(t.ax1_x.data() + s);
-//					const batch ax1y = batch::load_aligned(t.ax1_y.data() + s);
-//					const batch ax1z = batch::load_aligned(t.ax1_z.data() + s);
-//
-//					const batch ax2x = batch::load_aligned(t.ax2_x.data() + s);
-//					const batch ax2y = batch::load_aligned(t.ax2_y.data() + s);
-//					const batch ax2z = batch::load_aligned(t.ax2_z.data() + s);
-//
-//					const batch lx = batch::load_aligned(md.cullLocal_x.data() + s);
-//					const batch ly = batch::load_aligned(md.cullLocal_y.data() + s);
-//					const batch lz = batch::load_aligned(md.cullLocal_z.data() + s);
-//					const batch r = batch::load_aligned(md.cullRadius.data() + s);
-//
-//					// worldCenter = origin + axis0*lx + axis1*ly + axis2*lz
-//					const batch cx = ox + ax0x * lx + ax1x * ly + ax2x * lz;
-//					const batch cy = oy + ax0y * lx + ax1y * ly + ax2y * lz;
-//					const batch cz = oz + ax0z * lx + ax1z * ly + ax2z * lz;
-//
-//					auto activeMask = (active != batch(0.0f));
-//
-//					auto anyOut = xsimd::batch_bool<float>(false);
-//					auto anyClip = xsimd::batch_bool<float>(false);
-//
-//					for (int p = 0; p < 4; ++p)
-//					{
-//						const cplane_t& fr = vp.frustum[p];
-//						const batch nx(fr.normal[0]), ny(fr.normal[1]), nz(fr.normal[2]), dd(fr.dist);
-//
-//						const batch dist = cx * nx + cy * ny + cz * nz - dd;
-//
-//						anyOut = anyOut || (dist < (-r));
-//						anyClip = anyClip || (dist < (r));
-//					}
-//
-//					const auto outMask = activeMask && anyOut;
-//					const auto clipMask = activeMask && (!anyOut) && anyClip;
-//					const auto inMask = activeMask && (!anyOut) && (!anyClip);
-//
-//					batch code = xsimd::select(outMask, fOut, fClip);
-//					code = xsimd::select(inMask, fIn, code); // IN nadpisuje CLIP tylko dla inMask
-//
-//					code.store_aligned(outLane);
-//
-//					for (int l = 0; l < W; ++l)
-//						md.cullResult[s + l] = static_cast<std::uint8_t>(outLane[l]);
-//				}
-//
-//				// tail scalar
-//				for (; i < len; ++i)
-//				{
-//					const int slot = base + i;
-//
-//					const bool ok =
-//						(t.nonNormalizedAxes[slot] == 0) &&
-//						(a.frame[slot] == a.oldframe[slot]) &&
-//						(md.cullRadius[slot] > 0.0f);
-//
-//					if (!ok) { md.cullResult[slot] = CULL_CLIP; continue; }
-//
-//					const float ox = t.origin_x[slot], oy = t.origin_y[slot], oz = t.origin_z[slot];
-//					const float ax0x = t.ax0_x[slot], ax0y = t.ax0_y[slot], ax0z = t.ax0_z[slot];
-//					const float ax1x = t.ax1_x[slot], ax1y = t.ax1_y[slot], ax1z = t.ax1_z[slot];
-//					const float ax2x = t.ax2_x[slot], ax2y = t.ax2_y[slot], ax2z = t.ax2_z[slot];
-//
-//					const float lx = md.cullLocal_x[slot], ly = md.cullLocal_y[slot], lz = md.cullLocal_z[slot];
-//					const float r = md.cullRadius[slot];
-//
-//					const float cx = ox + ax0x * lx + ax1x * ly + ax2x * lz;
-//					const float cy = oy + ax0y * lx + ax1y * ly + ax2y * lz;
-//					const float cz = oz + ax0z * lx + ax1z * ly + ax2z * lz;
-//
-//					std::uint8_t res = CULL_IN;
-//					for (int p = 0; p < 4; ++p)
-//					{
-//						const cplane_t& fr = vp.frustum[p];
-//						const float dist = cx * fr.normal[0] + cy * fr.normal[1] + cz * fr.normal[2] - fr.dist;
-//						if (dist < -r) { res = CULL_OUT; break; }
-//						if (dist < r) { res = CULL_CLIP; }
-//					}
-//					md.cullResult[slot] = res;
-//				}
-//			});
-//#else
-//		// fallback scalar
-//		for (int i = 0; i < n; ++i)
-//			md.cullResult[static_cast<int>(slots[i])] = CULL_CLIP;
-//#endif
-//	}
-//
+	//	struct LodConsts final
+	//	{
+	//		float lodscale;
+	//		int   bias;
+	//		float c;
+	//		float pm5, pm9, pm13, pm7, pm11, pm15;
+	//		float ax0x, ax0y, ax0z;
+	//	};
+	//
+	//	static inline LodConsts MakeLodConsts() noexcept
+	//	{
+	//		LodConsts lc{};
+	//		lc.lodscale = r_lodscale->value;
+	//		if (lc.lodscale > 20.0f) lc.lodscale = 20.0f;
+	//		lc.bias = r_lodbias->integer;
+	//
+	//		const vec3_t& ax0 = tr.viewParms.ort.axis[0];
+	//		lc.ax0x = ax0[0]; lc.ax0y = ax0[1]; lc.ax0z = ax0[2];
+	//		lc.c = DotProduct(ax0, tr.viewParms.ort.origin);
+	//
+	//		lc.pm5 = tr.viewParms.projectionMatrix[5];
+	//		lc.pm9 = tr.viewParms.projectionMatrix[9];
+	//		lc.pm13 = tr.viewParms.projectionMatrix[13];
+	//		lc.pm7 = tr.viewParms.projectionMatrix[7];
+	//		lc.pm11 = tr.viewParms.projectionMatrix[11];
+	//		lc.pm15 = tr.viewParms.projectionMatrix[15];
+	//		return lc;
+	//	}
+	//
+	//	static inline void ComputeLODsAndCullSphere_MD3(FrameSoA& soa, const LodConsts& lc) noexcept
+	//	{
+	//		auto& md = soa.modelDerived;
+	//		const auto& t = soa.models.transform;
+	//		const auto& a = soa.models.anim;
+	//
+	//		for (int i = 0; i < soa.md3Count; ++i)
+	//		{
+	//			const int slot = static_cast<int>(soa.md3Slots[i]);
+	//			model_t* const m = md.modelPtr[slot];
+	//			if (!m) continue; // safety
+	//			// zakładamy: m->type == MOD_MESH
+	//
+	//			const int frame = a.frame[slot];
+	//
+	//			// radius/localOrigin z md3[0] (jak w Twoim switch-case)
+	//			md3Frame_t* fr0 = (md3Frame_t*)(((unsigned char*)m->md3[0]) + m->md3[0]->ofsFrames);
+	//			fr0 += frame;
+	//
+	//			const float radius0 = fr0->radius;
+	//			md.boundRadius[slot] = radius0;
+	//
+	//			// wstępnie wpisz cull sphere (i tak nadpiszemy z md3[lod] po wyliczeniu lod)
+	//			md.cullLocal_x[slot] = fr0->localOrigin[0];
+	//			md.cullLocal_y[slot] = fr0->localOrigin[1];
+	//			md.cullLocal_z[slot] = fr0->localOrigin[2];
+	//			md.cullRadius[slot] = radius0;
+	//
+	//			int lod = 0;
+	//			if (m->numLods >= 2)
+	//			{
+	//				const float ox = t.origin_x[slot];
+	//				const float oy = t.origin_y[slot];
+	//				const float oz = t.origin_z[slot];
+	//				const float dist = (ox * lc.ax0x + oy * lc.ax0y + oz * lc.ax0z) - lc.c;
+	//
+	//				if (dist <= 0.0f)
+	//				{
+	//					lod = 0;
+	//				}
+	//				else
+	//				{
+	//					const float pr = ProjectRadiusFast(radius0, dist, lc.pm5, lc.pm9, lc.pm13, lc.pm7, lc.pm11, lc.pm15);
+	//					float flod = 1.0f - pr * lc.lodscale;
+	//					flod *= (float)m->numLods;
+	//					lod = myftol(flod);
+	//
+	//					if (lod < 0) lod = 0;
+	//					else if (lod >= m->numLods) lod = m->numLods - 1;
+	//				}
+	//
+	//				lod += lc.bias;
+	//				if (lod >= m->numLods) lod = m->numLods - 1;
+	//				if (lod < 0) lod = 0;
+	//			}
+	//
+	//			md.lod[slot] = static_cast<std::uint8_t>(lod);
+	//
+	//			// cull sphere musi być z md3[lod] (jak w Twoim kodzie)
+	//			md3Header_t* hdr = m->md3[lod];
+	//			md3Frame_t* fr = (md3Frame_t*)(((unsigned char*)hdr) + hdr->ofsFrames);
+	//			fr += frame;
+	//
+	//			md.cullLocal_x[slot] = fr->localOrigin[0];
+	//			md.cullLocal_y[slot] = fr->localOrigin[1];
+	//			md.cullLocal_z[slot] = fr->localOrigin[2];
+	//			md.cullRadius[slot] = fr->radius;
+	//		}
+	//	}
+	//
+	//	static inline void ComputeLODsAndCullSphere_MDR(FrameSoA& soa, const LodConsts& lc) noexcept
+	//	{
+	//		auto& md = soa.modelDerived;
+	//		const auto& t = soa.models.transform;
+	//		const auto& a = soa.models.anim;
+	//
+	//		for (int i = 0; i < soa.mdrCount; ++i)
+	//		{
+	//			const int slot = static_cast<int>(soa.mdrSlots[i]);
+	//			model_t* const m = md.modelPtr[slot];
+	//			if (!m) continue; // safety
+	//			// zakładamy: m->type == MOD_MDR
+	//
+	//			const int frame = a.frame[slot];
+	//
+	//			mdrHeader_t* mdr = (mdrHeader_t*)m->modelData;
+	//			const int frameSize = (int)(size_t)(&((mdrFrame_t*)0)->bones[mdr->numBones]);
+	//			mdrFrame_t* f = (mdrFrame_t*)((byte*)mdr + mdr->ofsFrames + frameSize * frame);
+	//
+	//			const float radius = f->radius;
+	//
+	//			md.boundRadius[slot] = radius;
+	//			md.cullLocal_x[slot] = f->localOrigin[0];
+	//			md.cullLocal_y[slot] = f->localOrigin[1];
+	//			md.cullLocal_z[slot] = f->localOrigin[2];
+	//			md.cullRadius[slot] = radius;
+	//
+	//			int lod = 0;
+	//			if (m->numLods >= 2)
+	//			{
+	//				const float ox = t.origin_x[slot];
+	//				const float oy = t.origin_y[slot];
+	//				const float oz = t.origin_z[slot];
+	//				const float dist = (ox * lc.ax0x + oy * lc.ax0y + oz * lc.ax0z) - lc.c;
+	//
+	//				if (dist <= 0.0f)
+	//				{
+	//					lod = 0;
+	//				}
+	//				else
+	//				{
+	//					const float pr = ProjectRadiusFast(radius, dist, lc.pm5, lc.pm9, lc.pm13, lc.pm7, lc.pm11, lc.pm15);
+	//					float flod = 1.0f - pr * lc.lodscale;
+	//					flod *= (float)m->numLods;
+	//					lod = myftol(flod);
+	//
+	//					if (lod < 0) lod = 0;
+	//					else if (lod >= m->numLods) lod = m->numLods - 1;
+	//				}
+	//
+	//				lod += lc.bias;
+	//				if (lod >= m->numLods) lod = m->numLods - 1;
+	//				if (lod < 0) lod = 0;
+	//			}
+	//
+	//			md.lod[slot] = static_cast<std::uint8_t>(lod);
+	//
+	//			// MDR: cull sphere nie zależy od lod headera tak jak md3[lod] (zostaw jak masz)
+	//		}
+	//	}
+	//
+	//	static inline void ComputeCullFrustum_ForSlotRuns(FrameSoA& soa, const std::uint16_t* slots, int n, const viewParms_t& vp) noexcept
+	//	{
+	//		auto& md = soa.modelDerived;
+	//		const auto& t = soa.models.transform;
+	//		const auto& a = soa.models.anim;
+	//
+	//		if (n <= 0) return;
+	//
+	//		// zgodnie z Twoim ComputeModelCullSphere_Batch: nocull -> CLIP
+	//		if (r_nocull->integer)
+	//		{
+	//			for (int i = 0; i < n; ++i)
+	//				md.cullResult[static_cast<int>(slots[i])] = CULL_CLIP;
+	//			return;
+	//		}
+	//
+	//#if TR_HAS_XSIMD
+	//		using batch = xsimd::batch<float>;
+	//		constexpr int W = (int)batch::size;
+	//
+	//		alignas(64) float activeLane[W];
+	//		alignas(64) float outLane[W];
+	//
+	//		const batch fOut(static_cast<float>(CULL_OUT));
+	//		const batch fClip(static_cast<float>(CULL_CLIP));
+	//		const batch fIn(static_cast<float>(CULL_IN));
+	//
+	//		ForEachConsecutiveRun(slots, n, [&](int base, int len) noexcept
+	//			{
+	//				// doprowadź base do alignmentu W
+	//				while (len > 0 && (base & (W - 1)) != 0)
+	//				{
+	//					const bool ok =
+	//						(t.nonNormalizedAxes[base] == 0) &&
+	//						(a.frame[base] == a.oldframe[base]) &&
+	//						(md.cullRadius[base] > 0.0f);
+	//
+	//					if (!ok) { md.cullResult[base] = CULL_CLIP; ++base; --len; continue; }
+	//
+	//					// scalar frustum test
+	//					const float ox = t.origin_x[base], oy = t.origin_y[base], oz = t.origin_z[base];
+	//					const float ax0x = t.ax0_x[base], ax0y = t.ax0_y[base], ax0z = t.ax0_z[base];
+	//					const float ax1x = t.ax1_x[base], ax1y = t.ax1_y[base], ax1z = t.ax1_z[base];
+	//					const float ax2x = t.ax2_x[base], ax2y = t.ax2_y[base], ax2z = t.ax2_z[base];
+	//
+	//					const float lx = md.cullLocal_x[base], ly = md.cullLocal_y[base], lz = md.cullLocal_z[base];
+	//					const float r = md.cullRadius[base];
+	//
+	//					const float cx = ox + ax0x * lx + ax1x * ly + ax2x * lz;
+	//					const float cy = oy + ax0y * lx + ax1y * ly + ax2y * lz;
+	//					const float cz = oz + ax0z * lx + ax1z * ly + ax2z * lz;
+	//
+	//					std::uint8_t res = CULL_IN;
+	//					for (int p = 0; p < 4; ++p)
+	//					{
+	//						const cplane_t& fr = vp.frustum[p];
+	//						const float dist = cx * fr.normal[0] + cy * fr.normal[1] + cz * fr.normal[2] - fr.dist;
+	//						if (dist < -r) { res = CULL_OUT; break; }
+	//						if (dist < r) { res = CULL_CLIP; }
+	//					}
+	//					md.cullResult[base] = res;
+	//
+	//					++base; --len;
+	//				}
+	//
+	//				int i = 0;
+	//				for (; i + W <= len; i += W)
+	//				{
+	//					const int s = base + i;
+	//
+	//					bool anyActive = false;
+	//					for (int l = 0; l < W; ++l)
+	//					{
+	//						const int slot = s + l;
+	//						const bool ok =
+	//							(t.nonNormalizedAxes[slot] == 0) &&
+	//							(a.frame[slot] == a.oldframe[slot]) &&
+	//							(md.cullRadius[slot] > 0.0f);
+	//
+	//						activeLane[l] = ok ? 1.0f : 0.0f;
+	//						anyActive |= ok;
+	//					}
+	//
+	//					if (!anyActive)
+	//					{
+	//						std::memset(md.cullResult.data() + s, CULL_CLIP, (std::size_t)W);
+	//						continue;
+	//					}
+	//
+	//					const batch active = batch::load_aligned(activeLane);
+	//
+	//					const batch ox = batch::load_aligned(t.origin_x.data() + s);
+	//					const batch oy = batch::load_aligned(t.origin_y.data() + s);
+	//					const batch oz = batch::load_aligned(t.origin_z.data() + s);
+	//
+	//					const batch ax0x = batch::load_aligned(t.ax0_x.data() + s);
+	//					const batch ax0y = batch::load_aligned(t.ax0_y.data() + s);
+	//					const batch ax0z = batch::load_aligned(t.ax0_z.data() + s);
+	//
+	//					const batch ax1x = batch::load_aligned(t.ax1_x.data() + s);
+	//					const batch ax1y = batch::load_aligned(t.ax1_y.data() + s);
+	//					const batch ax1z = batch::load_aligned(t.ax1_z.data() + s);
+	//
+	//					const batch ax2x = batch::load_aligned(t.ax2_x.data() + s);
+	//					const batch ax2y = batch::load_aligned(t.ax2_y.data() + s);
+	//					const batch ax2z = batch::load_aligned(t.ax2_z.data() + s);
+	//
+	//					const batch lx = batch::load_aligned(md.cullLocal_x.data() + s);
+	//					const batch ly = batch::load_aligned(md.cullLocal_y.data() + s);
+	//					const batch lz = batch::load_aligned(md.cullLocal_z.data() + s);
+	//					const batch r = batch::load_aligned(md.cullRadius.data() + s);
+	//
+	//					// worldCenter = origin + axis0*lx + axis1*ly + axis2*lz
+	//					const batch cx = ox + ax0x * lx + ax1x * ly + ax2x * lz;
+	//					const batch cy = oy + ax0y * lx + ax1y * ly + ax2y * lz;
+	//					const batch cz = oz + ax0z * lx + ax1z * ly + ax2z * lz;
+	//
+	//					auto activeMask = (active != batch(0.0f));
+	//
+	//					auto anyOut = xsimd::batch_bool<float>(false);
+	//					auto anyClip = xsimd::batch_bool<float>(false);
+	//
+	//					for (int p = 0; p < 4; ++p)
+	//					{
+	//						const cplane_t& fr = vp.frustum[p];
+	//						const batch nx(fr.normal[0]), ny(fr.normal[1]), nz(fr.normal[2]), dd(fr.dist);
+	//
+	//						const batch dist = cx * nx + cy * ny + cz * nz - dd;
+	//
+	//						anyOut = anyOut | (dist < (-r));
+	//						anyClip = anyClip | (dist < (r));
+	//					}
+	//
+	//					const auto outMask = activeMask & anyOut;
+	//					const auto clipMask = activeMask & (!anyOut) && anyClip;
+	//					const auto inMask = activeMask & (!anyOut) && (!anyClip);
+	//
+	//					batch code = xsimd::select(outMask, fOut, fClip);
+	//					code = xsimd::select(inMask, fIn, code); // IN nadpisuje CLIP tylko dla inMask
+	//
+	//					code.store_aligned(outLane);
+	//
+	//					for (int l = 0; l < W; ++l)
+	//						md.cullResult[s + l] = static_cast<std::uint8_t>(outLane[l]);
+	//				}
+	//
+	//				// tail scalar
+	//				for (; i < len; ++i)
+	//				{
+	//					const int slot = base + i;
+	//
+	//					const bool ok =
+	//						(t.nonNormalizedAxes[slot] == 0) &&
+	//						(a.frame[slot] == a.oldframe[slot]) &&
+	//						(md.cullRadius[slot] > 0.0f);
+	//
+	//					if (!ok) { md.cullResult[slot] = CULL_CLIP; continue; }
+	//
+	//					const float ox = t.origin_x[slot], oy = t.origin_y[slot], oz = t.origin_z[slot];
+	//					const float ax0x = t.ax0_x[slot], ax0y = t.ax0_y[slot], ax0z = t.ax0_z[slot];
+	//					const float ax1x = t.ax1_x[slot], ax1y = t.ax1_y[slot], ax1z = t.ax1_z[slot];
+	//					const float ax2x = t.ax2_x[slot], ax2y = t.ax2_y[slot], ax2z = t.ax2_z[slot];
+	//
+	//					const float lx = md.cullLocal_x[slot], ly = md.cullLocal_y[slot], lz = md.cullLocal_z[slot];
+	//					const float r = md.cullRadius[slot];
+	//
+	//					const float cx = ox + ax0x * lx + ax1x * ly + ax2x * lz;
+	//					const float cy = oy + ax0y * lx + ax1y * ly + ax2y * lz;
+	//					const float cz = oz + ax0z * lx + ax1z * ly + ax2z * lz;
+	//
+	//					std::uint8_t res = CULL_IN;
+	//					for (int p = 0; p < 4; ++p)
+	//					{
+	//						const cplane_t& fr = vp.frustum[p];
+	//						const float dist = cx * fr.normal[0] + cy * fr.normal[1] + cz * fr.normal[2] - fr.dist;
+	//						if (dist < -r) { res = CULL_OUT; break; }
+	//						if (dist < r) { res = CULL_CLIP; }
+	//					}
+	//					md.cullResult[slot] = res;
+	//				}
+	//			});
+	//#else
+	//		// fallback scalar
+	//		for (int i = 0; i < n; ++i)
+	//			md.cullResult[static_cast<int>(slots[i])] = CULL_CLIP;
+	//#endif
+	//	}
+	//
 
 	static inline void ComputeModelLODs_Batch(FrameSoA& soa, const trRefdef_t& refdef) noexcept
 	{
 		const int count = soa.models.count;
 		if (count <= 0) return;
+		const int countPadded = soa.models.countPadded;
 
 		// stałe z ProjectRadius / view axis
 		const vec3_t& ax0 = tr.viewParms.ort.axis[0];
@@ -720,13 +732,38 @@ namespace trsoa
 				store_cull(slot, 0.0f, 0.0f, 0.0f, 0.0f);
 			};
 
+		const auto store_aabb = [&](const int slot,
+			const float minx, const float miny, const float minz,
+			const float maxx, const float maxy, const float maxz,
+			const std::uint8_t valid) noexcept
+			{
+				md.aabbMin_x[slot] = minx; md.aabbMin_y[slot] = miny; md.aabbMin_z[slot] = minz;
+				md.aabbMax_x[slot] = maxx; md.aabbMax_y[slot] = maxy; md.aabbMax_z[slot] = maxz;
+				md.aabbValid[slot] = valid;
+			};
+
+		const auto clear_aabb = [&](const int slot) noexcept
+			{
+				store_aabb(slot, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0u);
+			};
+
+		const auto RadiusFromAabb = [&](const float minx, const float miny, const float minz,
+			const float maxx, const float maxy, const float maxz) noexcept -> float
+			{
+				const float dx = maxx - minx;
+				const float dy = maxy - miny;
+				const float dz = maxz - minz;
+				return 0.5f * std::sqrt(dx * dx + dy * dy + dz * dz);
+			};
+
+
 		using batch = xsimd::batch<float>;
 		constexpr int W = static_cast<int>(batch::size);
 
 		alignas(64) float distTmp[W]{};
 
 		int i = 0;
-		for (; i + W <= count; i += W)
+		for (; i < countPadded; i += W)
 		{
 			const batch ox = batch::load_aligned(soa.models.transform.origin_x.data() + i);
 			const batch oy = batch::load_aligned(soa.models.transform.origin_y.data() + i);
@@ -739,12 +776,21 @@ namespace trsoa
 			{
 				const int slot = i + lane;
 
-				const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
-				//const trRefEntity_t& ent = refdef.entities[entNum];
+				// padded lanes: nie dotykamy refdef/entities i nie wołamy na śmieciach
+				if (slot >= count)
+				{
+					md.modelPtr[slot] = nullptr;
+					md.modelType[slot] = static_cast<std::uint8_t>(0xFF);
+					md.lod[slot] = 0;
+					md.boundRadius[slot] = 0.0f;
+					clear_cull(slot);
+					clear_aabb(slot);
+					continue;
+				}
 
-				// anim hot fields (masz to już w SoA)
-				const int frame = soa.models.anim.frame[slot];
-
+				int frame = soa.models.anim.frame[slot];       // MUST be non-const
+				int oldframe = soa.models.anim.oldframe[slot]; // MUST be non-const
+				const int rfx = soa.models.render.renderfx[slot];
 				model_t* m = R_GetModelByHandle(soa.models.render.hModel[slot]);
 				md.modelPtr[slot] = m;
 				md.modelType[slot] = m ? static_cast<std::uint8_t>(m->type) : static_cast<std::uint8_t>(0xFF);
@@ -757,61 +803,169 @@ namespace trsoa
 					continue;
 				}
 
-				float radius = 0.0f;
-				float lx = 0.0f, ly = 0.0f, lz = 0.0f;
+				float sphereR = 0.0f;
+				float lodR = 0.0f;
+				float lx = 0.0f;
+				float ly = 0.0f;
+				float lz = 0.0f;
 
 				switch (m->type)
 				{
 				case modtype_t::MOD_MDR:
 				{
 					mdrHeader_t* mdr = (mdrHeader_t*)m->modelData;
+					const int numFrames = mdr ? mdr->numFrames : 0;
+					WrapClampFrame(frame, numFrames, rfx);
+					WrapClampFrame(oldframe, numFrames, rfx);
+					soa.models.anim.frame[slot] = frame;
+					soa.models.anim.oldframe[slot] = oldframe;
+					if (numFrames <= 0)
+					{
+						md.lod[slot] = 0;
+						md.boundRadius[slot] = 0.0f;
+						clear_cull(slot);
+						clear_aabb(slot);
+						continue;
+					}
+
 					const int frameSize = (int)(size_t)(&((mdrFrame_t*)0)->bones[mdr->numBones]);
 					mdrFrame_t* f = (mdrFrame_t*)((byte*)mdr + mdr->ofsFrames + frameSize * frame);
+					mdrFrame_t* fOld = (mdrFrame_t*)((byte*)mdr + mdr->ofsFrames + frameSize * oldframe);
 
-					if constexpr (requires { f->radius; })
-						radius = f->radius;
-					else
-						radius = RadiusFromBounds(f->bounds[0], f->bounds[1]);
+					sphereR = f->radius;
+					lx = f->localOrigin[0];
+					ly = f->localOrigin[1];
+					lz = f->localOrigin[2];
 
-					if constexpr (requires { f->localOrigin[0]; })
-					{
-						lx = f->localOrigin[0];
-						ly = f->localOrigin[1];
-						lz = f->localOrigin[2];
-					}
+					lodR = RadiusFromAabb(
+						f->bounds[0][0], f->bounds[0][1], f->bounds[0][2],
+						f->bounds[1][0], f->bounds[1][1], f->bounds[1][2]);
 					break;
 				}
 				case modtype_t::MOD_MESH: // MD3
 				{
-					md3Frame_t* fr = (md3Frame_t*)(((unsigned char*)m->md3[0]) + m->md3[0]->ofsFrames);
+					md3Header_t* hdr0 = m->md3[0];
+					const int numFrames = hdr0 ? hdr0->numFrames : 0;
+					WrapClampFrame(frame, numFrames, rfx);
+					WrapClampFrame(oldframe, numFrames, rfx);
+					soa.models.anim.frame[slot] = frame;
+					soa.models.anim.oldframe[slot] = oldframe;
+					if (!hdr0 || numFrames <= 0)
+					{
+						md.lod[slot] = 0;
+						md.boundRadius[slot] = 0.0f;
+						clear_cull(slot);
+						clear_aabb(slot);
+						continue;
+					}
+
+					md3Frame_t* fr = (md3Frame_t*)(((unsigned char*)hdr0) + hdr0->ofsFrames);
 					fr += frame;
 
-					if constexpr (requires { fr->radius; })
-						radius = fr->radius;
-					else
-						radius = RadiusFromBounds(fr->bounds[0], fr->bounds[1]);
+					sphereR = fr->radius;
+					lx = fr->localOrigin[0];
+					ly = fr->localOrigin[1];
+					lz = fr->localOrigin[2];
 
-					if constexpr (requires { fr->localOrigin[0]; })
-					{
-						lx = fr->localOrigin[0];
-						ly = fr->localOrigin[1];
-						lz = fr->localOrigin[2];
-					}
+					// merged AABB(old/new) jak w AoS (R_CullModel)
+					lodR = RadiusFromAabb(
+						fr->bounds[0][0], fr->bounds[0][1], fr->bounds[0][2],
+						fr->bounds[1][0], fr->bounds[1][1], fr->bounds[1][2]);
 					break;
 				}
+				case modtype_t::MOD_IQM:
+				{
+					// IQM: bez LOD; bierzemy konserwatywną kulę obejmującą UNION(bounds(frame), bounds(oldframe))
+					// dzięki temu możemy bezpiecznie cullować nawet gdy frame != oldframe.
+					iqmData_t* iqm = (iqmData_t*)m->modelData;
+
+					const int numFrames = iqm ? iqm->num_frames : 0;
+					int f = frame;
+					int of = oldframe;
+
+					// naśladuj AoS: RF_WRAP_FRAMES
+					if ((rfx & RF_WRAP_FRAMES) && numFrames > 0)
+					{
+						f %= numFrames;  if (f < 0)  f += numFrames;
+						of %= numFrames; if (of < 0) of += numFrames;
+					}
+
+					// naśladuj AoS: walidacja (żeby nie zrobić OOB na bounds)
+					if ((unsigned)f >= (unsigned)numFrames)  f = 0;
+					if ((unsigned)of >= (unsigned)numFrames) of = 0;
+
+					// utrzymaj spójność w SoA (dla kolejnych stage’ów)
+					soa.models.anim.frame[slot] = f;
+					soa.models.anim.oldframe[slot] = of;
+
+					const bool hasBounds = (iqm && iqm->bounds);
+					if (!hasBounds)
+					{
+						// AoS: R_CullIQM -> zawsze CLIP gdy brak bounds
+						clear_cull(slot);
+						clear_aabb(slot);
+						break;
+					}
+
+					const vec_t* bF = iqm->bounds + 6 * f;
+					const vec_t* bO = iqm->bounds + 6 * of;
+
+					// union AABB
+					const float minx = (bF[0] < bO[0]) ? bF[0] : bO[0];
+					const float miny = (bF[1] < bO[1]) ? bF[1] : bO[1];
+					const float minz = (bF[2] < bO[2]) ? bF[2] : bO[2];
+					const float maxx = (bF[3] > bO[3]) ? bF[3] : bO[3];
+					const float maxy = (bF[4] > bO[4]) ? bF[4] : bO[4];
+					const float maxz = (bF[5] > bO[5]) ? bF[5] : bO[5];
+
+					store_aabb(slot, minx, miny, minz, maxx, maxy, maxz, hasBounds ? 1u : 0u);
+
+					const float dx = maxx - minx;
+					const float dy = maxy - miny;
+					const float dz = maxz - minz;
+
+					// center w local space
+					lx = minx + 0.5f * dx;
+					ly = miny + 0.5f * dy;
+					lz = minz + 0.5f * dz;
+
+					// radius = 0.5 * |diag|
+					sphereR = 0.5f * std::sqrt(dx * dx + dy * dy + dz * dz);
+					lodR = sphereR;
+					break;
+				}
+				case modtype_t::MOD_BRUSH:
+				{
+					// BRUSH: box-cull zawsze po bmodel.bounds w AoS
+					if (m->bmodel)
+					{
+						const bmodel_t& bm = *m->bmodel;
+						store_aabb(slot,
+							bm.bounds[0][0], bm.bounds[0][1], bm.bounds[0][2],
+							bm.bounds[1][0], bm.bounds[1][1], bm.bounds[1][2],
+							1u);
+					}
+					else
+					{
+						clear_aabb(slot);
+					}
+
+					md.lod[slot] = 0;
+					md.boundRadius[slot] = 0.0f;
+					clear_cull(slot); // sphere prepass nie dotyczy brush
+					continue;
+				}
 				default:
-					// BRUSH / IQM / inne: tu nie liczymy radius/localOrigin
 					md.lod[slot] = 0;
 					md.boundRadius[slot] = 0.0f;
 					clear_cull(slot);
+					clear_aabb(slot);
 					continue;
 				}
 
-				// cull radius/origin zapisujemy zawsze (niezależnie od LOD)
-				md.boundRadius[slot] = radius;
-				store_cull(slot, lx, ly, lz, radius);
+				md.boundRadius[slot] = lodR;
+				store_cull(slot, lx, ly, lz, sphereR);
 
-				// LOD liczymy tylko, jeżeli model ma LODy
 				int lod = 0;
 				if (m->numLods >= 2)
 				{
@@ -823,7 +977,7 @@ namespace trsoa
 					}
 					else
 					{
-						const float pr = ProjectRadiusFast(radius, d, pm5, pm9, pm13, pm7, pm11, pm15);
+						const float pr = ProjectRadiusFast(lodR, d, pm5, pm9, pm13, pm7, pm11, pm15);
 						float flod = 1.0f - pr * lodscale;
 						flod *= (float)m->numLods;
 						lod = myftol(flod);
@@ -843,167 +997,55 @@ namespace trsoa
 
 				md.lod[slot] = static_cast<std::uint8_t>(lod);
 
-				// cullLocal/cullRadius MUSI być z headera aktualnego LOD (md3[lod]) - jak w R_CullModel
+				// cullLocal/cullRadius z aktualnego LOD tylko dla MDR/MD3.
+				// IQM już ma poprawnie ustawione (UNION bounds).
 				if (m->type == modtype_t::MOD_MDR)
 				{
 					mdrHeader_t* mdr = (mdrHeader_t*)m->modelData;
 					const int frameSize = (int)(size_t)(&((mdrFrame_t*)0)->bones[mdr->numBones]);
-					//mdrFrame_t* f = (mdrFrame_t*)((byte*)mdr + mdr->ofsFrames + frameSize * ent.e.frame);
-					mdrFrame_t* f = (mdrFrame_t*)((byte*)mdr + mdr->ofsFrames + frameSize * frame);
+					mdrFrame_t* fN = (mdrFrame_t*)((byte*)mdr + mdr->ofsFrames + frameSize * frame);
+					mdrFrame_t* fO = (mdrFrame_t*)((byte*)mdr + mdr->ofsFrames + frameSize * oldframe);
 
-					soa.modelDerived.cullLocal_x[slot] = f->localOrigin[0];
-					soa.modelDerived.cullLocal_y[slot] = f->localOrigin[1];
-					soa.modelDerived.cullLocal_z[slot] = f->localOrigin[2];
-					soa.modelDerived.cullRadius[slot] = f->radius;
+					soa.modelDerived.cullLocal_x[slot] = fN->localOrigin[0];
+					soa.modelDerived.cullLocal_y[slot] = fN->localOrigin[1];
+					soa.modelDerived.cullLocal_z[slot] = fN->localOrigin[2];
+					soa.modelDerived.cullRadius[slot] = fN->radius;
+
+					store_aabb(slot,
+						(fO->bounds[0][0] < fN->bounds[0][0]) ? fO->bounds[0][0] : fN->bounds[0][0],
+						(fO->bounds[0][1] < fN->bounds[0][1]) ? fO->bounds[0][1] : fN->bounds[0][1],
+						(fO->bounds[0][2] < fN->bounds[0][2]) ? fO->bounds[0][2] : fN->bounds[0][2],
+						(fO->bounds[1][0] > fN->bounds[1][0]) ? fO->bounds[1][0] : fN->bounds[1][0],
+						(fO->bounds[1][1] > fN->bounds[1][1]) ? fO->bounds[1][1] : fN->bounds[1][1],
+						(fO->bounds[1][2] > fN->bounds[1][2]) ? fO->bounds[1][2] : fN->bounds[1][2],
+						1u);
 				}
-				else
+				else if (m->type == modtype_t::MOD_MESH)
 				{
 					const int lodClamped = static_cast<int>(soa.modelDerived.lod[slot]);
 					md3Header_t* hdr = m->md3[lodClamped];
-					md3Frame_t* f = (md3Frame_t*)(((unsigned char*)hdr) + hdr->ofsFrames);
-					f += frame;
+					md3Frame_t* fN = (md3Frame_t*)(((unsigned char*)hdr) + hdr->ofsFrames) + frame;
+					md3Frame_t* fO = (md3Frame_t*)(((unsigned char*)hdr) + hdr->ofsFrames) + oldframe;
 
-					soa.modelDerived.cullLocal_x[slot] = f->localOrigin[0];
-					soa.modelDerived.cullLocal_y[slot] = f->localOrigin[1];
-					soa.modelDerived.cullLocal_z[slot] = f->localOrigin[2];
-					soa.modelDerived.cullRadius[slot] = f->radius;
-				}
+					soa.modelDerived.cullLocal_x[slot] = fN->localOrigin[0];
+					soa.modelDerived.cullLocal_y[slot] = fN->localOrigin[1];
+					soa.modelDerived.cullLocal_z[slot] = fN->localOrigin[2];
+					soa.modelDerived.cullRadius[slot] = fN->radius;
 
-			}
-		}
-
-		// tail (scalar)
-		for (; i < count; ++i)
-		{
-			const int entNum = static_cast<int>(soa.models.render.entNum[i]);
-			//const trRefEntity_t& ent = refdef.entities[entNum];
-
-			const int frame = soa.models.anim.frame[i];
-
-			model_t* m = R_GetModelByHandle(soa.models.render.hModel[i]);
-			md.modelPtr[i] = m;
-			md.modelType[i] = m ? static_cast<std::uint8_t>(m->type) : static_cast<std::uint8_t>(0xFF);
-
-			if (!m)
-			{
-				md.lod[i] = 0;
-				md.boundRadius[i] = 0.0f;
-				clear_cull(i);
-				continue;
-			}
-
-			float radius = 0.0f;
-			float lx = 0.0f, ly = 0.0f, lz = 0.0f;
-
-			switch (m->type)
-			{
-			case modtype_t::MOD_MDR:
-			{
-				mdrHeader_t* mdr = (mdrHeader_t*)m->modelData;
-				const int frameSize = (int)(size_t)(&((mdrFrame_t*)0)->bones[mdr->numBones]);
-				mdrFrame_t* f = (mdrFrame_t*)((byte*)mdr + mdr->ofsFrames + frameSize * frame);
-
-				if constexpr (requires { f->radius; })
-					radius = f->radius;
-				else
-					radius = RadiusFromBounds(f->bounds[0], f->bounds[1]);
-
-				if constexpr (requires { f->localOrigin[0]; })
-				{
-					lx = f->localOrigin[0];
-					ly = f->localOrigin[1];
-					lz = f->localOrigin[2];
-				}
-				break;
-			}
-			case modtype_t::MOD_MESH: // MD3
-			{
-				md3Frame_t* fr = (md3Frame_t*)(((unsigned char*)m->md3[0]) + m->md3[0]->ofsFrames);
-				fr += frame;
-
-				if constexpr (requires { fr->radius; })
-					radius = fr->radius;
-				else
-					radius = RadiusFromBounds(fr->bounds[0], fr->bounds[1]);
-
-				if constexpr (requires { fr->localOrigin[0]; })
-				{
-					lx = fr->localOrigin[0];
-					ly = fr->localOrigin[1];
-					lz = fr->localOrigin[2];
-				}
-				break;
-			}
-			default:
-				md.lod[i] = 0;
-				md.boundRadius[i] = 0.0f;
-				clear_cull(i);
-				continue;
-			}
-
-			md.boundRadius[i] = radius;
-			store_cull(i, lx, ly, lz, radius);
-
-			// dist licz z SoA (spójnie z SIMD)
-			const float ox = soa.models.transform.origin_x[i];
-			const float oy = soa.models.transform.origin_y[i];
-			const float oz = soa.models.transform.origin_z[i];
-			const float dist = (ox * ax0[0]) + (oy * ax0[1]) + (oz * ax0[2]) - c;
-
-			int lod = 0;
-			if (m->numLods >= 2)
-			{
-				if (dist <= 0.0f)
-				{
-					lod = 0;
+					store_aabb(slot,
+						(fO->bounds[0][0] < fN->bounds[0][0]) ? fO->bounds[0][0] : fN->bounds[0][0],
+						(fO->bounds[0][1] < fN->bounds[0][1]) ? fO->bounds[0][1] : fN->bounds[0][1],
+						(fO->bounds[0][2] < fN->bounds[0][2]) ? fO->bounds[0][2] : fN->bounds[0][2],
+						(fO->bounds[1][0] > fN->bounds[1][0]) ? fO->bounds[1][0] : fN->bounds[1][0],
+						(fO->bounds[1][1] > fN->bounds[1][1]) ? fO->bounds[1][1] : fN->bounds[1][1],
+						(fO->bounds[1][2] > fN->bounds[1][2]) ? fO->bounds[1][2] : fN->bounds[1][2],
+						1u);
 				}
 				else
 				{
-					const float pr = ProjectRadiusFast(radius, dist, pm5, pm9, pm13, pm7, pm11, pm15);
-					float flod = 1.0f - pr * lodscale;
-					flod *= (float)m->numLods;
-					lod = myftol(flod);
-
-					if (lod < 0) lod = 0;
-					else if (lod >= m->numLods) lod = m->numLods - 1;
+					// IQM/BRUSH/UNKNOWN: nic – już ustawione albo wyczyszczone wcześniej.
 				}
-
-				lod += bias;
-				if (lod >= m->numLods) lod = m->numLods - 1;
-				if (lod < 0) lod = 0;
 			}
-			else
-			{
-				lod = 0;
-			}
-
-			md.lod[i] = static_cast<std::uint8_t>(lod);
-
-			// cullLocal/cullRadius MUSI być z headera aktualnego LOD (md3[lod]) - jak w R_CullModel
-			if (m->type == modtype_t::MOD_MDR)
-			{
-				mdrHeader_t* mdr = (mdrHeader_t*)m->modelData;
-				const int frameSize = (int)(size_t)(&((mdrFrame_t*)0)->bones[mdr->numBones]);
-				mdrFrame_t* f = (mdrFrame_t*)((byte*)mdr + mdr->ofsFrames + frameSize * frame);
-
-				soa.modelDerived.cullLocal_x[i] = f->localOrigin[0];
-				soa.modelDerived.cullLocal_y[i] = f->localOrigin[1];
-				soa.modelDerived.cullLocal_z[i] = f->localOrigin[2];
-				soa.modelDerived.cullRadius[i] = f->radius;
-			}
-			else
-			{
-				const int lodClamped = static_cast<int>(soa.modelDerived.lod[i]);
-				md3Header_t* hdr = m->md3[lodClamped];
-				md3Frame_t* f = (md3Frame_t*)(((unsigned char*)hdr) + hdr->ofsFrames);
-				f += frame;
-
-				soa.modelDerived.cullLocal_x[i] = f->localOrigin[0];
-				soa.modelDerived.cullLocal_y[i] = f->localOrigin[1];
-				soa.modelDerived.cullLocal_z[i] = f->localOrigin[2];
-				soa.modelDerived.cullRadius[i] = f->radius;
-			}
-
 		}
 	}
 
@@ -1011,13 +1053,14 @@ namespace trsoa
 	{
 		const int count = soa.models.count;
 		if (count <= 0) return;
+		const int countPadded = soa.models.countPadded;
 
 		auto& md = soa.modelDerived;
 
 		// zgodnie z oryginałem: gdy nocull -> traktuj jak CLIP
 		if (r_nocull->integer)
 		{
-			std::memset(md.cullResult.data(), CULL_CLIP, static_cast<std::size_t>(count));
+			std::memset(md.cullResult.data(), CULL_CLIP, static_cast<std::size_t>(countPadded));
 			return;
 		}
 
@@ -1037,18 +1080,27 @@ namespace trsoa
 
 		// full batches only (no OOB loads)
 		int base = 0;
-		for (; base + W <= count; base += W)
+		for (; base < countPadded; base += W)
 		{
 			bool anyActive = false;
 			for (int l = 0; l < W; ++l)
 			{
 				const int s = base + l;
 
-				// sphere-cull tylko gdy brak skali i frame==oldframe
+				// padded lanes nieaktywne
+				if (s >= count)
+				{
+					activeLane[l] = 0.0f;
+					continue;
+				}
+
 				const bool ok =
 					(t.nonNormalizedAxes[s] == 0) &&
-					(a.frame[s] == a.oldframe[s]) &&
-					(md.cullRadius[s] > 0.0f);
+					(md.cullRadius[s] > 0.0f) &&
+					(
+						(a.frame[s] == a.oldframe[s]) ||
+						((md.modelType[s] == static_cast<std::uint8_t>(modtype_t::MOD_IQM)) && (md.aabbValid[s] != 0u))
+						);
 
 				activeLane[l] = ok ? 1.0f : 0.0f;
 				anyActive |= ok;
@@ -1056,7 +1108,6 @@ namespace trsoa
 
 			if (!anyActive)
 			{
-				// wszyscy CLIP
 				std::memset(md.cullResult.data() + base, CULL_CLIP, static_cast<std::size_t>(W));
 				continue;
 			}
@@ -1103,8 +1154,8 @@ namespace trsoa
 
 				const batch dist = cx * nx + cy * ny + cz * nz - dd;
 
-				anyOut = anyOut || (dist < (-r));
-				anyClip = anyClip || (dist <= r);
+				anyOut = anyOut | (dist < (-r));
+				anyClip = anyClip | (dist <= r);
 			}
 
 			// inactive lanes -> CLIP
@@ -1114,9 +1165,9 @@ namespace trsoa
 			//   else IN
 			const auto activeMask = (active != batch(0.0f));
 
-			const auto outMask = activeMask && anyOut;
-			const auto clipMask = activeMask && (!anyOut) && anyClip;
-			const auto inMask = activeMask && (!anyOut) && (!anyClip);
+			const auto outMask = activeMask & anyOut;
+			const auto clipMask = activeMask & (!anyOut) & anyClip;
+			const auto inMask = activeMask & (!anyOut) & (!anyClip);
 
 			batch code = xsimd::select(outMask, fOut, fClip);
 			code = xsimd::select(inMask, fIn, code); // IN overrides CLIP for inMask
@@ -1128,67 +1179,12 @@ namespace trsoa
 				md.cullResult[base + l] = static_cast<std::uint8_t>(outLane[l]);
 			}
 		}
-
-		// tail scalar (safe)
-		for (int i = base; i < count; ++i)
-		{
-			if (t.nonNormalizedAxes[i] != 0 || a.frame[i] != a.oldframe[i])
-			{
-				md.cullResult[i] = CULL_CLIP;
-				continue;
-			}
-
-			const float lxS = md.cullLocal_x[i];
-			const float lyS = md.cullLocal_y[i];
-			const float lzS = md.cullLocal_z[i];
-			const float rS = md.cullRadius[i];
-
-			if (rS <= 0.0f)
-			{
-				md.cullResult[i] = CULL_CLIP;
-				continue;
-			}
-
-			const float cxS =
-				t.origin_x[i] +
-				t.ax0_x[i] * lxS + t.ax1_x[i] * lyS + t.ax2_x[i] * lzS;
-
-			const float cyS =
-				t.origin_y[i] +
-				t.ax0_y[i] * lxS + t.ax1_y[i] * lyS + t.ax2_y[i] * lzS;
-
-			const float czS =
-				t.origin_z[i] +
-				t.ax0_z[i] * lxS + t.ax1_z[i] * lyS + t.ax2_z[i] * lzS;
-
-			bool mightBeClipped = false;
-
-			for (int p = 0; p < 4; ++p)
-			{
-				const cplane_t& fr = vp.frustum[p];
-				const float dist = cxS * fr.normal[0] + cyS * fr.normal[1] + czS * fr.normal[2] - fr.dist;
-
-				if (dist < -rS)
-				{
-					md.cullResult[i] = CULL_OUT;
-					goto next_entity_tail;
-				}
-				if (dist <= rS)
-				{
-					mightBeClipped = true;
-				}
-			}
-
-			md.cullResult[i] = mightBeClipped ? CULL_CLIP : CULL_IN;
-
-		next_entity_tail:
-			(void)0;
-		}
 #else
 		// scalar fallback (bez xsimd)
 		for (int i = 0; i < count; ++i)
 		{
-			if (t.nonNormalizedAxes[i] != 0 || a.frame[i] != a.oldframe[i])
+			const bool isIqm = (md.modelType[i] == static_cast<std::uint8_t>(modtype_t::MOD_IQM));
+			if (t.nonNormalizedAxes[i] != 0 || (a.frame[i] != a.oldframe[i] && !(isIqm && md.aabbValid[i])))
 			{
 				md.cullResult[i] = CULL_CLIP;
 				continue;
@@ -1243,7 +1239,117 @@ namespace trsoa
 #endif
 	}
 
-	static inline void BuildVisibleModelLists(FrameSoA& soa) noexcept
+	// BRUSH (bmodel): dokładny test OBB vs frustum (szybszy niż 8 cornerów i usuwa redundancję AoS-culla).
+	// Uwaga: ustawiamy cullRadius < 0 jako marker "brush cull policzony" (bo BRUSH nie używa sfery).
+	static inline void ComputeBrushCullOBB_Batch(trsoa::FrameSoA& soa, const viewParms_t& vp) noexcept
+	{
+		auto& md = soa.modelDerived;
+		const int count = soa.models.count;
+
+		if (count <= 0)
+			return;
+
+		if (r_nocull->integer)
+		{
+			// Nie zmieniaj (albo ustaw CLIP) – byle stabilnie
+			for (int slot = 0; slot < count; ++slot)
+			{
+				if (md.modelType[slot] == static_cast<std::uint8_t>(modtype_t::MOD_BRUSH))
+					md.cullResult[slot] = CULL_CLIP;
+			}
+			return;
+		}
+
+		for (int slot = 0; slot < count; ++slot)
+		{
+			if (md.modelType[slot] != static_cast<std::uint8_t>(modtype_t::MOD_BRUSH))
+				continue;
+
+			// Jeśli już OUT (np. z wcześniejszego testu), nie licz drugi raz
+			if (md.cullResult[slot] == CULL_OUT)
+				continue;
+
+			const model_t* const m = md.modelPtr[slot];
+			const bmodel_t* const bm = (m ? m->bmodel : nullptr);
+			if (!bm)
+			{
+				md.cullResult[slot] = CULL_CLIP;
+				continue;
+			}
+
+			// local AABB
+			const float minx = bm->bounds[0][0], miny = bm->bounds[0][1], minz = bm->bounds[0][2];
+			const float maxx = bm->bounds[1][0], maxy = bm->bounds[1][1], maxz = bm->bounds[1][2];
+
+			const float cx = 0.5f * (minx + maxx);
+			const float cy = 0.5f * (miny + maxy);
+			const float cz = 0.5f * (minz + maxz);
+
+			const float ex = 0.5f * (maxx - minx);
+			const float ey = 0.5f * (maxy - miny);
+			const float ez = 0.5f * (maxz - minz);
+
+			// entity transform (SoA)
+			const float ox = soa.models.transform.origin_x[slot];
+			const float oy = soa.models.transform.origin_y[slot];
+			const float oz = soa.models.transform.origin_z[slot];
+
+			const float ax0x = soa.models.transform.ax0_x[slot];
+			const float ax0y = soa.models.transform.ax0_y[slot];
+			const float ax0z = soa.models.transform.ax0_z[slot];
+
+			const float ax1x = soa.models.transform.ax1_x[slot];
+			const float ax1y = soa.models.transform.ax1_y[slot];
+			const float ax1z = soa.models.transform.ax1_z[slot];
+
+			const float ax2x = soa.models.transform.ax2_x[slot];
+			const float ax2y = soa.models.transform.ax2_y[slot];
+			const float ax2z = soa.models.transform.ax2_z[slot];
+
+			// world center = origin + axis * localCenter
+			const float wcx = ox + ax0x * cx + ax1x * cy + ax2x * cz;
+			const float wcy = oy + ax0y * cx + ax1y * cy + ax2y * cz;
+			const float wcz = oz + ax0z * cx + ax1z * cy + ax2z * cz;
+
+			bool anyClip = false;
+			int  res = CULL_IN;
+
+			// Quake3 standardowo używa 4 planes
+			for (int p = 0; p < 4; ++p)
+			{
+				const cplane_t& pl = vp.frustum[p];
+				const float nx = pl.normal[0];
+				const float ny = pl.normal[1];
+				const float nz = pl.normal[2];
+
+				const float dist = (wcx * nx + wcy * ny + wcz * nz) - pl.dist;
+
+				// r = sum(|dot(n, axis_i)| * extent_i)
+				const float d0 = std::fabs(nx * ax0x + ny * ax0y + nz * ax0z);
+				const float d1 = std::fabs(nx * ax1x + ny * ax1y + nz * ax1z);
+				const float d2 = std::fabs(nx * ax2x + ny * ax2y + nz * ax2z);
+
+				const float rad = d0 * ex + d1 * ey + d2 * ez;
+
+				if (dist < -rad)
+				{
+					res = CULL_OUT;
+					break;
+				}
+				if (dist <= rad)
+				{
+					anyClip = true;
+				}
+			}
+
+			if (res != CULL_OUT)
+				res = anyClip ? CULL_CLIP : CULL_IN;
+
+			md.cullResult[slot] = res;
+		}
+	}
+
+	static inline void BuildVisibleModelLists(FrameSoA& soa, const viewParms_t& vp) noexcept
 	{
 		soa.visibleModelCount = 0;
 		soa.md3Count = 0;
@@ -1256,6 +1362,14 @@ namespace trsoa
 		for (int slot = 0; slot < count; ++slot)
 		{
 			if (soa.modelDerived.cullResult[slot] == CULL_OUT)
+				continue;
+
+			// Early RF filtering (removes branches from model dispatch)
+			const int entNum = static_cast<int>(soa.models.render.entNum[slot]);
+			const int renderfx = soa.models.render.renderfx[slot];
+			if (Skip_FirstPerson_InPortalViewFx(renderfx, vp))
+				continue;
+			if (Skip_ThirdPersonFx_InPrimaryViewFx(renderfx, vp))
 				continue;
 
 			soa.visibleModelSlots[soa.visibleModelCount++] = static_cast<std::uint16_t>(slot);
@@ -1348,55 +1462,61 @@ namespace trsoa
 
 		alignas(64) float fogTmp[W];
 
-		auto scalar_one = [&](const int slot) noexcept
-			{
-				const float ox = soa.models.transform.origin_x[slot];
-				const float oy = soa.models.transform.origin_y[slot];
-				const float oz = soa.models.transform.origin_z[slot];
-
-				// identycznie jak u Ciebie: localOrigin dodawane bez rotacji osi
-				const float cx = ox + md.cullLocal_x[slot];
-				const float cy = oy + md.cullLocal_y[slot];
-				const float cz = oz + md.cullLocal_z[slot];
-				const float r = md.cullRadius[slot];
-
-				int fogNumOut = 0;
-				for (int fi = 1; fi < numFogs; ++fi)
-				{
-					const fog_t& fog = tr.world->fogs[fi];
-
-					if (cx - r >= fog.bounds[1][0]) continue;
-					if (cx + r <= fog.bounds[0][0]) continue;
-
-					if (cy - r >= fog.bounds[1][1]) continue;
-					if (cy + r <= fog.bounds[0][1]) continue;
-
-					if (cz - r >= fog.bounds[1][2]) continue;
-					if (cz + r <= fog.bounds[0][2]) continue;
-
-					fogNumOut = fi;
-					break;
-				}
-
-				md.fogNum[slot] = static_cast<std::int16_t>(fogNumOut);
-			};
-
 		ForEachConsecutiveRun(soa.visibleModelSlots.data(), visCount,
 			[&](int base, int len) noexcept
 			{
-				// doprowadź do base%W==0 dla aligned loads
-				while (len > 0 && (base & (W - 1)) != 0)
+				const int end = base + len;
+
+				// cap do countPadded (bezpieczne OOB)
+				const int endCap = (end <= soa.models.countPadded) ? end : soa.models.countPadded;
+
+				// scalar helper dla pojedynczego slotu (tylko VISIBLE run)
+				auto fog_scalar_one = [&](int slot) noexcept
+					{
+						const float ox = soa.models.transform.origin_x[slot];
+						const float oy = soa.models.transform.origin_y[slot];
+						const float oz = soa.models.transform.origin_z[slot];
+
+						const float cx = ox + md.cullLocal_x[slot];
+						const float cy = oy + md.cullLocal_y[slot];
+						const float cz = oz + md.cullLocal_z[slot];
+						const float r = md.cullRadius[slot];
+
+						int fogNum = 0;
+						for (int fi = 1; fi < numFogs; ++fi)
+						{
+							const fog_t& fog = tr.world->fogs[fi];
+
+							if (cx - r >= fog.bounds[1][0]) continue;
+							if (cx + r <= fog.bounds[0][0]) continue;
+
+							if (cy - r >= fog.bounds[1][1]) continue;
+							if (cy + r <= fog.bounds[0][1]) continue;
+
+							if (cz - r >= fog.bounds[1][2]) continue;
+							if (cz + r <= fog.bounds[0][2]) continue;
+
+							fogNum = fi;
+							break;
+						}
+
+						md.fogNum[slot] = static_cast<std::int16_t>(fogNum);
+					};
+
+				int s = base;
+
+				// --- prolog scalar: wyrównaj s do W (żeby load_aligned działało) ---
+				while (s < endCap && (s & (W - 1)) != 0)
 				{
-					scalar_one(base);
-					++base;
-					--len;
+					fog_scalar_one(s);
+					++s;
 				}
 
-				int i = 0;
-				for (; i + W <= len; i += W)
-				{
-					const int s = base + i;
+				// --- SIMD środek: tylko pełne batch'e i tylko gdy s jest aligned do W ---
+				alignas(64) float fogTmp[W];
 
+				for (; s + W <= endCap; s += W)
+				{
 					const batch ox = batch::load_aligned(soa.models.transform.origin_x.data() + s);
 					const batch oy = batch::load_aligned(soa.models.transform.origin_y.data() + s);
 					const batch oz = batch::load_aligned(soa.models.transform.origin_z.data() + s);
@@ -1406,7 +1526,6 @@ namespace trsoa
 					const batch cz = oz + batch::load_aligned(md.cullLocal_z.data() + s);
 					const batch r = batch::load_aligned(md.cullRadius.data() + s);
 
-					// fogNum jako float (potem zrzucimy do int16)
 					batch fogNumF(0.0f);
 					auto unresolved = xsimd::batch_bool<float>(true);
 
@@ -1414,49 +1533,44 @@ namespace trsoa
 					{
 						const fog_t& fog = tr.world->fogs[fi];
 
-						const batch minX(fog.bounds[0][0]);
-						const batch minY(fog.bounds[0][1]);
-						const batch minZ(fog.bounds[0][2]);
+						const batch minX(fog.bounds[0][0]), minY(fog.bounds[0][1]), minZ(fog.bounds[0][2]);
+						const batch maxX(fog.bounds[1][0]), maxY(fog.bounds[1][1]), maxZ(fog.bounds[1][2]);
 
-						const batch maxX(fog.bounds[1][0]);
-						const batch maxY(fog.bounds[1][1]);
-						const batch maxZ(fog.bounds[1][2]);
+						const batch cx_m = cx - r, cx_p = cx + r;
+						const batch cy_m = cy - r, cy_p = cy + r;
+						const batch cz_m = cz - r, cz_p = cz + r;
 
-						// intersects:
-						// (cx - r < max) && (cx + r > min) ...
-						const batch cx_m = cx - r;
-						const batch cx_p = cx + r;
-						const batch cy_m = cy - r;
-						const batch cy_p = cy + r;
-						const batch cz_m = cz - r;
-						const batch cz_p = cz + r;
+						// masks: bitwise ops, nie && / ||
+						const auto ix = (cx_m < maxX) & (cx_p > minX);
+						const auto iy = (cy_m < maxY) & (cy_p > minY);
+						const auto iz = (cz_m < maxZ) & (cz_p > minZ);
 
-						const auto ix = (cx_m < maxX) && (cx_p > minX);
-						const auto iy = (cy_m < maxY) && (cy_p > minY);
-						const auto iz = (cz_m < maxZ) && (cz_p > minZ);
+						const auto intersects = ix & iy & iz;
 
-						const auto intersects = ix && iy && iz;
-
-						const auto hit = unresolved && intersects;
+						const auto hit = unresolved & intersects;
 						fogNumF = xsimd::select(hit, batch(static_cast<float>(fi)), fogNumF);
 
-						// lane’y które już trafiły albo nie intersectują dalej:
-						unresolved = unresolved && (!intersects);
-
-						// jeśli wszystkie lane’y już rozstrzygnięte, można przerwać (opcjonalnie)
-						// (xsimd nie ma taniego any(), więc to zostawiamy bez tego — zero overhead)
+						unresolved = unresolved & (!intersects);
 					}
 
-					// store + cast
 					fogNumF.store_aligned(fogTmp);
+
+					// zapis tylko dla slotów w tym runie (s..end)
 					for (int l = 0; l < W; ++l)
-						md.fogNum[s + l] = static_cast<std::int16_t>(fogTmp[l]);
+					{
+						const int idx = s + l;
+						if (idx >= end) break;
+						md.fogNum[idx] = static_cast<std::int16_t>(fogTmp[l]);
+					}
 				}
 
-				// tail runu
-				for (; i < len; ++i)
-					scalar_one(base + i);
+				// --- tail scalar (reszta runu) ---
+				for (; s < endCap; ++s)
+				{
+					fog_scalar_one(s);
+				}
 			});
+
 #else
 		for (int vi = 0; vi < visCount; ++vi)
 		{
@@ -1922,46 +2036,146 @@ namespace trsoa
 
 	static inline void ComputeFxFogNums(FrameSoA& soa, const trRefdef_t& refdef) noexcept
 	{
-		for (int i = 0; i < soa.sprites.count; ++i)
+		if (refdef.rdflags & RDF_NOWORLDMODEL)
 		{
+			for (int i = 0; i < soa.sprites.count; ++i)    soa.sprites.fogNum[i] = 0;
+			for (int i = 0; i < soa.beams.count; ++i)      soa.beams.fogNum[i] = 0;
+			for (int i = 0; i < soa.lightning.count; ++i)  soa.lightning.fogNum[i] = 0;
+			for (int i = 0; i < soa.rail_core.count; ++i)  soa.rail_core.fogNum[i] = 0;
+			for (int i = 0; i < soa.rail_rings.count; ++i) soa.rail_rings.fogNum[i] = 0;
+			return;
+		}
+
+		const int numFogs = (tr.world ? tr.world->numfogs : 0);
+		if (numFogs <= 1)
+		{
+			for (int i = 0; i < soa.sprites.count; ++i)    soa.sprites.fogNum[i] = 0;
+			for (int i = 0; i < soa.beams.count; ++i)      soa.beams.fogNum[i] = 0;
+			for (int i = 0; i < soa.lightning.count; ++i)  soa.lightning.fogNum[i] = 0;
+			for (int i = 0; i < soa.rail_core.count; ++i)  soa.rail_core.fogNum[i] = 0;
+			for (int i = 0; i < soa.rail_rings.count; ++i) soa.rail_rings.fogNum[i] = 0;
+			return;
+		}
+
+#if TR_HAS_XSIMD
+		using f32 = xsimd::batch<float>;
+		using i32 = xsimd::batch<std::int32_t>;
+		constexpr int W = static_cast<int>(f32::size);
+
+		alignas(64) float outTmp[W];
+
+		auto fog_batch = [&](const int countPadded,
+			const float* ox, const float* oy, const float* oz,
+			const float* radiusOrNull,
+			const std::int32_t* renderfx,
+			std::int16_t* outFog) noexcept
+			{
+				for (int i = 0; i < countPadded; i += W)
+				{
+					const f32 x = f32::load_unaligned(ox + i);
+					const f32 y = f32::load_unaligned(oy + i);
+					const f32 z = f32::load_unaligned(oz + i);
+
+					const f32 r = radiusOrNull ? f32::load_unaligned(radiusOrNull + i) : f32(0.0f);
+
+					f32 fogF(0.0f);
+					auto unresolved = xsimd::batch_bool<float>(true);
+
+					for (int fi = 1; fi < numFogs; ++fi)
+					{
+						const fog_t& fog = tr.world->fogs[fi];
+
+						const f32 minX(fog.bounds[0][0]), minY(fog.bounds[0][1]), minZ(fog.bounds[0][2]);
+						const f32 maxX(fog.bounds[1][0]), maxY(fog.bounds[1][1]), maxZ(fog.bounds[1][2]);
+
+						const f32 xm = x - r, xp = x + r;
+						const f32 ym = y - r, yp = y + r;
+						const f32 zm = z - r, zp = z + r;
+
+						// IMPORTANT: use bitwise ops on masks, not &&/||
+						const auto ix = (xm < maxX) & (xp > minX);
+						const auto iy = (ym < maxY) & (yp > minY);
+						const auto iz = (zm < maxZ) & (zp > minZ);
+
+						const auto intersects = ix & iy & iz;
+						const auto hit = unresolved & intersects;
+
+						fogF = xsimd::select(hit, f32(static_cast<float>(fi)), fogF);
+						unresolved = unresolved & (!intersects);
+					}
+
+					fogF.store_unaligned(outTmp);
+
+					// crosshair lanes => 0 (do it scalar to avoid mask type mismatch: int-mask vs float-mask)
+					for (int l = 0; l < W; ++l)
+					{
+						const int idx = i + l;
+						outFog[idx] = (renderfx[idx] & RF_CROSSHAIR) ? 0 : static_cast<std::int16_t>(outTmp[l]);
+					}
+				}
+			};
+
+		// sprites: origin + radius
+		fog_batch(soa.sprites.countPadded,
+			soa.sprites.origin_x.data(), soa.sprites.origin_y.data(), soa.sprites.origin_z.data(),
+			soa.sprites.radius.data(),
+			soa.sprites.renderfx.data(),
+			soa.sprites.fogNum.data());
+
+		// beams/lightning/rail: używamy from_xyz i radius=0
+		fog_batch(soa.beams.countPadded,
+			soa.beams.from_x.data(), soa.beams.from_y.data(), soa.beams.from_z.data(),
+			nullptr,
+			soa.beams.renderfx.data(),
+			soa.beams.fogNum.data());
+
+		fog_batch(soa.lightning.countPadded,
+			soa.lightning.from_x.data(), soa.lightning.from_y.data(), soa.lightning.from_z.data(),
+			nullptr,
+			soa.lightning.renderfx.data(),
+			soa.lightning.fogNum.data());
+
+		fog_batch(soa.rail_core.countPadded,
+			soa.rail_core.from_x.data(), soa.rail_core.from_y.data(), soa.rail_core.from_z.data(),
+			nullptr,
+			soa.rail_core.renderfx.data(),
+			soa.rail_core.fogNum.data());
+
+		fog_batch(soa.rail_rings.countPadded,
+			soa.rail_rings.from_x.data(), soa.rail_rings.from_y.data(), soa.rail_rings.from_z.data(),
+			nullptr,
+			soa.rail_rings.renderfx.data(),
+			soa.rail_rings.fogNum.data());
+
+#else
+		// scalar fallback (zostaw jak było)
+		for (int i = 0; i < soa.sprites.count; ++i)
 			soa.sprites.fogNum[i] = static_cast<std::int16_t>(
 				SpriteFogNum_SoA(soa.sprites.origin_x[i], soa.sprites.origin_y[i], soa.sprites.origin_z[i],
 					soa.sprites.radius[i], soa.sprites.renderfx[i], refdef));
-		}
 
 		for (int i = 0; i < soa.beams.count; ++i)
-		{
-			// beam uses ent.e.origin + ent.e.radius w oryginale (u ciebie radius nie było -> weź frameOrDiameter jako fallback 0)
-			const float r = 0.0f;
 			soa.beams.fogNum[i] = static_cast<std::int16_t>(
 				SpriteFogNum_SoA(soa.beams.from_x[i], soa.beams.from_y[i], soa.beams.from_z[i],
-					r, soa.beams.renderfx[i], refdef));
-		}
+					0.0f, soa.beams.renderfx[i], refdef));
 
 		for (int i = 0; i < soa.lightning.count; ++i)
-		{
-			const float r = 0.0f;
 			soa.lightning.fogNum[i] = static_cast<std::int16_t>(
 				SpriteFogNum_SoA(soa.lightning.from_x[i], soa.lightning.from_y[i], soa.lightning.from_z[i],
-					r, soa.lightning.renderfx[i], refdef));
-		}
+					0.0f, soa.lightning.renderfx[i], refdef));
 
 		for (int i = 0; i < soa.rail_core.count; ++i)
-		{
-			const float r = 0.0f;
 			soa.rail_core.fogNum[i] = static_cast<std::int16_t>(
 				SpriteFogNum_SoA(soa.rail_core.from_x[i], soa.rail_core.from_y[i], soa.rail_core.from_z[i],
-					r, soa.rail_core.renderfx[i], refdef));
-		}
+					0.0f, soa.rail_core.renderfx[i], refdef));
 
 		for (int i = 0; i < soa.rail_rings.count; ++i)
-		{
-			const float r = 0.0f;
 			soa.rail_rings.fogNum[i] = static_cast<std::int16_t>(
 				SpriteFogNum_SoA(soa.rail_rings.from_x[i], soa.rail_rings.from_y[i], soa.rail_rings.from_z[i],
-					r, soa.rail_rings.renderfx[i], refdef));
-		}
+					0.0f, soa.rail_rings.renderfx[i], refdef));
+#endif
 	}
+
 
 	TR_FORCEINLINE void TransformDlights_FromOr(const int count, dlight_t* TR_RESTRICT dl, const orientationr_t& ort) noexcept
 	{
@@ -1994,18 +2208,18 @@ namespace trsoa
 				{
 					const dlight_t& d = dl[base + l];
 
-					dxL[l] = d.origin[0]  - ox;
-					dyL[l] = d.origin[1]  - oy;
-					dzL[l] = d.origin[2]  - oz;
+					dxL[l] = d.origin[0] - ox;
+					dyL[l] = d.origin[1] - oy;
+					dzL[l] = d.origin[2] - oz;
 
 					dx2L[l] = d.origin2[0] - ox;
 					dy2L[l] = d.origin2[1] - oy;
 					dz2L[l] = d.origin2[2] - oz;
 				}
 
-				const batch dx  = xsimd::load_aligned(dxL);
-				const batch dy  = xsimd::load_aligned(dyL);
-				const batch dz  = xsimd::load_aligned(dzL);
+				const batch dx = xsimd::load_aligned(dxL);
+				const batch dy = xsimd::load_aligned(dyL);
+				const batch dz = xsimd::load_aligned(dzL);
 
 				const batch dx2 = xsimd::load_aligned(dx2L);
 				const batch dy2 = xsimd::load_aligned(dy2L);
@@ -2051,9 +2265,9 @@ namespace trsoa
 			{
 				dlight_t& d = dl[i];
 
-				const float dxs  = d.origin[0]  - ox;
-				const float dys  = d.origin[1]  - oy;
-				const float dzs  = d.origin[2]  - oz;
+				const float dxs = d.origin[0] - ox;
+				const float dys = d.origin[1] - oy;
+				const float dzs = d.origin[2] - oz;
 
 				d.transformed[0] = dxs * ax00 + dys * ax01 + dzs * ax02;
 				d.transformed[1] = dxs * ax10 + dys * ax11 + dzs * ax12;
@@ -2076,9 +2290,9 @@ namespace trsoa
 		{
 			dlight_t& d = dl[i];
 
-			const float dxs  = d.origin[0]  - ox;
-			const float dys  = d.origin[1]  - oy;
-			const float dzs  = d.origin[2]  - oz;
+			const float dxs = d.origin[0] - ox;
+			const float dys = d.origin[1] - oy;
+			const float dzs = d.origin[2] - oz;
 
 			d.transformed[0] = dxs * ax00 + dys * ax01 + dzs * ax02;
 			d.transformed[1] = dxs * ax10 + dys * ax11 + dzs * ax12;
@@ -2110,35 +2324,35 @@ namespace trsoa
 		using batch = xsimd::batch<float>;
 		constexpr int W = static_cast<int>(batch::size);
 
-		auto scalar_one = [&](const int slot) noexcept
-			{
-				const float dx = camX - t.origin_x[slot];
-				const float dy = camY - t.origin_y[slot];
-				const float dz = camZ - t.origin_z[slot];
-				const float inv = t.axisLenInv[slot];
-
-				d.viewOrigin_x[slot] = (dx * t.ax0_x[slot] + dy * t.ax0_y[slot] + dz * t.ax0_z[slot]) * inv;
-				d.viewOrigin_y[slot] = (dx * t.ax1_x[slot] + dy * t.ax1_y[slot] + dz * t.ax1_z[slot]) * inv;
-				d.viewOrigin_z[slot] = (dx * t.ax2_x[slot] + dy * t.ax2_y[slot] + dz * t.ax2_z[slot]) * inv;
-			};
-
 		ForEachConsecutiveRun(soa.visibleModelSlots.data(), visCount,
 			[&](int base, int len) noexcept
 			{
-				// doprowadź base do alignmentu W (żeby móc używać load/store_aligned)
-				while (len > 0 && (base & (W - 1)) != 0)
+				const int end = base + len;
+				const int endCap = (end <= soa.models.countPadded) ? end : soa.models.countPadded;
+
+				auto view_scalar_one = [&](int slot) noexcept
+					{
+						const float dx = camX - t.origin_x[slot];
+						const float dy = camY - t.origin_y[slot];
+						const float dz = camZ - t.origin_z[slot];
+						const float inv = t.axisLenInv[slot];
+
+						d.viewOrigin_x[slot] = (dx * t.ax0_x[slot] + dy * t.ax0_y[slot] + dz * t.ax0_z[slot]) * inv;
+						d.viewOrigin_y[slot] = (dx * t.ax1_x[slot] + dy * t.ax1_y[slot] + dz * t.ax1_z[slot]) * inv;
+						d.viewOrigin_z[slot] = (dx * t.ax2_x[slot] + dy * t.ax2_y[slot] + dz * t.ax2_z[slot]) * inv;
+					};
+
+				int s = base;
+
+				// prolog: align do W
+				while (s < endCap && (s & (W - 1)) != 0)
 				{
-					scalar_one(base);
-					++base;
-					--len;
+					view_scalar_one(s);
+					++s;
 				}
 
-				// bulk SIMD
-				int i = 0;
-				for (; i + W <= len; i += W)
+				for (; s + W <= endCap; s += W)
 				{
-					const int s = base + i;
-
 					const batch ox = batch::load_aligned(t.origin_x.data() + s);
 					const batch oy = batch::load_aligned(t.origin_y.data() + s);
 					const batch oz = batch::load_aligned(t.origin_z.data() + s);
@@ -2170,9 +2384,11 @@ namespace trsoa
 					v2.store_aligned(d.viewOrigin_z.data() + s);
 				}
 
-				// tail runu
-				for (; i < len; ++i)
-					scalar_one(base + i);
+				// tail scalar
+				for (; s < endCap; ++s)
+				{
+					view_scalar_one(s);
+				}
 			});
 #else
 		for (int vi = 0; vi < visCount; ++vi)
@@ -2209,22 +2425,24 @@ namespace trsoa
 		const __m128 B2 = _mm_load_ps(worldM + 8);
 		const __m128 B3 = _mm_load_ps(worldM + 12);
 
-		for (int vi = 0; vi < visCount; ++vi)
-		{
-			const int slot = static_cast<int>(soa.visibleModelSlots[vi]);
+		ForEachConsecutiveRun(soa.visibleModelSlots.data(), visCount,
+			[&](int base, int len) noexcept
+			{
+				for (int slot = base; slot < base + len; ++slot)
+				{
+					float* const outM = md.mat_ptr(slot);
 
-			// outM = md.modelMatrix[slot*16]
-			float* const outM = md.mat_ptr(slot);
+					trsoa::MultAxisOriginWithWorldMatrix_sse_preB(
+						B0, B1, B2, B3,
+						t.ax0_x[slot], t.ax0_y[slot], t.ax0_z[slot],
+						t.ax1_x[slot], t.ax1_y[slot], t.ax1_z[slot],
+						t.ax2_x[slot], t.ax2_y[slot], t.ax2_z[slot],
+						t.origin_x[slot], t.origin_y[slot], t.origin_z[slot],
+						outM
+					);
+				}
+			});
 
-			trsoa::MultAxisOriginWithWorldMatrix_sse_preB(
-				B0, B1, B2, B3,
-				t.ax0_x[slot], t.ax0_y[slot], t.ax0_z[slot],
-				t.ax1_x[slot], t.ax1_y[slot], t.ax1_z[slot],
-				t.ax2_x[slot], t.ax2_y[slot], t.ax2_z[slot],
-				t.origin_x[slot], t.origin_y[slot], t.origin_z[slot],
-				outM
-			);
-		}
 
 		// I TO JEST “WPIĘCIE” – po macierzach, bez żadnego mieszania w środku:
 		ComputeViewOrigin_VisibleRuns(soa, vp);
