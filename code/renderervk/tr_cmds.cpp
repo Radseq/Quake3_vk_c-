@@ -193,6 +193,7 @@ void R_AddDrawSurfCmd(drawSurf_t &drawSurfs, int numDrawSurfs)
 	cmd->commandId = renderCommand_t::RC_DRAW_SURFS;
 
 	cmd->drawSurfs = &drawSurfs;
+	cmd->entityFrameCache = backEndData->entityFrameCache;
 	cmd->numDrawSurfs = numDrawSurfs;
 
 	cmd->refdef = tr.refdef;

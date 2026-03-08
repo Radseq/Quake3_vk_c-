@@ -148,6 +148,68 @@ static void SetViewportAndScissor(void)
 	vk_inst.cmd->depth_range = Vk_Depth_Range::DEPTH_RANGE_COUNT;
 }
 
+static inline const entityFrameCache_t* RB_FindEntityFrameCache(const int entityNum)
+{
+	if (!backEnd.entityFrameCache || entityNum < 0 || entityNum >= backEnd.refdef.num_entities)
+	{
+		return nullptr;
+	}
+
+	const entityFrameCache_t& cache = backEnd.entityFrameCache[entityNum];
+	return cache.valid ? &cache : nullptr;
+}
+
+static inline void RB_CommitEntityFrameState(const bool depthHack)
+{
+	// we have to reset the shaderTime as well otherwise image animations on
+	// the world (like water) continue with the wrong frame
+	tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
+
+	Com_Memcpy(vk_world.modelview_transform, backEnd.ort.modelMatrix, 64);
+	tess.depthRange = depthHack ? Vk_Depth_Range::DEPTH_RANGE_WEAPON : Vk_Depth_Range::DEPTH_RANGE_NORMAL;
+	vk_update_mvp(NULL);
+}
+
+static inline bool RB_ApplyCachedEntityFrame(const int entityNum)
+{
+	const entityFrameCache_t* cache = RB_FindEntityFrameCache(entityNum);
+	if (!cache)
+	{
+		return false;
+	}
+
+	backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
+	backEnd.refdef.floatTime = cache->floatTime;
+	backEnd.ort = cache->ort;
+#ifdef USE_LEGACY_DLIGHTS
+#ifdef USE_PMLIGHT
+	if (!r_dlightMode->integer)
+#endif
+		if (backEnd.currentEntity->needDlights)
+		{
+			R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+		}
+#endif // USE_LEGACY_DLIGHTS
+
+	RB_CommitEntityFrameState(cache->depthHack);
+	return true;
+}
+
+static inline void RB_ApplyWorldEntityFrame(const double originalTime)
+{
+	backEnd.currentEntity = &tr.worldEntity;
+	backEnd.refdef.floatTime = originalTime;
+	backEnd.ort = backEnd.viewParms.world;
+#ifdef USE_LEGACY_DLIGHTS
+#ifdef USE_PMLIGHT
+	if (!r_dlightMode->integer)
+#endif
+		R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+#endif // USE_LEGACY_DLIGHTS
+
+	RB_CommitEntityFrameState(false);
+}
+
 /*
 =================
 RB_BeginDrawingView
@@ -251,7 +313,7 @@ static void RB_RenderDrawSurfList(drawSurf_t* drawSurfs, const int numDrawSurfs)
 		// change the tess parameters if needed
 		// a "entityMergable" shader is a shader that can have surfaces from separate
 		// entities merged into a single batch, like smoke and blood puff sprites
-		if (((oldSort ^ drawSurfs->sort) & ~QSORT_REFENTITYNUM_MASK) || !shader->entityMergable)
+		if (((oldSort ^ drawSurf->sort) & ~QSORT_REFENTITYNUM_MASK) || !shader->entityMergable)
 		{
 			//if (oldShader != NULL)
 			//{
@@ -282,58 +344,51 @@ static void RB_RenderDrawSurfList(drawSurf_t* drawSurfs, const int numDrawSurfs)
 
 			if (entityNum != REFENTITYNUM_WORLD)
 			{
-				backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
-				if (backEnd.currentEntity->intShaderTime)
-					backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
-				else
-					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
+				if (!RB_ApplyCachedEntityFrame(entityNum))
+				{
+					backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
+					if (backEnd.currentEntity->intShaderTime)
+						backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
+					else
+						backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
 
-				// set up the transformation matrix
-				R_RotateForEntity(*backEnd.currentEntity, backEnd.viewParms, backEnd.ort);
-				// set up the dynamic lighting if needed
+					R_RotateForEntity(*backEnd.currentEntity, backEnd.viewParms, backEnd.ort);
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
-				if (!r_dlightMode->integer)
+					if (!r_dlightMode->integer)
 #endif
-					if (backEnd.currentEntity->needDlights)
-					{
-						R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
-					}
+						if (backEnd.currentEntity->needDlights)
+						{
+							R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+						}
 #endif // USE_LEGACY_DLIGHTS
-				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
+					depthRange = (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) != 0;
+					RB_CommitEntityFrameState(depthRange);
+				}
+				else
 				{
-					// hack the depth range to prevent view model from poking into walls
-					depthRange = true;
+					depthRange = backEnd.entityFrameCache[entityNum].depthHack;
+				}
 
-					if (backEnd.currentEntity->e.renderfx & RF_CROSSHAIR)
-						isCrosshair = true;
+				// crosshair shader should prevent weapon depth hack
+				constexpr float kNearestSort = static_cast<float>(shaderSort_t::SS_NEAREST);
+
+				if (shader->sort <= kNearestSort &&
+					entityNum == REFENTITYNUM_WORLD + 1)
+				{
+					tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_NORMAL;
+					isCrosshair = true;
+				}
+				else
+				{
+					tess.depthRange = depthRange ? Vk_Depth_Range::DEPTH_RANGE_WEAPON : Vk_Depth_Range::DEPTH_RANGE_NORMAL;
 				}
 			}
 			else
 			{
-				backEnd.currentEntity = &tr.worldEntity;
-				backEnd.refdef.floatTime = originalTime;
-				backEnd.ort = backEnd.viewParms.world;
-#ifdef USE_LEGACY_DLIGHTS
-#ifdef USE_PMLIGHT
-				if (!r_dlightMode->integer)
-#endif
-					R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
-#endif // USE_LEGACY_DLIGHTS
+				RB_ApplyWorldEntityFrame(originalTime);
+				tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_NORMAL;
 			}
-
-			// we have to reset the shaderTime as well otherwise image animations on
-			// the world (like water) continue with the wrong frame
-			tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
-
-			Com_Memcpy(vk_world.modelview_transform, backEnd.ort.modelMatrix, 64);
-			tess.depthRange = depthRange ? Vk_Depth_Range::DEPTH_RANGE_WEAPON : Vk_Depth_Range::DEPTH_RANGE_NORMAL;
-			vk_update_mvp(NULL);
-
-			//
-			// change depthrange. Also change projection matrix so first person weapon does not look like coming
-			// out of the screen.
-			//
 
 			oldEntityNum = entityNum;
 		}
@@ -454,47 +509,46 @@ static void RB_RenderLitSurfList(dlight_t& dl)
 
 			if (entityNum != REFENTITYNUM_WORLD)
 			{
-				backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
-
-				if (backEnd.currentEntity->intShaderTime)
-					backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
-				else
-					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
-
-				// set up the transformation matrix
-				R_RotateForEntity(*backEnd.currentEntity, backEnd.viewParms, backEnd.ort);
-
-				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
+				if (!RB_ApplyCachedEntityFrame(entityNum))
 				{
-					// hack the depth range to prevent view model from poking into walls
-					depthRange = true;
+					backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
 
-					if (backEnd.currentEntity->e.renderfx & RF_CROSSHAIR)
-						isCrosshair = true;
+					if (backEnd.currentEntity->intShaderTime)
+						backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
+					else
+						backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
+
+					R_RotateForEntity(*backEnd.currentEntity, backEnd.viewParms, backEnd.ort);
+					depthRange = (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) != 0;
+					RB_CommitEntityFrameState(depthRange);
+				}
+				else
+				{
+					depthRange = backEnd.entityFrameCache[entityNum].depthHack;
+				}
+
+				// crosshair shader should prevent weapon depth hack
+				constexpr float kNearestSort = static_cast<float>(shaderSort_t::SS_NEAREST);
+
+				if (shader->sort <= kNearestSort &&
+					entityNum == REFENTITYNUM_WORLD + 1)
+				{
+					tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_NORMAL;
+					isCrosshair = true;
+				}
+				else
+				{
+					tess.depthRange = depthRange ? Vk_Depth_Range::DEPTH_RANGE_WEAPON : Vk_Depth_Range::DEPTH_RANGE_NORMAL;
 				}
 			}
 			else
 			{
-				backEnd.currentEntity = &tr.worldEntity;
-				backEnd.refdef.floatTime = originalTime;
-				backEnd.ort = backEnd.viewParms.world;
+				RB_ApplyWorldEntityFrame(originalTime);
+				tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_NORMAL;
 			}
-
-			// we have to reset the shaderTime as well otherwise image animations on
-			// the world (like water) continue with the wrong frame
-			tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
-
-			// set up the dynamic lighting
-			R_TransformDlights(1, &dl, backEnd.ort);
-			tess.dlightUpdateParams = true;
-
-			tess.depthRange = depthRange ? Vk_Depth_Range::DEPTH_RANGE_WEAPON : Vk_Depth_Range::DEPTH_RANGE_NORMAL;
-			Com_Memcpy(vk_world.modelview_transform, backEnd.ort.modelMatrix, 64);
-			vk_update_mvp(NULL);
 
 			oldEntityNum = entityNum;
 		}
-
 		// add the triangles for this surface
 		rb_surfaceTable[static_cast<uint32_t>(*litSurf->surface)](litSurf->surface);
 	}
@@ -832,6 +886,7 @@ static const void* RB_DrawSurfs(const void* data)
 
 	backEnd.refdef = cmd->refdef;
 	backEnd.viewParms = cmd->viewParms;
+	backEnd.entityFrameCache = cmd->entityFrameCache;
 
 #ifdef USE_VBO
 	VBO_UnBind();

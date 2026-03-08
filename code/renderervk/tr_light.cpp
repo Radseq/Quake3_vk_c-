@@ -23,8 +23,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_light.hpp"
 #include "math.hpp"
 #include <assert.h>
-#include "tr_soa_frame.hpp"
-#include "tr_soa_stage2.hpp"
 
 constexpr int DLIGHT_AT_RADIUS = 16;
 // at the edge of a dlight's influence, this amount of light will be added
@@ -48,25 +46,7 @@ the back end (before doing the lighting calculation)
 void R_TransformDlights(const int count, dlight_t *dl, const orientationr_t &ort)
 {
     if (count == 0) return;
-#if defined(USE_AoS_to_SoA_SIMD) 
-    auto& soa = trsoa::GetFrameSoA();
-    if (trsoa::SoA_ValidThisFrame(soa))
-    {
-        // view dlights (PMLIGHT / world recursion)
-        if (dl == tr.viewParms.dlights && count == soa.dlights_view.count)
-        {
-            trsoa::TransformDlights_SoA_Writeback(soa.dlights_view, dl, ort);
-            return;
-        }
 
-        // refdef dlights (entity lighting / DlightBmodel)
-        if (dl == tr.refdef.dlights && count == soa.dlights_refdef.count)
-        {
-            trsoa::TransformDlights_SoA_Writeback(soa.dlights_refdef, dl, ort);
-            return;
-        }
-    }
-#endif
     vec3_t temp{}, temp2{};
 
     for (int i = 0; i < count; i++, dl++)

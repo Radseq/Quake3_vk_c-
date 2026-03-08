@@ -291,8 +291,6 @@
     <ClInclude Include="..\..\renderervk\tr_shade_calc.hpp" />
     <ClInclude Include="..\..\renderervk\tr_shadows.hpp" />
     <ClInclude Include="..\..\renderervk\tr_sky.hpp" />
-    <ClInclude Include="..\..\renderervk\tr_soa_frame.hpp" />
-    <ClInclude Include="..\..\renderervk\tr_soa_stage2.hpp" />
     <ClInclude Include="..\..\renderervk\tr_surface.hpp" />
     <ClInclude Include="..\..\renderervk\tr_world.hpp" />
     <ClInclude Include="..\..\renderervk\utils.hpp" />

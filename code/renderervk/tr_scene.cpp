@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cstring>
 #include "math.hpp"
 #include "utils.hpp"
+#include <numeric>
 
 int r_numdlights;
 
@@ -103,8 +104,8 @@ Adds all the scene's polys into this view's drawsurf list
 void R_AddPolygonSurfaces(void)
 {
 	int i;
-	shader_t *sh;
-	const srfPoly_t *poly;
+	shader_t* sh;
+	const srfPoly_t* poly;
 
 	tr.currentEntityNum = REFENTITYNUM_WORLD;
 	tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
@@ -112,7 +113,7 @@ void R_AddPolygonSurfaces(void)
 	for (i = 0, poly = tr.refdef.polys; i < tr.refdef.numPolys; i++, poly++)
 	{
 		sh = R_GetShaderByHandle(poly->hShader);
-		R_AddDrawSurf(const_cast<surfaceType_t &>(reinterpret_cast<const surfaceType_t &>(*poly)), *sh, poly->fogIndex, 0);
+		R_AddDrawSurf(const_cast<surfaceType_t&>(reinterpret_cast<const surfaceType_t&>(*poly)), *sh, poly->fogIndex, 0);
 	}
 }
 
@@ -122,7 +123,7 @@ RE_AddPolyToScene
 
 =====================
 */
-void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts, int numPolys)
+void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t* verts, int numPolys)
 {
 	if (!tr.registered)
 	{
@@ -131,12 +132,12 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 
 	int i, j;
 	int fogIndex;
-	
+
 	vec3_t bounds[2]{};
 
 #if 0
-	if ( !hShader ) {
-		ri.Printf( PRINT_WARNING, "WARNING: RE_AddPolyToScene: NULL poly shader\n");
+	if (!hShader) {
+		ri.Printf(PRINT_WARNING, "WARNING: RE_AddPolyToScene: NULL poly shader\n");
 		return;
 	}
 #endif
@@ -162,7 +163,7 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 
 		Com_Memcpy(poly.verts, &verts[numVerts * j], numVerts * sizeof(*verts));
 #if 0
-		if ( glConfig.hardwareType == GLHW_RAGEPRO ) {
+		if (glConfig.hardwareType == GLHW_RAGEPRO) {
 			poly->verts->modulate[0] = 255;
 			poly->verts->modulate[1] = 255;
 			poly->verts->modulate[2] = 255;
@@ -195,9 +196,9 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 			for (fogIndex = 1; fogIndex < tr.world->numfogs; fogIndex++)
 			{
 				const fog_t& fog = tr.world->fogs[fogIndex];
-				if (bounds[1][0] >= fog.bounds[0][0] && bounds[1][1] >= 
+				if (bounds[1][0] >= fog.bounds[0][0] && bounds[1][1] >=
 					fog.bounds[0][1] && bounds[1][2] >= fog.bounds[0][2] &&
-					bounds[0][0] <= fog.bounds[1][0] && bounds[0][1] <= fog.bounds[1][1] && 
+					bounds[0][0] <= fog.bounds[1][0] && bounds[0][1] <= fog.bounds[1][1] &&
 					bounds[0][2] <= fog.bounds[1][2])
 				{
 					break;
@@ -214,9 +215,9 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 
 //=================================================================================
 
-static int isnan_fp(const float *f)
+static int isnan_fp(const float* f)
 {
-	uint32_t u = *((uint32_t *)f);
+	uint32_t u = *((uint32_t*)f);
 	u = 0x7F800000 - (u & 0x7FFFFFFF);
 	return (int)(u >> 31);
 }
@@ -226,7 +227,7 @@ static int isnan_fp(const float *f)
 RE_AddRefEntityToScene
 =====================
 */
-void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
+void RE_AddRefEntityToScene(const refEntity_t* ent, bool intShaderTime)
 {
 	if (!tr.registered)
 	{
@@ -255,6 +256,12 @@ void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
 	backEndData->entities[r_numentities].e = *ent;
 	backEndData->entities[r_numentities].lightingCalculated = false;
 	backEndData->entities[r_numentities].intShaderTime = intShaderTime;
+	entityFrameCache_t& cache = backEndData->entityFrameCache[r_numentities];
+	cache.valid = false;
+	cache.actorPrepared = false;
+	cache.actorVisible = false;
+	cache.actorLod = 0;
+	cache.actorFogNum = 0;
 
 	r_numentities++;
 }
@@ -299,7 +306,7 @@ static void RE_AddDynamicLightToScene(const vec3_t org, float intensity, float r
 		b = LERP(luminance, b, r_dlightSaturation->value);
 	}
 
-	dlight_t &dl = backEndData->dlights[r_numdlights++];
+	dlight_t& dl = backEndData->dlights[r_numdlights++];
 	VectorCopy(org, dl.origin);
 	dl.radius = intensity;
 	dl.color[0] = r;
@@ -353,7 +360,7 @@ void RE_AddLinearLightToScene(const vec3_t start, const vec3_t end, float intens
 		b = LERP(luminance, b, r_dlightSaturation->value);
 	}
 
-	dlight_t &dl = backEndData->dlights[r_numdlights++];
+	dlight_t& dl = backEndData->dlights[r_numdlights++];
 	VectorCopy(start, dl.origin);
 	VectorCopy(end, dl.origin2);
 	dl.radius = intensity;
@@ -386,7 +393,7 @@ void RE_AddAdditiveLightToScene(const vec3_t org, float intensity, float r, floa
 	RE_AddDynamicLightToScene(org, intensity, r, g, b, true);
 }
 
-void *R_GetCommandBuffer(int bytes);
+void* R_GetCommandBuffer(int bytes);
 
 /*
 @@@@@@@@@@@@@@@@@@@@@
@@ -399,179 +406,201 @@ Rendering a scene may require multiple views to be rendered
 to handle mirrors,
 @@@@@@@@@@@@@@@@@@@@@
 */
-void RE_RenderScene(const refdef_t *fd)
+static std::vector<double> adsf{};
+void RE_RenderScene(const refdef_t* fd)
 {
-	if (!tr.registered || r_norefresh->integer)
-		return;
 
-	int startTime = ri.Milliseconds();
 
-	if (!tr.world && !(fd->rdflags & RDF_NOWORLDMODEL))
-	{
-		ri.Error(ERR_DROP, "R_RenderScene: NULL worldmodel");
-	}
+	double t_empty = benchmark_ns([&] {});
+	double t_work = benchmark_ns([&] {
 
-	renderCommand_t lastRenderCommand;
 
-	std::memcpy(tr.refdef.text, fd->text, sizeof(tr.refdef.text));
 
-	tr.refdef.x = fd->x;
-	tr.refdef.y = fd->y;
-	tr.refdef.width = fd->width;
-	tr.refdef.height = fd->height;
-	tr.refdef.fov_x = fd->fov_x;
-	tr.refdef.fov_y = fd->fov_y;
 
-	VectorCopy(fd->vieworg, tr.refdef.vieworg);
-	VectorCopy(fd->viewaxis[0], tr.refdef.viewaxis[0]);
-	VectorCopy(fd->viewaxis[1], tr.refdef.viewaxis[1]);
-	VectorCopy(fd->viewaxis[2], tr.refdef.viewaxis[2]);
+		if (!tr.registered || r_norefresh->integer)
+			return;
 
-	tr.refdef.time = fd->time;
-	tr.refdef.rdflags = fd->rdflags;
+		int startTime = ri.Milliseconds();
 
-	// copy the areamask data over and note if it has changed, which
-	// will force a reset of the visible leafs even if the view hasn't moved
-	tr.refdef.areamaskModified = false;
-	if (!(tr.refdef.rdflags & RDF_NOWORLDMODEL))
-	{
-		// compare the area bits
-		int areaDiff = 0;
-
-		for (uint32_t i = 0; i < MAX_MAP_AREA_BYTES / sizeof(int); i++)
+		if (!tr.world && !(fd->rdflags & RDF_NOWORLDMODEL))
 		{
-			areaDiff |= ((int *)tr.refdef.areamask)[i] ^ ((int *)fd->areamask)[i];
-			((int *)tr.refdef.areamask)[i] = ((int *)fd->areamask)[i];
+			ri.Error(ERR_DROP, "R_RenderScene: NULL worldmodel");
 		}
 
-		if (areaDiff)
+		renderCommand_t lastRenderCommand;
+
+		std::memcpy(tr.refdef.text, fd->text, sizeof(tr.refdef.text));
+
+		tr.refdef.x = fd->x;
+		tr.refdef.y = fd->y;
+		tr.refdef.width = fd->width;
+		tr.refdef.height = fd->height;
+		tr.refdef.fov_x = fd->fov_x;
+		tr.refdef.fov_y = fd->fov_y;
+
+		VectorCopy(fd->vieworg, tr.refdef.vieworg);
+		VectorCopy(fd->viewaxis[0], tr.refdef.viewaxis[0]);
+		VectorCopy(fd->viewaxis[1], tr.refdef.viewaxis[1]);
+		VectorCopy(fd->viewaxis[2], tr.refdef.viewaxis[2]);
+
+		tr.refdef.time = fd->time;
+		tr.refdef.rdflags = fd->rdflags;
+
+		// copy the areamask data over and note if it has changed, which
+		// will force a reset of the visible leafs even if the view hasn't moved
+		tr.refdef.areamaskModified = false;
+		if (!(tr.refdef.rdflags & RDF_NOWORLDMODEL))
 		{
-			// a door just opened or something
-			tr.refdef.areamaskModified = true;
-		}
-	}
+			// compare the area bits
+			int areaDiff = 0;
 
-	// derived info
-	tr.refdef.floatTime = static_cast<double>(tr.refdef.time) * 0.001; // -EC-: cast to double
-
-	tr.refdef.numDrawSurfs = r_firstSceneDrawSurf;
-	tr.refdef.drawSurfs = backEndData->drawSurfs;
-
-#ifdef USE_PMLIGHT
-	tr.refdef.numLitSurfs = r_firstSceneLitSurf;
-	tr.refdef.litSurfs = backEndData->litSurfs;
-#endif
-
-	tr.refdef.num_entities = r_numentities - r_firstSceneEntity;
-	tr.refdef.entities = &backEndData->entities[r_firstSceneEntity];
-
-	tr.refdef.num_dlights = r_numdlights - r_firstSceneDlight;
-	tr.refdef.dlights = &backEndData->dlights[r_firstSceneDlight];
-
-	tr.refdef.numPolys = r_numpolys - r_firstScenePoly;
-	tr.refdef.polys = &backEndData->polys[r_firstScenePoly];
-
-	// turn off dynamic lighting globally by clearing all the
-	// dlights if it needs to be disabled
-	if (r_dynamiclight->integer == 0 || glConfig.hardwareType == GLHW_PERMEDIA2)
-	{
-		tr.refdef.num_dlights = 0;
-	}
-
-	// a single frame may have multiple scenes draw inside it --
-	// a 3D game view, 3D status bar renderings, 3D menus, etc.
-	// They need to be distinguished by the light flare code, because
-	// the visibility state for a given surface may be different in
-	// each scene / view.
-	tr.frameSceneNum++;
-	tr.sceneCount++;
-
-	// setup view parms for the initial view
-	//
-	// set up viewport
-	// The refdef takes 0-at-the-top y coordinates, so
-	// convert to GL's 0-at-the-bottom space
-	//
-	viewParms_t parms;
-	std::memset(&parms, 0, sizeof(parms));
-	parms.viewportX = tr.refdef.x;
-	parms.viewportY = glConfig.vidHeight - (tr.refdef.y + tr.refdef.height);
-	parms.viewportWidth = tr.refdef.width;
-	parms.viewportHeight = tr.refdef.height;
-
-	parms.scissorX = parms.viewportX;
-	parms.scissorY = parms.viewportY;
-	parms.scissorWidth = parms.viewportWidth;
-	parms.scissorHeight = parms.viewportHeight;
-
-	parms.portalView = portalView_t::PV_NONE;
-
-#ifdef USE_PMLIGHT
-	parms.dlights = tr.refdef.dlights;
-	parms.num_dlights = tr.refdef.num_dlights;
-#endif
-
-	parms.fovX = tr.refdef.fov_x;
-	parms.fovY = tr.refdef.fov_y;
-
-	parms.stereoFrame = tr.refdef.stereoFrame;
-
-	VectorCopy(fd->vieworg, parms.ort.origin);
-	VectorCopy(fd->viewaxis[0], parms.ort.axis[0]);
-	VectorCopy(fd->viewaxis[1], parms.ort.axis[1]);
-	VectorCopy(fd->viewaxis[2], parms.ort.axis[2]);
-
-	VectorCopy(fd->vieworg, parms.pvsOrigin);
-
-	lastRenderCommand = tr.lastRenderCommand;
-	tr.drawSurfCmd = NULL;
-	tr.numDrawSurfCmds = 0;
-
-	R_RenderView(parms);
-
-	if (tr.needScreenMap)
-	{
-		if (lastRenderCommand == renderCommand_t::RC_DRAW_BUFFER)
-		{
-			// duplicate all views, including portals
-			drawSurfsCommand_t *cmd, *src = nullptr;
-			int i;
-
-			for (i = 0; i < tr.numDrawSurfCmds; i++)
+			for (uint32_t i = 0; i < MAX_MAP_AREA_BYTES / sizeof(int); i++)
 			{
-				cmd = reinterpret_cast<drawSurfsCommand_t *>(R_GetCommandBuffer(sizeof(*cmd)));
-				if (cmd)
-				{
-					src = tr.drawSurfCmd + i;
-					*cmd = *src;
-				}
-				else
-				{
-					break;
-				}
+				areaDiff |= ((int*)tr.refdef.areamask)[i] ^ ((int*)fd->areamask)[i];
+				((int*)tr.refdef.areamask)[i] = ((int*)fd->areamask)[i];
 			}
 
-			if (src)
+			if (areaDiff)
 			{
-				// first drawsurface
-				tr.drawSurfCmd[0].refdef.needScreenMap = true;
-				// last drawsurface
-				src->refdef.switchRenderPass = true;
+				// a door just opened or something
+				tr.refdef.areamaskModified = true;
 			}
 		}
 
-		tr.needScreenMap = 0;
-	}
+		// derived info
+		tr.refdef.floatTime = static_cast<double>(tr.refdef.time) * 0.001; // -EC-: cast to double
 
-	// the next scene rendered in this frame will tack on after this one
-	r_firstSceneDrawSurf = tr.refdef.numDrawSurfs;
+		tr.refdef.numDrawSurfs = r_firstSceneDrawSurf;
+		tr.refdef.drawSurfs = backEndData->drawSurfs;
+
 #ifdef USE_PMLIGHT
-	r_firstSceneLitSurf = tr.refdef.numLitSurfs;
+		tr.refdef.numLitSurfs = r_firstSceneLitSurf;
+		tr.refdef.litSurfs = backEndData->litSurfs;
 #endif
 
-	r_firstSceneEntity = r_numentities;
-	r_firstSceneDlight = r_numdlights;
-	r_firstScenePoly = r_numpolys;
+		tr.refdef.num_entities = r_numentities - r_firstSceneEntity;
+		tr.refdef.entities = &backEndData->entities[r_firstSceneEntity];
 
-	tr.frontEndMsec += ri.Milliseconds() - startTime;
+		tr.refdef.num_dlights = r_numdlights - r_firstSceneDlight;
+		tr.refdef.dlights = &backEndData->dlights[r_firstSceneDlight];
+
+		tr.refdef.numPolys = r_numpolys - r_firstScenePoly;
+		tr.refdef.polys = &backEndData->polys[r_firstScenePoly];
+
+		// turn off dynamic lighting globally by clearing all the
+		// dlights if it needs to be disabled
+		if (r_dynamiclight->integer == 0 || glConfig.hardwareType == GLHW_PERMEDIA2)
+		{
+			tr.refdef.num_dlights = 0;
+		}
+
+		// a single frame may have multiple scenes draw inside it --
+		// a 3D game view, 3D status bar renderings, 3D menus, etc.
+		// They need to be distinguished by the light flare code, because
+		// the visibility state for a given surface may be different in
+		// each scene / view.
+		tr.frameSceneNum++;
+		tr.sceneCount++;
+
+		// setup view parms for the initial view
+		//
+		// set up viewport
+		// The refdef takes 0-at-the-top y coordinates, so
+		// convert to GL's 0-at-the-bottom space
+		//
+		viewParms_t parms;
+		std::memset(&parms, 0, sizeof(parms));
+		parms.viewportX = tr.refdef.x;
+		parms.viewportY = glConfig.vidHeight - (tr.refdef.y + tr.refdef.height);
+		parms.viewportWidth = tr.refdef.width;
+		parms.viewportHeight = tr.refdef.height;
+
+		parms.scissorX = parms.viewportX;
+		parms.scissorY = parms.viewportY;
+		parms.scissorWidth = parms.viewportWidth;
+		parms.scissorHeight = parms.viewportHeight;
+
+		parms.portalView = portalView_t::PV_NONE;
+
+#ifdef USE_PMLIGHT
+		parms.dlights = tr.refdef.dlights;
+		parms.num_dlights = tr.refdef.num_dlights;
+#endif
+
+		parms.fovX = tr.refdef.fov_x;
+		parms.fovY = tr.refdef.fov_y;
+
+		parms.stereoFrame = tr.refdef.stereoFrame;
+
+		VectorCopy(fd->vieworg, parms.ort.origin);
+		VectorCopy(fd->viewaxis[0], parms.ort.axis[0]);
+		VectorCopy(fd->viewaxis[1], parms.ort.axis[1]);
+		VectorCopy(fd->viewaxis[2], parms.ort.axis[2]);
+
+		VectorCopy(fd->vieworg, parms.pvsOrigin);
+
+		lastRenderCommand = tr.lastRenderCommand;
+		tr.drawSurfCmd = NULL;
+		tr.numDrawSurfCmds = 0;
+
+		R_RenderView(parms);
+
+		if (tr.needScreenMap)
+		{
+			if (lastRenderCommand == renderCommand_t::RC_DRAW_BUFFER)
+			{
+				// duplicate all views, including portals
+				drawSurfsCommand_t* cmd, * src = nullptr;
+				int i;
+
+				for (i = 0; i < tr.numDrawSurfCmds; i++)
+				{
+					cmd = reinterpret_cast<drawSurfsCommand_t*>(R_GetCommandBuffer(sizeof(*cmd)));
+					if (cmd)
+					{
+						src = tr.drawSurfCmd + i;
+						*cmd = *src;
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				if (src)
+				{
+					// first drawsurface
+					tr.drawSurfCmd[0].refdef.needScreenMap = true;
+					// last drawsurface
+					src->refdef.switchRenderPass = true;
+				}
+			}
+
+			tr.needScreenMap = 0;
+		}
+
+		// the next scene rendered in this frame will tack on after this one
+		r_firstSceneDrawSurf = tr.refdef.numDrawSurfs;
+#ifdef USE_PMLIGHT
+		r_firstSceneLitSurf = tr.refdef.numLitSurfs;
+#endif
+
+		r_firstSceneEntity = r_numentities;
+		r_firstSceneDlight = r_numdlights;
+		r_firstScenePoly = r_numpolys;
+
+		tr.frontEndMsec += ri.Milliseconds() - startTime;
+
+
+		});
+	adsf.emplace_back(t_work - t_empty);
+
+	if (adsf.size() % 10000 == 0) {
+		const float suma = std::accumulate(adsf.begin(), adsf.end(), 0.0f);
+		auto g = suma / static_cast<float>(adsf.size());
+
+		ri.Printf(PRINT_ALL, "%.3f \n", g);
+		adsf.reserve(10000);
+		adsf.clear();
+	}
 }

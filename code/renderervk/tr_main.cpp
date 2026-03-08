@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -37,9 +37,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <immintrin.h> // AVX SIMD headers
 
 #include <string.h> // memcpy
-#include "tr_soa_frame.hpp"
-#include "tr_soa_stage2.hpp"
+
 #include <numeric>
+
+bool R_PrepareMD3Surfaces(trRefEntity_t& ent, entityFrameCache_t& cache);
+bool R_PrepareMDRSurfaces(trRefEntity_t& ent, entityFrameCache_t& cache);
+bool R_PrepareIQMSurfaces(trRefEntity_t& ent, entityFrameCache_t& cache);
+bool R_PrepareBrushModelSurfaces(trRefEntity_t& ent, entityFrameCache_t& cache);
 
 #ifdef USE_VK_VALIDATION
 void vk_set_object_name(uint64_t obj, const char* objName, VkDebugReportObjectTypeEXT objType)
@@ -87,65 +91,47 @@ int R_CullLocalBox(const vec3_t bounds[2])
 		return CULL_CLIP;
 	}
 
-	int i, j;
-	vec3_t transformed[8]{};
-	float dists[8]{};
-	int anyBack;
-	int front, back;
+	vec3_t localCenter{};
+	vec3_t localExtents{};
+	vec3_t worldCenter{};
 
-	// transform into world space
-	for (i = 0; i < 8; i++)
+	for (int i = 0; i < 3; ++i)
 	{
-		vec3_t v{
-			bounds[i & 1][0],
-			bounds[(i >> 1) & 1][1],
-			bounds[(i >> 2) & 1][2] };
-
-		VectorCopy(tr.ort.origin, transformed[i]);
-		VectorMA(transformed[i], v[0], tr.ort.axis[0], transformed[i]);
-		VectorMA(transformed[i], v[1], tr.ort.axis[1], transformed[i]);
-		VectorMA(transformed[i], v[2], tr.ort.axis[2], transformed[i]);
+		localCenter[i] = 0.5f * (bounds[0][i] + bounds[1][i]);
+		localExtents[i] = 0.5f * (bounds[1][i] - bounds[0][i]);
 	}
 
-	// check against frustum planes
-	anyBack = 0;
-	for (i = 0; i < 4; i++)
-	{
-		cplane_t& frust = tr.viewParms.frustum[i];
+	VectorCopy(tr.ort.origin, worldCenter);
+	VectorMA(worldCenter, localCenter[0], tr.ort.axis[0], worldCenter);
+	VectorMA(worldCenter, localCenter[1], tr.ort.axis[1], worldCenter);
+	VectorMA(worldCenter, localCenter[2], tr.ort.axis[2], worldCenter);
 
-		front = back = 0;
-		for (j = 0; j < 8; j++)
+	int anyBack = 0;
+
+	for (int i = 0; i < 4; ++i)
+	{
+		const cplane_t& frust = tr.viewParms.frustum[i];
+
+		const float s = DotProduct(worldCenter, frust.normal) - frust.dist;
+
+		const float r =
+			localExtents[0] * std::fabs(DotProduct(tr.ort.axis[0], frust.normal)) +
+			localExtents[1] * std::fabs(DotProduct(tr.ort.axis[1], frust.normal)) +
+			localExtents[2] * std::fabs(DotProduct(tr.ort.axis[2], frust.normal));
+
+		if ((s + r) <= 0.0f)
 		{
-			dists[j] = DotProduct(transformed[j], frust.normal);
-			if (dists[j] > frust.dist)
-			{
-				front = 1;
-				if (back)
-				{
-					break; // a point is in front
-				}
-			}
-			else
-			{
-				back = 1;
-			}
-		}
-		if (!front)
-		{
-			// all points were behind one of the planes
 			return CULL_OUT;
 		}
-		anyBack |= back;
+
+		if ((s - r) < 0.0f)
+		{
+			anyBack = 1;
+		}
 	}
 
-	if (!anyBack)
-	{
-		return CULL_IN; // completely inside frustum
-	}
-
-	return CULL_CLIP; // partially clipped
+	return anyBack ? CULL_CLIP : CULL_IN;
 }
-
 /*
 ** R_CullLocalPointAndRadius
 */
@@ -1599,7 +1585,7 @@ void R_AddDrawSurf(surfaceType_t & surface, shader_t & shader,
 R_DecomposeSort
 =================
 */
-void R_DecomposeSort(unsigned sort, int& entityNum, shader_t * *shader,
+void R_DecomposeSort(unsigned sort, int& entityNum, shader_t** shader,
 	int& fogNum, int& dlightMap)
 {
 	fogNum = (sort >> QSORT_FOGNUM_SHIFT) & FOGNUM_MASK;
@@ -1613,7 +1599,7 @@ void R_DecomposeSort(unsigned sort, int& entityNum, shader_t * *shader,
 R_SortDrawSurfs
 =================
 */
-static void R_SortDrawSurfs(drawSurf_t & drawSurfs, const int numDrawSurfs)
+static void R_SortDrawSurfs(drawSurf_t& drawSurfs, const int numDrawSurfs)
 {
 	// it is possible for some views to not have any surfaces
 	if (numDrawSurfs < 1)
@@ -1663,8 +1649,8 @@ static void R_SortDrawSurfs(drawSurf_t & drawSurfs, const int numDrawSurfs)
 #endif
 				break; // only one mirror view at a time
 			}
+			}
 		}
-	}
 
 #ifdef USE_PMLIGHT
 #ifdef USE_LEGACY_DLIGHTS
@@ -1686,18 +1672,202 @@ static void R_SortDrawSurfs(drawSurf_t & drawSurfs, const int numDrawSurfs)
 #endif // USE_PMLIGHT
 
 	R_AddDrawSurfCmd(drawSurfs, numDrawSurfs);
-}
+	}
+
+namespace
+{
+	struct visibleActor_t
+	{
+		int entityNum;
+		trRefEntity_t* entity;
+		model_t* model;
+		entityFrameCache_t* cache;
+	};
+
+	struct actorBatchPacket_t
+	{
+		int firstActor;
+		int numActors;
+		model_t* model;
+		modtype_t modelType;
+		int customShader;
+		int customSkin;
+		int skinNum;
+		int frame;
+		int oldframe;
+		int actorLod;
+		int actorFogNum;
+		int renderfxMask;
+	};
+
+	constexpr int ACTOR_BATCH_RENDERFX_MASK =
+		RF_NOSHADOW | RF_DEPTHHACK | RF_SHADOW_PLANE;
+
+	static inline double R_ComputeEntityShaderTime(const trRefEntity_t& ent)
+	{
+		return ent.intShaderTime
+			? tr.refdef.floatTime - static_cast<double>(ent.e.shaderTime.i) * 0.001
+			: tr.refdef.floatTime - static_cast<double>(ent.e.shaderTime.f);
+	}
+
+	static inline entityFrameCache_t& R_BuildEntityFrameCache(const int entityNum, trRefEntity_t& ent)
+	{
+		entityFrameCache_t& cache = backEndData->entityFrameCache[entityNum];
+		cache.valid = true;
+		cache.depthHack = (ent.e.renderfx & RF_DEPTHHACK) != 0;
+		cache.floatTime = R_ComputeEntityShaderTime(ent);
+		R_RotateForEntity(ent, tr.viewParms, cache.ort);
+		return cache;
+	}
+
+	static inline void R_ApplyEntityFrameCache(const entityFrameCache_t& cache)
+	{
+		tr.ort = cache.ort;
+	}
+
+	static inline bool R_ShouldSkipPrimaryThirdPersonEntity(const trRefEntity_t& ent)
+	{
+		return (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE);
+	}
+
+	static inline bool R_SameActorBatchKey(const visibleActor_t& lhs, const visibleActor_t& rhs)
+	{
+		const refEntity_t& le = lhs.entity->e;
+		const refEntity_t& re = rhs.entity->e;
+
+		return lhs.model == rhs.model &&
+			lhs.model->type == rhs.model->type &&
+			le.customShader == re.customShader &&
+			le.customSkin == re.customSkin &&
+			le.skinNum == re.skinNum &&
+			le.frame == re.frame &&
+			le.oldframe == re.oldframe &&
+			lhs.cache->actorLod == rhs.cache->actorLod &&
+			lhs.cache->actorFogNum == rhs.cache->actorFogNum &&
+			((le.renderfx & ACTOR_BATCH_RENDERFX_MASK) == (re.renderfx & ACTOR_BATCH_RENDERFX_MASK));
+	}
+
+	static int R_BuildActorBatchPackets(
+		visibleActor_t* actors,
+		const int numActors,
+		actorBatchPacket_t* packets,
+		const int maxPackets)
+	{
+		if (numActors <= 0)
+		{
+			return 0;
+		}
+
+		std::sort(actors, actors + numActors, [](const visibleActor_t& lhs, const visibleActor_t& rhs)
+			{
+				const refEntity_t& le = lhs.entity->e;
+				const refEntity_t& re = rhs.entity->e;
+
+				if (lhs.model != rhs.model) return lhs.model < rhs.model;
+				if (lhs.model->type != rhs.model->type) return lhs.model->type < rhs.model->type;
+				if (le.customShader != re.customShader) return le.customShader < re.customShader;
+				if (le.customSkin != re.customSkin) return le.customSkin < re.customSkin;
+				if (le.skinNum != re.skinNum) return le.skinNum < re.skinNum;
+				if (le.frame != re.frame) return le.frame < re.frame;
+				if (le.oldframe != re.oldframe) return le.oldframe < re.oldframe;
+				if (lhs.cache->actorLod != rhs.cache->actorLod) return lhs.cache->actorLod < rhs.cache->actorLod;
+				if (lhs.cache->actorFogNum != rhs.cache->actorFogNum) return lhs.cache->actorFogNum < rhs.cache->actorFogNum;
+
+				const int lfx = le.renderfx & ACTOR_BATCH_RENDERFX_MASK;
+				const int rfx = re.renderfx & ACTOR_BATCH_RENDERFX_MASK;
+				if (lfx != rfx) return lfx < rfx;
+
+				return lhs.entityNum < rhs.entityNum;
+			});
+
+		int numPackets = 0;
+		int first = 0;
+
+		while (first < numActors && numPackets < maxPackets)
+		{
+			int last = first + 1;
+			while (last < numActors && R_SameActorBatchKey(actors[first], actors[last]))
+			{
+				++last;
+			}
+
+			const visibleActor_t& actor = actors[first];
+			const refEntity_t& e = actor.entity->e;
+
+			actorBatchPacket_t& packet = packets[numPackets++];
+			packet.firstActor = first;
+			packet.numActors = last - first;
+			packet.model = actor.model;
+			packet.modelType = actor.model->type;
+			packet.customShader = e.customShader;
+			packet.customSkin = e.customSkin;
+			packet.skinNum = e.skinNum;
+			packet.frame = e.frame;
+			packet.oldframe = e.oldframe;
+			packet.actorLod = actor.cache->actorLod;
+			packet.actorFogNum = actor.cache->actorFogNum;
+			packet.renderfxMask = e.renderfx & ACTOR_BATCH_RENDERFX_MASK;
+
+			first = last;
+		}
+
+		return numPackets;
+	}
+
+	static void R_AddActorBatchPackets(
+		const visibleActor_t* actors,
+		const actorBatchPacket_t* packets,
+		const int numPackets)
+	{
+		for (int p = 0; p < numPackets; ++p)
+		{
+			const actorBatchPacket_t& packet = packets[p];
+
+			for (int i = 0; i < packet.numActors; ++i)
+			{
+				const visibleActor_t& actor = actors[packet.firstActor + i];
+
+				tr.currentEntityNum = actor.entityNum;
+				tr.currentEntity = actor.entity;
+				tr.currentModel = actor.model;
+				tr.shiftedEntityNum = actor.entityNum << QSORT_REFENTITYNUM_SHIFT;
+				R_ApplyEntityFrameCache(*actor.cache);
+
+				switch (packet.modelType)
+				{
+				case modtype_t::MOD_MESH:
+					R_AddMD3Surfaces(*actor.entity);
+					break;
+				case modtype_t::MOD_MDR:
+					R_MDRAddAnimSurfaces(*actor.entity);
+					break;
+				case modtype_t::MOD_IQM:
+					R_AddIQMSurfaces(*actor.entity);
+					break;
+				case modtype_t::MOD_BRUSH:
+					R_AddBrushModelSurfaces(*actor.entity);
+					break;
+				case modtype_t::MOD_BAD:
+				default:
+					ri.Error(ERR_DROP, "R_AddActorBatchPackets: Bad modeltype");
+					break;
+				}
+			}
+		}
+	}
+} // namespace
 
 /*
 =============
 R_AddEntitySurfaces
 =============
 */
-static std::vector<double> adsf{};
 static void R_AddEntitySurfaces()
 {
-	//extern surfaceType_t entitySurface;
 	shader_t* shader;
+	std::array<visibleActor_t, MAX_REFENTITIES> visibleActors{};
+	std::array<actorBatchPacket_t, MAX_REFENTITIES> actorPackets{};
+	int numVisibleActors = 0;
 
 	if (!r_drawentities->integer)
 	{
@@ -1706,105 +1876,116 @@ static void R_AddEntitySurfaces()
 
 	for (tr.currentEntityNum = 0;
 		tr.currentEntityNum < tr.refdef.num_entities;
-		tr.currentEntityNum++)
+		++tr.currentEntityNum)
 	{
 		tr.currentEntity = &tr.refdef.entities[tr.currentEntityNum];
 		trRefEntity_t& ent = *tr.currentEntity;
+		entityFrameCache_t& cache = backEndData->entityFrameCache[tr.currentEntityNum];
+
 #ifdef USE_LEGACY_DLIGHTS
 		ent.needDlights = 0;
 #endif
-		// preshift the value we are going to OR into the drawsurf sort
+
+		cache.actorPrepared = false;
+		cache.actorVisible = false;
+		cache.actorLod = 0;
+		cache.actorFogNum = 0;
+
 		tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
 
-		//
-		// the weapon model must be handled special --
-		// we don't want the hacked first person weapon position showing in
-		// mirrors, because the true body position will already be drawn
-		//
 		if ((ent.e.renderfx & RF_FIRST_PERSON) && (tr.viewParms.portalView != portalView_t::PV_NONE))
 		{
 			continue;
 		}
 
-		// simple generated models, like sprites and beams, are not culled
 		switch (ent.e.reType)
 		{
 		case RT_PORTALSURFACE:
-			break; // don't draw anything
+			break;
+
 		case RT_SPRITE:
 		case RT_BEAM:
 		case RT_LIGHTNING:
 		case RT_RAIL_CORE:
 		case RT_RAIL_RINGS:
-			// self blood sprites, talk balloons, etc should not be drawn in the primary
-			// view.  We can't just do this check for all entities, because md3
-			// entities may still want to cast shadows from them
-			if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE))
+			if (R_ShouldSkipPrimaryThirdPersonEntity(ent))
 			{
 				continue;
 			}
+			R_ApplyEntityFrameCache(R_BuildEntityFrameCache(tr.currentEntityNum, ent));
 			shader = R_GetShaderByHandle(ent.e.customShader);
 			R_AddDrawSurf(entitySurface, *shader, R_SpriteFogNum(ent), 0);
 			break;
 
 		case RT_MODEL:
-			// we must set up parts of tr.ort for model culling
-#if defined(USE_AoS_to_SoA_SIMD) 
-			{
-				auto& soa = trsoa::GetFrameSoA();
-				const int slot = soa.modelSlotOfEnt[tr.currentEntityNum];
-				if (slot >= 0)
-				{
-					trsoa::ApplyModelOrientationFromSoA(soa, slot, tr.ort);
-				}
-				else
-				{
-					R_RotateForEntity(ent, tr.viewParms, tr.ort);
-				}
-			}
-#else
-			 R_RotateForEntity(ent, tr.viewParms, tr.ort);
-#endif
+			R_ApplyEntityFrameCache(R_BuildEntityFrameCache(tr.currentEntityNum, ent));
+
 			tr.currentModel = R_GetModelByHandle(ent.e.hModel);
 			if (!tr.currentModel)
 			{
 				R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
+				break;
 			}
-			else
+
+			switch (tr.currentModel->type)
 			{
-				switch (tr.currentModel->type)
+			case modtype_t::MOD_MESH:
+				if (R_PrepareMD3Surfaces(ent, cache))
 				{
-				case modtype_t::MOD_MESH:
-					R_AddMD3Surfaces(ent);
-					break;
-				case modtype_t::MOD_MDR:
-					R_MDRAddAnimSurfaces(ent);
-					break;
-				case modtype_t::MOD_IQM:
-					R_AddIQMSurfaces(ent);
-					break;
-				case modtype_t::MOD_BRUSH:
-					R_AddBrushModelSurfaces(ent);
-					break;
-				case modtype_t::MOD_BAD: // null model axis
-					if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE))
-					{
-						break;
-					}
-					R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
-					break;
-				default:
-					ri.Error(ERR_DROP, "R_AddEntitySurfaces: Bad modeltype");
-					break;
+					visibleActors[numVisibleActors++] = { tr.currentEntityNum, &ent, tr.currentModel, &cache };
 				}
+				break;
+
+			case modtype_t::MOD_MDR:
+				if (R_PrepareMDRSurfaces(ent, cache))
+				{
+					visibleActors[numVisibleActors++] = { tr.currentEntityNum, &ent, tr.currentModel, &cache };
+				}
+				break;
+
+			case modtype_t::MOD_IQM:
+				if (R_PrepareIQMSurfaces(ent, cache))
+				{
+					visibleActors[numVisibleActors++] = { tr.currentEntityNum, &ent, tr.currentModel, &cache };
+				}
+				break;
+
+			case modtype_t::MOD_BRUSH:
+				if (R_PrepareBrushModelSurfaces(ent, cache))
+				{
+					visibleActors[numVisibleActors++] = { tr.currentEntityNum, &ent, tr.currentModel, &cache };
+				}
+				break;
+
+			case modtype_t::MOD_BAD:
+				if (!R_ShouldSkipPrimaryThirdPersonEntity(ent))
+				{
+					R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
+				}
+				break;
+
+			default:
+				ri.Error(ERR_DROP, "R_AddEntitySurfaces: Bad modeltype");
+				break;
 			}
 			break;
+
 		default:
 			ri.Error(ERR_DROP, "R_AddEntitySurfaces: Bad reType");
 		}
 	}
-}
 
+	const int numActorPackets = R_BuildActorBatchPackets(
+		visibleActors.data(),
+		numVisibleActors,
+		actorPackets.data(),
+		static_cast<int>(actorPackets.size()));
+
+	R_AddActorBatchPackets(
+		visibleActors.data(),
+		actorPackets.data(),
+		numActorPackets);
+}
 /*
 ====================
 R_GenerateDrawSurfs
@@ -1828,36 +2009,7 @@ static void R_GenerateDrawSurfs(void)
 	// we know the size of the clipping volume. Now set the rest of the projection matrix.
 	R_SetupProjectionZ(tr.viewParms);
 
-	double t_empty = benchmark_ns([&] {});
-	double t_work = benchmark_ns([&] {
-
-#if defined(USE_AoS_to_SoA_SIMD) 
-	auto& soa = trsoa::GetFrameSoA();
-
-		if (!trsoa::SoA_ValidThisFrame(soa))
-		{
-			trsoa::BuildFrameSoA(tr.refdef, tr.viewParms, soa);
-			trsoa::PrecomputeModelDerived(soa.models, tr.viewParms, soa.modelDerived);
-			trsoa::ComputeModelLODs_Batch(soa, tr.refdef);
-		}
-
-		R_AddEntitySurfaces();
-#else
-		R_AddEntitySurfaces();
-#endif
-	});
-	adsf.emplace_back(t_work - t_empty);
-
-	if (adsf.size() % 1000 == 0) {
-		const float suma = std::accumulate(adsf.begin(), adsf.end(), 0.0f);
-		auto g = suma / static_cast<float>(adsf.size());
-
-		ri.Printf(PRINT_ALL, "%.3f \n", g);
-		adsf.reserve(1000);
-		adsf.clear();
-	}
-
-	
+	R_AddEntitySurfaces();
 }
 
 /*

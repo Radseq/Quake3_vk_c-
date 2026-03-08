@@ -1734,7 +1734,17 @@ qhandle_t RE_RegisterSkin(const char *name)
 	}
 
 	// copy surfaces to skin
-	skin->surfaces = reinterpret_cast<skinSurface_t *>(ri.Hunk_Alloc(skin->numSurfaces * sizeof(skinSurface_t), h_low));
+	if (skin->numSurfaces > 1)
+	{
+		std::sort(parseSurfaces, parseSurfaces + skin->numSurfaces,
+			[](const skinSurface_t& lhs, const skinSurface_t& rhs) noexcept
+			{
+				return std::strcmp(lhs.name, rhs.name) < 0;
+			});
+	}
+
+	// copy surfaces to skin
+	skin->surfaces = reinterpret_cast<skinSurface_t*>(ri.Hunk_Alloc(skin->numSurfaces * sizeof(skinSurface_t), h_low));
 	memcpy(skin->surfaces, parseSurfaces, skin->numSurfaces * sizeof(skinSurface_t));
 
 	return hSkin;

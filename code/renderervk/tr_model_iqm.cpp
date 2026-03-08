@@ -33,6 +33,34 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "string_operations.hpp"
 #include <span>
 
+static shader_t* R_FindShaderForSkinSurface(const skin_t& skin, const char* surfaceName) noexcept
+{
+	int lo = 0;
+	int hi = skin.numSurfaces;
+
+	while (lo < hi)
+	{
+		const int mid = lo + ((hi - lo) >> 1);
+		const int cmp = std::strcmp(skin.surfaces[mid].name, surfaceName);
+
+		if (cmp < 0)
+		{
+			lo = mid + 1;
+		}
+		else
+		{
+			hi = mid;
+		}
+	}
+
+	if (lo < skin.numSurfaces && std::strcmp(skin.surfaces[lo].name, surfaceName) == 0)
+	{
+		return skin.surfaces[lo].shader;
+	}
+
+	return tr.defaultShader;
+}
+
 #define LL(x) x = LittleLong(x)
 
 // 3x4 identity matrix
@@ -130,29 +158,17 @@ static int R_ComputeIQMFogNum(const iqmData_t &data, const trRefEntity_t &ent)
 	return 0;
 }
 
-/*
-=================
-R_AddIQMSurfaces
-
-Add all surfaces of this model
-=================
-*/
-void R_AddIQMSurfaces(trRefEntity_t &ent)
+bool R_PrepareIQMSurfaces(trRefEntity_t& ent, entityFrameCache_t& cache)
 {
-	iqmData_t *data;
-	srfIQModel_t *surface;
-	int i, j;
-	bool personalModel;
-	int cull;
-	int fogNum;
-	shader_t *shader;
-	const skin_t *skin;
+	iqmData_t* data = static_cast<iqmData_t*>(tr.currentModel->modelData);
+	const bool personalModel =
+		(ent.e.renderfx & RF_THIRD_PERSON) &&
+		(tr.viewParms.portalView == portalView_t::PV_NONE);
 
-	data = static_cast<iqmData_t *>(tr.currentModel->modelData);
-	surface = data->surfaces;
-
-	// don't add third_person objects if not in a portal
-	personalModel = (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE);
+	cache.actorPrepared = true;
+	cache.actorVisible = false;
+	cache.actorLod = 0;
+	cache.actorFogNum = 0;
 
 	if (ent.e.renderfx & RF_WRAP_FRAMES)
 	{
@@ -160,48 +176,74 @@ void R_AddIQMSurfaces(trRefEntity_t &ent)
 		ent.e.oldframe %= data->num_frames;
 	}
 
-	//
-	// Validate the frames so there is no chance of a crash.
-	// This will write directly into the entity structure, so
-	// when the surfaces are rendered, they don't need to be
-	// range checked again.
-	//
-	if ((ent.e.frame >= data->num_frames) || (ent.e.frame < 0) || (ent.e.oldframe >= data->num_frames) || (ent.e.oldframe < 0))
+	if ((ent.e.frame >= data->num_frames) || (ent.e.frame < 0) ||
+		(ent.e.oldframe >= data->num_frames) || (ent.e.oldframe < 0))
 	{
 		ri.Printf(PRINT_DEVELOPER, "R_AddIQMSurfaces: no such frame %d to %d for '%s'\n",
-				  ent.e.oldframe, ent.e.frame,
-				  tr.currentModel->name.data());
+			ent.e.oldframe, ent.e.frame, tr.currentModel->name.data());
 		ent.e.frame = 0;
 		ent.e.oldframe = 0;
 	}
 
-	//
-	// cull the entire model if merged bounding box of both frames
-	// is outside the view frustum.
-	//
-	cull = R_CullIQM(*data, ent);
-	if (cull == CULL_OUT)
+	if (R_CullIQM(*data, ent) == CULL_OUT)
 	{
-		return;
+		return false;
 	}
 
-	//
-	// set up lighting now that we know we aren't culled
-	//
 	if (!personalModel || r_shadows->integer > 1)
 	{
 		R_SetupEntityLighting(tr.refdef, ent);
 	}
 
-	//
-	// see if we are in a fog volume
-	//
-	fogNum = R_ComputeIQMFogNum(*data, ent);
+	cache.actorFogNum = R_ComputeIQMFogNum(*data, ent);
+	cache.actorVisible = true;
+	return true;
+}
+
+/*
+=================
+R_AddIQMSurfaces
+
+Add all surfaces of this model
+=================
+*/
+void R_AddIQMSurfaces(trRefEntity_t& ent)
+{
+	iqmData_t* data;
+	srfIQModel_t* surface;
+	int i, j;
+	bool personalModel;
+	int fogNum;
+	shader_t* shader;
+	const skin_t* skin;
+	entityFrameCache_t& cache = backEndData->entityFrameCache[tr.currentEntityNum];
+
+	data = static_cast<iqmData_t*>(tr.currentModel->modelData);
+	surface = data->surfaces;
+
+	// don't add third_person objects if not in a portal
+	personalModel = (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE);
+
+	if (!cache.actorPrepared)
+	{
+		if (!R_PrepareIQMSurfaces(ent, cache))
+		{
+			return;
+		}
+	}
+	else if (!cache.actorVisible)
+	{
+		return;
+	}
+
+	fogNum = cache.actorFogNum;
 
 	for (i = 0; i < data->num_surfaces; i++)
 	{
 		if (ent.e.customShader)
+		{
 			shader = R_GetShaderByHandle(ent.e.customShader);
+		}
 		else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
 		{
 			skin = R_GetSkinByHandle(ent.e.customSkin);
@@ -224,24 +266,31 @@ void R_AddIQMSurfaces(trRefEntity_t &ent)
 		// we will add shadows even if the main object isn't visible in the view
 
 		// stencil shadows can't do personal models unless I polyhedron clip
-		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 && !(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
+		if (!personalModel &&
+			r_shadows->integer == 2 &&
+			fogNum == 0 &&
+			!(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) &&
+			shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.shadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
-		if (r_shadows->integer == 3 && fogNum == 0 && (ent.e.renderfx & RF_SHADOW_PLANE) && shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
+		if (r_shadows->integer == 3 &&
+			fogNum == 0 &&
+			(ent.e.renderfx & RF_SHADOW_PLANE) &&
+			shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.projectionShadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *tr.projectionShadowShader, 0, 0);
 		}
 
 		if (!personalModel)
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *shader, fogNum, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *shader, fogNum, 0);
 			tr.needScreenMap |= shader->hasScreenMap;
 		}
 
-		surface++;
+		++surface;
 	}
 }
 

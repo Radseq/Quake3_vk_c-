@@ -546,26 +546,60 @@ static void R_RecursiveLightNode(const mnode_t *node)
 =============================================================
 */
 
+bool R_PrepareBrushModelSurfaces(trRefEntity_t& ent, entityFrameCache_t& cache)
+{
+	const model_t* pModel = R_GetModelByHandle(ent.e.hModel);
+	if (!pModel || !pModel->bmodel)
+	{
+		cache.actorPrepared = true;
+		cache.actorVisible = false;
+		cache.actorLod = 0;
+		cache.actorFogNum = 0;
+		return false;
+	}
+
+	bmodel_t& bmodel = *pModel->bmodel;
+
+	cache.actorPrepared = true;
+	cache.actorVisible = false;
+	cache.actorLod = 0;
+	cache.actorFogNum = 0;
+
+	if (R_CullLocalBox(bmodel.bounds) == CULL_OUT)
+	{
+		return false;
+	}
+
+	R_SetupEntityLighting(tr.refdef, ent);
+	cache.actorVisible = true;
+	return true;
+}
+
 /*
 =================
 R_AddBrushModelSurfaces
 =================
 */
-void R_AddBrushModelSurfaces(trRefEntity_t &ent)
+void R_AddBrushModelSurfaces(trRefEntity_t& ent)
 {
-	int clip;
-	const model_t *pModel;
+	const model_t* pModel;
 	uint32_t i;
+	entityFrameCache_t& cache = backEndData->entityFrameCache[tr.currentEntityNum];
 
-	pModel = R_GetModelByHandle(ent.e.hModel);
-
-	bmodel_t &bmodel = *pModel->bmodel;
-
-	clip = R_CullLocalBox(bmodel.bounds);
-	if (clip == CULL_OUT)
+	if (!cache.actorPrepared)
+	{
+		if (!R_PrepareBrushModelSurfaces(ent, cache))
+		{
+			return;
+		}
+	}
+	else if (!cache.actorVisible)
 	{
 		return;
 	}
+
+	pModel = R_GetModelByHandle(ent.e.hModel);
+	bmodel_t& bmodel = *pModel->bmodel;
 
 #ifdef USE_PMLIGHT
 #ifdef USE_LEGACY_DLIGHTS
@@ -579,13 +613,11 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 			R_AddWorldSurface(*(bmodel.firstSurface + s), 0);
 		}
 
-		R_SetupEntityLighting(tr.refdef, ent);
-
 		R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, tr.ort);
 
 		for (i = 0; i < tr.viewParms.num_dlights; i++)
 		{
-			dlight_t &dl = tr.viewParms.dlights[i];
+			dlight_t& dl = tr.viewParms.dlights[i];
 			if (!R_LightCullBounds(dl, bmodel.bounds[0], bmodel.bounds[1]))
 			{
 				tr.lightCount++;
@@ -601,7 +633,6 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 #endif // USE_PMLIGHT
 
 #ifdef USE_LEGACY_DLIGHTS
-	R_SetupEntityLighting(tr.refdef, ent);
 	R_DlightBmodel(bmodel);
 
 	for (i = 0; i < static_cast<uint32_t>(bmodel.numSurfaces); i++)

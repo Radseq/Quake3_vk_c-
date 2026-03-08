@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -241,6 +241,20 @@ typedef struct
 	vec3_t viewOrigin; // viewParms->or.origin in local coordinates
 	alignas(16) float modelMatrix[16];
 } orientationr_t;
+
+typedef struct
+{
+	bool valid;
+	bool depthHack;
+	double floatTime;
+	orientationr_t ort;
+
+	bool actorPrepared; // przygotowano cache dla model actor path
+	bool actorVisible;  // po cullu nadal widoczny
+	int actorLod;       // MD3 / MDR
+	int actorFogNum;    // MD3 / MDR / IQM
+	vec3_t actorBounds[2]; // używane głównie przez MD3 / pmlight
+} entityFrameCache_t;
 
 //===============================================================================
 
@@ -1242,7 +1256,8 @@ typedef struct
 	orientationr_t ort;
 	backEndCounters_t pc;
 	bool isHyperspace;
-	const trRefEntity_t *currentEntity;
+	const trRefEntity_t* currentEntity;
+	const entityFrameCache_t* entityFrameCache;
 	bool skyRenderedThisView; // flag for drawing sun
 
 	bool projection2D; // if qtrue, drawstretchpic doesn't need to change modes
@@ -1823,7 +1838,8 @@ typedef struct drawSurfsCommand_s
 	renderCommand_t commandId;
 	trRefdef_t refdef;
 	viewParms_t viewParms;
-	drawSurf_t *drawSurfs;
+	drawSurf_t* drawSurfs;
+	const entityFrameCache_t* entityFrameCache;
 	int numDrawSurfs;
 } drawSurfsCommand_t;
 
@@ -1863,8 +1879,9 @@ typedef struct
 #endif
 
 	trRefEntity_t entities[MAX_REFENTITIES];
-	srfPoly_t *polys;	   //[MAX_POLYS];
-	polyVert_t *polyVerts; //[MAX_POLYVERTS];
+	entityFrameCache_t entityFrameCache[MAX_REFENTITIES];
+	srfPoly_t* polys;
+	polyVert_t* polyVerts;
 	renderCommandList_t commands;
 } backEndData_t;
 

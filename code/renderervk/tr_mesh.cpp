@@ -29,8 +29,34 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_light.hpp"
 #include "math.hpp"
 #include "utils.hpp"
-#include "tr_soa_frame.hpp"
-#include "tr_soa_stage2.hpp"
+
+static shader_t* R_FindShaderForSkinSurface(const skin_t& skin, const char* surfaceName) noexcept
+{
+	int lo = 0;
+	int hi = skin.numSurfaces;
+
+	while (lo < hi)
+	{
+		const int mid = lo + ((hi - lo) >> 1);
+		const int cmp = std::strcmp(skin.surfaces[mid].name, surfaceName);
+
+		if (cmp < 0)
+		{
+			lo = mid + 1;
+		}
+		else
+		{
+			hi = mid;
+		}
+	}
+
+	if (lo < skin.numSurfaces && std::strcmp(skin.surfaces[lo].name, surfaceName) == 0)
+	{
+		return skin.surfaces[lo].shader;
+	}
+
+	return tr.defaultShader;
+}
 
 static float ProjectRadius(const float r, const vec3_t &location)
 {
@@ -173,22 +199,6 @@ static int R_CullModel(md3Header_t *header, const trRefEntity_t &ent, vec3_t bou
 
 int R_ComputeLOD(trRefEntity_t &ent)
 {
-#if defined(USE_AoS_to_SoA_SIMD) 
-	// SoA fast path (per-view)
-	{
-		auto& soa = trsoa::GetFrameSoA();
-		if (trsoa::SoA_ValidThisFrame(soa))
-		{
-			const int entNum = static_cast<int>(&ent - tr.refdef.entities);
-			if (static_cast<unsigned>(entNum) < trsoa::kMaxRefEntities)
-			{
-				const int slot = soa.modelSlotOfEnt[entNum];
-				if (slot >= 0)
-					return static_cast<int>(soa.modelDerived.lod[slot]);
-			}
-		}
-	}
-#endif
 	float radius;
 	float flod, lodscale;
 	float projectedRadius;
@@ -305,26 +315,18 @@ static int R_ComputeFogNum(md3Header_t *header, const trRefEntity_t &ent)
 	return 0;
 }
 
-void R_AddMD3Surfaces(trRefEntity_t &ent)
+bool R_PrepareMD3Surfaces(trRefEntity_t& ent, entityFrameCache_t& cache)
 {
 	vec3_t bounds[2];
-	int i;
-	md3Header_t *header = NULL;
-	md3Surface_t *surface = NULL;
-	md3Shader_t *md3Shader = NULL;
-	shader_t *shader = NULL;
-	int cull;
-	int lod;
-	int fogNum;
-	bool personalModel;
-#ifdef USE_PMLIGHT
-	dlight_t *dl;
-	dlight_t *dlights[ARRAY_LEN(backEndData->dlights)]{};
-	int numDlights;
-#endif
+	md3Header_t* header;
+	const bool personalModel =
+		(ent.e.renderfx & RF_THIRD_PERSON) &&
+		(tr.viewParms.portalView == portalView_t::PV_NONE);
 
-	// don't add third_person objects if not in a portal
-	personalModel = (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE);
+	cache.actorPrepared = true;
+	cache.actorVisible = false;
+	cache.actorLod = 0;
+	cache.actorFogNum = 0;
 
 	if (ent.e.renderfx & RF_WRAP_FRAMES)
 	{
@@ -332,62 +334,76 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 		ent.e.oldframe %= tr.currentModel->md3[0]->numFrames;
 	}
 
-	//
-	// Validate the frames so there is no chance of a crash.
-	// This will write directly into the entity structure, so
-	// when the surfaces are rendered, they don't need to be
-	// range checked again.
-	//
-	if ((ent.e.frame >= tr.currentModel->md3[0]->numFrames) || (ent.e.frame < 0) || (ent.e.oldframe >= tr.currentModel->md3[0]->numFrames) || (ent.e.oldframe < 0))
+	if ((ent.e.frame >= tr.currentModel->md3[0]->numFrames) || (ent.e.frame < 0) ||
+		(ent.e.oldframe >= tr.currentModel->md3[0]->numFrames) || (ent.e.oldframe < 0))
 	{
 		ri.Printf(PRINT_DEVELOPER, "R_AddMD3Surfaces: no such frame %d to %d for '%s'\n",
-				  ent.e.oldframe, ent.e.frame,
-				  tr.currentModel->name.data());
+			ent.e.oldframe, ent.e.frame, tr.currentModel->name.data());
 		ent.e.frame = 0;
 		ent.e.oldframe = 0;
 	}
 
-	//
-	// compute LOD
-	//
-	lod = R_ComputeLOD(ent);
+	cache.actorLod = R_ComputeLOD(ent);
+	header = tr.currentModel->md3[cache.actorLod];
 
-	header = tr.currentModel->md3[lod];
-
-	//
-	// cull the entire model if merged bounding box of both frames
-	// is outside the view frustum.
-	//
-	cull = R_CullModel(header, ent, bounds);
-	if (cull == CULL_OUT)
+	if (R_CullModel(header, ent, bounds) == CULL_OUT)
 	{
-		return;
+		return false;
 	}
 
-	//
-	// set up lighting now that we know we aren't culled
-	//
+	VectorCopy(bounds[0], cache.actorBounds[0]);
+	VectorCopy(bounds[1], cache.actorBounds[1]);
+
 	if (!personalModel || r_shadows->integer > 1)
 	{
 		R_SetupEntityLighting(tr.refdef, ent);
 	}
 
+	cache.actorFogNum = R_ComputeFogNum(header, ent);
+	cache.actorVisible = true;
+	return true;
+}
+
+void R_AddMD3Surfaces(trRefEntity_t& ent)
+{
+	vec3_t bounds[2];
+	int i;
+	md3Header_t* header = nullptr;
+	md3Surface_t* surface = nullptr;
+	md3Shader_t* md3Shader = nullptr;
+	shader_t* shader = nullptr;
+	int lod;
+	int fogNum;
+	bool personalModel;
+	entityFrameCache_t& cache = backEndData->entityFrameCache[tr.currentEntityNum];
 #ifdef USE_PMLIGHT
-#if defined(USE_AoS_to_SoA_SIMD) 
-	numDlights = 0;
-	if (r_dlightMode->integer >= 2 && (!personalModel || tr.viewParms.portalView != portalView_t::PV_NONE))
+	dlight_t* dl;
+	dlight_t* dlights[ARRAY_LEN(backEndData->dlights)]{};
+	int numDlights;
+#endif
+
+	// don't add third_person objects if not in a portal
+	personalModel = (ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE);
+
+	if (!cache.actorPrepared)
 	{
-		auto& soa = trsoa::GetFrameSoA();
-		numDlights = trsoa::GatherAffectingViewDlights_PMLIGHT(
-			soa,
-			tr.ort,
-			bounds[0],
-			bounds[1],
-			dlights,
-			static_cast<int>(ARRAY_LEN(dlights))
-		);
+		if (!R_PrepareMD3Surfaces(ent, cache))
+		{
+			return;
+		}
 	}
-#else
+	else if (!cache.actorVisible)
+	{
+		return;
+	}
+
+	lod = cache.actorLod;
+	header = tr.currentModel->md3[lod];
+	fogNum = cache.actorFogNum;
+	VectorCopy(cache.actorBounds[0], bounds[0]);
+	VectorCopy(cache.actorBounds[1], bounds[1]);
+
+#ifdef USE_PMLIGHT
 	numDlights = 0;
 	if (r_dlightMode->integer >= 2 && (!personalModel || tr.viewParms.portalView != portalView_t::PV_NONE))
 	{
@@ -396,31 +412,23 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 		{
 			dl = &tr.viewParms.dlights[n];
 			if (!R_LightCullBounds(*dl, bounds[0], bounds[1]))
+			{
 				dlights[numDlights++] = dl;
+			}
 		}
 	}
 #endif
-#endif
 
-	//
-	// see if we are in a fog volume
-	//
-	fogNum = R_ComputeFogNum(header, ent);
-
-	//
-	// draw all surfaces
-	//
-	surface = (md3Surface_t *)((byte *)header + header->ofsSurfaces);
+	surface = reinterpret_cast<md3Surface_t*>((byte*)header + header->ofsSurfaces);
 	for (i = 0; i < header->numSurfaces; i++)
 	{
-
 		if (ent.e.customShader)
 		{
 			shader = R_GetShaderByHandle(ent.e.customShader);
 		}
 		else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
 		{
-			const skin_t *skin;
+			const skin_t* skin;
 			int j;
 
 			skin = R_GetSkinByHandle(ent.e.customSkin);
@@ -436,6 +444,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 					break;
 				}
 			}
+
 			if (shader == tr.defaultShader)
 			{
 				ri.Printf(PRINT_DEVELOPER, "WARNING: no shader for surface %s in skin %s\n", surface->name, skin->name);
@@ -451,7 +460,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 		}
 		else
 		{
-			md3Shader = (md3Shader_t *)((byte *)surface + surface->ofsShaders);
+			md3Shader = reinterpret_cast<md3Shader_t*>((byte*)surface + surface->ofsShaders);
 			md3Shader += ent.e.skinNum % surface->numShaders;
 			shader = tr.shaders[md3Shader->shaderIndex];
 		}
@@ -459,37 +468,43 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 		// we will add shadows even if the main object isn't visible in the view
 
 		// stencil shadows can't do personal models unless I polyhedron clip
-		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 
-			&& !(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
+		if (!personalModel &&
+			r_shadows->integer == 2 &&
+			fogNum == 0 &&
+			!(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) &&
+			shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.shadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
-		if (r_shadows->integer == 3 && fogNum == 0 && (ent.e.renderfx & RF_SHADOW_PLANE) && shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
+		if (r_shadows->integer == 3 &&
+			fogNum == 0 &&
+			(ent.e.renderfx & RF_SHADOW_PLANE) &&
+			shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.projectionShadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *tr.projectionShadowShader, 0, 0);
 		}
 
 		// don't add third_person objects if not viewing through a portal
 		if (!personalModel)
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *shader, fogNum, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *shader, fogNum, 0);
 			tr.needScreenMap |= shader->hasScreenMap;
 		}
 
 #ifdef USE_PMLIGHT
 		if (numDlights && shader->lightingStage >= 0)
 		{
-			for (auto n = 0; n < numDlights; n++)
+			for (int n = 0; n < numDlights; n++)
 			{
 				dl = dlights[n];
 				tr.light = dl;
-				R_AddLitSurf(*reinterpret_cast<surfaceType_t *>(surface), *shader, fogNum);
+				R_AddLitSurf(*reinterpret_cast<surfaceType_t*>(surface), *shader, fogNum);
 			}
 		}
 #endif
 
-		surface = (md3Surface_t *)((byte *)surface + surface->ofsEnd);
+		surface = reinterpret_cast<md3Surface_t*>((byte*)surface + surface->ofsEnd);
 	}
 }
