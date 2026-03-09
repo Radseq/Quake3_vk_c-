@@ -1204,6 +1204,131 @@ static void vk_create_storage_buffer(const uint32_t size)
 #endif
 }
 
+bool vk_alloc_static_model_buffer(
+	const void* src,
+	const uint32_t size,
+	const vk::BufferUsageFlags usage,
+	gpuBuffer_t& out)
+{
+	if (!src || !size)
+	{
+		return false;
+	}
+
+	vk::BufferCreateInfo desc{
+		{},
+		size,
+		vk::BufferUsageFlagBits::eTransferDst | usage,
+		vk::SharingMode::eExclusive
+	};
+
+	VK_CHECK_ASSIGN(out.handle, vk_inst.device.createBuffer(desc));
+
+	const vk::MemoryRequirements memReq =
+		vk_inst.device.getBufferMemoryRequirements(out.handle);
+
+	vk::MemoryAllocateInfo allocInfo{
+		memReq.size,
+		find_memory_type(memReq.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)
+	};
+
+	VK_CHECK_ASSIGN(out.memory, vk_inst.device.allocateMemory(allocInfo));
+	VK_CHECK(vk_inst.device.bindBufferMemory(out.handle, out.memory, 0));
+
+#ifdef USE_UPLOAD_QUEUE
+	vk_flush_staging_buffer(false);
+#endif
+
+	vk::DeviceSize uploaded = 0;
+	while (uploaded < size)
+	{
+		vk::DeviceSize uploadSize = vk_inst.staging_buffer.size;
+		if (uploaded + uploadSize > size)
+		{
+			uploadSize = size - uploaded;
+		}
+
+		memcpy(vk_inst.staging_buffer.ptr, static_cast<const byte*>(src) + uploaded, uploadSize);
+
+		vk::CommandBuffer cmd = begin_command_buffer();
+		vk::BufferCopy copy{};
+		copy.srcOffset = 0;
+		copy.dstOffset = uploaded;
+		copy.size = uploadSize;
+		cmd.copyBuffer(vk_inst.staging_buffer.handle, out.handle, 1, &copy);
+		end_command_buffer(cmd, __func__);
+
+		uploaded += uploadSize;
+	}
+
+	out.size = size;
+	return true;
+}
+
+static void vk_push_md3_lerp(const float backlerp)
+{
+	alignas(16) float md3Anim[4] = { backlerp, 1.0f - backlerp, 0.0f, 0.0f };
+	vk_inst.cmd->command_buffer.pushConstants(
+		vk_inst.pipeline_layout,
+		vk::ShaderStageFlagBits::eVertex,
+		64,
+		sizeof(md3Anim),
+		md3Anim);
+}
+
+static void vk_bind_md3_geometry(const Vk_Shader_Type shaderType)
+{
+	const md3GpuSurface_t* surf = tess.gpuMd3Surface;
+	if (!surf)
+	{
+		return;
+	}
+
+	const vk::Buffer vb = surf->vertexBuffer.handle;
+	const vk::Buffer ib = surf->indexBuffer.handle;
+
+	const vk::DeviceSize oldPosOffset =
+		surf->oldPosBaseOffset + static_cast<vk::DeviceSize>(tess.gpuMd3OldFrame) * surf->frameStridePos;
+	const vk::DeviceSize newPosOffset =
+		surf->newPosBaseOffset + static_cast<vk::DeviceSize>(tess.gpuMd3NewFrame) * surf->frameStridePos;
+	const vk::DeviceSize stOffset = surf->stOffset;
+
+	switch (shaderType)
+	{
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE:
+	{
+		std::array<vk::Buffer, 4> bufs = { vb, vb, vk_inst.cmd->vertex_buffer, vb };
+		std::array<vk::DeviceSize, 4> offs = {
+			oldPosOffset,
+			newPosOffset,
+			vk_inst.cmd->buf_offset[1], // RGBA0 from dynamic tess buffer
+			stOffset
+		};
+		vk_inst.cmd->command_buffer.bindVertexBuffers(0, static_cast<uint32_t>(bufs.size()), bufs.data(), offs.data());
+		break;
+	}
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY:
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR:
+	{
+		std::array<vk::Buffer, 3> bufs = { vb, vb, vb };
+		std::array<vk::DeviceSize, 3> offs = {
+			oldPosOffset,
+			newPosOffset,
+			stOffset
+		};
+		vk_inst.cmd->command_buffer.bindVertexBuffers(0, static_cast<uint32_t>(bufs.size()), bufs.data(), offs.data());
+		break;
+	}
+	default:
+		return;
+	}
+
+	vk_bind_index_buffer(ib, 0);
+	vk_inst.cmd->num_indexes = surf->numIndexes;
+	vk_push_md3_lerp(tess.gpuMd3Backlerp);
+}
+
 #ifdef USE_VBO
 void vk_release_vbo(void)
 {
@@ -1215,6 +1340,8 @@ void vk_release_vbo(void)
 		vk_inst.device.freeMemory(vk_inst.vbo.buffer_memory);
 	vk_inst.vbo.buffer_memory = nullptr;
 }
+
+
 
 bool vk_alloc_vbo(const byte* vbo_data, const uint32_t vbo_size)
 {
@@ -1319,6 +1446,16 @@ static void vk_create_shader_modules(void)
 	vk_inst.modules.vert.gen[2][1][0][1] = SHADER_MODULE(vert_tx2_cl_fog);
 	vk_inst.modules.vert.gen[2][1][1][0] = SHADER_MODULE(vert_tx2_cl_env);
 	vk_inst.modules.vert.gen[2][1][1][1] = SHADER_MODULE(vert_tx2_cl_env_fog);
+
+	vk_inst.modules.vert.md3_gen[0] = SHADER_MODULE(vert_md3_tx0_vert_spv);
+	vk_inst.modules.vert.md3_gen[1] = SHADER_MODULE(vert_md3_tx0_fog_vert_spv);
+
+	vk_inst.modules.vert.md3_ident1[0] = SHADER_MODULE(vert_md3_tx0_ident1_vert_spv);
+	vk_inst.modules.vert.md3_ident1[1] = SHADER_MODULE(vert_md3_tx0_ident1_fog_vert_spv);
+
+	vk_inst.modules.vert.md3_fixed[0] = SHADER_MODULE(vert_md3_tx0_fixed_vert_spv);
+	vk_inst.modules.vert.md3_fixed[1] = SHADER_MODULE(vert_md3_tx0_fixed_fog_vert_spv);
+
 #ifdef USE_VK_VALIDATION
 	for (i = 0; i < 3; i++)
 	{
@@ -2176,7 +2313,7 @@ void vk_initialize(void)
 		vk::PushConstantRange push_range{
 			vk::ShaderStageFlagBits::eVertex, // stageFlags
 			0,								  // offset
-			64								  // size (16 floats)
+			80								  // size (16 floats)
 		};
 
 		// Pipeline layout creation info for standard pipelines
@@ -2407,6 +2544,10 @@ static void reset_vk_instance(Vk_Instance& s) noexcept
 	reset_to_default(s.modules.fog_vs);
 	reset_to_default(s.modules.dot_fs);
 	reset_to_default(s.modules.dot_vs);
+
+	for (auto& m : s.modules.vert.md3_gen)    reset_to_default(m);
+	for (auto& m : s.modules.vert.md3_ident1) reset_to_default(m);
+	for (auto& m : s.modules.vert.md3_fixed)  reset_to_default(m);
 
 	// Pipeline cache / pipelines
 	reset_to_default(s.pipelineCache);
@@ -3481,6 +3622,39 @@ void vk_bind_index_ext(const int numIndexes, const uint32_t* indexes)
 
 void vk_bind_geometry(const uint32_t flags)
 {
+	if (tess.gpuMd3Active)
+	{
+		Vk_Pipeline_Def def{};
+		if (vk_inst.cmd->last_pipeline)
+		{
+			// no-op
+		}
+
+		// derive from bound pipeline def is awkward here, so use current shader stage pipeline mapping
+		// bind path already remapped in vk_bind_pipeline()
+		if (tess.shader->numUnfoggedPasses > 0 && tess.shader->stages[0])
+		{
+			Vk_Shader_Type baseType = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
+			// runtime remap must mirror vk_bind_pipeline()
+			if (tess.shader->stages[0]->vk_pipeline[0])
+			{
+				Vk_Pipeline_Def pdef{};
+				vk_get_pipeline_def(
+					backEnd.viewParms.portalView == portalView_t::PV_MIRROR
+					? tess.shader->stages[0]->vk_mirror_pipeline[0]
+					: tess.shader->stages[0]->vk_pipeline[0],
+					pdef);
+
+				Vk_Shader_Type md3Type{};
+				if (vk_get_md3_shader_type(pdef.shader_type, md3Type))
+				{
+					vk_bind_md3_geometry(md3Type);
+					return;
+				}
+			}
+		}
+	}
+
 	// unsigned int size;
 	bind_base = -1;
 	bind_count = 0;

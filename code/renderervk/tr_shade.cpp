@@ -107,6 +107,12 @@ void RB_BeginSurface(shader_t &shader, const int fogNum)
 	tess.shader = state;
 	tess.fogNum = fogNum;
 
+	tess.gpuMd3Active = false;
+	tess.gpuMd3Surface = nullptr;
+	tess.gpuMd3Backlerp = 0.0f;
+	tess.gpuMd3OldFrame = 0;
+	tess.gpuMd3NewFrame = 0;
+
 #ifdef USE_LEGACY_DLIGHTS
 	tess.dlightBits = 0; // will be OR'd in by surface functions
 #endif

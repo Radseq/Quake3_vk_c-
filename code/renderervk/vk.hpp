@@ -86,6 +86,12 @@ void vk_release_vbo(void);
 bool vk_alloc_vbo(const byte *vbo_data, const uint32_t vbo_size);
 #endif
 
+bool vk_alloc_static_model_buffer(
+	const void* src,
+	const uint32_t size,
+	const vk::BufferUsageFlags usage,
+	gpuBuffer_t& out);
+
 // Vk_Instance contains engine-specific vulkan resources that persist entire renderer lifetime.
 // This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.
 

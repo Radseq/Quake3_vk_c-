@@ -189,6 +189,8 @@ cvar_t *r_marksOnTriangleMeshes;
 cvar_t *r_aviMotionJpegQuality;
 cvar_t *r_screenshotJpegQuality;
 
+cvar_t* r_gpuAnim;
+
 static cvar_t *r_maxpolys;
 static cvar_t *r_maxpolyverts;
 int max_polys;
@@ -1077,6 +1079,8 @@ static void R_Register(void)
 	ri.Cmd_AddCommand("screenshotBMP", R_ScreenShot_f);
 	ri.Cmd_AddCommand("gfxinfo", GfxInfo_f);
 	ri.Cmd_AddCommand("vkinfo", VkInfo_f);
+
+	r_gpuAnim = ri.Cvar_Get("r_gpuAnim", "1", CVAR_ARCHIVE);
 
 	//
 	// temporary latched variables that can only change over a restart

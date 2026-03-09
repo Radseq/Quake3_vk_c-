@@ -20,5 +20,6 @@ void vk_destroy_pipelines(bool resetCounter);
 
 void vk_update_post_process_pipelines(void);
 
+bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_Type& out);
 
 #endif // VK_PIPELINE_HPP

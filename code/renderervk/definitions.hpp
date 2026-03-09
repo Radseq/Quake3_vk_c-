@@ -1,4 +1,4 @@
-#ifndef DEFINITIONS_HPP
+﻿#ifndef DEFINITIONS_HPP
 #define DEFINITIONS_HPP
 
 #if defined(_WIN32) && defined(_DEBUG)
@@ -127,6 +127,11 @@ enum class Vk_Shader_Type : uint8_t
 
     TYPE_SIGNLE_TEXTURE_ENT_COLOR,
     TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV,
+
+    TYPE_MD3_SIGNLE_TEXTURE,
+    TYPE_MD3_SIGNLE_TEXTURE_IDENTITY,
+    TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR,
+    TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR,
 
     TYPE_MULTI_TEXTURE_ADD2_IDENTITY,
     TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV,
@@ -397,6 +402,10 @@ struct Vk_Instance
             vk::ShaderModule ident1[2][2][2]{}; // tx[0,1], env0[0,1] fog[0,1]
             vk::ShaderModule fixed[2][2][2]{};  // tx[0,1], env0[0,1] fog[0,1]
             vk::ShaderModule light[2]{};        // fog[0,1]
+
+            vk::ShaderModule md3_gen[2]{};      // fog[0,1]
+            vk::ShaderModule md3_ident1[2]{};   // fog[0,1]
+            vk::ShaderModule md3_fixed[2]{};    // fog[0,1]
         } vert;
         struct
         {

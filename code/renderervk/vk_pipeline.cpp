@@ -517,6 +517,26 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		fs_module = &vk_inst.modules.frag.ident1[0][0];
 		break;
 
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE:
+		vs_module = &vk_inst.modules.vert.md3_gen[0];
+		fs_module = &vk_inst.modules.frag.gen[0][0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY:
+		vs_module = &vk_inst.modules.vert.md3_ident1[0];
+		fs_module = &vk_inst.modules.frag.ident1[0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR:
+		vs_module = &vk_inst.modules.vert.md3_fixed[0];
+		fs_module = &vk_inst.modules.frag.fixed[0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR:
+		vs_module = &vk_inst.modules.vert.md3_fixed[0];
+		fs_module = &vk_inst.modules.frag.ent[0][0];
+		break;
+
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
 		vs_module = &vk_inst.modules.vert.ident1[1][0][0];
@@ -911,6 +931,28 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		push_attr(2, 2, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE:
+		push_bind(0, sizeof(vec4_t));      // old pos
+		push_bind(1, sizeof(vec4_t));      // new pos
+		push_bind(2, sizeof(color4ub_t));  // color
+		push_bind(3, sizeof(vec2_t));      // st
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(2, 2, vk::Format::eR8G8B8A8Unorm);
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY:
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR:
+		push_bind(0, sizeof(vec4_t));      // old pos
+		push_bind(1, sizeof(vec4_t));      // new pos
+		push_bind(2, sizeof(vec2_t));      // st
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(2, 2, vk::Format::eR32G32Sfloat);
+		break;
+
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR:
@@ -1303,11 +1345,46 @@ vk::Pipeline vk_gen_pipeline(const uint32_t index)
 	}
 }
 
+bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_Type& out)
+{
+	switch (in)
+	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR;
+		return true;
+	default:
+		return false;
+	}
+}
+
 void vk_bind_pipeline(const uint32_t pipeline)
 {
 	vk::Pipeline vkpipe;
+	uint32_t pipelineToBind = pipeline;
 
-	vkpipe = vk_gen_pipeline(pipeline);
+	if (tess.gpuMd3Active)
+	{
+		Vk_Pipeline_Def def{};
+		vk_get_pipeline_def(pipeline, def);
+
+		Vk_Shader_Type md3Type{};
+		if (vk_get_md3_shader_type(def.shader_type, md3Type))
+		{
+			def.shader_type = md3Type;
+			pipelineToBind = vk_find_pipeline_ext(0, def, true);
+		}
+	}
+
+	vkpipe = vk_gen_pipeline(pipelineToBind);
 
 	if (vkpipe != vk_inst.cmd->last_pipeline)
 	{
@@ -1315,7 +1392,8 @@ void vk_bind_pipeline(const uint32_t pipeline)
 		vk_inst.cmd->last_pipeline = vkpipe;
 	}
 
-	vk_world.dirty_depth_attachment |= (vk_inst.pipelines[pipeline].def.state_bits & GLS_DEPTHMASK_TRUE);
+	vk_world.dirty_depth_attachment |= (vk_inst.pipelines[pipelineToBind].def.state_bits & GLS_DEPTHMASK_TRUE);
+	//vk_world.dirty_depth_attachment |= (vk_inst.pipelines[pipeline].def.state_bits & GLS_DEPTHMASK_TRUE);
 }
 
 // Define a struct to hold the RGB values

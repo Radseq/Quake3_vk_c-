@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -816,6 +816,99 @@ static void LerpMeshVertexes(md3Surface_t *surf, float backlerp)
 	LerpMeshVertexes_scalar(surf, backlerp);
 }
 
+static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t& model, const md3Surface_t* target, int lod)
+{
+	if (lod < 0 || lod >= MD3_MAX_LODS)
+	{
+		return nullptr;
+	}
+
+	const md3GpuLod_t& gpuLod = model.md3Gpu[lod];
+	if (!gpuLod.ready || !gpuLod.surfaces)
+	{
+		return nullptr;
+	}
+
+	const md3Header_t* hdr = model.md3[lod];
+	if (!hdr)
+	{
+		return nullptr;
+	}
+
+	const md3Surface_t* surf = reinterpret_cast<const md3Surface_t*>((const byte*)hdr + hdr->ofsSurfaces);
+	for (int i = 0; i < gpuLod.numSurfaces; ++i)
+	{
+		if (surf == target)
+		{
+			return &gpuLod.surfaces[i];
+		}
+		surf = reinterpret_cast<const md3Surface_t*>((const byte*)surf + surf->ofsEnd);
+	}
+
+	return nullptr;
+}
+
+static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
+{
+	if (!r_gpuAnim || !r_gpuAnim->integer)
+	{
+		return false;
+	}
+
+	if (!backEnd.currentEntity || !tr.currentModel || tr.currentModel->type != modtype_t::MOD_MESH)
+	{
+		return false;
+	}
+
+	// first phase: only simple 1-texture MD3 shader path
+	if (tess.shader->numUnfoggedPasses != 1)
+	{
+		return false;
+	}
+
+	if (tess.shader->tessFlags & (TESS_NNN | TESS_VPOS | TESS_ST1 | TESS_ST2 | TESS_RGBA1 | TESS_RGBA2))
+	{
+		return false;
+	}
+
+#ifdef USE_VBO
+	VBO_Flush();
+#endif
+
+	RB_CHECKOVERFLOW(surface->numVerts, 0);
+
+	const int lod = backEnd.currentEntity->e.frame >= 0 ? 0 : 0; // jeśli masz actorLod cache, podmień tu na cache.actorLod
+	const md3GpuSurface_t* gpuSurface = R_FindMD3GpuSurface(*tr.currentModel, surface, lod);
+	if (!gpuSurface || !gpuSurface->ready)
+	{
+		return false;
+	}
+
+	const float backlerp =
+		(backEnd.currentEntity->e.oldframe == backEnd.currentEntity->e.frame)
+		? 0.0f
+		: backEnd.currentEntity->e.backlerp;
+
+	// base ST still computed/stored the old way because stage iterator expects it
+	float* texCoords = reinterpret_cast<float*>((byte*)surface + surface->ofsSt);
+	for (int j = 0; j < surface->numVerts; ++j)
+	{
+		tess.texCoords[0][j][0] = texCoords[j * 2 + 0];
+		tess.texCoords[0][j][1] = texCoords[j * 2 + 1];
+	}
+
+	tess.numVertexes = surface->numVerts;
+	tess.numIndexes = surface->numTriangles * 3;
+
+	tess.gpuMd3Active = true;
+	tess.gpuMd3Surface = gpuSurface;
+	tess.gpuMd3Backlerp = backlerp;
+	tess.gpuMd3OldFrame = backEnd.currentEntity->e.oldframe;
+	tess.gpuMd3NewFrame = backEnd.currentEntity->e.frame;
+
+	return true;
+}
+
 /*
 =============
 RB_SurfaceMesh
@@ -823,6 +916,11 @@ RB_SurfaceMesh
 */
 static void RB_SurfaceMesh(md3Surface_t *surface)
 {
+	if (RB_SurfaceMeshGPU(surface))
+	{
+		return;
+	}
+
 	int j;
 	float backlerp;
 	int *triangles;

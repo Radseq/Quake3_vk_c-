@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -1083,6 +1083,37 @@ enum class modtype_t : uint8_t
 	MOD_IQM
 };
 
+typedef struct gpuBuffer_s
+{
+	vk::Buffer handle;
+	vk::DeviceMemory memory;
+	uint32_t size;
+} gpuBuffer_t;
+
+typedef struct md3GpuSurface_s
+{
+	gpuBuffer_t vertexBuffer;
+	gpuBuffer_t indexBuffer;
+
+	uint32_t numVerts;
+	uint32_t numIndexes;
+	uint32_t numFrames;
+
+	uint32_t oldPosBaseOffset;
+	uint32_t newPosBaseOffset;
+	uint32_t stOffset;
+	uint32_t frameStridePos;
+	bool ready;
+} md3GpuSurface_t;
+
+typedef struct md3GpuLod_s
+{
+	md3GpuSurface_t* surfaces;
+	int numSurfaces;
+	bool ready;
+} md3GpuLod_t;
+
+
 typedef struct model_s
 {
 	std::array<char, MAX_QPATH> name;
@@ -1090,11 +1121,13 @@ typedef struct model_s
 	int index; // model = tr.models[model->index]
 
 	int dataSize;					// just for listing purposes
-	bmodel_t *bmodel;				// only if type == modtype_t::MOD_BRUSH
-	md3Header_t *md3[MD3_MAX_LODS]; // only if type == modtype_t::MOD_MESH
-	void *modelData;				// only if type == (modtype_t::MOD_MDR | modtype_t::MOD_IQM)
+	bmodel_t* bmodel;				// only if type == modtype_t::MOD_BRUSH
+	md3Header_t* md3[MD3_MAX_LODS]; // only if type == modtype_t::MOD_MESH
+	void* modelData;				// only if type == (modtype_t::MOD_MDR | modtype_t::MOD_IQM)
 
 	int numLods;
+
+	md3GpuLod_t md3Gpu[MD3_MAX_LODS];
 } model_t;
 
 constexpr int MAX_MOD_KNOWN = 1024;
@@ -1540,6 +1573,8 @@ extern cvar_t *r_printShaders;
 
 extern cvar_t *r_marksOnTriangleMeshes;
 
+extern cvar_t* r_gpuAnim;
+
 //====================================================================
 
 void R_SwapBuffers(int);
@@ -1680,6 +1715,12 @@ typedef struct shaderCommands_s
 
 	int numPasses;
 	shaderStage_t **xstages;
+
+	bool gpuMd3Active{};
+	const md3GpuSurface_t* gpuMd3Surface{};
+	float gpuMd3Backlerp{};
+	uint32_t gpuMd3OldFrame{};
+	uint32_t gpuMd3NewFrame{};
 
 } shaderCommands_t;
 
