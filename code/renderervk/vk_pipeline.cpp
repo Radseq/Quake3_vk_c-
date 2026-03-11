@@ -517,6 +517,15 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		fs_module = &vk_inst.modules.frag.ident1[0][0];
 		break;
 
+
+
+
+
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE:
+		vs_module = &vk_inst.modules.vert.md3_gen[0];
+		fs_module = &vk_inst.modules.frag.gen[0][0][0];
+		break;
+
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY:
 		vs_module = &vk_inst.modules.vert.md3_ident1[0];
 		fs_module = &vk_inst.modules.frag.ident1[0][0];
@@ -531,6 +540,11 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		vs_module = &vk_inst.modules.vert.md3_fixed[0];
 		fs_module = &vk_inst.modules.frag.ent[0][0];
 		break;
+
+
+
+
+
 
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
@@ -875,16 +889,45 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		push_attr(2, 2, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
+
+
+
+
+
+
+
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE:
+		push_bind(0, sizeof(md3XyzNormal_t)); // old packed md3 vertex
+		push_bind(1, sizeof(md3XyzNormal_t)); // new packed md3 vertex
+		push_bind(2, sizeof(color4ub_t));     // color
+		push_bind(3, sizeof(md3St_t));        // st
+		push_attr(0, 0, vk::Format::eR16G16B16A16Sint);
+		push_attr(1, 1, vk::Format::eR16G16B16A16Sint);
+		push_attr(2, 2, vk::Format::eR8G8B8A8Unorm);
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
+		break;
+
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY:
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR:
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR:
-		push_bind(0, sizeof(vec4_t)); // old pos
-		push_bind(1, sizeof(vec4_t)); // new pos
-		push_bind(2, sizeof(vec2_t)); // st
-		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
-		push_attr(1, 1, vk::Format::eR32G32B32A32Sfloat);
+		push_bind(0, sizeof(md3XyzNormal_t)); // old packed md3 vertex
+		push_bind(1, sizeof(md3XyzNormal_t)); // new packed md3 vertex
+		push_bind(2, sizeof(md3St_t));        // st
+		push_attr(0, 0, vk::Format::eR16G16B16A16Sint);
+		push_attr(1, 1, vk::Format::eR16G16B16A16Sint);
 		push_attr(2, 2, vk::Format::eR32G32Sfloat);
 		break;
+
+
+
+
+
+
+
+
+
+
+
 
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
@@ -1295,6 +1338,10 @@ static bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_Type& out)
 {
 	switch (in)
 	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE;
+		return true;
+
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
 		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY;
 		return true;

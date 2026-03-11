@@ -47,18 +47,15 @@ static bool R_CreateMD3GpuSurface(md3GpuSurface_t& out, const md3Surface_t& surf
 	out.numVerts = surf.numVerts;
 	out.numIndexes = surf.numTriangles * 3;
 	out.numFrames = surf.numFrames;
-	out.frameStridePos = surf.numVerts * sizeof(float) * 4;
+	out.frameStride = surf.numVerts * sizeof(md3XyzNormal_t);
 
-	const uint32_t posBytes = surf.numFrames * surf.numVerts * sizeof(float) * 4;
-	const uint32_t stBytes = surf.numVerts * sizeof(float) * 2;
+	const uint32_t frameBytes = surf.numFrames * out.frameStride;
+	const uint32_t stBytes = surf.numVerts * sizeof(md3St_t);
 	const uint32_t idxBytes = out.numIndexes * sizeof(uint32_t);
 
-	out.oldPosBaseOffset = 0;
-	out.newPosBaseOffset = 0;
-	out.stOffset = posBytes;
+	out.frameDataOffset = 0;
+	out.stOffset = frameBytes;
 
-	std::vector<float> positions(surf.numFrames * surf.numVerts * 4);
-	std::vector<float> st(surf.numVerts * 2);
 	std::vector<uint32_t> indices(out.numIndexes);
 
 	const md3XyzNormal_t* xyz =
@@ -68,27 +65,6 @@ static bool R_CreateMD3GpuSurface(md3GpuSurface_t& out, const md3Surface_t& surf
 	const md3Triangle_t* tri =
 		reinterpret_cast<const md3Triangle_t*>((const byte*)&surf + surf.ofsTriangles);
 
-	for (uint32_t f = 0; f < out.numFrames; ++f)
-	{
-		for (uint32_t v = 0; v < out.numVerts; ++v)
-		{
-			const md3XyzNormal_t& in = xyz[f * out.numVerts + v];
-			const uint32_t base = (f * out.numVerts + v) * 4;
-
-			positions[base + 0] = in.xyz[0] * MD3_XYZ_SCALE;
-			positions[base + 1] = in.xyz[1] * MD3_XYZ_SCALE;
-			positions[base + 2] = in.xyz[2] * MD3_XYZ_SCALE;
-			positions[base + 3] = 1.0f;
-		}
-	}
-
-	for (uint32_t v = 0; v < out.numVerts; ++v)
-	{
-		const uint32_t base = v * 2;
-		st[base + 0] = srcSt[v].st[0];
-		st[base + 1] = srcSt[v].st[1];
-	}
-
 	for (uint32_t i = 0; i < surf.numTriangles; ++i)
 	{
 		indices[i * 3 + 0] = tri[i].indexes[0];
@@ -96,9 +72,9 @@ static bool R_CreateMD3GpuSurface(md3GpuSurface_t& out, const md3Surface_t& surf
 		indices[i * 3 + 2] = tri[i].indexes[2];
 	}
 
-	std::vector<byte> vb(posBytes + stBytes);
-	memcpy(vb.data(), positions.data(), posBytes);
-	memcpy(vb.data() + posBytes, st.data(), stBytes);
+	std::vector<byte> vb(frameBytes + stBytes);
+	memcpy(vb.data() + out.frameDataOffset, xyz, frameBytes);
+	memcpy(vb.data() + out.stOffset, srcSt, stBytes);
 
 	if (!vk_alloc_static_model_buffer(
 		vb.data(),

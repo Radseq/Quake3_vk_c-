@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -127,9 +127,39 @@ void RB_BeginSurface(shader_t &shader, const int fogNum)
 	}
 }
 
-void R_ComputeTexCoords(const int b, const textureBundle_t &bundle)
+static bool R_SkipCpuTexCoordsForGpuMd3(const textureBundle_t& bundle) noexcept
+{
+	if (!tess.gpuMd3Active)
+		return false;
+
+	// tcMod na razie nadal nie jest przeniesiony na GPU,
+	// więc dla bezpieczeństwa nie omijamy CPU path w takich przypadkach.
+	if (bundle.numTexMods != 0)
+		return false;
+
+	switch (bundle.tcGen)
+	{
+	case texCoordGen_t::TCGEN_TEXTURE:
+	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
+		return true;
+	default:
+		return false;
+	}
+}
+
+void R_ComputeTexCoords(const int b, const textureBundle_t& bundle)
 {
 	if (!tess.numVertexes)
+		return;
+
+	if (tess.gpuMd3Active &&
+		bundle.numTexMods == 0 &&
+		bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE)
+	{
+		return;
+	}
+
+	if (R_SkipCpuTexCoordsForGpuMd3(bundle))
 		return;
 
 	int i;

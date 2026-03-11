@@ -1267,7 +1267,7 @@ bool vk_alloc_static_model_buffer(
 
 static void vk_push_md3_lerp(const float backlerp)
 {
-	alignas(16) float md3Anim[4] = { backlerp, 1.0f - backlerp, 0.0f, 0.0f };
+	alignas(16) float md3Anim[4] = { 1.0f - backlerp, backlerp, 0.0f, 0.0f };
 	vk_inst.cmd->command_buffer.pushConstants(
 		vk_inst.pipeline_layout,
 		vk::ShaderStageFlagBits::eVertex,
@@ -1408,8 +1408,8 @@ static void vk_create_shader_modules(void)
 
 
 
-	//vk_inst.modules.vert.md3_gen[0] = SHADER_MODULE(vert_md3_tx0_vert_spv);
-	//vk_inst.modules.vert.md3_gen[1] = SHADER_MODULE(vert_md3_tx0_fog_vert_spv);
+	vk_inst.modules.vert.md3_gen[0] = SHADER_MODULE(vert_md3_tx0_vert_spv);
+	vk_inst.modules.vert.md3_gen[1] = SHADER_MODULE(vert_md3_tx0_fog_vert_spv);
 
 	vk_inst.modules.vert.md3_ident1[0] = SHADER_MODULE(vert_md3_tx0_ident1_vert_spv);
 	vk_inst.modules.vert.md3_ident1[1] = SHADER_MODULE(vert_md3_tx0_ident1_fog_vert_spv);
@@ -2507,7 +2507,7 @@ static void reset_vk_instance(Vk_Instance& s) noexcept
 	reset_to_default(s.modules.dot_fs);
 	reset_to_default(s.modules.dot_vs);
 
-	//for (auto& m : s.modules.vert.md3_gen)    reset_to_default(m);
+	for (auto& m : s.modules.vert.md3_gen)    reset_to_default(m);
 	for (auto& m : s.modules.vert.md3_ident1) reset_to_default(m);
 	for (auto& m : s.modules.vert.md3_fixed)  reset_to_default(m);
 
@@ -3599,23 +3599,66 @@ void vk_bind_geometry(const uint32_t flags)
 	{
 		const auto& s = *tess.gpuMd3Surface;
 
-		const vk::Buffer bufs[] = {
-			s.vertexBuffer.handle, // old frame positions
-			s.vertexBuffer.handle, // new frame positions
-			s.vertexBuffer.handle  // static ST
-		};
+		const vk::DeviceSize oldFrameOffset =
+			static_cast<vk::DeviceSize>(s.frameDataOffset) +
+			static_cast<vk::DeviceSize>(tess.gpuMd3OldFrame) * s.frameStride;
 
-		const vk::DeviceSize offs[] = {
-			static_cast<vk::DeviceSize>(s.oldPosBaseOffset) +
-				static_cast<vk::DeviceSize>(tess.gpuMd3OldFrame) * s.frameStridePos,
+		const vk::DeviceSize newFrameOffset =
+			static_cast<vk::DeviceSize>(s.frameDataOffset) +
+			static_cast<vk::DeviceSize>(tess.gpuMd3NewFrame) * s.frameStride;
 
-			static_cast<vk::DeviceSize>(s.newPosBaseOffset) +
-				static_cast<vk::DeviceSize>(tess.gpuMd3NewFrame) * s.frameStridePos,
+		const vk::DeviceSize stOffset =
+			static_cast<vk::DeviceSize>(s.stOffset);
 
-			static_cast<vk::DeviceSize>(s.stOffset)
-		};
+		bind_base = -1;
+		bind_count = 0;
 
-		vk_inst.cmd->command_buffer.bindVertexBuffers(0, 3, bufs, offs);
+		// generic MD3 path: old/new/color/st
+		if (flags & TESS_RGBA0)
+		{
+			shade_bufs[0] = s.vertexBuffer.handle;
+			shade_bufs[1] = s.vertexBuffer.handle;
+			shade_bufs[2] = vk_inst.cmd->vertex_buffer;
+			shade_bufs[3] = s.vertexBuffer.handle;
+
+			vk_inst.cmd->buf_offset[0] = oldFrameOffset;
+			vk_bind_index_attr(0);
+
+			vk_inst.cmd->buf_offset[1] = newFrameOffset;
+			vk_bind_index_attr(1);
+
+			vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
+
+			vk_inst.cmd->buf_offset[3] = stOffset;
+			vk_bind_index_attr(3);
+
+			vk_inst.cmd->command_buffer.bindVertexBuffers(
+				bind_base,
+				bind_count,
+				shade_bufs,
+				vk_inst.cmd->buf_offset + bind_base);
+			return;
+		}
+
+		// identity / fixed / ent MD3 path: old/new/st
+		shade_bufs[0] = s.vertexBuffer.handle;
+		shade_bufs[1] = s.vertexBuffer.handle;
+		shade_bufs[2] = s.vertexBuffer.handle;
+
+		vk_inst.cmd->buf_offset[0] = oldFrameOffset;
+		vk_bind_index_attr(0);
+
+		vk_inst.cmd->buf_offset[1] = newFrameOffset;
+		vk_bind_index_attr(1);
+
+		vk_inst.cmd->buf_offset[2] = stOffset;
+		vk_bind_index_attr(2);
+
+		vk_inst.cmd->command_buffer.bindVertexBuffers(
+			bind_base,
+			bind_count,
+			shade_bufs,
+			vk_inst.cmd->buf_offset + bind_base);
 		return;
 	}
 

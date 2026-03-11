@@ -1092,12 +1092,7 @@ typedef struct gpuBuffer_s
 	uint32_t size;
 } gpuBuffer_t;
 
-//struct md3GpuVertexPacked_t
-//{
-//	std::int16_t xyz[3];
-//	std::uint16_t normal;
-//};
-//static_assert(sizeof(md3GpuVertexPacked_t) == 8);
+static_assert(sizeof(md3XyzNormal_t) == 8);
 
 typedef struct md3GpuSurface_s
 {
@@ -1108,10 +1103,9 @@ typedef struct md3GpuSurface_s
 	uint32_t numIndexes;
 	uint32_t numFrames;
 
-	uint32_t oldPosBaseOffset;
-	uint32_t newPosBaseOffset;
+	uint32_t frameDataOffset;
 	uint32_t stOffset;
-	uint32_t frameStridePos;
+	uint32_t frameStride;
 	bool ready;
 } md3GpuSurface_t;
 

@@ -856,45 +856,73 @@ static bool RB_CanUseGpuMd3(const shader_t& shader, const int fogNum) noexcept
 	if (shader.numDeforms != 0)
 		return false;
 
-	if (fogNum && static_cast<int>(shader.fogPass))
+	// Na razie nie wspieramy osobnego fog pass dla GPU MD3.
+	if (fogNum != 0 || static_cast<int>(shader.fogPass) != 0)
 		return false;
 
-	if (shader.numUnfoggedPasses <= 0)
+	// Etap 2: tylko jeden pass.
+	if (shader.numUnfoggedPasses != 1)
 		return false;
 
-	for (int s = 0; s < shader.numUnfoggedPasses; ++s)
+	const shaderStage_t* const p = shader.stages[0];
+	if (!p || !p->active)
+		return false;
+
+	if (p->depthFragment)
+		return false;
+
+	if (p->numTexBundles != 1 || !p->bundle[0].image[0])
+		return false;
+
+	const textureBundle_t& bundle = p->bundle[0];
+
+	if (bundle.numTexMods != 0)
+		return false;
+
+	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE)
+		return false;
+
+	if (bundle.adjustColorsForFog != acff_t::ACFF_NONE)
+		return false;
+
+	// Tego etap 2 nadal nie obsługuje, bo wymaga xyz / normal / vertex color source.
+	switch (bundle.rgbGen)
 	{
-		const shaderStage_t* p = shader.stages[s];
-		if (!p || !p->active)
-			continue;
-
-		for (uint32_t b = 0; b < p->numTexBundles; ++b)
-		{
-			const textureBundle_t& bundle = p->bundle[b];
-			if (!bundle.image[0])
-				continue;
-
-			if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE)
-				return false;
-		}
-
-		const auto rgb = p->bundle[0].rgbGen;
-		const auto alpha = p->bundle[0].alphaGen;
-
-		if (rgb == colorGen_t::CGEN_LIGHTING_DIFFUSE ||
-			rgb == colorGen_t::CGEN_VERTEX ||
-			rgb == colorGen_t::CGEN_EXACT_VERTEX ||
-			rgb == colorGen_t::CGEN_ONE_MINUS_VERTEX ||
-			alpha == alphaGen_t::AGEN_VERTEX ||
-			alpha == alphaGen_t::AGEN_ONE_MINUS_VERTEX ||
-			alpha == alphaGen_t::AGEN_LIGHTING_SPECULAR ||
-			alpha == alphaGen_t::AGEN_PORTAL)
-		{
-			return false;
-		}
+	case colorGen_t::CGEN_LIGHTING_DIFFUSE:
+	case colorGen_t::CGEN_EXACT_VERTEX:
+	case colorGen_t::CGEN_VERTEX:
+	case colorGen_t::CGEN_ONE_MINUS_VERTEX:
+	case colorGen_t::CGEN_FOG:
+		return false;
+	default:
+		break;
 	}
 
-	return true;
+	switch (bundle.alphaGen)
+	{
+	case alphaGen_t::AGEN_VERTEX:
+	case alphaGen_t::AGEN_ONE_MINUS_VERTEX:
+	case alphaGen_t::AGEN_LIGHTING_SPECULAR:
+	case alphaGen_t::AGEN_PORTAL:
+		return false;
+	default:
+		break;
+	}
+
+	Vk_Pipeline_Def def{};
+	vk_get_pipeline_def(p->vk_pipeline[0], def);
+
+	switch (def.shader_type)
+	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+		return true;
+
+	default:
+		return false;
+	}
 }
 
 static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
