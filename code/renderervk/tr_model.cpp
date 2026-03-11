@@ -121,6 +121,7 @@ static bool R_CreateMD3GpuSurface(md3GpuSurface_t& out, const md3Surface_t& surf
 	out.ready = true;
 	return true;
 }
+
 static constexpr std::string_view extract_base_and_ext(std::string_view name, std::string_view& extOut, std::string_view fallbackExt)
 {
 	auto dot = name.find('.');

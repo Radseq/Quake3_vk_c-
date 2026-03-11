@@ -848,64 +848,89 @@ static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t& model, const md
 	return nullptr;
 }
 
-static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
+static bool RB_CanUseGpuMd3(const shader_t& shader, const int fogNum) noexcept
 {
 	if (!r_gpuAnim || !r_gpuAnim->integer)
-	{
 		return false;
+
+	if (shader.numDeforms != 0)
+		return false;
+
+	if (fogNum && static_cast<int>(shader.fogPass))
+		return false;
+
+	if (shader.numUnfoggedPasses <= 0)
+		return false;
+
+	for (int s = 0; s < shader.numUnfoggedPasses; ++s)
+	{
+		const shaderStage_t* p = shader.stages[s];
+		if (!p || !p->active)
+			continue;
+
+		for (uint32_t b = 0; b < p->numTexBundles; ++b)
+		{
+			const textureBundle_t& bundle = p->bundle[b];
+			if (!bundle.image[0])
+				continue;
+
+			if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE)
+				return false;
+		}
+
+		const auto rgb = p->bundle[0].rgbGen;
+		const auto alpha = p->bundle[0].alphaGen;
+
+		if (rgb == colorGen_t::CGEN_LIGHTING_DIFFUSE ||
+			rgb == colorGen_t::CGEN_VERTEX ||
+			rgb == colorGen_t::CGEN_EXACT_VERTEX ||
+			rgb == colorGen_t::CGEN_ONE_MINUS_VERTEX ||
+			alpha == alphaGen_t::AGEN_VERTEX ||
+			alpha == alphaGen_t::AGEN_ONE_MINUS_VERTEX ||
+			alpha == alphaGen_t::AGEN_LIGHTING_SPECULAR ||
+			alpha == alphaGen_t::AGEN_PORTAL)
+		{
+			return false;
+		}
 	}
 
+	return true;
+}
+
+static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
+{
 	if (!backEnd.currentEntity || !tr.currentModel || tr.currentModel->type != modtype_t::MOD_MESH)
-	{
 		return false;
-	}
 
-	// first phase: only simple 1-texture MD3 shader path
-	if (tess.shader->numUnfoggedPasses != 1)
-	{
+	if (!RB_CanUseGpuMd3(*tess.shader, tess.fogNum))
 		return false;
-	}
-
-	if (tess.shader->tessFlags & (TESS_NNN | TESS_VPOS | TESS_ST1 | TESS_ST2 | TESS_RGBA1 | TESS_RGBA2))
-	{
-		return false;
-	}
 
 #ifdef USE_VBO
 	VBO_Flush();
 #endif
 
-	RB_CHECKOVERFLOW(surface->numVerts, 0);
-
-	const int lod = backEnd.currentEntity->e.frame >= 0 ? 0 : 0; // jeśli masz actorLod cache, podmień tu na cache.actorLod
+	const int lod = backEnd.currentEntity->modelLod;
 	const md3GpuSurface_t* gpuSurface = R_FindMD3GpuSurface(*tr.currentModel, surface, lod);
 	if (!gpuSurface || !gpuSurface->ready)
-	{
 		return false;
-	}
 
 	const float backlerp =
 		(backEnd.currentEntity->e.oldframe == backEnd.currentEntity->e.frame)
 		? 0.0f
 		: backEnd.currentEntity->e.backlerp;
 
-	// base ST still computed/stored the old way because stage iterator expects it
-	float* texCoords = reinterpret_cast<float*>((byte*)surface + surface->ofsSt);
-	for (int j = 0; j < surface->numVerts; ++j)
-	{
-		tess.texCoords[0][j][0] = texCoords[j * 2 + 0];
-		tess.texCoords[0][j][1] = texCoords[j * 2 + 1];
-	}
-
-	tess.numVertexes = surface->numVerts;
-	tess.numIndexes = surface->numTriangles * 3;
+	tess.numVertexes = gpuSurface->numVerts;
+	tess.numIndexes = gpuSurface->numIndexes;
 
 	tess.gpuMd3Active = true;
 	tess.gpuMd3Surface = gpuSurface;
 	tess.gpuMd3Backlerp = backlerp;
-	tess.gpuMd3OldFrame = backEnd.currentEntity->e.oldframe;
-	tess.gpuMd3NewFrame = backEnd.currentEntity->e.frame;
+	tess.gpuMd3OldFrame = static_cast<uint32_t>(backEnd.currentEntity->e.oldframe);
+	tess.gpuMd3NewFrame = static_cast<uint32_t>(backEnd.currentEntity->e.frame);
 
+	// jeśli chcesz zachować obecne CPU tcMod/scroll/rotate/stretch dla prostych shaderów,
+	// możesz tymczasowo zostawić kopiowanie base ST do tess.texCoords[0].
+	// Jeśli chcesz stricte zero CPU anim path, usuń to i binduj ST z GPU.
 	return true;
 }
 

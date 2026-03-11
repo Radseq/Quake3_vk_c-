@@ -128,10 +128,22 @@ enum class Vk_Shader_Type : uint8_t
     TYPE_SIGNLE_TEXTURE_ENT_COLOR,
     TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV,
 
+
+
+
     TYPE_MD3_SIGNLE_TEXTURE,
+    TYPE_MD3_SIGNLE_TEXTURE_ENV,
     TYPE_MD3_SIGNLE_TEXTURE_IDENTITY,
+    TYPE_MD3_SIGNLE_TEXTURE_IDENTITY_ENV,
     TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR,
+    TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR_ENV,
     TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR,
+    TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR_ENV,
+    TYPE_MD3_SIGNLE_TEXTURE_LIGHTING,
+    TYPE_MD3_SIGNLE_TEXTURE_LIGHTING_LINEAR,
+
+
+
 
     TYPE_MULTI_TEXTURE_ADD2_IDENTITY,
     TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV,
@@ -403,7 +415,7 @@ struct Vk_Instance
             vk::ShaderModule fixed[2][2][2]{};  // tx[0,1], env0[0,1] fog[0,1]
             vk::ShaderModule light[2]{};        // fog[0,1]
 
-            vk::ShaderModule md3_gen[2]{};      // fog[0,1]
+           // vk::ShaderModule md3_gen[2]{};      // fog[0,1]
             vk::ShaderModule md3_ident1[2]{};   // fog[0,1]
             vk::ShaderModule md3_fixed[2]{};    // fog[0,1]
         } vert;
@@ -416,6 +428,7 @@ struct Vk_Instance
             vk::ShaderModule    ent[1][2]{}; // tx[0], fog[0,1]
             vk::ShaderModule  light[2][2]{}; // linear[0,1] fog[0,1]
         } frag;
+
 
         vk::ShaderModule color_fs{};
         vk::ShaderModule color_vs{};

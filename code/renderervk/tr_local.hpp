@@ -192,6 +192,7 @@ typedef struct vkUniform_s
 	vec4_t fogDepthVector;    // vertex
 	vec4_t fogEyeT;           // vertex
 	vec4_t fogColor;          // fragment
+	vec4_t md3Anim; // x = frontlerp, y = backlerp, z/w reserved
 } vkUniform_t;
 
 typedef struct dlight_s
@@ -232,6 +233,7 @@ typedef struct
 	vec3_t shadowLightDir; // normalized direction towards light
 #endif
 	bool intShaderTime;
+	int modelLod;
 } trRefEntity_t;
 
 typedef struct
@@ -1090,6 +1092,13 @@ typedef struct gpuBuffer_s
 	uint32_t size;
 } gpuBuffer_t;
 
+//struct md3GpuVertexPacked_t
+//{
+//	std::int16_t xyz[3];
+//	std::uint16_t normal;
+//};
+//static_assert(sizeof(md3GpuVertexPacked_t) == 8);
+
 typedef struct md3GpuSurface_s
 {
 	gpuBuffer_t vertexBuffer;
@@ -1716,11 +1725,12 @@ typedef struct shaderCommands_s
 	int numPasses;
 	shaderStage_t **xstages;
 
-	bool gpuMd3Active{};
-	const md3GpuSurface_t* gpuMd3Surface{};
-	float gpuMd3Backlerp{};
-	uint32_t gpuMd3OldFrame{};
-	uint32_t gpuMd3NewFrame{};
+	bool gpuMd3Active;
+	const md3GpuSurface_t* gpuMd3Surface;
+	int gpuMd3Lod;
+	uint32_t gpuMd3OldFrame;
+	uint32_t gpuMd3NewFrame;
+	float gpuMd3Backlerp;
 
 } shaderCommands_t;
 

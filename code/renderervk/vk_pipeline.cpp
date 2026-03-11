@@ -447,20 +447,20 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 {
 	vk::ShaderModule* vs_module = nullptr;
 	vk::ShaderModule* fs_module = nullptr;
-	// int32_t vert_spec_data[1]; // clippping
 
 	FragSpec fragSpec = {};
 
-	vk::DynamicState dynamic_state_array[] = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
+	vk::DynamicState dynamic_state_array[] = {
+		vk::DynamicState::eViewport,
+		vk::DynamicState::eScissor
+	};
 
-	vk::Pipeline pipeline;
 	vk::Bool32 alphaToCoverage = vk::False;
 	unsigned int atest_bits;
 	unsigned int state_bits = def.state_bits;
 
 	switch (def.shader_type)
 	{
-
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
 		vs_module = &vk_inst.modules.vert.light[0];
 		fs_module = &vk_inst.modules.frag.light[0][0];
@@ -515,11 +515,6 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
 		vs_module = &vk_inst.modules.vert.ident1[0][1][0];
 		fs_module = &vk_inst.modules.frag.ident1[0][0];
-		break;
-
-	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE:
-		vs_module = &vk_inst.modules.vert.md3_gen[0];
-		fs_module = &vk_inst.modules.frag.gen[0][0][0];
 		break;
 
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY:
@@ -669,7 +664,6 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		case Vk_Shader_Type::TYPE_COLOR_RED:
 			break;
 		default:
-			// switch to fogged modules
 			vs_module++;
 			fs_module++;
 			break;
@@ -680,43 +674,29 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	set_shader_stage_desc(shader_stages[0], vk::ShaderStageFlagBits::eVertex, *vs_module, "main");
 	set_shader_stage_desc(shader_stages[1], vk::ShaderStageFlagBits::eFragment, *fs_module, "main");
 
-	// Com_Memset( vert_spec_data, 0, sizeof( vert_spec_data ) );
-
-	// vert_spec_data[0] = def.clipping_plane ? 1 : 0;
-
-	// fragment shader specialization data
 	atest_bits = state_bits & GLS_ATEST_BITS;
 	switch (atest_bits)
 	{
 	case GLS_ATEST_GT_0:
-		fragSpec.alphaFunc = 1; // not equal
+		fragSpec.alphaFunc = 1;
 		fragSpec.alphaRef = 0.0f;
 		break;
 	case GLS_ATEST_LT_80:
-		fragSpec.alphaFunc = 2; // less than
+		fragSpec.alphaFunc = 2;
 		fragSpec.alphaRef = 0.5f;
 		break;
 	case GLS_ATEST_GE_80:
-		fragSpec.alphaFunc = 3; // greater or equal
+		fragSpec.alphaFunc = 3;
 		fragSpec.alphaRef = 0.5f;
 		break;
 	default:
 		fragSpec.alphaFunc = 0;
 		fragSpec.alphaRef = 0.0f;
 		break;
-	};
+	}
 
-	// depth fragment threshold
 	fragSpec.depthFrag = 0.85f;
 
-#if 0
-	if (r_ext_alpha_to_coverage->integer && vkSamples != vk::SampleCountFlagBits::e1 && frag_spec_data[0].i) {
-		frag_spec_data[3].i = 1;
-		alphaToCoverage = vk::True;
-	}
-#endif
-
-	// constant color
 	switch (def.shader_type)
 	{
 	default:
@@ -733,17 +713,16 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		break;
 	}
 
-	// abs lighting
 	switch (def.shader_type)
 	{
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
 		fragSpec.absLight = def.abs_light ? 1 : 0;
+		break;
 	default:
 		break;
 	}
 
-	// multutexture mode
 	switch (def.shader_type)
 	{
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
@@ -822,63 +801,30 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		break;
 	}
 
-	fragSpec.fixedColor = ((float)def.color.rgb) / 255.0;
-	fragSpec.fixedAlpha = ((float)def.color.alpha) / 255.0;
+	fragSpec.fixedColor = static_cast<float>(def.color.rgb) / 255.0f;
+	fragSpec.fixedAlpha = static_cast<float>(def.color.alpha) / 255.0f;
+	fragSpec.acff = def.fog_stage ? def.acff : 0;
 
-	if (def.fog_stage)
-	{
-		fragSpec.acff = def.acff;
-	}
-	else
-	{
-		fragSpec.acff = 0;
-	}
-
-	//
-	// vertex module specialization data
-	//
-#if 0
-	spec_entries[0].constantID = 0; // clip_plane
-	spec_entries[0].offset = 0 * sizeof(int32_t);
-	spec_entries[0].size = sizeof(int32_t);
-
-	vert_spec_info.mapEntryCount = 1;
-	vert_spec_info.pMapEntries = spec_entries + 0;
-	vert_spec_info.dataSize = 1 * sizeof(int32_t);
-	vert_spec_info.pData = &vert_spec_data[0];
-	shader_stages[0].pSpecializationInfo = &vert_spec_info;
-#endif
 	shader_stages[0].pSpecializationInfo = nullptr;
 
-	//
-	// fragment module specialization data
-	//
-
-	vk::SpecializationInfo frag_spec_info{ static_cast<uint32_t>(kFragSpecEntries.size()),
-										  kFragSpecEntries.data(),
-										  sizeof(FragSpec),
-										  &fragSpec };
-
+	vk::SpecializationInfo frag_spec_info{
+		static_cast<uint32_t>(kFragSpecEntries.size()),
+		kFragSpecEntries.data(),
+		sizeof(FragSpec),
+		&fragSpec
+	};
 	shader_stages[1].pSpecializationInfo = &frag_spec_info;
 
-	//
-	// Vertex input
-	//
 	num_binds = num_attrs = 0;
 	switch (def.shader_type)
 	{
-
 	case Vk_Shader_Type::TYPE_FOG_ONLY:
 	case Vk_Shader_Type::TYPE_DOT:
-		push_bind(0, sizeof(vec4_t)); // xyz array
-		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
-		break;
-
 	case Vk_Shader_Type::TYPE_COLOR_BLACK:
 	case Vk_Shader_Type::TYPE_COLOR_WHITE:
 	case Vk_Shader_Type::TYPE_COLOR_GREEN:
 	case Vk_Shader_Type::TYPE_COLOR_RED:
-		push_bind(0, sizeof(vec4_t)); // xyz array
+		push_bind(0, sizeof(vec4_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
@@ -886,68 +832,55 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
-		push_bind(0, sizeof(vec4_t)); // xyz array
-		push_bind(2, sizeof(vec2_t)); // st0 array
+		push_bind(0, sizeof(vec4_t));
+		push_bind(2, sizeof(vec2_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(2, 2, vk::Format::eR32G32Sfloat);
 		break;
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
-		push_bind(0, sizeof(vec4_t));	  // xyz array
-		push_bind(1, sizeof(color4ub_t)); // color array
-		push_bind(2, sizeof(vec2_t));	  // st0 array
+		push_bind(0, sizeof(vec4_t));
+		push_bind(1, sizeof(color4ub_t));
+		push_bind(2, sizeof(vec2_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
 		push_attr(2, 2, vk::Format::eR32G32Sfloat);
 		break;
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
-		push_bind(0, sizeof(vec4_t));	  // xyz array
-		push_bind(1, sizeof(color4ub_t)); // color array
-		// push_bind( 2, sizeof( vec2_t ) );					// st0 array
-		push_bind(5, sizeof(vec4_t)); // normals
+		push_bind(0, sizeof(vec4_t));
+		push_bind(1, sizeof(color4ub_t));
+		push_bind(5, sizeof(vec4_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
-		// push_attr( 2, 2, vk::Format::eR8G8B8A8Unorm );
 		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
-		push_bind(0, sizeof(vec4_t)); // xyz array
-		push_bind(5, sizeof(vec4_t)); // normals
+		push_bind(0, sizeof(vec4_t));
+		push_bind(5, sizeof(vec4_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
-		push_bind(0, sizeof(vec4_t)); // xyz array
-		push_bind(1, sizeof(vec2_t)); // st0 array
-		push_bind(2, sizeof(vec4_t)); // normals array
+		push_bind(0, sizeof(vec4_t));
+		push_bind(1, sizeof(vec2_t));
+		push_bind(2, sizeof(vec4_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR32G32Sfloat);
 		push_attr(2, 2, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
-	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE:
-		push_bind(0, sizeof(vec4_t));      // old pos
-		push_bind(1, sizeof(vec4_t));      // new pos
-		push_bind(2, sizeof(color4ub_t));  // color
-		push_bind(3, sizeof(vec2_t));      // st
-		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
-		push_attr(1, 1, vk::Format::eR32G32B32A32Sfloat);
-		push_attr(2, 2, vk::Format::eR8G8B8A8Unorm);
-		push_attr(3, 3, vk::Format::eR32G32Sfloat);
-		break;
-
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY:
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR:
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR:
-		push_bind(0, sizeof(vec4_t));      // old pos
-		push_bind(1, sizeof(vec4_t));      // new pos
-		push_bind(2, sizeof(vec2_t));      // st
+		push_bind(0, sizeof(vec4_t)); // old pos
+		push_bind(1, sizeof(vec4_t)); // new pos
+		push_bind(2, sizeof(vec2_t)); // st
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(2, 2, vk::Format::eR32G32Sfloat);
@@ -957,9 +890,9 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR:
-		push_bind(0, sizeof(vec4_t)); // xyz array
-		push_bind(2, sizeof(vec2_t)); // st0 array
-		push_bind(3, sizeof(vec2_t)); // st1 array
+		push_bind(0, sizeof(vec4_t));
+		push_bind(2, sizeof(vec2_t));
+		push_bind(3, sizeof(vec2_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(2, 2, vk::Format::eR32G32Sfloat);
 		push_attr(3, 3, vk::Format::eR32G32Sfloat);
@@ -969,9 +902,9 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV:
-		push_bind(0, sizeof(vec4_t)); // xyz array
-		push_bind(3, sizeof(vec2_t)); // st1 array
-		push_bind(5, sizeof(vec4_t)); // normals
+		push_bind(0, sizeof(vec4_t));
+		push_bind(3, sizeof(vec2_t));
+		push_bind(5, sizeof(vec4_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(3, 3, vk::Format::eR32G32Sfloat);
 		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
@@ -980,10 +913,10 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2:
-		push_bind(0, sizeof(vec4_t));	  // xyz array
-		push_bind(1, sizeof(color4ub_t)); // color array
-		push_bind(2, sizeof(vec2_t));	  // st0 array
-		push_bind(3, sizeof(vec2_t));	  // st1 array
+		push_bind(0, sizeof(vec4_t));
+		push_bind(1, sizeof(color4ub_t));
+		push_bind(2, sizeof(vec2_t));
+		push_bind(3, sizeof(vec2_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
 		push_attr(2, 2, vk::Format::eR32G32Sfloat);
@@ -993,14 +926,12 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_ENV:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1_ENV:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_ENV:
-		push_bind(0, sizeof(vec4_t));	  // xyz array
-		push_bind(1, sizeof(color4ub_t)); // color array
-		// push_bind( 2, sizeof( vec2_t ) );					// st0 array
-		push_bind(3, sizeof(vec2_t)); // st1 array
-		push_bind(5, sizeof(vec4_t)); // normals
+		push_bind(0, sizeof(vec4_t));
+		push_bind(1, sizeof(color4ub_t));
+		push_bind(3, sizeof(vec2_t));
+		push_bind(5, sizeof(vec4_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
-		// push_attr( 2, 2, vk::Format::eR32G32Sfloat );
 		push_attr(3, 3, vk::Format::eR32G32Sfloat);
 		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
@@ -1008,11 +939,11 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3:
-		push_bind(0, sizeof(vec4_t));	  // xyz array
-		push_bind(1, sizeof(color4ub_t)); // color array
-		push_bind(2, sizeof(vec2_t));	  // st0 array
-		push_bind(3, sizeof(vec2_t));	  // st1 array
-		push_bind(4, sizeof(vec2_t));	  // st2 array
+		push_bind(0, sizeof(vec4_t));
+		push_bind(1, sizeof(color4ub_t));
+		push_bind(2, sizeof(vec2_t));
+		push_bind(3, sizeof(vec2_t));
+		push_bind(4, sizeof(vec2_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
 		push_attr(2, 2, vk::Format::eR32G32Sfloat);
@@ -1023,15 +954,13 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3_ENV:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV:
-		push_bind(0, sizeof(vec4_t));	  // xyz array
-		push_bind(1, sizeof(color4ub_t)); // color array
-		// push_bind( 2, sizeof( vec2_t ) );					// st0 array
-		push_bind(3, sizeof(vec2_t)); // st1 array
-		push_bind(4, sizeof(vec2_t)); // st2 array
-		push_bind(5, sizeof(vec4_t)); // normals
+		push_bind(0, sizeof(vec4_t));
+		push_bind(1, sizeof(color4ub_t));
+		push_bind(3, sizeof(vec2_t));
+		push_bind(4, sizeof(vec2_t));
+		push_bind(5, sizeof(vec4_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
-		// push_attr( 2, 2, vk::Format::eR32G32Sfloat );
 		push_attr(3, 3, vk::Format::eR32G32Sfloat);
 		push_attr(4, 4, vk::Format::eR32G32Sfloat);
 		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
@@ -1044,11 +973,11 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA:
-		push_bind(0, sizeof(vec4_t));	  // xyz array
-		push_bind(1, sizeof(color4ub_t)); // color0 array
-		push_bind(2, sizeof(vec2_t));	  // st0 array
-		push_bind(3, sizeof(vec2_t));	  // st1 array
-		push_bind(6, sizeof(color4ub_t)); // color1 array
+		push_bind(0, sizeof(vec4_t));
+		push_bind(1, sizeof(color4ub_t));
+		push_bind(2, sizeof(vec2_t));
+		push_bind(3, sizeof(vec2_t));
+		push_bind(6, sizeof(color4ub_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
 		push_attr(2, 2, vk::Format::eR32G32Sfloat);
@@ -1063,15 +992,13 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV:
 	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
 	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
-		push_bind(0, sizeof(vec4_t));	  // xyz array
-		push_bind(1, sizeof(color4ub_t)); // color0 array
-		// push_bind( 2, sizeof( vec2_t ) );					// st0 array
-		push_bind(3, sizeof(vec2_t));	  // st1 array
-		push_bind(5, sizeof(vec4_t));	  // normals
-		push_bind(6, sizeof(color4ub_t)); // color1 array
+		push_bind(0, sizeof(vec4_t));
+		push_bind(1, sizeof(color4ub_t));
+		push_bind(3, sizeof(vec2_t));
+		push_bind(5, sizeof(vec4_t));
+		push_bind(6, sizeof(color4ub_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
-		// push_attr( 2, 2, vk::Format::eR32G32Sfloat );
 		push_attr(3, 3, vk::Format::eR32G32Sfloat);
 		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(6, 6, vk::Format::eR8G8B8A8Unorm);
@@ -1084,13 +1011,13 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA:
 	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA:
-		push_bind(0, sizeof(vec4_t));	  // xyz array
-		push_bind(1, sizeof(color4ub_t)); // color0 array
-		push_bind(2, sizeof(vec2_t));	  // st0 array
-		push_bind(3, sizeof(vec2_t));	  // st1 array
-		push_bind(4, sizeof(vec2_t));	  // st2 array
-		push_bind(6, sizeof(color4ub_t)); // color1 array
-		push_bind(7, sizeof(color4ub_t)); // color2 array
+		push_bind(0, sizeof(vec4_t));
+		push_bind(1, sizeof(color4ub_t));
+		push_bind(2, sizeof(vec2_t));
+		push_bind(3, sizeof(vec2_t));
+		push_bind(4, sizeof(vec2_t));
+		push_bind(6, sizeof(color4ub_t));
+		push_bind(7, sizeof(color4ub_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
 		push_attr(2, 2, vk::Format::eR32G32Sfloat);
@@ -1107,17 +1034,15 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV:
 	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
 	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
-		push_bind(0, sizeof(vec4_t));	  // xyz array
-		push_bind(1, sizeof(color4ub_t)); // color0 array
-		// push_bind( 2, sizeof( vec2_t ) );					// st0 array
-		push_bind(3, sizeof(vec2_t));	  // st1 array
-		push_bind(4, sizeof(vec2_t));	  // st2 array
-		push_bind(5, sizeof(vec4_t));	  // normals
-		push_bind(6, sizeof(color4ub_t)); // color1 array
-		push_bind(7, sizeof(color4ub_t)); // color2 array
+		push_bind(0, sizeof(vec4_t));
+		push_bind(1, sizeof(color4ub_t));
+		push_bind(3, sizeof(vec2_t));
+		push_bind(4, sizeof(vec2_t));
+		push_bind(5, sizeof(vec4_t));
+		push_bind(6, sizeof(color4ub_t));
+		push_bind(7, sizeof(color4ub_t));
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
-		// push_attr( 2, 2, vk::Format::eR32G32Sfloat );
 		push_attr(3, 3, vk::Format::eR32G32Sfloat);
 		push_attr(4, 4, vk::Format::eR32G32Sfloat);
 		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
@@ -1130,50 +1055,50 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		break;
 	}
 
-	vk::PipelineVertexInputStateCreateInfo vertex_input_state{ {},
-															  num_binds,
-															  bindingsCpp,
-															  num_attrs,
-															  attribsCpp,
-															  nullptr };
+	vk::PipelineVertexInputStateCreateInfo vertex_input_state{
+		{},
+		num_binds,
+		bindingsCpp,
+		num_attrs,
+		attribsCpp,
+		nullptr
+	};
 
-	//
-	// Primitive assembly.
-	//
-	vk::PipelineInputAssemblyStateCreateInfo input_assembly_state{ {},
-																  GetTopologyByPrimitivies(def.primitives),
-																  vk::False,
-																  nullptr };
+	vk::PipelineInputAssemblyStateCreateInfo input_assembly_state{
+		{},
+		GetTopologyByPrimitivies(def.primitives),
+		vk::False,
+		nullptr
+	};
 
-	//
-	// Viewport.
-	//
-	vk::PipelineViewportStateCreateInfo viewport_state{ {},
-													   1,
-													   nullptr, // dynamic viewport state
-													   1,
-													   nullptr, // dynamic scissor state
-													   nullptr };
+	vk::PipelineViewportStateCreateInfo viewport_state{
+		{},
+		1,
+		nullptr,
+		1,
+		nullptr,
+		nullptr
+	};
 
-	//
-	// Rasterization.
-	//
-	vk::PipelineRasterizationStateCreateInfo rasterization_state{ {},
-																 vk::False,
-																 vk::False,
-																 def.shader_type == Vk_Shader_Type::TYPE_DOT ? vk::PolygonMode::ePoint : ((state_bits & GLS_POLYMODE_LINE) ? vk::PolygonMode::eLine : vk::PolygonMode::eFill),
-																 {},
-																 vk::FrontFace::eClockwise, // Q3 defaults to clockwise vertex order
-																 def.polygon_offset ? vk::True : vk::False,
-																 {},
-																 0.0f,
-																 {},
-																 def.line_width ? (float)def.line_width : 1.0f,
-																 nullptr };
+	vk::PipelineRasterizationStateCreateInfo rasterization_state{
+		{},
+		vk::False,
+		vk::False,
+		def.shader_type == Vk_Shader_Type::TYPE_DOT
+			? vk::PolygonMode::ePoint
+			: ((state_bits & GLS_POLYMODE_LINE) ? vk::PolygonMode::eLine : vk::PolygonMode::eFill),
+		{},
+		vk::FrontFace::eClockwise,
+		def.polygon_offset ? vk::True : vk::False,
+		{},
+		0.0f,
+		{},
+		def.line_width ? static_cast<float>(def.line_width) : 1.0f,
+		nullptr
+	};
 
 	GetCullModeByFaceCulling(def, rasterization_state.cullMode);
 
-	// depth bias state
 	if (def.polygon_offset)
 	{
 		rasterization_state.depthBiasEnable = vk::True;
@@ -1194,43 +1119,51 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		rasterization_state.depthBiasSlopeFactor = 0.0f;
 	}
 
-	vk::PipelineMultisampleStateCreateInfo multisample_state{ {},
-															 (renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP) ? vk_inst.screenMapSamples : vkSamples,
-															 vk::False,
-															 1.0f,
-															 nullptr,
-															 alphaToCoverage,
-															 vk::False,
-															 nullptr };
+	vk::PipelineMultisampleStateCreateInfo multisample_state{
+		{},
+		(renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP) ? vk_inst.screenMapSamples : vkSamples,
+		vk::False,
+		1.0f,
+		nullptr,
+		alphaToCoverage,
+		vk::False,
+		nullptr
+	};
 
-	vk::PipelineDepthStencilStateCreateInfo depth_stencil_state{ {},
-																(state_bits & GLS_DEPTHTEST_DISABLE) ? vk::False : vk::True,
-																(state_bits & GLS_DEPTHMASK_TRUE) ? vk::True : vk::False,
-																{},
-																vk::False,
-																(def.shadow_phase != Vk_Shadow_Phase::SHADOW_DISABLED) ? vk::True : vk::False,
-																{},
-																{},
-																0.0f,
-																1.0f,
-																nullptr };
+	vk::PipelineDepthStencilStateCreateInfo depth_stencil_state{
+		{},
+		(state_bits & GLS_DEPTHTEST_DISABLE) ? vk::False : vk::True,
+		(state_bits & GLS_DEPTHMASK_TRUE) ? vk::True : vk::False,
+		{},
+		vk::False,
+		(def.shadow_phase != Vk_Shadow_Phase::SHADOW_DISABLED) ? vk::True : vk::False,
+		{},
+		{},
+		0.0f,
+		1.0f,
+		nullptr
+	};
 
 #ifdef USE_REVERSED_DEPTH
-	depth_stencil_state.depthCompareOp = (state_bits & GLS_DEPTHFUNC_EQUAL) ? vk::CompareOp::eEqual : vk::CompareOp::eGreaterOrEqual;
+	depth_stencil_state.depthCompareOp =
+		(state_bits & GLS_DEPTHFUNC_EQUAL) ? vk::CompareOp::eEqual : vk::CompareOp::eGreaterOrEqual;
 #else
-	depth_stencil_state.depthCompareOp = (state_bits & GLS_DEPTHFUNC_EQUAL) ? vk::CompareOp::eEqual : vk::CompareOp::eLessOrEqual;
+	depth_stencil_state.depthCompareOp =
+		(state_bits & GLS_DEPTHFUNC_EQUAL) ? vk::CompareOp::eEqual : vk::CompareOp::eLessOrEqual;
 #endif
 
 	if (def.shadow_phase == Vk_Shadow_Phase::SHADOW_EDGES)
 	{
 		depth_stencil_state.front.failOp = vk::StencilOp::eKeep;
-		depth_stencil_state.front.passOp = (def.face_culling == cullType_t::CT_FRONT_SIDED) ? vk::StencilOp::eIncrementAndClamp : vk::StencilOp::eDecrementAndClamp;
+		depth_stencil_state.front.passOp =
+			(def.face_culling == cullType_t::CT_FRONT_SIDED)
+			? vk::StencilOp::eIncrementAndClamp
+			: vk::StencilOp::eDecrementAndClamp;
 		depth_stencil_state.front.depthFailOp = vk::StencilOp::eKeep;
 		depth_stencil_state.front.compareOp = vk::CompareOp::eAlways;
 		depth_stencil_state.front.compareMask = 255;
 		depth_stencil_state.front.writeMask = 255;
 		depth_stencil_state.front.reference = 0;
-
 		depth_stencil_state.back = depth_stencil_state.front;
 	}
 	else if (def.shadow_phase == Vk_Shadow_Phase::SHADOW_FS_QUAD)
@@ -1242,88 +1175,101 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		depth_stencil_state.front.compareMask = 255;
 		depth_stencil_state.front.writeMask = 255;
 		depth_stencil_state.front.reference = 0;
-
 		depth_stencil_state.back = depth_stencil_state.front;
 	}
 
-	vk::PipelineColorBlendAttachmentState attachment_blend_state = createBlendAttachmentState(state_bits, def);
+	vk::PipelineColorBlendAttachmentState attachment_blend_state =
+		createBlendAttachmentState(state_bits, def);
 
 	if (attachment_blend_state.blendEnable)
 	{
 		if (def.allow_discard && vkSamples != vk::SampleCountFlagBits::e1)
 		{
-			// try to reduce pixel fillrate for transparent surfaces, this yields 1..10% fps increase when multisampling in enabled
-			if (attachment_blend_state.srcColorBlendFactor == vk::BlendFactor::eSrcAlpha && attachment_blend_state.dstColorBlendFactor == vk::BlendFactor::eOneMinusSrcAlpha)
+			if (attachment_blend_state.srcColorBlendFactor == vk::BlendFactor::eSrcAlpha &&
+				attachment_blend_state.dstColorBlendFactor == vk::BlendFactor::eOneMinusSrcAlpha)
 			{
 				fragSpec.discardMode = 1;
 			}
-			else if (attachment_blend_state.srcColorBlendFactor == vk::BlendFactor::eOne && attachment_blend_state.dstColorBlendFactor == vk::BlendFactor::eOne)
+			else if (attachment_blend_state.srcColorBlendFactor == vk::BlendFactor::eOne &&
+				attachment_blend_state.dstColorBlendFactor == vk::BlendFactor::eOne)
 			{
 				fragSpec.discardMode = 2;
 			}
 		}
 	}
 
-	vk::PipelineColorBlendStateCreateInfo blend_state{ {},
-													  vk::False,
-													  vk::LogicOp::eCopy,
-													  1,
-													  &attachment_blend_state,
-													  {0.0f, 0.0f, 0.0f, 0.0f},
-													  nullptr };
+	vk::PipelineColorBlendStateCreateInfo blend_state{
+		{},
+		vk::False,
+		vk::LogicOp::eCopy,
+		1,
+		&attachment_blend_state,
+		{0.0f, 0.0f, 0.0f, 0.0f},
+		nullptr
+	};
 
-	vk::PipelineDynamicStateCreateInfo dynamic_state{ {},
-													 arrayLen(dynamic_state_array),
-													 dynamic_state_array,
-													 nullptr };
+	vk::PipelineDynamicStateCreateInfo dynamic_state{
+		{},
+		arrayLen(dynamic_state_array),
+		dynamic_state_array,
+		nullptr
+	};
 
-	vk::GraphicsPipelineCreateInfo create_info{ {},
-											   shader_stages.size(),
-											   shader_stages.data(),
-											   &vertex_input_state,
-											   &input_assembly_state,
-											   nullptr,
-											   &viewport_state,
-											   &rasterization_state,
-											   &multisample_state,
-											   &depth_stencil_state,
-											   &blend_state,
-											   &dynamic_state,
-											   (def.shader_type == Vk_Shader_Type::TYPE_DOT) ? vk_inst.pipeline_layout_storage : vk_inst.pipeline_layout,
-											   (renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP) ? vk_inst.render_pass.screenmap : vk_inst.render_pass.main,
-											   0,
-											   nullptr,
-											   -1,
-											   nullptr };
+	vk::GraphicsPipelineCreateInfo create_info{
+		{},
+		static_cast<uint32_t>(shader_stages.size()),
+		shader_stages.data(),
+		&vertex_input_state,
+		&input_assembly_state,
+		nullptr,
+		&viewport_state,
+		&rasterization_state,
+		&multisample_state,
+		&depth_stencil_state,
+		&blend_state,
+		&dynamic_state,
+		(def.shader_type == Vk_Shader_Type::TYPE_DOT) ? vk_inst.pipeline_layout_storage : vk_inst.pipeline_layout,
+		(renderPassIndex == renderPass_t::RENDER_PASS_SCREENMAP) ? vk_inst.render_pass.screenmap : vk_inst.render_pass.main,
+		0,
+		nullptr,
+		-1,
+		nullptr
+	};
 
 	vk::Pipeline resultPipeline;
 
 #ifdef USE_VK_VALIDATION
-	// VK_CHECK_ASSIGN(res, vk_inst.device.createGraphicsPipeline(vk_inst.pipelineCache, create_info));
 	try
 	{
-		auto createGraphicsPipelineResult = vk_inst.device.createGraphicsPipeline(vk_inst.pipelineCache, create_info);
+		auto createGraphicsPipelineResult =
+			vk_inst.device.createGraphicsPipeline(vk_inst.pipelineCache, create_info);
 
 		if (static_cast<int>(createGraphicsPipelineResult.result) < 0)
 		{
-			ri.Error(ERR_FATAL, "Vulkan: %s returned %s", "create_pipeline -> createGraphicsPipeline", vk::to_string(createGraphicsPipelineResult.result).data());
+			ri.Error(ERR_FATAL, "Vulkan: %s returned %s",
+				"create_pipeline -> createGraphicsPipeline",
+				vk::to_string(createGraphicsPipelineResult.result).data());
 		}
 		else
 		{
 			resultPipeline = createGraphicsPipelineResult.value;
-			SET_OBJECT_NAME(VkPipeline(resultPipeline), va("pipeline def#%i, pass#%i", def_index, static_cast<int>(renderPassIndex)), VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
-			SET_OBJECT_NAME(VkPipeline(resultPipeline), "create_pipeline -> createGraphicsPipeline", VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+			SET_OBJECT_NAME(VkPipeline(resultPipeline),
+				va("pipeline def#%i, pass#%i", def_index, static_cast<int>(renderPassIndex)),
+				VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
+			SET_OBJECT_NAME(VkPipeline(resultPipeline),
+				"create_pipeline -> createGraphicsPipeline",
+				VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT);
 		}
 	}
 	catch (vk::SystemError& err)
 	{
-		ri.Error(ERR_FATAL, "Vulkan error in function: %s, what: %s", "create_pipeline -> createGraphicsPipeline", err.what());
+		ri.Error(ERR_FATAL, "Vulkan error in function: %s, what: %s",
+			"create_pipeline -> createGraphicsPipeline", err.what());
 	}
-
 #else
 	VK_CHECK_ASSIGN(resultPipeline, vk_inst.device.createGraphicsPipeline(vk_inst.pipelineCache, create_info));
-
 #endif
+
 	vk_inst.pipeline_create_count++;
 	return resultPipeline;
 }
@@ -1345,22 +1291,22 @@ vk::Pipeline vk_gen_pipeline(const uint32_t index)
 	}
 }
 
-bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_Type& out)
+static bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_Type& out)
 {
 	switch (in)
 	{
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
-		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE;
-		return true;
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
 		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY;
 		return true;
+
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
 		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR;
 		return true;
+
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
 		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR;
 		return true;
+
 	default:
 		return false;
 	}

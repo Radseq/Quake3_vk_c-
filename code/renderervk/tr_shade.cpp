@@ -109,6 +109,7 @@ void RB_BeginSurface(shader_t &shader, const int fogNum)
 
 	tess.gpuMd3Active = false;
 	tess.gpuMd3Surface = nullptr;
+	tess.gpuMd3Lod = 0;
 	tess.gpuMd3Backlerp = 0.0f;
 	tess.gpuMd3OldFrame = 0;
 	tess.gpuMd3NewFrame = 0;
@@ -646,6 +647,15 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 	tess_flags = input.shader->tessFlags;
 
 	pushUniform = false;
+
+	if (tess.gpuMd3Active)
+	{
+		uniform.md3Anim[0] = 1.0f - tess.gpuMd3Backlerp; // frontlerp
+		uniform.md3Anim[1] = tess.gpuMd3Backlerp;        // backlerp
+		uniform.md3Anim[2] = 0.0f;
+		uniform.md3Anim[3] = 0.0f;
+		pushUniform = true;
+	}
 
 #ifdef USE_FOG_COLLAPSE
 	if (fogCollapse)

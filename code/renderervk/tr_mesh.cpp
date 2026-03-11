@@ -333,6 +333,7 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	// compute LOD
 	//
 	lod = R_ComputeLOD(ent);
+	ent.modelLod = lod;
 
 	header = tr.currentModel->md3[lod];
 

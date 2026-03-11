@@ -1080,7 +1080,8 @@ static void R_Register(void)
 	ri.Cmd_AddCommand("gfxinfo", GfxInfo_f);
 	ri.Cmd_AddCommand("vkinfo", VkInfo_f);
 
-	r_gpuAnim = ri.Cvar_Get("r_gpuAnim", "1", CVAR_ARCHIVE);
+	r_gpuAnim = ri.Cvar_Get("r_gpuAnim", "1", CVAR_ARCHIVE | CVAR_LATCH);
+	ri.Cvar_SetDescription(r_gpuAnim, "0 = CPU MD3 lerp, 1 = GPU MD3 lerp (requires vid_restart)");
 
 	//
 	// temporary latched variables that can only change over a restart

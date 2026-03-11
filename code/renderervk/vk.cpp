@@ -1276,59 +1276,6 @@ static void vk_push_md3_lerp(const float backlerp)
 		md3Anim);
 }
 
-static void vk_bind_md3_geometry(const Vk_Shader_Type shaderType)
-{
-	const md3GpuSurface_t* surf = tess.gpuMd3Surface;
-	if (!surf)
-	{
-		return;
-	}
-
-	const vk::Buffer vb = surf->vertexBuffer.handle;
-	const vk::Buffer ib = surf->indexBuffer.handle;
-
-	const vk::DeviceSize oldPosOffset =
-		surf->oldPosBaseOffset + static_cast<vk::DeviceSize>(tess.gpuMd3OldFrame) * surf->frameStridePos;
-	const vk::DeviceSize newPosOffset =
-		surf->newPosBaseOffset + static_cast<vk::DeviceSize>(tess.gpuMd3NewFrame) * surf->frameStridePos;
-	const vk::DeviceSize stOffset = surf->stOffset;
-
-	switch (shaderType)
-	{
-	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE:
-	{
-		std::array<vk::Buffer, 4> bufs = { vb, vb, vk_inst.cmd->vertex_buffer, vb };
-		std::array<vk::DeviceSize, 4> offs = {
-			oldPosOffset,
-			newPosOffset,
-			vk_inst.cmd->buf_offset[1], // RGBA0 from dynamic tess buffer
-			stOffset
-		};
-		vk_inst.cmd->command_buffer.bindVertexBuffers(0, static_cast<uint32_t>(bufs.size()), bufs.data(), offs.data());
-		break;
-	}
-	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY:
-	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR:
-	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR:
-	{
-		std::array<vk::Buffer, 3> bufs = { vb, vb, vb };
-		std::array<vk::DeviceSize, 3> offs = {
-			oldPosOffset,
-			newPosOffset,
-			stOffset
-		};
-		vk_inst.cmd->command_buffer.bindVertexBuffers(0, static_cast<uint32_t>(bufs.size()), bufs.data(), offs.data());
-		break;
-	}
-	default:
-		return;
-	}
-
-	vk_bind_index_buffer(ib, 0);
-	vk_inst.cmd->num_indexes = surf->numIndexes;
-	vk_push_md3_lerp(tess.gpuMd3Backlerp);
-}
-
 #ifdef USE_VBO
 void vk_release_vbo(void)
 {
@@ -1447,14 +1394,29 @@ static void vk_create_shader_modules(void)
 	vk_inst.modules.vert.gen[2][1][1][0] = SHADER_MODULE(vert_tx2_cl_env);
 	vk_inst.modules.vert.gen[2][1][1][1] = SHADER_MODULE(vert_tx2_cl_env_fog);
 
-	vk_inst.modules.vert.md3_gen[0] = SHADER_MODULE(vert_md3_tx0_vert_spv);
-	vk_inst.modules.vert.md3_gen[1] = SHADER_MODULE(vert_md3_tx0_fog_vert_spv);
+
+
+	//vk_inst.modules.vert.md3_gen[0] = SHADER_MODULE(vert_md3_tx0_vert_spv);
+	//vk_inst.modules.vert.md3_gen[1] = SHADER_MODULE(vert_md3_tx0_fog_vert_spv);
+
+	//vk_inst.modules.vert.md3_ident1[0] = SHADER_MODULE(vert_md3_tx0_ident1_vert_spv);
+	//vk_inst.modules.vert.md3_ident1[1] = SHADER_MODULE(vert_md3_tx0_ident1_fog_vert_spv);
+
+	//vk_inst.modules.vert.md3_fixed[0] = SHADER_MODULE(vert_md3_tx0_fixed_vert_spv);
+	//vk_inst.modules.vert.md3_fixed[1] = SHADER_MODULE(vert_md3_tx0_fixed_fog_vert_spv)
+
+
+
+
+	//vk_inst.modules.vert.md3_gen[0] = SHADER_MODULE(vert_md3_tx0_vert_spv);
+	//vk_inst.modules.vert.md3_gen[1] = SHADER_MODULE(vert_md3_tx0_fog_vert_spv);
 
 	vk_inst.modules.vert.md3_ident1[0] = SHADER_MODULE(vert_md3_tx0_ident1_vert_spv);
 	vk_inst.modules.vert.md3_ident1[1] = SHADER_MODULE(vert_md3_tx0_ident1_fog_vert_spv);
 
 	vk_inst.modules.vert.md3_fixed[0] = SHADER_MODULE(vert_md3_tx0_fixed_vert_spv);
 	vk_inst.modules.vert.md3_fixed[1] = SHADER_MODULE(vert_md3_tx0_fixed_fog_vert_spv);
+
 
 #ifdef USE_VK_VALIDATION
 	for (i = 0; i < 3; i++)
@@ -2545,7 +2507,7 @@ static void reset_vk_instance(Vk_Instance& s) noexcept
 	reset_to_default(s.modules.dot_fs);
 	reset_to_default(s.modules.dot_vs);
 
-	for (auto& m : s.modules.vert.md3_gen)    reset_to_default(m);
+	//for (auto& m : s.modules.vert.md3_gen)    reset_to_default(m);
 	for (auto& m : s.modules.vert.md3_ident1) reset_to_default(m);
 	for (auto& m : s.modules.vert.md3_fixed)  reset_to_default(m);
 
@@ -3602,6 +3564,17 @@ void vk_bind_index(void)
 	}
 #endif
 
+	if (tess.gpuMd3Active)
+	{
+		const auto& s = *tess.gpuMd3Surface;
+		vk_inst.cmd->command_buffer.bindIndexBuffer(
+			s.indexBuffer.handle,
+			0,
+			vk::IndexType::eUint32);
+		vk_inst.cmd->num_indexes = s.numIndexes;
+		return;
+	}
+
 	vk_bind_index_ext(tess.numIndexes, tess.indexes);
 }
 
@@ -3624,36 +3597,28 @@ void vk_bind_geometry(const uint32_t flags)
 {
 	if (tess.gpuMd3Active)
 	{
-		Vk_Pipeline_Def def{};
-		if (vk_inst.cmd->last_pipeline)
-		{
-			// no-op
-		}
+		const auto& s = *tess.gpuMd3Surface;
 
-		// derive from bound pipeline def is awkward here, so use current shader stage pipeline mapping
-		// bind path already remapped in vk_bind_pipeline()
-		if (tess.shader->numUnfoggedPasses > 0 && tess.shader->stages[0])
-		{
-			Vk_Shader_Type baseType = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
-			// runtime remap must mirror vk_bind_pipeline()
-			if (tess.shader->stages[0]->vk_pipeline[0])
-			{
-				Vk_Pipeline_Def pdef{};
-				vk_get_pipeline_def(
-					backEnd.viewParms.portalView == portalView_t::PV_MIRROR
-					? tess.shader->stages[0]->vk_mirror_pipeline[0]
-					: tess.shader->stages[0]->vk_pipeline[0],
-					pdef);
+		const vk::Buffer bufs[] = {
+			s.vertexBuffer.handle, // old frame positions
+			s.vertexBuffer.handle, // new frame positions
+			s.vertexBuffer.handle  // static ST
+		};
 
-				Vk_Shader_Type md3Type{};
-				if (vk_get_md3_shader_type(pdef.shader_type, md3Type))
-				{
-					vk_bind_md3_geometry(md3Type);
-					return;
-				}
-			}
-		}
+		const vk::DeviceSize offs[] = {
+			static_cast<vk::DeviceSize>(s.oldPosBaseOffset) +
+				static_cast<vk::DeviceSize>(tess.gpuMd3OldFrame) * s.frameStridePos,
+
+			static_cast<vk::DeviceSize>(s.newPosBaseOffset) +
+				static_cast<vk::DeviceSize>(tess.gpuMd3NewFrame) * s.frameStridePos,
+
+			static_cast<vk::DeviceSize>(s.stOffset)
+		};
+
+		vk_inst.cmd->command_buffer.bindVertexBuffers(0, 3, bufs, offs);
+		return;
 	}
+
 
 	// unsigned int size;
 	bind_base = -1;
