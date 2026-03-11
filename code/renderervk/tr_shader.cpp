@@ -1059,6 +1059,7 @@ static bool ParseStage(shaderStage_t& stage, const char** text)
 					*text = t; // rewind
 				}
 			}
+
 			else if (!Q_stricmp_cpp(token, "lightmap"))
 			{
 				stage.bundle[0].tcGen = texCoordGen_t::TCGEN_LIGHTMAP;
@@ -3762,7 +3763,11 @@ static shader_t* FinishShader(void)
 				{
 					continue;
 				}
-				if (pStage.bundle[n].tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED && (pStage.bundle[n].lightmap == LIGHTMAP_INDEX_NONE || !tr.mergeLightmaps))
+
+				const texCoordGen_t tcg = pStage.bundle[n].tcGen;
+				if ((tcg == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
+					tcg == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP) &&
+					(pStage.bundle[n].lightmap == LIGHTMAP_INDEX_NONE || !tr.mergeLightmaps))
 				{
 					env_mask |= (1 << n);
 				}
@@ -3772,12 +3777,33 @@ static shader_t* FinishShader(void)
 			{
 				if (def.shader_type >= Vk_Shader_Type::TYPE_GENERIC_BEGIN && def.shader_type <= Vk_Shader_Type::TYPE_GENERIC_END)
 				{
-					int prev = static_cast<int>(def.shader_type);
-					def.shader_type = static_cast<Vk_Shader_Type>(prev++); // switch to *_ENV version
+					def.shader_type = static_cast<Vk_Shader_Type>(static_cast<int>(def.shader_type) + 1);
 					shader.tessFlags |= TESS_NNN | TESS_VPOS;
 					pStage.tessFlags &= ~TESS_ST0;
 					pStage.tessFlags |= TESS_ENV;
 					pStage.bundle[0].tcGen = texCoordGen_t::TCGEN_BAD;
+
+					//{
+					//	static int s_finishShaderLogCount = 0;
+					//	if (s_finishShaderLogCount < 256)
+					//	{
+					//		const textureBundle_t& b0 = pStage.bundle[0];
+
+					//		ri.Printf(PRINT_ALL,
+					//			"GPU_MD3 FinishShader: shader='%s' stage=%d defType=%d stageTess=0x%08x shaderTess=0x%08x tcGen0=%d screenMap0=%d numBundles=%d env=%d\n",
+					//			shader.name ? shader.name : "<null>",
+					//			stage,
+					//			static_cast<int>(def.shader_type),
+					//			static_cast<unsigned int>(pStage.tessFlags),
+					//			static_cast<unsigned int>(shader.tessFlags),
+					//			static_cast<int>(b0.tcGen),
+					//			b0.isScreenMap ? 1 : 0,
+					//			pStage.numTexBundles,
+					//			(pStage.tessFlags & TESS_ENV) ? 1 : 0);
+
+					//		++s_finishShaderLogCount;
+					//	}
+					//}
 				}
 			}
 

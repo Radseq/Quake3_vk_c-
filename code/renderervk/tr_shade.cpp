@@ -152,15 +152,19 @@ void R_ComputeTexCoords(const int b, const textureBundle_t& bundle)
 	if (!tess.numVertexes)
 		return;
 
-	if (tess.gpuMd3Active &&
-		bundle.numTexMods == 0 &&
-		bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE)
+	if (tess.gpuMd3Active && bundle.numTexMods == 0)
 	{
-		return;
-	}
+		// tylko zwykłe teksturowanie zawsze można skipnąć
+		if (bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE)
+			return;
 
-	if (R_SkipCpuTexCoordsForGpuMd3(bundle))
-		return;
+		// env można skipnąć tylko po env-optimalizacji,
+		// czyli gdy tcGen został już wyzerowany do BAD
+		if (bundle.tcGen == texCoordGen_t::TCGEN_BAD)
+			return;
+	}
+	//if (R_SkipCpuTexCoordsForGpuMd3(bundle))
+	//	return;
 
 	int i;
 	int tm;
@@ -663,6 +667,56 @@ void VK_LightingPass(void)
 }
 #endif // USE_PMLIGHT
 
+static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& stage)
+{
+	// Zawsze ustaw poprawne wartości bazowe.
+	// To usuwa wyciek stanu między drawami / stage'ami.
+	VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
+	uniform.eyePos[3] = 0.0f; // regular env
+
+	uniform.light.pos[0] = 0.0f;
+	uniform.light.pos[1] = 0.0f;
+	uniform.light.pos[2] = 0.0f;
+	uniform.light.pos[3] = 0.0f; // !screenMap
+
+	uniform.light.color[0] = 0.0f;
+	uniform.light.color[1] = 0.0f;
+	uniform.light.color[2] = 0.0f;
+	uniform.light.color[3] = 0.0f;
+
+	uniform.light.vector[0] = 0.0f;
+	uniform.light.vector[1] = 0.0f;
+	uniform.light.vector[2] = 0.0f;
+	uniform.light.vector[3] = 0.0f;
+
+	// Jeżeli to nie env stage, kończymy.
+	if ((stage.tessFlags & TESS_ENV) == 0)
+		return;
+
+	const bool isFirstPerson =
+		backEnd.currentEntity &&
+		(backEnd.currentEntity->e.renderfx & RF_FIRST_PERSON) != 0;
+
+	// CPU path:
+	// if !RF_FIRST_PERSON -> regular env
+	if (!isFirstPerson)
+		return;
+
+	// FP env
+	uniform.eyePos[3] = 1.0f;
+
+	VectorCopy(backEnd.ort.origin, uniform.light.pos);
+	VectorCopy(backEnd.ort.axis[1], uniform.light.color);
+	VectorCopy(backEnd.ort.axis[2], uniform.light.vector);
+
+	// CPU path:
+	// FPscr tylko gdy screenMap && frameSceneNum == 1
+	if (stage.bundle[0].isScreenMap && backEnd.viewParms.frameSceneNum == 1)
+	{
+		uniform.light.pos[3] = 1.0f;
+	}
+}
+
 static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fogCollapse)
 {
 	int tess_flags;
@@ -719,6 +773,12 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 
 		tess_flags |= pStage->tessFlags;
 
+		if (tess.gpuMd3Active)
+		{
+			VK_SetGpuMd3EnvParams(uniform, *pStage);
+			pushUniform = true;
+		}
+
 		for (i = 0; i < pStage->numTexBundles; i++)
 		{
 			if (pStage->bundle[i].image[0] != NULL)
@@ -743,6 +803,12 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 				}
 			}
 		}
+
+		//if (tess.gpuMd3Active && (pStage->tessFlags & TESS_ENV))
+		//{
+		//	VK_SetGpuMd3EnvParams(uniform, *pStage);
+		//	pushUniform = true;
+		//}
 
 		if (pushUniform)
 		{

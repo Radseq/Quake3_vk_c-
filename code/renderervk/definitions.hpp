@@ -415,9 +415,9 @@ struct Vk_Instance
             vk::ShaderModule fixed[2][2][2]{};  // tx[0,1], env0[0,1] fog[0,1]
             vk::ShaderModule light[2]{};        // fog[0,1]
 
-            vk::ShaderModule md3_gen[2]{};      // fog[0,1]
-            vk::ShaderModule md3_ident1[2]{};   // fog[0,1]
-            vk::ShaderModule md3_fixed[2]{};    // fog[0,1]
+            vk::ShaderModule md3_gen[2][2]{};      // env[0,1], fog[0,1]
+            vk::ShaderModule md3_ident1[2][2]{};   // env[0,1], fog[0,1]
+            vk::ShaderModule md3_fixed[2][2]{};    // env[0,1], fog[0,1]
         } vert;
         struct
         {

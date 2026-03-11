@@ -1396,26 +1396,29 @@ static void vk_create_shader_modules(void)
 
 
 
-	//vk_inst.modules.vert.md3_gen[0] = SHADER_MODULE(vert_md3_tx0_vert_spv);
-	//vk_inst.modules.vert.md3_gen[1] = SHADER_MODULE(vert_md3_tx0_fog_vert_spv);
-
-	//vk_inst.modules.vert.md3_ident1[0] = SHADER_MODULE(vert_md3_tx0_ident1_vert_spv);
-	//vk_inst.modules.vert.md3_ident1[1] = SHADER_MODULE(vert_md3_tx0_ident1_fog_vert_spv);
-
-	//vk_inst.modules.vert.md3_fixed[0] = SHADER_MODULE(vert_md3_tx0_fixed_vert_spv);
-	//vk_inst.modules.vert.md3_fixed[1] = SHADER_MODULE(vert_md3_tx0_fixed_fog_vert_spv)
 
 
 
 
-	vk_inst.modules.vert.md3_gen[0] = SHADER_MODULE(vert_md3_tx0_vert_spv);
-	vk_inst.modules.vert.md3_gen[1] = SHADER_MODULE(vert_md3_tx0_fog_vert_spv);
+	vk_inst.modules.vert.md3_gen[0][0] = SHADER_MODULE(vert_md3_tx0_vert_spv);
+	vk_inst.modules.vert.md3_gen[0][1] = SHADER_MODULE(vert_md3_tx0_fog_vert_spv);
+	vk_inst.modules.vert.md3_gen[1][0] = SHADER_MODULE(vert_md3_tx0_env_vert_spv);
+	vk_inst.modules.vert.md3_gen[1][1] = SHADER_MODULE(vert_md3_tx0_env_fog_vert_spv);
 
-	vk_inst.modules.vert.md3_ident1[0] = SHADER_MODULE(vert_md3_tx0_ident1_vert_spv);
-	vk_inst.modules.vert.md3_ident1[1] = SHADER_MODULE(vert_md3_tx0_ident1_fog_vert_spv);
+	vk_inst.modules.vert.md3_ident1[0][0] = SHADER_MODULE(vert_md3_tx0_ident1_vert_spv);
+	vk_inst.modules.vert.md3_ident1[0][1] = SHADER_MODULE(vert_md3_tx0_ident1_fog_vert_spv);
+	vk_inst.modules.vert.md3_ident1[1][0] = SHADER_MODULE(vert_md3_tx0_ident1_env_vert_spv);
+	vk_inst.modules.vert.md3_ident1[1][1] = SHADER_MODULE(vert_md3_tx0_ident1_env_fog_vert_spv);
 
-	vk_inst.modules.vert.md3_fixed[0] = SHADER_MODULE(vert_md3_tx0_fixed_vert_spv);
-	vk_inst.modules.vert.md3_fixed[1] = SHADER_MODULE(vert_md3_tx0_fixed_fog_vert_spv);
+	vk_inst.modules.vert.md3_fixed[0][0] = SHADER_MODULE(vert_md3_tx0_fixed_vert_spv);
+	vk_inst.modules.vert.md3_fixed[0][1] = SHADER_MODULE(vert_md3_tx0_fixed_fog_vert_spv);
+	vk_inst.modules.vert.md3_fixed[1][0] = SHADER_MODULE(vert_md3_tx0_fixed_env_vert_spv);
+	vk_inst.modules.vert.md3_fixed[1][1] = SHADER_MODULE(vert_md3_tx0_fixed_env_fog_vert_spv);
+
+
+
+
+
 
 
 #ifdef USE_VK_VALIDATION
@@ -2507,9 +2510,22 @@ static void reset_vk_instance(Vk_Instance& s) noexcept
 	reset_to_default(s.modules.dot_fs);
 	reset_to_default(s.modules.dot_vs);
 
-	for (auto& m : s.modules.vert.md3_gen)    reset_to_default(m);
-	for (auto& m : s.modules.vert.md3_ident1) reset_to_default(m);
-	for (auto& m : s.modules.vert.md3_fixed)  reset_to_default(m);
+
+
+	for (auto& row : s.modules.vert.md3_gen)
+		for (auto& m : row)
+			reset_to_default(m);
+
+	for (auto& row : s.modules.vert.md3_ident1)
+		for (auto& m : row)
+			reset_to_default(m);
+
+	for (auto& row : s.modules.vert.md3_fixed)
+		for (auto& m : row)
+			reset_to_default(m);
+
+
+
 
 	// Pipeline cache / pipelines
 	reset_to_default(s.pipelineCache);
@@ -3597,6 +3613,24 @@ void vk_bind_geometry(const uint32_t flags)
 {
 	if (tess.gpuMd3Active)
 	{
+
+		auto LogBindBranch = [&](const char* branchName)
+			{
+				static int s_bindGeometryLogCount = 0;
+				if (s_bindGeometryLogCount < 512)
+				{
+					ri.Printf(PRINT_ALL,
+						"GPU_MD3 vk_bind_geometry: shader='%s' flags=0x%08x branch='%s' oldFrame=%u newFrame=%u backlerp=%.3f\n",
+						tess.shader && tess.shader->name ? tess.shader->name : "<null>",
+						static_cast<unsigned int>(flags),
+						branchName,
+						tess.gpuMd3OldFrame,
+						tess.gpuMd3NewFrame,
+						tess.gpuMd3Backlerp);
+
+					++s_bindGeometryLogCount;
+				}
+			};
 		const auto& s = *tess.gpuMd3Surface;
 
 		const vk::DeviceSize oldFrameOffset =
@@ -3610,12 +3644,87 @@ void vk_bind_geometry(const uint32_t flags)
 		const vk::DeviceSize stOffset =
 			static_cast<vk::DeviceSize>(s.stOffset);
 
+		const vk::DeviceSize oldNormalOffset =
+			oldFrameOffset + static_cast<vk::DeviceSize>(offsetof(md3XyzNormal_t, normal));
+
+		const vk::DeviceSize newNormalOffset =
+			newFrameOffset + static_cast<vk::DeviceSize>(offsetof(md3XyzNormal_t, normal));
+
 		bind_base = -1;
 		bind_count = 0;
 
-		// generic MD3 path: old/new/color/st
+		// Generic ENV: old/new/color/(dummy)/oldNormal/newNormal
+		if ((flags & TESS_NNN) && (flags & TESS_RGBA0))
+		{
+			//LogBindBranch("generic env");
+			shade_bufs[0] = s.vertexBuffer.handle;
+			shade_bufs[1] = s.vertexBuffer.handle;
+			shade_bufs[2] = vk_inst.cmd->vertex_buffer;
+			shade_bufs[3] = s.vertexBuffer.handle; // dummy, bo binding 3 jest dziurą
+			shade_bufs[4] = s.vertexBuffer.handle;
+			shade_bufs[5] = s.vertexBuffer.handle;
+
+			vk_inst.cmd->buf_offset[0] = oldFrameOffset;
+			vk_bind_index_attr(0);
+
+			vk_inst.cmd->buf_offset[1] = newFrameOffset;
+			vk_bind_index_attr(1);
+
+			vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
+
+			vk_inst.cmd->buf_offset[3] = 0; // dummy
+			vk_inst.cmd->buf_offset[4] = oldNormalOffset;
+			vk_bind_index_attr(4);
+
+			vk_inst.cmd->buf_offset[5] = newNormalOffset;
+			vk_bind_index_attr(5);
+
+			vk_inst.cmd->command_buffer.bindVertexBuffers(
+				bind_base,
+				bind_count,
+				shade_bufs,
+				vk_inst.cmd->buf_offset + bind_base);
+			return;
+		}
+
+		// Identity / Fixed / Ent ENV: old/new/(dummy)/(dummy)/oldNormal/newNormal
+		if (flags & TESS_NNN)
+		{
+			//LogBindBranch("identity/fixed/ent env");
+			shade_bufs[0] = s.vertexBuffer.handle;
+			shade_bufs[1] = s.vertexBuffer.handle;
+			shade_bufs[2] = s.vertexBuffer.handle; // dummy
+			shade_bufs[3] = s.vertexBuffer.handle; // dummy
+			shade_bufs[4] = s.vertexBuffer.handle;
+			shade_bufs[5] = s.vertexBuffer.handle;
+
+			vk_inst.cmd->buf_offset[0] = oldFrameOffset;
+			vk_bind_index_attr(0);
+
+			vk_inst.cmd->buf_offset[1] = newFrameOffset;
+			vk_bind_index_attr(1);
+
+			vk_inst.cmd->buf_offset[2] = 0; // dummy
+			vk_inst.cmd->buf_offset[3] = 0; // dummy
+
+			vk_inst.cmd->buf_offset[4] = oldNormalOffset;
+			vk_bind_index_attr(4);
+
+			vk_inst.cmd->buf_offset[5] = newNormalOffset;
+			vk_bind_index_attr(5);
+
+			vk_inst.cmd->command_buffer.bindVertexBuffers(
+				bind_base,
+				bind_count,
+				shade_bufs,
+				vk_inst.cmd->buf_offset + bind_base);
+			return;
+		}
+
+		// Generic non-ENV: old/new/color/st
 		if (flags & TESS_RGBA0)
 		{
+			//LogBindBranch("generic non-env");
 			shade_bufs[0] = s.vertexBuffer.handle;
 			shade_bufs[1] = s.vertexBuffer.handle;
 			shade_bufs[2] = vk_inst.cmd->vertex_buffer;
@@ -3640,7 +3749,8 @@ void vk_bind_geometry(const uint32_t flags)
 			return;
 		}
 
-		// identity / fixed / ent MD3 path: old/new/st
+		// Identity / Fixed / Ent non-ENV: old/new/st
+		//LogBindBranch("identity/fixed/ent non-env");
 		shade_bufs[0] = s.vertexBuffer.handle;
 		shade_bufs[1] = s.vertexBuffer.handle;
 		shade_bufs[2] = s.vertexBuffer.handle;

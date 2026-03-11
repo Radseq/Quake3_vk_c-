@@ -79,8 +79,8 @@ void RB_CheckOverflow(const int verts, const int indexes)
 RB_AddQuadStampExt
 ==============
 */
-void RB_AddQuadStampExt(const vec3_t &origin, const vec3_t &left, const vec3_t &up, const color4ub_t &color,
-						const float s1, const float t1, const float s2, const float t2)
+void RB_AddQuadStampExt(const vec3_t& origin, const vec3_t& left, const vec3_t& up, const color4ub_t& color,
+	const float s1, const float t1, const float s2, const float t2)
 {
 	vec3_t normal{};
 	int ndx;
@@ -146,8 +146,8 @@ void RB_AddQuadStampExt(const vec3_t &origin, const vec3_t &left, const vec3_t &
 	// should this be identity and let the shader specify from entity?
 	tess.vertexColors[ndx + 0] =
 		tess.vertexColors[ndx + 1] =
-			tess.vertexColors[ndx + 2] =
-				tess.vertexColors[ndx + 3] = color;
+		tess.vertexColors[ndx + 2] =
+		tess.vertexColors[ndx + 3] = color;
 
 	tess.numVertexes += 4;
 	tess.numIndexes += 6;
@@ -183,8 +183,8 @@ void RB_AddQuadStamp2(float x, float y, float w, float h, float s1, float t1, fl
 
 	tess.vertexColors[numVerts + 0] =
 		tess.vertexColors[numVerts + 1] =
-			tess.vertexColors[numVerts + 2] =
-				tess.vertexColors[numVerts + 3] = color;
+		tess.vertexColors[numVerts + 2] =
+		tess.vertexColors[numVerts + 3] = color;
 
 	tess.xyz[numVerts + 0][0] = x;
 	tess.xyz[numVerts + 0][1] = y;
@@ -217,7 +217,7 @@ void RB_AddQuadStamp2(float x, float y, float w, float h, float s1, float t1, fl
 RB_AddQuadStamp
 ==============
 */
-void RB_AddQuadStamp(const vec3_t &origin, const vec3_t &left, const vec3_t &up, const color4ub_t &color)
+void RB_AddQuadStamp(const vec3_t& origin, const vec3_t& left, const vec3_t& up, const color4ub_t& color)
 {
 	RB_AddQuadStampExt(origin, left, up, color, 0, 0, 1, 1);
 }
@@ -265,7 +265,7 @@ static void RB_SurfaceSprite(void)
 RB_SurfacePolychain
 =============
 */
-static void RB_SurfacePolychain(const srfPoly_t *p)
+static void RB_SurfacePolychain(const srfPoly_t* p)
 {
 	int i;
 	int numv;
@@ -309,14 +309,14 @@ static void RB_SurfacePolychain(const srfPoly_t *p)
 RB_SurfaceTriangles
 =============
 */
-static void RB_SurfaceTriangles(const srfTriangles_t *srf)
+static void RB_SurfaceTriangles(const srfTriangles_t* srf)
 {
 	int i;
-	const drawVert_t *dv;
-	float *xyz, *normal;
-	float *texCoords0;
-	float *texCoords1;
-	uint32_t *color;
+	const drawVert_t* dv;
+	float* xyz, * normal;
+	float* texCoords0;
+	float* texCoords1;
+	uint32_t* color;
 #ifdef USE_LEGACY_DLIGHTS
 	int dlightBits;
 #endif
@@ -425,17 +425,17 @@ static void RB_SurfaceBeam(void)
 	vec3_t direction{}, normalized_direction{};
 	vec3_t points[NUM_BEAM_SEGS + 1][2]{};
 
-	const refEntity_t &e = backEnd.currentEntity->e;
+	const refEntity_t& e = backEnd.currentEntity->e;
 
 	vec3_t oldorigin{
 		e.oldorigin[0],
 		e.oldorigin[1],
-		e.oldorigin[2]};
+		e.oldorigin[2] };
 
 	vec3_t origin{
 		e.origin[0],
 		e.origin[1],
-		e.origin[2]};
+		e.origin[2] };
 
 	normalized_direction[0] = direction[0] = oldorigin[0] - origin[0];
 	normalized_direction[1] = direction[1] = oldorigin[1] - origin[1];
@@ -481,7 +481,7 @@ static void RB_SurfaceBeam(void)
 
 //================================================================================
 
-static void DoRailCore(const vec3_t &start, const vec3_t &end, const vec3_t &up, float len, float spanWidth)
+static void DoRailCore(const vec3_t & start, const vec3_t & end, const vec3_t & up, float len, float spanWidth)
 {
 	float spanWidth2;
 	int vbase;
@@ -536,7 +536,7 @@ static void DoRailCore(const vec3_t &start, const vec3_t &end, const vec3_t &up,
 	tess.indexes[tess.numIndexes++] = vbase + 3;
 }
 
-static void DoRailDiscs(int numSegs, const vec3_t &start, const vec3_t &dir, const vec3_t &right, const vec3_t &up)
+static void DoRailDiscs(int numSegs, const vec3_t & start, const vec3_t & dir, const vec3_t & right, const vec3_t & up)
 {
 	if (numSegs > 1)
 		numSegs--;
@@ -558,7 +558,7 @@ static void DoRailDiscs(int numSegs, const vec3_t &start, const vec3_t &dir, con
 		vec3_t v{
 			(right[0] * c + up[0] * s) * scale * spanWidth,
 			(right[1] * c + up[1] * s) * scale * spanWidth,
-			(right[2] * c + up[2] * s) * scale * spanWidth};
+			(right[2] * c + up[2] * s) * scale * spanWidth };
 
 		VectorAdd(start, v, pos[i]);
 
@@ -697,7 +697,7 @@ static void RB_SurfaceLightningBolt(void)
 * The inputs to this routing seem to always be close to length = 1.0 (about 0.6 to 2.0)
 * This means that we don't have to worry about zero length ort enormously long vectors.
 */
-static void VectorArrayNormalize(vec4_t *normals, unsigned int count)
+static void VectorArrayNormalize(vec4_t * normals, unsigned int count)
 {
 	//    assert(count);
 	// given the input, it's safe to call VectorNormalizeFast
@@ -711,10 +711,10 @@ static void VectorArrayNormalize(vec4_t *normals, unsigned int count)
 /*
 ** LerpMeshVertexes
 */
-static void LerpMeshVertexes_scalar(md3Surface_t *surf, float backlerp)
+static void LerpMeshVertexes_scalar(md3Surface_t * surf, float backlerp)
 {
-	short *oldXyz, *newXyz, *oldNormals, *newNormals;
-	float *outXyz, *outNormal;
+	short* oldXyz, * newXyz, * oldNormals, * newNormals;
+	float* outXyz, * outNormal;
 	float oldXyzScale, newXyzScale;
 	float oldNormalScale, newNormalScale;
 	int vertNum;
@@ -724,7 +724,7 @@ static void LerpMeshVertexes_scalar(md3Surface_t *surf, float backlerp)
 	outXyz = tess.xyz[tess.numVertexes];
 	outNormal = tess.normal[tess.numVertexes];
 
-	newXyz = (short *)((byte *)surf + surf->ofsXyzNormals) + (backEnd.currentEntity->e.frame * surf->numVerts * 4);
+	newXyz = (short*)((byte*)surf + surf->ofsXyzNormals) + (backEnd.currentEntity->e.frame * surf->numVerts * 4);
 	newNormals = newXyz + 3;
 
 	newXyzScale = MD3_XYZ_SCALE * (1.0 - backlerp);
@@ -765,7 +765,7 @@ static void LerpMeshVertexes_scalar(md3Surface_t *surf, float backlerp)
 		//
 		// interpolate and copy the vertex and normal
 		//
-		oldXyz = (short *)((byte *)surf + surf->ofsXyzNormals) + (backEnd.currentEntity->e.oldframe * surf->numVerts * 4);
+		oldXyz = (short*)((byte*)surf + surf->ofsXyzNormals) + (backEnd.currentEntity->e.oldframe * surf->numVerts * 4);
 		oldNormals = oldXyz + 3;
 
 		oldXyzScale = MD3_XYZ_SCALE * backlerp;
@@ -789,7 +789,7 @@ static void LerpMeshVertexes_scalar(md3Surface_t *surf, float backlerp)
 			vec3_t uncompressedNewNormal = {
 				tr.sinTable[(lat + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK] * tr.sinTable[lng],
 				tr.sinTable[lat] * tr.sinTable[lng],
-				tr.sinTable[(lng + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK]};
+				tr.sinTable[(lng + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK] };
 
 			lat = (oldNormals[0] >> 8) & 0xff;
 			lng = (oldNormals[0] & 0xff);
@@ -799,7 +799,7 @@ static void LerpMeshVertexes_scalar(md3Surface_t *surf, float backlerp)
 			vec3_t uncompressedOldNormal{
 				tr.sinTable[(lat + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK] * tr.sinTable[lng],
 				tr.sinTable[lat] * tr.sinTable[lng],
-				tr.sinTable[(lng + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK]};
+				tr.sinTable[(lng + (FUNCTABLE_SIZE / 4)) & FUNCTABLE_MASK] };
 
 			outNormal[0] = uncompressedOldNormal[0] * oldNormalScale + uncompressedNewNormal[0] * newNormalScale;
 			outNormal[1] = uncompressedOldNormal[1] * oldNormalScale + uncompressedNewNormal[1] * newNormalScale;
@@ -807,16 +807,16 @@ static void LerpMeshVertexes_scalar(md3Surface_t *surf, float backlerp)
 
 			//			VectorNormalize (outNormal);
 		}
-		VectorArrayNormalize((vec4_t *)tess.normal[tess.numVertexes], numVerts);
+		VectorArrayNormalize((vec4_t*)tess.normal[tess.numVertexes], numVerts);
 	}
 }
 
-static void LerpMeshVertexes(md3Surface_t *surf, float backlerp)
+static void LerpMeshVertexes(md3Surface_t * surf, float backlerp)
 {
 	LerpMeshVertexes_scalar(surf, backlerp);
 }
 
-static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t& model, const md3Surface_t* target, int lod)
+static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t & model, const md3Surface_t * target, int lod)
 {
 	if (lod < 0 || lod >= MD3_MAX_LODS)
 	{
@@ -848,23 +848,51 @@ static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t& model, const md
 	return nullptr;
 }
 
-static bool RB_CanUseGpuMd3(const shader_t& shader, const int fogNum) noexcept
+static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 {
+	const shaderStage_t* const p = shader.stages[0];
+
+	auto LogCanUse = [&](const char* reason, const bool value)
+		{
+			static int s_canUseLogCount = 0;
+			if (s_canUseLogCount < 512)
+			{
+				Vk_Pipeline_Def dbgDef{};
+				vk_get_pipeline_def(p->vk_pipeline[0], dbgDef);
+
+				ri.Printf(PRINT_ALL,
+					"GPU_MD3 RB_CanUseGpuMd3: shader='%s' result=%d reason='%s' defType=%d stageTess=0x%08x shaderTess=0x%08x tcGen0=%d screenMap0=%d alphaGen0=%d numPasses=%d fogNum=%d\n",
+					shader.name ? shader.name : "<null>",
+					value ? 1 : 0,
+					reason,
+					static_cast<int>(dbgDef.shader_type),
+					static_cast<unsigned int>(p->tessFlags),
+					static_cast<unsigned int>(shader.tessFlags),
+					static_cast<int>(p->bundle[0].tcGen),
+					p->bundle[0].isScreenMap ? 1 : 0,
+					static_cast<int>(p->bundle[0].alphaGen),
+					shader.numUnfoggedPasses,
+					fogNum);
+
+				++s_canUseLogCount;
+			}
+		};
+
 	if (!r_gpuAnim || !r_gpuAnim->integer)
 		return false;
 
-	if (shader.numDeforms != 0)
+	if (shader.numDeforms != 0) {
+		//LogCanUse("shader.numDeforms != 0", false);
+		return false;
+	}
+
+	if (fogNum && static_cast<int>(shader.fogPass))
 		return false;
 
-	// Na razie nie wspieramy osobnego fog pass dla GPU MD3.
-	if (fogNum != 0 || static_cast<int>(shader.fogPass) != 0)
-		return false;
-
-	// Etap 2: tylko jeden pass.
 	if (shader.numUnfoggedPasses != 1)
 		return false;
 
-	const shaderStage_t* const p = shader.stages[0];
+
 	if (!p || !p->active)
 		return false;
 
@@ -876,37 +904,21 @@ static bool RB_CanUseGpuMd3(const shader_t& shader, const int fogNum) noexcept
 
 	const textureBundle_t& bundle = p->bundle[0];
 
+
+
+	if ((p->tessFlags & TESS_ENV) != 0 && bundle.isScreenMap)
+	{
+		//LogCanUse("env && screenMap", false);
+		return false;
+	}
+
 	if (bundle.numTexMods != 0)
 		return false;
 
-	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE)
-		return false;
-
-	if (bundle.adjustColorsForFog != acff_t::ACFF_NONE)
-		return false;
-
-	// Tego etap 2 nadal nie obsługuje, bo wymaga xyz / normal / vertex color source.
-	switch (bundle.rgbGen)
+	if (bundle.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR ||
+		bundle.alphaGen == alphaGen_t::AGEN_PORTAL)
 	{
-	case colorGen_t::CGEN_LIGHTING_DIFFUSE:
-	case colorGen_t::CGEN_EXACT_VERTEX:
-	case colorGen_t::CGEN_VERTEX:
-	case colorGen_t::CGEN_ONE_MINUS_VERTEX:
-	case colorGen_t::CGEN_FOG:
 		return false;
-	default:
-		break;
-	}
-
-	switch (bundle.alphaGen)
-	{
-	case alphaGen_t::AGEN_VERTEX:
-	case alphaGen_t::AGEN_ONE_MINUS_VERTEX:
-	case alphaGen_t::AGEN_LIGHTING_SPECULAR:
-	case alphaGen_t::AGEN_PORTAL:
-		return false;
-	default:
-		break;
 	}
 
 	Vk_Pipeline_Def def{};
@@ -914,24 +926,92 @@ static bool RB_CanUseGpuMd3(const shader_t& shader, const int fogNum) noexcept
 
 	switch (def.shader_type)
 	{
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
-		return true;
+		return (p->tessFlags & TESS_ENV) == 0;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+		return (p->tessFlags & TESS_ENV) != 0;
 
 	default:
 		return false;
 	}
 }
 
-static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
+static bool RB_SurfaceMeshGPU(md3Surface_t * surface)
 {
 	if (!backEnd.currentEntity || !tr.currentModel || tr.currentModel->type != modtype_t::MOD_MESH)
 		return false;
 
+	auto LogSurfaceGpu = [&](const char* reason, const bool value)
+		{
+			static int s_surfaceGpuLogCount = 0;
+			if (s_surfaceGpuLogCount < 512)
+			{
+				ri.Printf(PRINT_ALL,
+					"GPU_MD3 RB_SurfaceMeshGPU: shader='%s' model='%s' result=%d reason='%s' fogNum=%d renderfx=0x%08x oldFrame=%d newFrame=%d backlerp=%.3f\n",
+					tess.shader && tess.shader->name ? tess.shader->name : "<null>",
+					tr.currentModel
+					? std::string_view{
+						  tr.currentModel->name.data(),
+						  strnlen(tr.currentModel->name.data(), tr.currentModel->name.size())
+					}
+					: std::string_view{ "<null>" },
+					value ? 1 : 0,
+					reason,
+					tess.fogNum,
+					backEnd.currentEntity ? static_cast<unsigned int>(backEnd.currentEntity->e.renderfx) : 0u,
+					backEnd.currentEntity ? backEnd.currentEntity->e.oldframe : -1,
+					backEnd.currentEntity ? backEnd.currentEntity->e.frame : -1,
+					backEnd.currentEntity ? backEnd.currentEntity->e.backlerp : -1.0f);
+
+				++s_surfaceGpuLogCount;
+			}
+		};
+
 	if (!RB_CanUseGpuMd3(*tess.shader, tess.fogNum))
+	{
+		//LogSurfaceGpu("RB_CanUseGpuMd3 == false", false);
 		return false;
+	}
+
+	// Tymczasowy, celowany fallback:
+	// view-weapon / depthhack oraz screenMap env zostawiamy na CPU path,
+	// bo ten przypadek nadal nie jest 1:1 zgodny z klasycznym Quake 3 path.
+	{
+		const bool isDepthHack =
+			(backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) != 0;
+
+		bool hasEnvStage = false;
+		bool hasScreenMapEnvStage = false;
+
+		for (int s = 0; s < tess.shader->numUnfoggedPasses; ++s)
+		{
+			const shaderStage_t* p = tess.shader->stages[s];
+			if (!p || !p->active)
+				continue;
+
+			if ((p->tessFlags & TESS_ENV) != 0)
+			{
+				hasEnvStage = true;
+
+				if (p->bundle[0].isScreenMap)
+				{
+					hasScreenMapEnvStage = true;
+					break;
+				}
+			}
+		}
+
+		if ((isDepthHack && hasEnvStage) || hasScreenMapEnvStage)
+		{
+			return false;
+		}
+	}
 
 #ifdef USE_VBO
 	VBO_Flush();
@@ -940,7 +1020,10 @@ static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
 	const int lod = backEnd.currentEntity->modelLod;
 	const md3GpuSurface_t* gpuSurface = R_FindMD3GpuSurface(*tr.currentModel, surface, lod);
 	if (!gpuSurface || !gpuSurface->ready)
+	{
+		//LogSurfaceGpu("gpuSurface missing/not ready", false);
 		return false;
+	}
 
 	const float backlerp =
 		(backEnd.currentEntity->e.oldframe == backEnd.currentEntity->e.frame)
@@ -956,9 +1039,8 @@ static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
 	tess.gpuMd3OldFrame = static_cast<uint32_t>(backEnd.currentEntity->e.oldframe);
 	tess.gpuMd3NewFrame = static_cast<uint32_t>(backEnd.currentEntity->e.frame);
 
-	// jeśli chcesz zachować obecne CPU tcMod/scroll/rotate/stretch dla prostych shaderów,
-	// możesz tymczasowo zostawić kopiowanie base ST do tess.texCoords[0].
-	// Jeśli chcesz stricte zero CPU anim path, usuń to i binduj ST z GPU.
+	//LogSurfaceGpu("GPU path enabled", true);
+
 	return true;
 }
 
@@ -967,7 +1049,7 @@ static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
 RB_SurfaceMesh
 =============
 */
-static void RB_SurfaceMesh(md3Surface_t *surface)
+static void RB_SurfaceMesh(md3Surface_t * surface)
 {
 	if (RB_SurfaceMeshGPU(surface))
 	{
@@ -976,8 +1058,8 @@ static void RB_SurfaceMesh(md3Surface_t *surface)
 
 	int j;
 	float backlerp;
-	int *triangles;
-	float *texCoords;
+	int* triangles;
+	float* texCoords;
 	int indexes;
 	int Bob, Doug;
 	int numVerts;
@@ -1003,7 +1085,7 @@ static void RB_SurfaceMesh(md3Surface_t *surface)
 
 	LerpMeshVertexes(surface, backlerp);
 
-	triangles = (int *)((byte *)surface + surface->ofsTriangles);
+	triangles = (int*)((byte*)surface + surface->ofsTriangles);
 	indexes = surface->numTriangles * 3;
 	Bob = tess.numIndexes;
 	Doug = tess.numVertexes;
@@ -1013,7 +1095,7 @@ static void RB_SurfaceMesh(md3Surface_t *surface)
 	}
 	tess.numIndexes += indexes;
 
-	texCoords = (float *)((byte *)surface + surface->ofsSt);
+	texCoords = (float*)((byte*)surface + surface->ofsSt);
 
 	numVerts = surface->numVerts;
 	for (j = 0; j < numVerts; j++)
@@ -1031,13 +1113,13 @@ static void RB_SurfaceMesh(md3Surface_t *surface)
 RB_SurfaceFace
 ==============
 */
-static void RB_SurfaceFace(const srfSurfaceFace_t *surf)
+static void RB_SurfaceFace(const srfSurfaceFace_t * surf)
 {
 	int i;
-	unsigned *indices;
-	glIndex_t *tessIndexes;
-	const float *v;
-	const float *normal;
+	unsigned* indices;
+	glIndex_t* tessIndexes;
+	const float* v;
+	const float* normal;
 	int ndx;
 	int Bob;
 	int numPoints;
@@ -1083,7 +1165,7 @@ static void RB_SurfaceFace(const srfSurfaceFace_t *surf)
 	tess.dlightBits |= dlightBits;
 #endif
 
-	indices = (unsigned *)(((char *)surf) + surf->ofsIndices);
+	indices = (unsigned*)(((char*)surf) + surf->ofsIndices);
 
 	Bob = tess.numVertexes;
 	tessIndexes = tess.indexes + tess.numIndexes;
@@ -1127,7 +1209,7 @@ static void RB_SurfaceFace(const srfSurfaceFace_t *surf)
 			tess.texCoords[1][ndx][0] = v[5];
 			tess.texCoords[1][ndx][1] = v[6];
 		}
-		*(unsigned int *)&tess.vertexColors[ndx] = *(unsigned int *)&v[7];
+		*(unsigned int*)&tess.vertexColors[ndx] = *(unsigned int*)&v[7];
 #ifdef USE_LEGACY_DLIGHTS
 		tess.vertexDlightBits[ndx] = dlightBits;
 #endif
@@ -1136,7 +1218,7 @@ static void RB_SurfaceFace(const srfSurfaceFace_t *surf)
 	tess.numVertexes += surf->numPoints;
 }
 
-static float LodErrorForVolume(const vec3_t &local, const float radius)
+static float LodErrorForVolume(const vec3_t & local, const float radius)
 {
 	// never let it go negative
 	if (r_lodCurveError->value < 0)
@@ -1150,7 +1232,7 @@ static float LodErrorForVolume(const vec3_t &local, const float radius)
 		local[0] * backEnd.ort.axis[0][1] + local[1] * backEnd.ort.axis[1][1] +
 			local[2] * backEnd.ort.axis[2][1] + backEnd.ort.origin[1],
 		local[0] * backEnd.ort.axis[0][2] + local[1] * backEnd.ort.axis[1][2] +
-			local[2] * backEnd.ort.axis[2][2] + backEnd.ort.origin[2]};
+			local[2] * backEnd.ort.axis[2][2] + backEnd.ort.origin[2] };
 
 	VectorSubtract(world, backEnd.viewParms.ort.origin, world);
 	float d = DotProduct(world, backEnd.viewParms.ort.axis[0]);
@@ -1168,7 +1250,7 @@ static float LodErrorForVolume(const vec3_t &local, const float radius)
 	return r_lodCurveError->value / d;
 }
 
-void RB_SurfaceGridEstimate(srfGridMesh_t &cv, int *numVertexes, int *numIndexes)
+void RB_SurfaceGridEstimate(srfGridMesh_t & cv, int* numVertexes, int* numIndexes)
 {
 	int lodWidth, lodHeight;
 	float lodError;
@@ -1250,15 +1332,15 @@ RB_SurfaceGrid
 Just copy the grid of points and triangulate
 =============
 */
-static void RB_SurfaceGrid(srfGridMesh_t *cv)
+static void RB_SurfaceGrid(srfGridMesh_t * cv)
 {
 	int i, j;
-	float *xyz;
-	float *texCoords0;
-	float *texCoords1;
-	float *normal;
-	uint32_t *color;
-	drawVert_t *dv;
+	float* xyz;
+	float* texCoords0;
+	float* texCoords1;
+	float* normal;
+	uint32_t* color;
+	drawVert_t* dv;
 	int rows, irows, vrows;
 	int used;
 	int widthTable[MAX_GRID_SIZE]{};
@@ -1268,7 +1350,7 @@ static void RB_SurfaceGrid(srfGridMesh_t *cv)
 	int numVertexes;
 #ifdef USE_LEGACY_DLIGHTS
 	int dlightBits;
-	int *vDlightBits;
+	int* vDlightBits;
 #endif
 
 #ifdef USE_VBO
@@ -1436,7 +1518,7 @@ static void RB_SurfaceGrid(srfGridMesh_t *cv)
 				}
 				*color = dv->color.u32;
 #ifdef USE_LEGACY_DLIGHTS
-				*vDlightBits++ = dlightBits;
+				* vDlightBits++ = dlightBits;
 #endif
 				xyz += 4;
 				texCoords0 += 2;
@@ -1541,7 +1623,7 @@ RB_SurfaceEntity
 Entities that have a single procedurally generated surface
 ====================
 */
-static void RB_SurfaceEntity(const surfaceType_t *surfType)
+static void RB_SurfaceEntity(const surfaceType_t * surfType)
 {
 #ifdef USE_VBO
 	VBO_Flush();
@@ -1572,12 +1654,12 @@ static void RB_SurfaceEntity(const surfaceType_t *surfType)
 #endif
 }
 
-static void RB_SurfaceBad(const surfaceType_t *surfType)
+static void RB_SurfaceBad(const surfaceType_t * surfType)
 {
 	ri.Printf(PRINT_ALL, "Bad surface tesselated.\n");
 }
 
-static void RB_SurfaceFlare(srfFlare_t *surf)
+static void RB_SurfaceFlare(srfFlare_t * surf)
 {
 	if (r_flares->integer)
 	{
@@ -1589,20 +1671,20 @@ static void RB_SurfaceFlare(srfFlare_t *surf)
 	}
 }
 
-static void RB_SurfaceSkip(void *surf)
+static void RB_SurfaceSkip(void* surf)
 {
 }
 
-void (*rb_surfaceTable[static_cast<uint32_t>(surfaceType_t::SF_NUM_SURFACE_TYPES)])(void *) = {
-	(void (*)(void *))RB_SurfaceBad,	   // surfaceType_t::SF_BAD,
-	(void (*)(void *))RB_SurfaceSkip,	   // surfaceType_t::SF_SKIP,
-	(void (*)(void *))RB_SurfaceFace,	   // surfaceType_t::SF_FACE,
-	(void (*)(void *))RB_SurfaceGrid,	   // surfaceType_t::SF_GRID,
-	(void (*)(void *))RB_SurfaceTriangles, // surfaceType_t::SF_TRIANGLES,
-	(void (*)(void *))RB_SurfacePolychain, // surfaceType_t::SF_POLY,
-	(void (*)(void *))RB_SurfaceMesh,	   // surfaceType_t::SF_MD3,
-	(void (*)(void *))RB_MDRSurfaceAnim,   // surfaceType_t::SF_MDR,
-	(void (*)(void *))RB_IQMSurfaceAnim,   // surfaceType_t::SF_IQM,
-	(void (*)(void *))RB_SurfaceFlare,	   // surfaceType_t::SF_FLARE,
-	(void (*)(void *))RB_SurfaceEntity	   // surfaceType_t::SF_ENTITY
+void (*rb_surfaceTable[static_cast<uint32_t>(surfaceType_t::SF_NUM_SURFACE_TYPES)])(void*) = {
+	(void (*)(void*))RB_SurfaceBad,	   // surfaceType_t::SF_BAD,
+	(void (*)(void*))RB_SurfaceSkip,	   // surfaceType_t::SF_SKIP,
+	(void (*)(void*))RB_SurfaceFace,	   // surfaceType_t::SF_FACE,
+	(void (*)(void*))RB_SurfaceGrid,	   // surfaceType_t::SF_GRID,
+	(void (*)(void*))RB_SurfaceTriangles, // surfaceType_t::SF_TRIANGLES,
+	(void (*)(void*))RB_SurfacePolychain, // surfaceType_t::SF_POLY,
+	(void (*)(void*))RB_SurfaceMesh,	   // surfaceType_t::SF_MD3,
+	(void (*)(void*))RB_MDRSurfaceAnim,   // surfaceType_t::SF_MDR,
+	(void (*)(void*))RB_IQMSurfaceAnim,   // surfaceType_t::SF_IQM,
+	(void (*)(void*))RB_SurfaceFlare,	   // surfaceType_t::SF_FLARE,
+	(void (*)(void*))RB_SurfaceEntity	   // surfaceType_t::SF_ENTITY
 };

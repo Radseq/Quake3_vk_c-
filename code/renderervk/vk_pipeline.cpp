@@ -521,25 +521,53 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 
 
 
+
+
+
+
+
+
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE:
-		vs_module = &vk_inst.modules.vert.md3_gen[0];
+		vs_module = &vk_inst.modules.vert.md3_gen[0][0];
+		fs_module = &vk_inst.modules.frag.gen[0][0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENV:
+		vs_module = &vk_inst.modules.vert.md3_gen[1][0];
 		fs_module = &vk_inst.modules.frag.gen[0][0][0];
 		break;
 
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY:
-		vs_module = &vk_inst.modules.vert.md3_ident1[0];
+		vs_module = &vk_inst.modules.vert.md3_ident1[0][0];
+		fs_module = &vk_inst.modules.frag.ident1[0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY_ENV:
+		vs_module = &vk_inst.modules.vert.md3_ident1[1][0];
 		fs_module = &vk_inst.modules.frag.ident1[0][0];
 		break;
 
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR:
-		vs_module = &vk_inst.modules.vert.md3_fixed[0];
+		vs_module = &vk_inst.modules.vert.md3_fixed[0][0];
+		fs_module = &vk_inst.modules.frag.fixed[0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+		vs_module = &vk_inst.modules.vert.md3_fixed[1][0];
 		fs_module = &vk_inst.modules.frag.fixed[0][0];
 		break;
 
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR:
-		vs_module = &vk_inst.modules.vert.md3_fixed[0];
+		vs_module = &vk_inst.modules.vert.md3_fixed[0][0];
 		fs_module = &vk_inst.modules.frag.ent[0][0];
 		break;
+
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+		vs_module = &vk_inst.modules.vert.md3_fixed[1][0];
+		fs_module = &vk_inst.modules.frag.ent[0][0];
+		break;
+
+
 
 
 
@@ -907,6 +935,19 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		push_attr(3, 3, vk::Format::eR32G32Sfloat);
 		break;
 
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENV:
+		push_bind(0, sizeof(md3XyzNormal_t)); // old packed md3 vertex
+		push_bind(1, sizeof(md3XyzNormal_t)); // new packed md3 vertex
+		push_bind(2, sizeof(color4ub_t));     // color
+		push_bind(4, sizeof(md3XyzNormal_t)); // old normal from packed vertex
+		push_bind(5, sizeof(md3XyzNormal_t)); // new normal from packed vertex
+		push_attr(0, 0, vk::Format::eR16G16B16A16Sint);
+		push_attr(1, 1, vk::Format::eR16G16B16A16Sint);
+		push_attr(2, 2, vk::Format::eR8G8B8A8Unorm);
+		push_attr(4, 4, vk::Format::eR16Uint);
+		push_attr(5, 5, vk::Format::eR16Uint);
+		break;
+
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY:
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR:
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR:
@@ -918,7 +959,18 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		push_attr(2, 2, vk::Format::eR32G32Sfloat);
 		break;
 
-
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+		push_bind(0, sizeof(md3XyzNormal_t)); // old packed md3 vertex
+		push_bind(1, sizeof(md3XyzNormal_t)); // new packed md3 vertex
+		push_bind(4, sizeof(md3XyzNormal_t)); // old normal from packed vertex
+		push_bind(5, sizeof(md3XyzNormal_t)); // new normal from packed vertex
+		push_attr(0, 0, vk::Format::eR16G16B16A16Sint);
+		push_attr(1, 1, vk::Format::eR16G16B16A16Sint);
+		push_attr(4, 4, vk::Format::eR16Uint);
+		push_attr(5, 5, vk::Format::eR16Uint);
+		break;
 
 
 
@@ -1338,20 +1390,32 @@ static bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_Type& out)
 {
 	switch (in)
 	{
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
-		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENV;
 		return true;
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
 		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY;
 		return true;
 
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY_ENV;
+		return true;
+
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
 		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR;
 		return true;
 
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR_ENV;
+		return true;
+
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
 		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR;
+		return true;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR_ENV;
 		return true;
 
 	default:
