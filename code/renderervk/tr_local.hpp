@@ -1106,6 +1106,13 @@ typedef struct md3GpuSurface_s
 	uint32_t frameDataOffset;
 	uint32_t stOffset;
 	uint32_t frameStride;
+
+	// identyfikacja źródłowego md3 surface
+	const md3Surface_t* sourceSurface;
+	char sourceName[MAX_QPATH];
+	uint32_t sourceNumVerts;
+	uint32_t sourceNumTriangles;
+
 	bool ready;
 } md3GpuSurface_t;
 

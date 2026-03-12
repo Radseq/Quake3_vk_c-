@@ -36,6 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_descriptors.hpp"
 #include "vk_render_pass.hpp"
 #include "vk_pipeline.hpp"
+#include "tr_model.hpp"
 
 backEndData_t *backEndData;
 backEndState_t backEnd;
@@ -281,6 +282,8 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 			if (entityNum != REFENTITYNUM_WORLD)
 			{
 				backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
+				tr.currentModel = R_GetModelByHandle(backEnd.currentEntity->e.hModel);
+
 				if (backEnd.currentEntity->intShaderTime)
 					backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
 				else
@@ -288,7 +291,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 
 				// set up the transformation matrix
 				R_RotateForEntity(*backEnd.currentEntity, backEnd.viewParms, backEnd.ort);
-				// set up the dynamic lighting if needed
+
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
 				if (!r_dlightMode->integer)
@@ -297,10 +300,10 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 					{
 						R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
 					}
-#endif // USE_LEGACY_DLIGHTS
+#endif
+
 				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
 				{
-					// hack the depth range to prevent view model from poking into walls
 					depthRange = true;
 
 					if (backEnd.currentEntity->e.renderfx & RF_CROSSHAIR)
@@ -310,14 +313,17 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 			else
 			{
 				backEnd.currentEntity = &tr.worldEntity;
+				tr.currentModel = nullptr;
+
 				backEnd.refdef.floatTime = originalTime;
 				backEnd.ort = backEnd.viewParms.world;
+
 #ifdef USE_LEGACY_DLIGHTS
 #ifdef USE_PMLIGHT
 				if (!r_dlightMode->integer)
 #endif
 					R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
-#endif // USE_LEGACY_DLIGHTS
+#endif
 			}
 
 			// we have to reset the shaderTime as well otherwise image animations on
@@ -453,6 +459,7 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 			if (entityNum != REFENTITYNUM_WORLD)
 			{
 				backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
+				tr.currentModel = R_GetModelByHandle(backEnd.currentEntity->e.hModel);
 
 				if (backEnd.currentEntity->intShaderTime)
 					backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
@@ -464,7 +471,6 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 
 				if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK)
 				{
-					// hack the depth range to prevent view model from poking into walls
 					depthRange = true;
 
 					if (backEnd.currentEntity->e.renderfx & RF_CROSSHAIR)
@@ -474,6 +480,8 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 			else
 			{
 				backEnd.currentEntity = &tr.worldEntity;
+				tr.currentModel = nullptr;
+
 				backEnd.refdef.floatTime = originalTime;
 				backEnd.ort = backEnd.viewParms.world;
 			}

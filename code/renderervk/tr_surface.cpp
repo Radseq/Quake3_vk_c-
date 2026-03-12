@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk.hpp"
 #include "math.hpp"
 #include "vk_pipeline.hpp"
+#include "tr_model.hpp"
 
 /*
 
@@ -816,36 +817,150 @@ static void LerpMeshVertexes(md3Surface_t * surf, float backlerp)
 	LerpMeshVertexes_scalar(surf, backlerp);
 }
 
-static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t & model, const md3Surface_t * target, int lod)
+static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t& model, const md3Surface_t* target, int lodHint)
 {
-	if (lod < 0 || lod >= MD3_MAX_LODS)
+	if (!target)
 	{
 		return nullptr;
 	}
 
-	const md3GpuLod_t& gpuLod = model.md3Gpu[lod];
-	if (!gpuLod.ready || !gpuLod.surfaces)
-	{
-		return nullptr;
-	}
-
-	const md3Header_t* hdr = model.md3[lod];
-	if (!hdr)
-	{
-		return nullptr;
-	}
-
-	const md3Surface_t* surf = reinterpret_cast<const md3Surface_t*>((const byte*)hdr + hdr->ofsSurfaces);
-	for (int i = 0; i < gpuLod.numSurfaces; ++i)
-	{
-		if (surf == target)
+	// 1. Najpierw spróbuj użyć przekazanego loda jako hint.
+	auto TryFindInLod = [&](const int lod) -> const md3GpuSurface_t*
 		{
-			return &gpuLod.surfaces[i];
+			if (lod < 0 || lod >= MD3_MAX_LODS)
+			{
+				return nullptr;
+			}
+
+			const md3Header_t* hdr = model.md3[lod];
+			if (!hdr)
+			{
+				return nullptr;
+			}
+
+			const md3GpuLod_t& gpuLod = model.md3Gpu[lod];
+			if (!gpuLod.ready || !gpuLod.surfaces)
+			{
+				return nullptr;
+			}
+
+			const md3Surface_t* surf =
+				reinterpret_cast<const md3Surface_t*>((const byte*)hdr + hdr->ofsSurfaces);
+
+			for (int i = 0; i < gpuLod.numSurfaces; ++i)
+			{
+				if (surf == target)
+				{
+	/*				ri.Printf(PRINT_ALL,
+						"GPU_MD3 FIND HIT: model='%s' lod=%d surfIndex=%d target='%s' iter='%s' targetPtr=%p surfPtr=%p\n",
+						model.name.data() ? model.name.data() : "<null>",
+						lod,
+						i,
+						target ? target->name : "<null>",
+						surf ? surf->name : "<null>",
+						(const void*)target,
+						(const void*)surf);*/
+					return &gpuLod.surfaces[i];
+				}
+
+				surf = reinterpret_cast<const md3Surface_t*>((const byte*)surf + surf->ofsEnd);
+			}
+
+			//ri.Printf(PRINT_ALL,
+			//	"GPU_MD3 FIND MISS: model='%s' lodHint=%d target='%s' targetPtr=%p\n",
+			//	model.name.data() ? model.name.data() : "<null>",
+			//	lodHint,
+			//	target ? target->name : "<null>",
+			//	(const void*)target);
+
+			return nullptr;
+		};
+
+	// szybka ścieżka: lodHint
+	if (const md3GpuSurface_t* gpu = TryFindInLod(lodHint))
+	{
+		return gpu;
+	}
+
+	// 2. Jeżeli hint był zły, przeskanuj wszystkie LOD-y.
+	for (int lod = 0; lod < MD3_MAX_LODS; ++lod)
+	{
+		if (lod == lodHint)
+			continue;
+
+		if (const md3GpuSurface_t* gpu = TryFindInLod(lod))
+		{
+			return gpu;
 		}
-		surf = reinterpret_cast<const md3Surface_t*>((const byte*)surf + surf->ofsEnd);
 	}
 
 	return nullptr;
+}
+
+static bool RB_StrStartsWithNoCase(const char* s, const char* prefix) noexcept
+{
+	if (!s || !prefix)
+		return false;
+
+	const std::size_t prefixLen = std::strlen(prefix);
+	return Q_stricmpn(s, prefix, static_cast<int>(prefixLen)) == 0;
+}
+
+static bool RB_IsGpuMd3GenericDenylisted(const shader_t & shader) noexcept
+{
+	// Etap 4: noszone bronie zostają na CPU generic path,
+	// bo to właśnie one rozwalały się w TYPE_MD3_SIGNLE_TEXTURE.
+	if (RB_StrStartsWithNoCase(shader.name, "models/weapons2/"))
+		return true;
+
+	return false;
+}
+
+static bool RB_CanUseGpuMd3GenericSingleTexture(
+	const shader_t & shader,
+	const shaderStage_t & stage,
+	const textureBundle_t & bundle) noexcept
+{
+	if (RB_IsGpuMd3GenericDenylisted(shader))
+		return false;
+
+	// Generic etap 4 = tylko zwykły texture path.
+	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE)
+		return false;
+
+	if (bundle.isScreenMap)
+		return false;
+
+	// Nie chcemy żadnych dodatkowych, "bogatszych" ścieżek.
+	if ((stage.tessFlags & (TESS_ENV | TESS_NNN | TESS_VPOS | TESS_ST1 | TESS_ST2 | TESS_RGBA1 | TESS_RGBA2)) != 0)
+		return false;
+
+	// Bezpieczne rgbGen dla generic GPU path.
+	switch (bundle.rgbGen)
+	{
+	case colorGen_t::CGEN_IDENTITY:
+	case colorGen_t::CGEN_CONST:
+	case colorGen_t::CGEN_VERTEX:
+	case colorGen_t::CGEN_EXACT_VERTEX:
+		break;
+
+	default:
+		return false;
+	}
+
+	// Bezpieczne alphaGen dla generic GPU path.
+	switch (bundle.alphaGen)
+	{
+	case alphaGen_t::AGEN_SKIP:
+	case alphaGen_t::AGEN_IDENTITY:
+	case alphaGen_t::AGEN_CONST:
+		break;
+
+	default:
+		return false;
+	}
+
+	return true;
 }
 
 static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
@@ -861,16 +976,16 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 				vk_get_pipeline_def(p->vk_pipeline[0], dbgDef);
 
 				ri.Printf(PRINT_ALL,
-					"GPU_MD3 RB_CanUseGpuMd3: shader='%s' result=%d reason='%s' defType=%d stageTess=0x%08x shaderTess=0x%08x tcGen0=%d screenMap0=%d alphaGen0=%d numPasses=%d fogNum=%d\n",
+					"GPU_MD3 CANUSE: shader='%s' result=%d defType=%d stageTess=0x%08x shaderTess=0x%08x tcGen0=%d rgbGen0=%d alphaGen0=%d screenMap0=%d numPasses=%d fogNum=%d\n",
 					shader.name ? shader.name : "<null>",
 					value ? 1 : 0,
-					reason,
 					static_cast<int>(dbgDef.shader_type),
 					static_cast<unsigned int>(p->tessFlags),
 					static_cast<unsigned int>(shader.tessFlags),
 					static_cast<int>(p->bundle[0].tcGen),
-					p->bundle[0].isScreenMap ? 1 : 0,
+					static_cast<int>(p->bundle[0].rgbGen),
 					static_cast<int>(p->bundle[0].alphaGen),
+					p->bundle[0].isScreenMap ? 1 : 0,
 					shader.numUnfoggedPasses,
 					fogNum);
 
@@ -926,6 +1041,9 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 
 	switch (def.shader_type)
 	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+		return RB_CanUseGpuMd3GenericSingleTexture(shader, *p, bundle);
+
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
@@ -937,80 +1055,28 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
 		return (p->tessFlags & TESS_ENV) != 0;
 
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+		return bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE;
+
 	default:
 		return false;
+
 	}
 }
 
-static bool RB_SurfaceMeshGPU(md3Surface_t * surface)
+static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
 {
-	if (!backEnd.currentEntity || !tr.currentModel || tr.currentModel->type != modtype_t::MOD_MESH)
+	if (!backEnd.currentEntity)
 		return false;
 
-	auto LogSurfaceGpu = [&](const char* reason, const bool value)
-		{
-			static int s_surfaceGpuLogCount = 0;
-			if (s_surfaceGpuLogCount < 512)
-			{
-				ri.Printf(PRINT_ALL,
-					"GPU_MD3 RB_SurfaceMeshGPU: shader='%s' model='%s' result=%d reason='%s' fogNum=%d renderfx=0x%08x oldFrame=%d newFrame=%d backlerp=%.3f\n",
-					tess.shader && tess.shader->name ? tess.shader->name : "<null>",
-					tr.currentModel
-					? std::string_view{
-						  tr.currentModel->name.data(),
-						  strnlen(tr.currentModel->name.data(), tr.currentModel->name.size())
-					}
-					: std::string_view{ "<null>" },
-					value ? 1 : 0,
-					reason,
-					tess.fogNum,
-					backEnd.currentEntity ? static_cast<unsigned int>(backEnd.currentEntity->e.renderfx) : 0u,
-					backEnd.currentEntity ? backEnd.currentEntity->e.oldframe : -1,
-					backEnd.currentEntity ? backEnd.currentEntity->e.frame : -1,
-					backEnd.currentEntity ? backEnd.currentEntity->e.backlerp : -1.0f);
-
-				++s_surfaceGpuLogCount;
-			}
-		};
+	model_t* model = R_GetModelByHandle(backEnd.currentEntity->e.hModel);
+	if (!model || model->type != modtype_t::MOD_MESH)
+		return false;
 
 	if (!RB_CanUseGpuMd3(*tess.shader, tess.fogNum))
 	{
-		//LogSurfaceGpu("RB_CanUseGpuMd3 == false", false);
 		return false;
-	}
-
-	// Tymczasowy, celowany fallback:
-	// view-weapon / depthhack oraz screenMap env zostawiamy na CPU path,
-	// bo ten przypadek nadal nie jest 1:1 zgodny z klasycznym Quake 3 path.
-	{
-		const bool isDepthHack =
-			(backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) != 0;
-
-		bool hasEnvStage = false;
-		bool hasScreenMapEnvStage = false;
-
-		for (int s = 0; s < tess.shader->numUnfoggedPasses; ++s)
-		{
-			const shaderStage_t* p = tess.shader->stages[s];
-			if (!p || !p->active)
-				continue;
-
-			if ((p->tessFlags & TESS_ENV) != 0)
-			{
-				hasEnvStage = true;
-
-				if (p->bundle[0].isScreenMap)
-				{
-					hasScreenMapEnvStage = true;
-					break;
-				}
-			}
-		}
-
-		if ((isDepthHack && hasEnvStage) || hasScreenMapEnvStage)
-		{
-			return false;
-		}
 	}
 
 #ifdef USE_VBO
@@ -1018,10 +1084,14 @@ static bool RB_SurfaceMeshGPU(md3Surface_t * surface)
 #endif
 
 	const int lod = backEnd.currentEntity->modelLod;
-	const md3GpuSurface_t* gpuSurface = R_FindMD3GpuSurface(*tr.currentModel, surface, lod);
-	if (!gpuSurface || !gpuSurface->ready)
+	const md3GpuSurface_t* gpuSurface = R_FindMD3GpuSurface(*model, surface, lod);
+	if (!gpuSurface)
 	{
-		//LogSurfaceGpu("gpuSurface missing/not ready", false);
+		return false;
+	}
+
+	if (!gpuSurface->ready)
+	{
 		return false;
 	}
 
@@ -1039,7 +1109,18 @@ static bool RB_SurfaceMeshGPU(md3Surface_t * surface)
 	tess.gpuMd3OldFrame = static_cast<uint32_t>(backEnd.currentEntity->e.oldframe);
 	tess.gpuMd3NewFrame = static_cast<uint32_t>(backEnd.currentEntity->e.frame);
 
-	//LogSurfaceGpu("GPU path enabled", true);
+	//ri.Printf(PRINT_ALL,
+	//	"GPU_MD3 ENABLED: model='%s' shader='%s' surf='%s' hModel=%d lod=%d oldFrame=%d newFrame=%d backlerp=%.3f renderfx=0x%08x reType=%d\n",
+	//	model && model->name.data() ? model->name.data() : "<null>",
+	//	tess.shader && tess.shader->name ? tess.shader->name : "<null>",
+	//	surface ? surface->name : "<null>",
+	//	backEnd.currentEntity ? backEnd.currentEntity->e.hModel : 0,
+	//	lod,
+	//	backEnd.currentEntity ? backEnd.currentEntity->e.oldframe : -1,
+	//	backEnd.currentEntity ? backEnd.currentEntity->e.frame : -1,
+	//	backEnd.currentEntity ? backEnd.currentEntity->e.backlerp : -1.0f,
+	//	backEnd.currentEntity ? static_cast<unsigned int>(backEnd.currentEntity->e.renderfx) : 0u,
+	//	backEnd.currentEntity ? static_cast<int>(backEnd.currentEntity->e.reType) : -1);
 
 	return true;
 }

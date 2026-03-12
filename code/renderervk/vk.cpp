@@ -74,7 +74,7 @@ inline void reset_to_default(T& x) noexcept { x = T{}; }
 // }
 
 static constexpr uint32_t toInt(vk::SampleCountFlags f) noexcept {
-    return static_cast<uint32_t>(f); // hpp robi to poprawnie (bitmask)
+	return static_cast<uint32_t>(f); // hpp robi to poprawnie (bitmask)
 }
 
 static constexpr auto sampleCountLUT = [] {
@@ -500,7 +500,7 @@ static void vk_alloc_staging_buffer(const vk::DeviceSize size)
 
 	vk_clean_staging_buffer();
 
-	vk_inst.staging_buffer.size = MAX( size, STAGING_BUFFER_SIZE );
+	vk_inst.staging_buffer.size = MAX(size, STAGING_BUFFER_SIZE);
 	vk_inst.staging_buffer.size = pad_up_ct<vk::DeviceSize, 1024 * 1024>(vk_inst.staging_buffer.size);
 
 	// if (vk_world.staging_buffer)
@@ -921,7 +921,7 @@ static void init_vulkan_library(void)
 		ri.Error(ERR_FATAL, "Vulkan: unable to find any suitable physical device");
 		return;
 	}
-	
+
 	dldi.init(vk_instance, vk_inst.device);
 
 	//
@@ -1193,8 +1193,8 @@ static void vk_create_storage_buffer(const uint32_t size)
 
 	vk_inst.storage.buffer_ptr = reinterpret_cast<byte*>(mappedMemory);
 
-	Com_Memset( vk_inst.storage.buffer_ptr, 0, memoryRequirements.size );
-	
+	Com_Memset(vk_inst.storage.buffer_ptr, 0, memoryRequirements.size);
+
 	// Bind the memory to the buffer
 	VK_CHECK(vk_inst.device.bindBufferMemory(vk_inst.storage.buffer, vk_inst.storage.memory, 0));
 #ifdef USE_VK_VALIDATION
@@ -1415,6 +1415,10 @@ static void vk_create_shader_modules(void)
 	vk_inst.modules.vert.md3_fixed[1][0] = SHADER_MODULE(vert_md3_tx0_fixed_env_vert_spv);
 	vk_inst.modules.vert.md3_fixed[1][1] = SHADER_MODULE(vert_md3_tx0_fixed_env_fog_vert_spv);
 
+	vk_inst.modules.vert.md3_light[0][0] = SHADER_MODULE(vert_md3_light_vert_spv);
+	vk_inst.modules.vert.md3_light[0][1] = SHADER_MODULE(vert_md3_light_fog_vert_spv);
+	vk_inst.modules.vert.md3_light[1][0] = SHADER_MODULE(vert_md3_light_linear_vert_spv);
+	vk_inst.modules.vert.md3_light[1][1] = SHADER_MODULE(vert_md3_light_linear_fog_vert_spv);
 
 
 
@@ -2524,7 +2528,9 @@ static void reset_vk_instance(Vk_Instance& s) noexcept
 		for (auto& m : row)
 			reset_to_default(m);
 
-
+	for (auto& row : s.modules.vert.md3_light)
+		for (auto& m : row)
+			reset_to_default(m);
 
 
 	// Pipeline cache / pipelines
@@ -3620,10 +3626,11 @@ void vk_bind_geometry(const uint32_t flags)
 				if (s_bindGeometryLogCount < 512)
 				{
 					ri.Printf(PRINT_ALL,
-						"GPU_MD3 vk_bind_geometry: shader='%s' flags=0x%08x branch='%s' oldFrame=%u newFrame=%u backlerp=%.3f\n",
+						"GPU_MD3 BIND: shader='%s' model='%s' branch='%s' flags=0x%08x oldFrame=%u newFrame=%u backlerp=%.3f\n",
 						tess.shader && tess.shader->name ? tess.shader->name : "<null>",
-						static_cast<unsigned int>(flags),
+						tr.currentModel && tr.currentModel->name.data() ? tr.currentModel->name.data() : "<null>",
 						branchName,
+						static_cast<unsigned int>(flags),
 						tess.gpuMd3OldFrame,
 						tess.gpuMd3NewFrame,
 						tess.gpuMd3Backlerp);
@@ -3712,6 +3719,39 @@ void vk_bind_geometry(const uint32_t flags)
 
 			vk_inst.cmd->buf_offset[5] = newNormalOffset;
 			vk_bind_index_attr(5);
+
+			vk_inst.cmd->command_buffer.bindVertexBuffers(
+				bind_base,
+				bind_count,
+				shade_bufs,
+				vk_inst.cmd->buf_offset + bind_base);
+			return;
+		}
+
+		// Lighting: old/new/st/oldNormal/newNormal
+		if ((flags & TESS_NNN) && (flags & TESS_ST0) && ((flags & TESS_RGBA0) == 0))
+		{
+			//LogBindBranch("lightning");
+			shade_bufs[0] = s.vertexBuffer.handle;
+			shade_bufs[1] = s.vertexBuffer.handle;
+			shade_bufs[2] = s.vertexBuffer.handle;
+			shade_bufs[3] = s.vertexBuffer.handle;
+			shade_bufs[4] = s.vertexBuffer.handle;
+
+			vk_inst.cmd->buf_offset[0] = oldFrameOffset;
+			vk_bind_index_attr(0);
+
+			vk_inst.cmd->buf_offset[1] = newFrameOffset;
+			vk_bind_index_attr(1);
+
+			vk_inst.cmd->buf_offset[2] = stOffset;
+			vk_bind_index_attr(2);
+
+			vk_inst.cmd->buf_offset[3] = oldNormalOffset;
+			vk_bind_index_attr(3);
+
+			vk_inst.cmd->buf_offset[4] = newNormalOffset;
+			vk_bind_index_attr(4);
 
 			vk_inst.cmd->command_buffer.bindVertexBuffers(
 				bind_base,

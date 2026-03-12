@@ -567,6 +567,18 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		fs_module = &vk_inst.modules.frag.ent[0][0];
 		break;
 
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_LIGHTING:
+		vs_module = &vk_inst.modules.vert.md3_light[0][0];
+		fs_module = &vk_inst.modules.frag.light[0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+		vs_module = &vk_inst.modules.vert.md3_light[1][0];
+		fs_module = &vk_inst.modules.frag.light[1][0];
+		break;
+
+
+
 
 
 
@@ -972,7 +984,19 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		push_attr(5, 5, vk::Format::eR16Uint);
 		break;
 
-
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_LIGHTING:
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+		push_bind(0, sizeof(md3XyzNormal_t)); // old packed md3 vertex
+		push_bind(1, sizeof(md3XyzNormal_t)); // new packed md3 vertex
+		push_bind(2, sizeof(md3St_t));        // st
+		push_bind(3, sizeof(md3XyzNormal_t)); // old normal from packed vertex
+		push_bind(4, sizeof(md3XyzNormal_t)); // new normal from packed vertex
+		push_attr(0, 0, vk::Format::eR16G16B16A16Sint);
+		push_attr(1, 1, vk::Format::eR16G16B16A16Sint);
+		push_attr(2, 2, vk::Format::eR32G32Sfloat);
+		push_attr(3, 3, vk::Format::eR16Uint);
+		push_attr(4, 4, vk::Format::eR16Uint);
+		break;
 
 
 
@@ -1386,7 +1410,7 @@ vk::Pipeline vk_gen_pipeline(const uint32_t index)
 	}
 }
 
-static bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_Type& out)
+static constexpr bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_Type& out) noexcept
 {
 	switch (in)
 	{
@@ -1416,6 +1440,14 @@ static bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_Type& out)
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
 		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR_ENV;
+		return true;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_LIGHTING;
+		return true;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_LIGHTING_LINEAR;
 		return true;
 
 	default:

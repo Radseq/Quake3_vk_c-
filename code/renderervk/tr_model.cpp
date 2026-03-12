@@ -44,6 +44,11 @@ static bool R_CreateMD3GpuSurface(md3GpuSurface_t& out, const md3Surface_t& surf
 {
 	out = {};
 
+	out.sourceSurface = &surf;
+	Q_strncpyz(out.sourceName, surf.name, sizeof(out.sourceName));
+	out.sourceNumVerts = surf.numVerts;
+	out.sourceNumTriangles = surf.numTriangles;
+
 	out.numVerts = surf.numVerts;
 	out.numIndexes = surf.numTriangles * 3;
 	out.numFrames = surf.numFrames;
@@ -182,7 +187,9 @@ static qhandle_t R_RegisterMD3(std::string_view name, model_t& mod)
 		{
 			mod.numLods++;
 			mod.md3[lod] = mod.md3[lod + 1];
+			mod.md3Gpu[lod] = mod.md3Gpu[lod + 1];
 		}
+
 		return mod.index;
 	}
 
