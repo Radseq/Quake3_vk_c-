@@ -34,6 +34,39 @@ vec4 decode_md3_position(const ivec4 p)
     return vec4(vec3(p.xyz) * kMd3PositionScale, 1.0);
 }
 
+
+
+vec2 calc_fog_tc(const vec4 pos4)
+{
+    float s = dot(pos4, ubo.fogDistanceVector);
+    float t = dot(pos4, ubo.fogDepthVector);
+
+    if (ubo.fogEyeT.y == 1.0)
+    {
+        if (t < 0.0)
+        {
+            t = 1.0 / 32.0;
+        }
+        else
+        {
+            t = 31.0 / 32.0;
+        }
+    }
+    else
+    {
+        if (t < 1.0)
+        {
+            t = 1.0 / 32.0;
+        }
+        else
+        {
+            t = 1.0 / 32.0 + (30.0 / 32.0 * t) / (t - ubo.fogEyeT.x);
+        }
+    }
+
+    return vec2(s, t);
+}
+
 void main()
 {
     vec4 oldPos = decode_md3_position(in_old_position_packed);
@@ -45,7 +78,5 @@ void main()
     frag_color0 = in_color0;
     frag_tex_coord0 = in_tex_coord0;
 
-    float s = dot(pos, ubo.fogDistanceVector);
-    float t = dot(pos, ubo.fogDepthVector);
-    fog_tex_coord = vec2(s, t);
+    fog_tex_coord = calc_fog_tc(pos);
 }

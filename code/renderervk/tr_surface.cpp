@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "math.hpp"
 #include "vk_pipeline.hpp"
 #include "tr_model.hpp"
+#include "string_operations.hpp"
 
 /*
 
@@ -47,6 +48,17 @@ use the shader system.
 */
 
 //============================================================================
+
+static ID_INLINE void RB_ResetGpuMd3State() noexcept
+{
+	tess.gpuMd3Active = false;
+	tess.gpuMd3Surface = nullptr;
+	tess.gpuMd3Lod = 0;
+	tess.gpuMd3Backlerp = 0.0f;
+	tess.gpuMd3OldFrame = 0;
+	tess.gpuMd3NewFrame = 0;
+	tess.gpuMd3Layout = gpuMd3Layout_t::NONE;
+}
 
 /*
 ==============
@@ -230,6 +242,7 @@ RB_SurfaceSprite
 */
 static void RB_SurfaceSprite(void)
 {
+	RB_ResetGpuMd3State();
 	vec3_t left{}, up{};
 	float radius;
 
@@ -420,6 +433,15 @@ RB_SurfaceBeam
 */
 static void RB_SurfaceBeam(void)
 {
+	ri.Printf(PRINT_ALL,
+		"GPU_MD3 BEAM: before reset active=%d layout=%d shader='%s' surf=%p\n",
+		tess.gpuMd3Active ? 1 : 0,
+		static_cast<int>(tess.gpuMd3Layout),
+		(tess.shader && tess.shader->name) ? tess.shader->name : "<null>",
+		(const void*)tess.gpuMd3Surface);
+
+	RB_ResetGpuMd3State();
+
 	constexpr int NUM_BEAM_SEGS = 6;
 	int i;
 	vec3_t perpvec;
@@ -603,6 +625,7 @@ static void DoRailDiscs(int numSegs, const vec3_t & start, const vec3_t & dir, c
 */
 static void RB_SurfaceRailRings(void)
 {
+	RB_ResetGpuMd3State();
 	int numSegs;
 	int len;
 	vec3_t vec{};
@@ -632,6 +655,7 @@ static void RB_SurfaceRailRings(void)
 */
 static void RB_SurfaceRailCore(void)
 {
+	RB_ResetGpuMd3State();
 	int len;
 	vec3_t right;
 	vec3_t vec{};
@@ -660,6 +684,7 @@ static void RB_SurfaceRailCore(void)
 */
 static void RB_SurfaceLightningBolt(void)
 {
+	RB_ResetGpuMd3State();
 	int len;
 	vec3_t right;
 	vec3_t vec{};
@@ -817,7 +842,7 @@ static void LerpMeshVertexes(md3Surface_t * surf, float backlerp)
 	LerpMeshVertexes_scalar(surf, backlerp);
 }
 
-static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t& model, const md3Surface_t* target, int lodHint)
+static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t & model, const md3Surface_t * target, int lodHint)
 {
 	if (!target)
 	{
@@ -851,15 +876,15 @@ static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t& model, const md
 			{
 				if (surf == target)
 				{
-	/*				ri.Printf(PRINT_ALL,
-						"GPU_MD3 FIND HIT: model='%s' lod=%d surfIndex=%d target='%s' iter='%s' targetPtr=%p surfPtr=%p\n",
-						model.name.data() ? model.name.data() : "<null>",
-						lod,
-						i,
-						target ? target->name : "<null>",
-						surf ? surf->name : "<null>",
-						(const void*)target,
-						(const void*)surf);*/
+					/*				ri.Printf(PRINT_ALL,
+										"GPU_MD3 FIND HIT: model='%s' lod=%d surfIndex=%d target='%s' iter='%s' targetPtr=%p surfPtr=%p\n",
+										model.name.data() ? model.name.data() : "<null>",
+										lod,
+										i,
+										target ? target->name : "<null>",
+										surf ? surf->name : "<null>",
+										(const void*)target,
+										(const void*)surf);*/
 					return &gpuLod.surfaces[i];
 				}
 
@@ -963,42 +988,27 @@ static bool RB_CanUseGpuMd3GenericSingleTexture(
 	return true;
 }
 
+static bool RB_IsTrueEnvTcGen(const textureBundle_t & bundle) noexcept
+{
+	return bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
+		bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP;
+}
+
+static bool RB_IsPlainModelTcGen(const textureBundle_t & bundle) noexcept
+{
+	return bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE;
+}
+
 static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 {
+
 	const shaderStage_t* const p = shader.stages[0];
-
-	auto LogCanUse = [&](const char* reason, const bool value)
-		{
-			static int s_canUseLogCount = 0;
-			if (s_canUseLogCount < 512)
-			{
-				Vk_Pipeline_Def dbgDef{};
-				vk_get_pipeline_def(p->vk_pipeline[0], dbgDef);
-
-				ri.Printf(PRINT_ALL,
-					"GPU_MD3 CANUSE: shader='%s' result=%d defType=%d stageTess=0x%08x shaderTess=0x%08x tcGen0=%d rgbGen0=%d alphaGen0=%d screenMap0=%d numPasses=%d fogNum=%d\n",
-					shader.name ? shader.name : "<null>",
-					value ? 1 : 0,
-					static_cast<int>(dbgDef.shader_type),
-					static_cast<unsigned int>(p->tessFlags),
-					static_cast<unsigned int>(shader.tessFlags),
-					static_cast<int>(p->bundle[0].tcGen),
-					static_cast<int>(p->bundle[0].rgbGen),
-					static_cast<int>(p->bundle[0].alphaGen),
-					p->bundle[0].isScreenMap ? 1 : 0,
-					shader.numUnfoggedPasses,
-					fogNum);
-
-				++s_canUseLogCount;
-			}
-		};
 
 	if (!r_gpuAnim || !r_gpuAnim->integer)
 		return false;
 
 	if (shader.numDeforms != 0) {
-		//LogCanUse("shader.numDeforms != 0", false);
-		return false;
+		return  false;
 	}
 
 	if (fogNum && static_cast<int>(shader.fogPass))
@@ -1039,6 +1049,7 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 	Vk_Pipeline_Def def{};
 	vk_get_pipeline_def(p->vk_pipeline[0], def);
 
+
 	switch (def.shader_type)
 	{
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
@@ -1047,25 +1058,30 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
-		return (p->tessFlags & TESS_ENV) == 0;
+		return RB_IsPlainModelTcGen(bundle) &&
+			!bundle.gpuTcGenHandledInShader &&
+			(p->tessFlags & TESS_ENV) == 0;
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
-		return (p->tessFlags & TESS_ENV) != 0;
+		return RB_IsTrueEnvTcGen(bundle) &&
+			bundle.gpuTcGenHandledInShader &&
+			(p->tessFlags & TESS_ENV) != 0;
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
-		return bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE;
+		return RB_IsPlainModelTcGen(bundle) &&
+			!bundle.gpuTcGenHandledInShader;
 
 	default:
-		return false;
+		return  false;
 
 	}
 }
 
-static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
+static bool RB_SurfaceMeshGPU(md3Surface_t * surface)
 {
 	if (!backEnd.currentEntity)
 		return false;
@@ -1095,6 +1111,18 @@ static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
 		return false;
 	}
 
+	Vk_Pipeline_Def def{};
+
+	const shaderStage_t* const stage =
+		(tess.xstages && tess.numPasses > 0) ? tess.xstages[0] : nullptr;
+
+	if (!stage)
+	{
+		return false;
+	}
+
+	vk_get_pipeline_def(stage->vk_pipeline[0], def);
+
 	const float backlerp =
 		(backEnd.currentEntity->e.oldframe == backEnd.currentEntity->e.frame)
 		? 0.0f
@@ -1108,20 +1136,39 @@ static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
 	tess.gpuMd3Backlerp = backlerp;
 	tess.gpuMd3OldFrame = static_cast<uint32_t>(backEnd.currentEntity->e.oldframe);
 	tess.gpuMd3NewFrame = static_cast<uint32_t>(backEnd.currentEntity->e.frame);
+	tess.gpuMd3Lod = static_cast<uint32_t>(lod);
 
-	//ri.Printf(PRINT_ALL,
-	//	"GPU_MD3 ENABLED: model='%s' shader='%s' surf='%s' hModel=%d lod=%d oldFrame=%d newFrame=%d backlerp=%.3f renderfx=0x%08x reType=%d\n",
-	//	model && model->name.data() ? model->name.data() : "<null>",
-	//	tess.shader && tess.shader->name ? tess.shader->name : "<null>",
-	//	surface ? surface->name : "<null>",
-	//	backEnd.currentEntity ? backEnd.currentEntity->e.hModel : 0,
-	//	lod,
-	//	backEnd.currentEntity ? backEnd.currentEntity->e.oldframe : -1,
-	//	backEnd.currentEntity ? backEnd.currentEntity->e.frame : -1,
-	//	backEnd.currentEntity ? backEnd.currentEntity->e.backlerp : -1.0f,
-	//	backEnd.currentEntity ? static_cast<unsigned int>(backEnd.currentEntity->e.renderfx) : 0u,
-	//	backEnd.currentEntity ? static_cast<int>(backEnd.currentEntity->e.reType) : -1);
+	switch (def.shader_type)
+	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+		tess.gpuMd3Layout = gpuMd3Layout_t::GENERIC_ST_COLOR;
+		break;
 
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
+		tess.gpuMd3Layout = gpuMd3Layout_t::GENERIC_ENV_COLOR;
+		break;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+		tess.gpuMd3Layout = gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
+		break;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+		tess.gpuMd3Layout = gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+		break;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+		tess.gpuMd3Layout = gpuMd3Layout_t::LIGHTING;
+		break;
+
+	default:
+		tess.gpuMd3Layout = gpuMd3Layout_t::NONE;
+		break;
+	}
 	return true;
 }
 
@@ -1664,6 +1711,7 @@ Draws x/y/z lines from the origin for orientation debugging
 */
 static void RB_SurfaceAxis(void)
 {
+	RB_ResetGpuMd3State();
 	int i;
 
 	RB_EndSurface();

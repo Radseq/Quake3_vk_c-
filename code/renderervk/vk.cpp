@@ -1265,16 +1265,7 @@ bool vk_alloc_static_model_buffer(
 	return true;
 }
 
-static void vk_push_md3_lerp(const float backlerp)
-{
-	alignas(16) float md3Anim[4] = { 1.0f - backlerp, backlerp, 0.0f, 0.0f };
-	vk_inst.cmd->command_buffer.pushConstants(
-		vk_inst.pipeline_layout,
-		vk::ShaderStageFlagBits::eVertex,
-		64,
-		sizeof(md3Anim),
-		md3Anim);
-}
+
 
 #ifdef USE_VBO
 void vk_release_vbo(void)
@@ -3619,25 +3610,22 @@ void vk_bind_geometry(const uint32_t flags)
 {
 	if (tess.gpuMd3Active)
 	{
+		if (!tess.gpuMd3Surface)
+		{
+			ri.Error(ERR_DROP, "vk_bind_geometry: gpuMd3Active=1 but gpuMd3Surface=null");
+			return;
+		}
 
-		auto LogBindBranch = [&](const char* branchName)
-			{
-				static int s_bindGeometryLogCount = 0;
-				if (s_bindGeometryLogCount < 512)
-				{
-					ri.Printf(PRINT_ALL,
-						"GPU_MD3 BIND: shader='%s' model='%s' branch='%s' flags=0x%08x oldFrame=%u newFrame=%u backlerp=%.3f\n",
-						tess.shader && tess.shader->name ? tess.shader->name : "<null>",
-						tr.currentModel && tr.currentModel->name.data() ? tr.currentModel->name.data() : "<null>",
-						branchName,
-						static_cast<unsigned int>(flags),
-						tess.gpuMd3OldFrame,
-						tess.gpuMd3NewFrame,
-						tess.gpuMd3Backlerp);
+		if (tess.gpuMd3Active && (!tess.gpuMd3Surface || tess.gpuMd3Layout == gpuMd3Layout_t::NONE))
+		{
+			ri.Printf(PRINT_WARNING,
+				"GPU_MD3 WARN: invalid gpuMd3 state, shader='%s', flags=0x%08x layout=%d surface=%p\n",
+				tess.shader && tess.shader->name ? tess.shader->name : "<null>",
+				static_cast<unsigned int>(flags),
+				static_cast<int>(tess.gpuMd3Layout),
+				static_cast<const void*>(tess.gpuMd3Surface));
+		}
 
-					++s_bindGeometryLogCount;
-				}
-			};
 		const auto& s = *tess.gpuMd3Surface;
 
 		const vk::DeviceSize oldFrameOffset =
@@ -3659,6 +3647,43 @@ void vk_bind_geometry(const uint32_t flags)
 
 		bind_base = -1;
 		bind_count = 0;
+
+
+
+		// Lighting: old/new/st/oldNormal/newNormal
+		// Musi być przed ogólnym branchem "if (flags & TESS_NNN)",
+		// bo inaczej ścieżka env zjada lighting i binduje zły layout.
+		if ((flags & TESS_NNN) && (flags & TESS_ST0) && ((flags & TESS_RGBA0) == 0))
+		{
+			//LogBindBranch("lighting");
+			shade_bufs[0] = s.vertexBuffer.handle;
+			shade_bufs[1] = s.vertexBuffer.handle;
+			shade_bufs[2] = s.vertexBuffer.handle;
+			shade_bufs[3] = s.vertexBuffer.handle;
+			shade_bufs[4] = s.vertexBuffer.handle;
+
+			vk_inst.cmd->buf_offset[0] = oldFrameOffset;
+			vk_bind_index_attr(0);
+
+			vk_inst.cmd->buf_offset[1] = newFrameOffset;
+			vk_bind_index_attr(1);
+
+			vk_inst.cmd->buf_offset[2] = stOffset;
+			vk_bind_index_attr(2);
+
+			vk_inst.cmd->buf_offset[3] = oldNormalOffset;
+			vk_bind_index_attr(3);
+
+			vk_inst.cmd->buf_offset[4] = newNormalOffset;
+			vk_bind_index_attr(4);
+
+			vk_inst.cmd->command_buffer.bindVertexBuffers(
+				bind_base,
+				bind_count,
+				shade_bufs,
+				vk_inst.cmd->buf_offset + bind_base);
+			return;
+		}
 
 		// Generic ENV: old/new/color/(dummy)/oldNormal/newNormal
 		if ((flags & TESS_NNN) && (flags & TESS_RGBA0))
@@ -3728,39 +3753,6 @@ void vk_bind_geometry(const uint32_t flags)
 			return;
 		}
 
-		// Lighting: old/new/st/oldNormal/newNormal
-		if ((flags & TESS_NNN) && (flags & TESS_ST0) && ((flags & TESS_RGBA0) == 0))
-		{
-			//LogBindBranch("lightning");
-			shade_bufs[0] = s.vertexBuffer.handle;
-			shade_bufs[1] = s.vertexBuffer.handle;
-			shade_bufs[2] = s.vertexBuffer.handle;
-			shade_bufs[3] = s.vertexBuffer.handle;
-			shade_bufs[4] = s.vertexBuffer.handle;
-
-			vk_inst.cmd->buf_offset[0] = oldFrameOffset;
-			vk_bind_index_attr(0);
-
-			vk_inst.cmd->buf_offset[1] = newFrameOffset;
-			vk_bind_index_attr(1);
-
-			vk_inst.cmd->buf_offset[2] = stOffset;
-			vk_bind_index_attr(2);
-
-			vk_inst.cmd->buf_offset[3] = oldNormalOffset;
-			vk_bind_index_attr(3);
-
-			vk_inst.cmd->buf_offset[4] = newNormalOffset;
-			vk_bind_index_attr(4);
-
-			vk_inst.cmd->command_buffer.bindVertexBuffers(
-				bind_base,
-				bind_count,
-				shade_bufs,
-				vk_inst.cmd->buf_offset + bind_base);
-			return;
-		}
-
 		// Generic non-ENV: old/new/color/st
 		if (flags & TESS_RGBA0)
 		{
@@ -3803,6 +3795,7 @@ void vk_bind_geometry(const uint32_t flags)
 
 		vk_inst.cmd->buf_offset[2] = stOffset;
 		vk_bind_index_attr(2);
+
 
 		vk_inst.cmd->command_buffer.bindVertexBuffers(
 			bind_base,

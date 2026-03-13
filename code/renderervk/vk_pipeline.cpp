@@ -1,5 +1,6 @@
-#include "vk_pipeline.hpp"
+﻿#include "vk_pipeline.hpp"
 #include "utils.hpp"
+#include "string_operations.hpp"
 
 void vk_alloc_persistent_pipelines()
 {
@@ -855,8 +856,21 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		break;
 	}
 
+
+
 	fragSpec.fixedColor = static_cast<float>(def.color.rgb) / 255.0f;
 	fragSpec.fixedAlpha = static_cast<float>(def.color.alpha) / 255.0f;
+
+	if (def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR)
+	{
+		ri.Printf(PRINT_ALL,
+			"GPU_MD3 PIPELINE ENT_COLOR: def.color.rgb=%u def.color.alpha=%u fixedColor=%.3f fixedAlpha=%.3f\n",
+			static_cast<unsigned int>(def.color.rgb),
+			static_cast<unsigned int>(def.color.alpha),
+			fragSpec.fixedColor,
+			fragSpec.fixedAlpha);
+	}
+
 	fragSpec.acff = def.fog_stage ? def.acff : 0;
 
 	shader_stages[0].pSpecializationInfo = nullptr;
@@ -1414,6 +1428,10 @@ static constexpr bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_
 {
 	switch (in)
 	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE;
+		return true;
+
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
 		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENV;
 		return true;
@@ -1455,10 +1473,22 @@ static constexpr bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_
 	}
 }
 
+static void vk_push_md3_lerp(const float backlerp)
+{
+	alignas(16) float md3Anim[4] = { 1.0f - backlerp, backlerp, 0.0f, 0.0f };
+	vk_inst.cmd->command_buffer.pushConstants(
+		vk_inst.pipeline_layout,
+		vk::ShaderStageFlagBits::eVertex,
+		64,
+		sizeof(md3Anim),
+		md3Anim);
+}
+
 void vk_bind_pipeline(const uint32_t pipeline)
 {
 	vk::Pipeline vkpipe;
 	uint32_t pipelineToBind = pipeline;
+	bool usingGpuMd3Pipeline = false;
 
 	if (tess.gpuMd3Active)
 	{
@@ -1470,6 +1500,7 @@ void vk_bind_pipeline(const uint32_t pipeline)
 		{
 			def.shader_type = md3Type;
 			pipelineToBind = vk_find_pipeline_ext(0, def, true);
+			usingGpuMd3Pipeline = true;
 		}
 	}
 
@@ -1481,8 +1512,16 @@ void vk_bind_pipeline(const uint32_t pipeline)
 		vk_inst.cmd->last_pipeline = vkpipe;
 	}
 
-	vk_world.dirty_depth_attachment |= (vk_inst.pipelines[pipelineToBind].def.state_bits & GLS_DEPTHMASK_TRUE);
-	//vk_world.dirty_depth_attachment |= (vk_inst.pipelines[pipeline].def.state_bits & GLS_DEPTHMASK_TRUE);
+	// To jest krytyczne dla vertex shaderów MD3:
+	// mvp idzie w push constants [0..63],
+	// md3Anim musi iść w [64..79].
+	if (tess.gpuMd3Active && usingGpuMd3Pipeline)
+	{
+		vk_push_md3_lerp(tess.gpuMd3Backlerp);
+	}
+
+	vk_world.dirty_depth_attachment |=
+		(vk_inst.pipelines[pipelineToBind].def.state_bits & GLS_DEPTHMASK_TRUE);
 }
 
 // Define a struct to hold the RGB values

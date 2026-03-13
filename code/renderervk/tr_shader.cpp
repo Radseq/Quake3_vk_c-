@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -2279,7 +2279,7 @@ static int CollapseMultitexture(unsigned int st0bits, shaderStage_t& st0, shader
 
 	int abits, bbits;
 	int i, mtEnv;
-	textureBundle_t tmpBundle;
+	textureBundle_t tmpBundle{};
 	bool nonIdenticalColors;
 	bool swapLightmap;
 
@@ -3777,33 +3777,16 @@ static shader_t* FinishShader(void)
 			{
 				if (def.shader_type >= Vk_Shader_Type::TYPE_GENERIC_BEGIN && def.shader_type <= Vk_Shader_Type::TYPE_GENERIC_END)
 				{
+					const texCoordGen_t tcGenBefore = pStage.bundle[0].tcGen;
+					const auto defBefore = def.shader_type;
 					def.shader_type = static_cast<Vk_Shader_Type>(static_cast<int>(def.shader_type) + 1);
 					shader.tessFlags |= TESS_NNN | TESS_VPOS;
 					pStage.tessFlags &= ~TESS_ST0;
 					pStage.tessFlags |= TESS_ENV;
-					pStage.bundle[0].tcGen = texCoordGen_t::TCGEN_BAD;
 
-					//{
-					//	static int s_finishShaderLogCount = 0;
-					//	if (s_finishShaderLogCount < 256)
-					//	{
-					//		const textureBundle_t& b0 = pStage.bundle[0];
-
-					//		ri.Printf(PRINT_ALL,
-					//			"GPU_MD3 FinishShader: shader='%s' stage=%d defType=%d stageTess=0x%08x shaderTess=0x%08x tcGen0=%d screenMap0=%d numBundles=%d env=%d\n",
-					//			shader.name ? shader.name : "<null>",
-					//			stage,
-					//			static_cast<int>(def.shader_type),
-					//			static_cast<unsigned int>(pStage.tessFlags),
-					//			static_cast<unsigned int>(shader.tessFlags),
-					//			static_cast<int>(b0.tcGen),
-					//			b0.isScreenMap ? 1 : 0,
-					//			pStage.numTexBundles,
-					//			(pStage.tessFlags & TESS_ENV) ? 1 : 0);
-
-					//		++s_finishShaderLogCount;
-					//	}
-					//}
+					// zachowaj prawdziwą semantykę tcGen
+					pStage.bundle[0].originalTcGen = pStage.bundle[0].tcGen;
+					pStage.bundle[0].gpuTcGenHandledInShader = true;
 				}
 			}
 

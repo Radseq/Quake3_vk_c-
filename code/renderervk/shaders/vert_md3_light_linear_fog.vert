@@ -46,6 +46,39 @@ vec3 decode_md3_normal(const uint packed)
     return vec3(cos(lat) * sinLng, sin(lat) * sinLng, cos(lng));
 }
 
+
+
+vec2 calc_fog_tc(const vec4 pos4)
+{
+    float s = dot(pos4, ubo.fogDistanceVector);
+    float t = dot(pos4, ubo.fogDepthVector);
+
+    if (ubo.fogEyeT.y == 1.0)
+    {
+        if (t < 0.0)
+        {
+            t = 1.0 / 32.0;
+        }
+        else
+        {
+            t = 31.0 / 32.0;
+        }
+    }
+    else
+    {
+        if (t < 1.0)
+        {
+            t = 1.0 / 32.0;
+        }
+        else
+        {
+            t = 1.0 / 32.0 + (30.0 / 32.0 * t) / (t - ubo.fogEyeT.x);
+        }
+    }
+
+    return vec2(s, t);
+}
+
 void main()
 {
     const vec3 oldPosition = vec3(in_old_position_packed.xyz) * kMd3PositionScale;
@@ -68,5 +101,5 @@ void main()
     L = ubo.lightPos - pos4;
     V = ubo.eyePos - pos4;
 
-    fog_tex_coord = vec2(dot(pos4, ubo.fogDistanceVector), dot(pos4, ubo.fogDepthVector));
+    fog_tex_coord = calc_fog_tc(pos4);
 }

@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_descriptors.hpp"
 #include "vk_pipeline.hpp"
 #include "utils.hpp"
+#include "string_operations.hpp"
 
 shaderCommands_t tess;
 
@@ -113,6 +114,7 @@ void RB_BeginSurface(shader_t &shader, const int fogNum)
 	tess.gpuMd3Backlerp = 0.0f;
 	tess.gpuMd3OldFrame = 0;
 	tess.gpuMd3NewFrame = 0;
+	tess.gpuMd3Layout = gpuMd3Layout_t::NONE;
 
 #ifdef USE_LEGACY_DLIGHTS
 	tess.dlightBits = 0; // will be OR'd in by surface functions
@@ -154,13 +156,12 @@ void R_ComputeTexCoords(const int b, const textureBundle_t& bundle)
 
 	if (tess.gpuMd3Active && bundle.numTexMods == 0)
 	{
-		// tylko zwykłe teksturowanie zawsze można skipnąć
+		// zwykłe ST dostarcza vertex buffer MD3
 		if (bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE)
 			return;
 
-		// env można skipnąć tylko po env-optimalizacji,
-		// czyli gdy tcGen został już wyzerowany do BAD
-		if (bundle.tcGen == texCoordGen_t::TCGEN_BAD)
+		// env tc0 liczy vertex shader GPU MD3
+		if (bundle.gpuTcGenHandledInShader)
 			return;
 	}
 	//if (R_SkipCpuTexCoordsForGpuMd3(bundle))

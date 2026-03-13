@@ -470,6 +470,9 @@ typedef struct
 	bool isVideoMap;
 	unsigned int 	isScreenMap : 1;
 	unsigned int 	dlight : 1;
+
+	bool gpuTcGenHandledInShader ;
+	texCoordGen_t originalTcGen;
 } textureBundle_t;
 
 #ifdef USE_VULKAN
@@ -1665,6 +1668,16 @@ TESSELATOR/SHADER DECLARATIONS
 ====================================================================
 */
 
+enum class gpuMd3Layout_t : uint8_t
+{
+	NONE = 0,
+	GENERIC_ENV_COLOR,
+	GENERIC_ENV_NO_COLOR,
+	GENERIC_ST_COLOR,
+	GENERIC_ST_NO_COLOR,
+	LIGHTING
+};
+
 typedef struct stageVars
 {
 	color4ub_t colors[NUM_TEXTURE_BUNDLES][SHADER_MAX_VERTEXES]; // we need at least 2xSHADER_MAX_VERTEXES for shadows and normals
@@ -1732,6 +1745,7 @@ typedef struct shaderCommands_s
 	uint32_t gpuMd3OldFrame;
 	uint32_t gpuMd3NewFrame;
 	float gpuMd3Backlerp;
+	gpuMd3Layout_t gpuMd3Layout;
 
 } shaderCommands_t;
 
