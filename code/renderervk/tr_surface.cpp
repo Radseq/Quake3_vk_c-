@@ -1037,8 +1037,13 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 		return  false;
 	}
 
+#ifdef USE_FOG_COLLAPSE
+	if (fogNum && static_cast<int>(shader.fogPass) && !shader.fogCollapse)
+		return false;
+#else
 	if (fogNum && static_cast<int>(shader.fogPass))
 		return false;
+#endif
 
 	if (shader.numUnfoggedPasses != 1)
 		return false;
@@ -1111,17 +1116,6 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 	default:
 		return  false;
 	}
-}
-
-static bool GpuMd3DbgInterestingShader() noexcept
-{
-	if (!tess.shader || !tess.shader->name)
-		return false;
-
-	return
-		Q_stricmp_cpp(tess.shader->name, "models/powerups/ammo/plasammo2") == 0 ||
-		Q_stricmp_cpp(tess.shader->name, "models/weapons2/shotgun/shotgun_laser") == 0 ||
-		Q_stricmp_cpp(tess.shader->name, "models/powerups/armor/energy_yel1") == 0;
 }
 
 static bool RB_SurfaceMeshGPU(md3Surface_t * surface)
@@ -1234,19 +1228,6 @@ static bool RB_SurfaceMeshGPU(md3Surface_t * surface)
 		break;
 	}
 
-	//if (GpuMd3DbgInterestingShader())
-	//{
-	//	ri.Printf(PRINT_ALL,
-	//		"GPU_MD3 SURF: shader='%s' defShaderType=%d layout=%d gpuActive=%d oldFrame=%u newFrame=%u backlerp=%.3f\n",
-	//		tess.shader && tess.shader->name ? tess.shader->name : "<null>",
-	//		static_cast<int>(def.shader_type),
-	//		static_cast<int>(tess.gpuMd3Layout),
-	//		tess.gpuMd3Active ? 1 : 0,
-	//		tess.gpuMd3OldFrame,
-	//		tess.gpuMd3NewFrame,
-	//		tess.gpuMd3Backlerp);
-	//}
-
 	return true;
 }
 
@@ -1302,20 +1283,20 @@ static void RB_SurfaceMesh(md3Surface_t * surface)
 	tess.numIndexes += indexes;
 
 	texCoords = (float*)((byte*)surface + surface->ofsSt);
-	if (tess.shader && tess.shader->name &&
-		Q_stricmp_cpp(tess.shader->name, "models/powerups/ammo/plasammo2") == 0)
-	{
-		for (int i = 0; i < std::min(surface->numVerts, 8); ++i)
-		{
-			ri.Printf(PRINT_ALL,
-				"GPU_MD3 CPUST: shader='%s' surf='%s' i=%d s=%.6f t=%.6f\n",
-				tess.shader->name,
-				surface->name,
-				i,
-				texCoords[i * 2 + 0],
-				texCoords[i * 2 + 1]);
-		}
-	}
+	//if (tess.shader && tess.shader->name &&
+	//	Q_stricmp_cpp(tess.shader->name, "models/powerups/ammo/plasammo2") == 0)
+	//{
+	//	for (int i = 0; i < std::min(surface->numVerts, 8); ++i)
+	//	{
+	//		ri.Printf(PRINT_ALL,
+	//			"GPU_MD3 CPUST: shader='%s' surf='%s' i=%d s=%.6f t=%.6f\n",
+	//			tess.shader->name,
+	//			surface->name,
+	//			i,
+	//			texCoords[i * 2 + 0],
+	//			texCoords[i * 2 + 1]);
+	//	}
+	//}
 
 	numVerts = surface->numVerts;
 	for (j = 0; j < numVerts; j++)

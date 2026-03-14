@@ -377,18 +377,6 @@ static void VK_SetGpuMd3TcParams(vkUniform_t& u, const textureBundle_t& bundle)
 }
 
 
-static bool GpuMd3DbgInterestingShader() noexcept
-{
-	if (!tess.shader || !tess.shader->name)
-		return false;
-
-	return
-		Q_stricmp_cpp(tess.shader->name, "models/powerups/ammo/plasammo2") == 0 ||
-		Q_stricmp_cpp(tess.shader->name, "models/weapons2/shotgun/shotgun_laser") == 0 ||
-		Q_stricmp_cpp(tess.shader->name, "models/powerups/armor/energy_yel1") == 0;
-}
-
-
 static bool R_GpuMd3TexCoordsHandledInShader(const textureBundle_t& bundle) noexcept
 {
 	if (!tess.gpuMd3Active)
@@ -1046,6 +1034,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 #ifdef USE_FOG_COLLAPSE
 	if (fogCollapse)
 	{
+		fog_stage = 1;
 		VK_SetFogParams(uniform, fog_stage);
 		VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
 		vk_update_descriptor(VK_DESC_FOG_COLLAPSE, tr.fogImage->descriptor);
