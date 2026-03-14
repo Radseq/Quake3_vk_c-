@@ -187,12 +187,23 @@ typedef struct vkUniform_s
 			vec4_t color[3]; // ent.color[3]
 		} ent;
 	};
+
 	// fog parameters:
 	vec4_t fogDistanceVector; // vertex
 	vec4_t fogDepthVector;    // vertex
 	vec4_t fogEyeT;           // vertex
 	vec4_t fogColor;          // fragment
-	vec4_t md3Anim; // x = frontlerp, y = backlerp, z/w reserved
+
+	// GPU texcoord params for MD3 / generic VS:
+	// tc' = M * [base_tc.s, base_tc.t, 1]
+	// row0 = (s_s, s_t, s_o, useVectorTcGen)
+	// row1 = (t_s, t_t, t_o, reserved)
+	vec4_t tcMod0;
+	vec4_t tcMod1;
+
+	// only for TCGEN_VECTOR
+	vec4_t tcGenVector0;
+	vec4_t tcGenVector1;
 } vkUniform_t;
 
 typedef struct dlight_s
@@ -1746,6 +1757,11 @@ typedef struct shaderCommands_s
 	uint32_t gpuMd3NewFrame;
 	float gpuMd3Backlerp;
 	gpuMd3Layout_t gpuMd3Layout;
+
+	vec4_t gpuMd3ViewOriginLocal{};
+	vec4_t gpuMd3EntOrigin{};
+	vec4_t gpuMd3EntAxis1{};
+	vec4_t gpuMd3EntAxis2{};
 
 } shaderCommands_t;
 

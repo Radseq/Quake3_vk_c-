@@ -1488,7 +1488,6 @@ void vk_bind_pipeline(const uint32_t pipeline)
 {
 	vk::Pipeline vkpipe;
 	uint32_t pipelineToBind = pipeline;
-	bool usingGpuMd3Pipeline = false;
 
 	if (tess.gpuMd3Active)
 	{
@@ -1500,7 +1499,6 @@ void vk_bind_pipeline(const uint32_t pipeline)
 		{
 			def.shader_type = md3Type;
 			pipelineToBind = vk_find_pipeline_ext(0, def, true);
-			usingGpuMd3Pipeline = true;
 		}
 	}
 
@@ -1512,17 +1510,27 @@ void vk_bind_pipeline(const uint32_t pipeline)
 		vk_inst.cmd->last_pipeline = vkpipe;
 	}
 
-	// To jest krytyczne dla vertex shaderów MD3:
-	// mvp idzie w push constants [0..63],
-	// md3Anim musi iść w [64..79].
-	if (tess.gpuMd3Active && usingGpuMd3Pipeline)
+	if (tess.gpuMd3Active)
 	{
-		vk_push_md3_lerp(tess.gpuMd3Backlerp);
+		alignas(16) const float md3Anim[4] =
+		{
+			1.0f - tess.gpuMd3Backlerp,
+			tess.gpuMd3Backlerp,
+			0.0f,
+			0.0f
+		};
+
+		vk_inst.cmd->command_buffer.pushConstants(
+			vk_inst.pipeline_layout,
+			vk::ShaderStageFlagBits::eVertex,
+			64,
+			sizeof(md3Anim),
+			md3Anim);
 	}
 
-	vk_world.dirty_depth_attachment |=
-		(vk_inst.pipelines[pipelineToBind].def.state_bits & GLS_DEPTHMASK_TRUE);
+	vk_world.dirty_depth_attachment |= (vk_inst.pipelines[pipelineToBind].def.state_bits & GLS_DEPTHMASK_TRUE);
 }
+
 
 // Define a struct to hold the RGB values
 struct ColorDepth

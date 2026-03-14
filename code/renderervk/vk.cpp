@@ -3797,6 +3797,9 @@ void vk_bind_geometry(const uint32_t flags)
 		vk_bind_index_attr(2);
 
 
+
+
+
 		vk_inst.cmd->command_buffer.bindVertexBuffers(
 			bind_base,
 			bind_count,

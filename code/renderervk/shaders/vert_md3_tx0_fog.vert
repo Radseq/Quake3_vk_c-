@@ -16,6 +16,10 @@ layout(set = 0, binding = 0, std140) uniform UBO
     vec4 fogDepthVector;
     vec4 fogEyeT;
     vec4 fogColor;
+vec4 tcMod0;
+vec4 tcMod1;
+vec4 tcGenVector0;
+vec4 tcGenVector1;
 } ubo;
 
 layout(location = 0) in ivec4 in_old_position_packed;
@@ -35,6 +39,25 @@ vec4 decode_md3_position(const ivec4 p)
 }
 
 
+
+
+vec2 ApplyGpuTcMods(vec3 position, vec2 st)
+{
+    vec2 tc = st;
+
+    if (ubo.tcMod0.w > 0.5)
+    {
+        tc = vec2(
+            dot(position, ubo.tcGenVector0.xyz) + ubo.tcGenVector0.w,
+            dot(position, ubo.tcGenVector1.xyz) + ubo.tcGenVector1.w
+        );
+    }
+
+    return vec2(
+        tc.x * ubo.tcMod0.x + tc.y * ubo.tcMod0.y + ubo.tcMod0.z,
+        tc.x * ubo.tcMod1.x + tc.y * ubo.tcMod1.y + ubo.tcMod1.z
+    );
+}
 
 vec2 calc_fog_tc(const vec4 pos4)
 {
@@ -76,7 +99,7 @@ void main()
 
     gl_Position = pc.mvp * pos;
     frag_color0 = in_color0;
-    frag_tex_coord0 = in_tex_coord0;
+    frag_tex_coord0 = ApplyGpuTcMods(pos.xyz, in_tex_coord0);
 
     fog_tex_coord = calc_fog_tc(pos);
 }

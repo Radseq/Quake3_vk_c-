@@ -14,5 +14,6 @@ void VK_LightingPass(void);
 #endif // USE_PMLIGHT
 void RB_StageIteratorGeneric(void);
 void RB_EndSurface(void);
+bool R_CanGpuMd3UseAffineTexMods(const textureBundle_t& bundle) noexcept;
 
 #endif // TR_SHADE_HPP

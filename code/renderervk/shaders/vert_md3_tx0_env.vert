@@ -16,6 +16,10 @@ layout(set = 0, binding = 0, std140) uniform UBO
     vec4 fogDepthVector;
     vec4 fogEyeT;
     vec4 fogColor;
+vec4 tcMod0;
+vec4 tcMod1;
+vec4 tcGenVector0;
+vec4 tcGenVector1;
 } ubo;
 
 layout(location = 0) in ivec4 in_old_position_packed;
@@ -43,9 +47,19 @@ vec3 decode_md3_normal(const uint packed)
     return vec3(cos(lat) * sinLng, sin(lat) * sinLng, cos(lng));
 }
 
+vec3 safe_normalize(vec3 v)
+{
+    const float len2 = dot(v, v);
+    if (len2 <= 1e-20)
+    {
+        return vec3(0.0);
+    }
+    return v * inversesqrt(len2);
+}
+
 vec2 calc_env_tc_regular(vec3 position, vec3 normal)
 {
-    const vec3 viewer = normalize(ubo.eyePos.xyz - position);
+    const vec3 viewer = safe_normalize(ubo.eyePos.xyz - position);
     const float d = dot(normal, viewer);
     const vec2 reflected = normal.yz * (2.0 * d) - viewer.yz;
     return vec2(0.5 + reflected.x * 0.5, 0.5 - reflected.y * 0.5);
@@ -53,10 +67,10 @@ vec2 calc_env_tc_regular(vec3 position, vec3 normal)
 
 vec2 calc_env_tc_fp(vec3 position, vec3 normal)
 {
-    const vec3 why   = normalize(ubo.lightColor.xyz - position);
-    const vec3 who   = normalize(ubo.lightVector.xyz - position);
-    const vec3 where = normalize(ubo.lightPos.xyz - position);
-    const vec3 viewer = normalize(ubo.eyePos.xyz - position);
+    const vec3 why   = safe_normalize(ubo.lightColor.xyz - position);
+    const vec3 who   = safe_normalize(ubo.lightVector.xyz - position);
+    const vec3 where = safe_normalize(ubo.lightPos.xyz - position);
+    const vec3 viewer = safe_normalize(ubo.eyePos.xyz - position);
 
     const float d = dot(normal, viewer);
 
@@ -69,7 +83,7 @@ vec2 calc_env_tc_fp(vec3 position, vec3 normal)
 
 vec2 calc_env_tc_fpscr(vec3 position, vec3 normal)
 {
-    const vec3 viewer = normalize(ubo.eyePos.xyz - position);
+    const vec3 viewer = safe_normalize(ubo.eyePos.xyz - position);
     const float d = dot(normal, viewer);
 
     vec2 reflected;
@@ -90,7 +104,7 @@ void main()
 
     const vec3 oldNormal = decode_md3_normal(in_old_normal_packed);
     const vec3 newNormal = decode_md3_normal(in_new_normal_packed);
-    const vec3 normal = normalize(oldNormal * pc.md3Anim.y + newNormal * pc.md3Anim.x);
+    const vec3 normal = safe_normalize(oldNormal * pc.md3Anim.y + newNormal * pc.md3Anim.x);
 
     gl_Position = pc.mvp * vec4(position, 1.0);
     frag_color0 = in_color0;

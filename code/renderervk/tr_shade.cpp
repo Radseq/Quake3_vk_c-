@@ -116,6 +116,26 @@ void RB_BeginSurface(shader_t &shader, const int fogNum)
 	tess.gpuMd3NewFrame = 0;
 	tess.gpuMd3Layout = gpuMd3Layout_t::NONE;
 
+	tess.gpuMd3ViewOriginLocal[0] = 0.0f;
+	tess.gpuMd3ViewOriginLocal[1] = 0.0f;
+	tess.gpuMd3ViewOriginLocal[2] = 0.0f;
+	tess.gpuMd3ViewOriginLocal[3] = 0.0f;
+
+	tess.gpuMd3EntOrigin[0] = 0.0f;
+	tess.gpuMd3EntOrigin[1] = 0.0f;
+	tess.gpuMd3EntOrigin[2] = 0.0f;
+	tess.gpuMd3EntOrigin[3] = 0.0f;
+
+	tess.gpuMd3EntAxis1[0] = 0.0f;
+	tess.gpuMd3EntAxis1[1] = 0.0f;
+	tess.gpuMd3EntAxis1[2] = 0.0f;
+	tess.gpuMd3EntAxis1[3] = 0.0f;
+
+	tess.gpuMd3EntAxis2[0] = 0.0f;
+	tess.gpuMd3EntAxis2[1] = 0.0f;
+	tess.gpuMd3EntAxis2[2] = 0.0f;
+	tess.gpuMd3EntAxis2[3] = 0.0f;
+
 #ifdef USE_LEGACY_DLIGHTS
 	tess.dlightBits = 0; // will be OR'd in by surface functions
 #endif
@@ -149,33 +169,283 @@ static bool R_SkipCpuTexCoordsForGpuMd3(const textureBundle_t& bundle) noexcept
 	}
 }
 
+struct gpuTcAffine_t
+{
+	float s_s;
+	float s_t;
+	float s_o;
+	float t_s;
+	float t_t;
+	float t_o;
+};
+
+static ID_INLINE void GpuTcAffineIdentity(gpuTcAffine_t& m) noexcept
+{
+	m.s_s = 1.0f; m.s_t = 0.0f; m.s_o = 0.0f;
+	m.t_s = 0.0f; m.t_t = 1.0f; m.t_o = 0.0f;
+}
+
+static ID_INLINE float GpuTcFrac(const float v) noexcept
+{
+	return static_cast<float>(v - std::floor(v));
+}
+
+// compose: next(current(tc))
+static ID_INLINE void GpuTcAffineCompose(
+	gpuTcAffine_t& cur,
+	const float n_s_s, const float n_s_t, const float n_s_o,
+	const float n_t_s, const float n_t_t, const float n_t_o) noexcept
+{
+	const gpuTcAffine_t old = cur;
+
+	cur.s_s = n_s_s * old.s_s + n_s_t * old.t_s;
+	cur.s_t = n_s_s * old.s_t + n_s_t * old.t_t;
+	cur.s_o = n_s_s * old.s_o + n_s_t * old.t_o + n_s_o;
+
+	cur.t_s = n_t_s * old.s_s + n_t_t * old.t_s;
+	cur.t_t = n_t_s * old.s_t + n_t_t * old.t_t;
+	cur.t_o = n_t_s * old.s_o + n_t_t * old.t_o + n_t_o;
+}
+
+bool R_CanGpuMd3UseAffineTexMods(const textureBundle_t& bundle) noexcept
+{
+	for (int i = 0; i < bundle.numTexMods; ++i)
+	{
+		switch (bundle.texMods[i].type)
+		{
+		case texMod_t::TMOD_NONE:
+		case texMod_t::TMOD_SCROLL:
+		case texMod_t::TMOD_SCALE:
+		case texMod_t::TMOD_OFFSET:
+		case texMod_t::TMOD_SCALE_OFFSET:
+		case texMod_t::TMOD_OFFSET_SCALE:
+		case texMod_t::TMOD_TRANSFORM:
+		case texMod_t::TMOD_ROTATE:
+		case texMod_t::TMOD_ENTITY_TRANSLATE:
+			break;
+
+			// jeszcze nie:
+		case texMod_t::TMOD_TURBULENT:
+		case texMod_t::TMOD_STRETCH:
+		default:
+			return false;
+		}
+	}
+	return true;
+}
+
+static ID_INLINE void VK_SetIdentityTcParams(vkUniform_t& u) noexcept
+{
+	u.tcMod0[0] = 1.0f; u.tcMod0[1] = 0.0f; u.tcMod0[2] = 0.0f; u.tcMod0[3] = 0.0f;
+	u.tcMod1[0] = 0.0f; u.tcMod1[1] = 1.0f; u.tcMod1[2] = 0.0f; u.tcMod1[3] = 0.0f;
+
+	u.tcGenVector0[0] = 0.0f; u.tcGenVector0[1] = 0.0f; u.tcGenVector0[2] = 0.0f; u.tcGenVector0[3] = 0.0f;
+	u.tcGenVector1[0] = 0.0f; u.tcGenVector1[1] = 0.0f; u.tcGenVector1[2] = 0.0f; u.tcGenVector1[3] = 0.0f;
+}
+
+
+static bool R_IsGpuMd3EnvLayout() noexcept
+{
+	return tess.gpuMd3Layout == gpuMd3Layout_t::GENERIC_ENV_COLOR ||
+		tess.gpuMd3Layout == gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+}
+
+static void VK_SetGpuMd3TcParams(vkUniform_t& u, const textureBundle_t& bundle)
+{
+	VK_SetIdentityTcParams(u);
+
+	if (R_IsGpuMd3EnvLayout())
+	{
+		return;
+	}
+
+	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE &&
+		bundle.tcGen != texCoordGen_t::TCGEN_VECTOR)
+	{
+		return;
+	}
+
+	if (!R_CanGpuMd3UseAffineTexMods(bundle))
+	{
+		return;
+	}
+
+	gpuTcAffine_t m{};
+	GpuTcAffineIdentity(m);
+
+	if (bundle.tcGen == texCoordGen_t::TCGEN_VECTOR)
+	{
+		u.tcMod0[3] = 1.0f; // useVectorTcGen
+		u.tcGenVector0[0] = bundle.tcGenVectors[0][0];
+		u.tcGenVector0[1] = bundle.tcGenVectors[0][1];
+		u.tcGenVector0[2] = bundle.tcGenVectors[0][2];
+		u.tcGenVector0[3] = 0.0f;
+
+		u.tcGenVector1[0] = bundle.tcGenVectors[1][0];
+		u.tcGenVector1[1] = bundle.tcGenVectors[1][1];
+		u.tcGenVector1[2] = bundle.tcGenVectors[1][2];
+		u.tcGenVector1[3] = 0.0f;
+	}
+
+	for (int i = 0; i < bundle.numTexMods; ++i)
+	{
+		const texModInfo_t& tm = bundle.texMods[i];
+
+		switch (tm.type)
+		{
+		case texMod_t::TMOD_NONE:
+			break;
+
+		case texMod_t::TMOD_SCROLL:
+		{
+			const float ds = GpuTcFrac(tm.scroll[0] * static_cast<float>(tess.shaderTime));
+			const float dt = GpuTcFrac(tm.scroll[1] * static_cast<float>(tess.shaderTime));
+			GpuTcAffineCompose(m,
+				1.0f, 0.0f, ds,
+				0.0f, 1.0f, dt);
+			break;
+		}
+
+		case texMod_t::TMOD_ENTITY_TRANSLATE:
+		{
+			const float ds = GpuTcFrac(backEnd.currentEntity->e.shaderTexCoord[0] * static_cast<float>(tess.shaderTime));
+			const float dt = GpuTcFrac(backEnd.currentEntity->e.shaderTexCoord[1] * static_cast<float>(tess.shaderTime));
+			GpuTcAffineCompose(m,
+				1.0f, 0.0f, ds,
+				0.0f, 1.0f, dt);
+			break;
+		}
+
+		case texMod_t::TMOD_SCALE:
+			GpuTcAffineCompose(m,
+				tm.scale[0], 0.0f, 0.0f,
+				0.0f, tm.scale[1], 0.0f);
+			break;
+
+		case texMod_t::TMOD_OFFSET:
+			GpuTcAffineCompose(m,
+				1.0f, 0.0f, tm.offset[0],
+				0.0f, 1.0f, tm.offset[1]);
+			break;
+
+		case texMod_t::TMOD_SCALE_OFFSET:
+			GpuTcAffineCompose(m,
+				tm.scale[0], 0.0f, tm.offset[0],
+				0.0f, tm.scale[1], tm.offset[1]);
+			break;
+
+		case texMod_t::TMOD_OFFSET_SCALE:
+			GpuTcAffineCompose(m,
+				tm.scale[0], 0.0f, tm.offset[0] * tm.scale[0],
+				0.0f, tm.scale[1], tm.offset[1] * tm.scale[1]);
+			break;
+
+		case texMod_t::TMOD_TRANSFORM:
+			GpuTcAffineCompose(m,
+				tm.matrix[0][0], tm.matrix[1][0], tm.translate[0],
+				tm.matrix[0][1], tm.matrix[1][1], tm.translate[1]);
+			break;
+
+		case texMod_t::TMOD_ROTATE:
+		{
+			const double degs = -tm.rotateSpeed * tess.shaderTime;
+			const float radians = static_cast<float>(degs * (M_PI / 180.0));
+			const float s = std::sin(radians);
+			const float c = std::cos(radians);
+
+			const float tr0 = 0.5f - 0.5f * c + 0.5f * s;
+			const float tr1 = 0.5f - 0.5f * s - 0.5f * c;
+
+			GpuTcAffineCompose(m,
+				c, -s, tr0,
+				s, c, tr1);
+			break;
+		}
+
+		default:
+			break;
+		}
+	}
+
+	u.tcMod0[0] = m.s_s;
+	u.tcMod0[1] = m.s_t;
+	u.tcMod0[2] = m.s_o;
+
+	u.tcMod1[0] = m.t_s;
+	u.tcMod1[1] = m.t_t;
+	u.tcMod1[2] = m.t_o;
+}
+
+
+static bool GpuMd3DbgInterestingShader() noexcept
+{
+	if (!tess.shader || !tess.shader->name)
+		return false;
+
+	return
+		Q_stricmp_cpp(tess.shader->name, "models/powerups/ammo/plasammo2") == 0 ||
+		Q_stricmp_cpp(tess.shader->name, "models/weapons2/shotgun/shotgun_laser") == 0 ||
+		Q_stricmp_cpp(tess.shader->name, "models/powerups/armor/energy_yel1") == 0;
+}
+
+
+static bool R_GpuMd3TexCoordsHandledInShader(const textureBundle_t& bundle) noexcept
+{
+	if (!tess.gpuMd3Active)
+		return false;
+
+	if (R_IsGpuMd3EnvLayout())
+	{
+		return bundle.numTexMods == 0 &&
+			(bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
+				bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP);
+	}
+
+	if (!R_CanGpuMd3UseAffineTexMods(bundle))
+		return false;
+
+	switch (bundle.tcGen)
+	{
+	case texCoordGen_t::TCGEN_TEXTURE:
+	case texCoordGen_t::TCGEN_VECTOR:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+
 void R_ComputeTexCoords(const int b, const textureBundle_t& bundle)
 {
 	if (!tess.numVertexes)
 		return;
 
-	if (tess.gpuMd3Active && bundle.numTexMods == 0)
-	{
-		// zwykłe ST dostarcza vertex buffer MD3
-		if (bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE)
-			return;
+	const bool gpuHandled = R_GpuMd3TexCoordsHandledInShader(bundle);
 
-		// env tc0 liczy vertex shader GPU MD3
-		if (bundle.gpuTcGenHandledInShader)
-			return;
-	}
-	//if (R_SkipCpuTexCoordsForGpuMd3(bundle))
-	//	return;
+	//if (tess.gpuMd3Active &&
+	//	tess.shader && tess.shader->name &&
+	//	(Q_stricmp_cpp(tess.shader->name, "models/powerups/ammo/plasammo2") == 0 ||
+	//		Q_stricmp_cpp(tess.shader->name, "models/weapons2/shotgun/shotgun_laser") == 0))
+	//{
+	//	ri.Printf(PRINT_ALL,
+	//		"GPU_MD3 FINAL: shader='%s' layout=%d tcGen=%d numTexMods=%d skip=%d\n",
+	//		tess.shader->name,
+	//		static_cast<int>(tess.gpuMd3Layout),
+	//		static_cast<int>(bundle.tcGen),
+	//		bundle.numTexMods,
+	//		gpuHandled ? 1 : 0);
+	//}
+
+	if (gpuHandled)
+		return;
 
 	int i;
 	int tm;
-	vec2_t *src, *dst;
-
+	vec2_t* src;
+	vec2_t* dst;
 	src = dst = tess.svars.texcoords[b];
 
-	//
-	// generate the texture coordinates
-	//
 	switch (bundle.tcGen)
 	{
 	case texCoordGen_t::TCGEN_IDENTITY:
@@ -195,46 +465,43 @@ void R_ComputeTexCoords(const int b, const textureBundle_t& bundle)
 		}
 		break;
 	case texCoordGen_t::TCGEN_FOG:
-		RB_CalcFogTexCoords((float *)dst);
+		RB_CalcFogTexCoords((float*)dst);
 		break;
 	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
-		RB_CalcEnvironmentTexCoords((float *)dst);
+		RB_CalcEnvironmentTexCoords((float*)dst);
 		break;
 	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP:
-		RB_CalcEnvironmentTexCoordsFP((float *)dst, bundle.isScreenMap);
+		RB_CalcEnvironmentTexCoordsFP((float*)dst, bundle.isScreenMap);
 		break;
 	case texCoordGen_t::TCGEN_BAD:
 		return;
 	}
 
-	//
-	// alter texture coordinates
-	//
 	for (tm = 0; tm < bundle.numTexMods; tm++)
 	{
 		switch (bundle.texMods[tm].type)
 		{
 		case texMod_t::TMOD_NONE:
-			tm = TR_MAX_TEXMODS; // break out of for loop
+			tm = TR_MAX_TEXMODS;
 			break;
 
 		case texMod_t::TMOD_TURBULENT:
-			RB_CalcTurbulentTexCoords(bundle.texMods[tm].wave, (float *)src, (float *)dst);
+			RB_CalcTurbulentTexCoords(bundle.texMods[tm].wave, (float*)src, (float*)dst);
 			src = dst;
 			break;
 
 		case texMod_t::TMOD_ENTITY_TRANSLATE:
-			RB_CalcScrollTexCoords(backEnd.currentEntity->e.shaderTexCoord, (float *)src, (float *)dst);
+			RB_CalcScrollTexCoords(backEnd.currentEntity->e.shaderTexCoord, (float*)src, (float*)dst);
 			src = dst;
 			break;
 
 		case texMod_t::TMOD_SCROLL:
-			RB_CalcScrollTexCoords(bundle.texMods[tm].scroll, (float *)src, (float *)dst);
+			RB_CalcScrollTexCoords(bundle.texMods[tm].scroll, (float*)src, (float*)dst);
 			src = dst;
 			break;
 
 		case texMod_t::TMOD_SCALE:
-			RB_CalcScaleTexCoords(bundle.texMods[tm].scale, (float *)src, (float *)dst);
+			RB_CalcScaleTexCoords(bundle.texMods[tm].scale, (float*)src, (float*)dst);
 			src = dst;
 			break;
 
@@ -266,22 +533,23 @@ void R_ComputeTexCoords(const int b, const textureBundle_t& bundle)
 			break;
 
 		case texMod_t::TMOD_STRETCH:
-			RB_CalcStretchTexCoords(bundle.texMods[tm].wave, (float *)src, (float *)dst);
+			RB_CalcStretchTexCoords(bundle.texMods[tm].wave, (float*)src, (float*)dst);
 			src = dst;
 			break;
 
 		case texMod_t::TMOD_TRANSFORM:
-			RB_CalcTransformTexCoords(bundle.texMods[tm], (float *)src, (float *)dst);
+			RB_CalcTransformTexCoords(bundle.texMods[tm], (float*)src, (float*)dst);
 			src = dst;
 			break;
 
 		case texMod_t::TMOD_ROTATE:
-			RB_CalcRotateTexCoords(bundle.texMods[tm].rotateSpeed, (float *)src, (float *)dst);
+			RB_CalcRotateTexCoords(bundle.texMods[tm].rotateSpeed, (float*)src, (float*)dst);
 			src = dst;
 			break;
 
 		default:
-			ri.Error(ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'", static_cast<int>(bundle.texMods[tm].type), tess.shader->name);
+			ri.Error(ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'",
+				static_cast<int>(bundle.texMods[tm].type), tess.shader->name);
 			break;
 		}
 	}
@@ -668,17 +936,29 @@ void VK_LightingPass(void)
 }
 #endif // USE_PMLIGHT
 
+static ID_INLINE void VK_WorldPointToLocal(const vec3_t world, vec3_t local) noexcept
+{
+	vec3_t delta;
+	VectorSubtract(world, backEnd.ort.origin, delta);
+
+	local[0] = DotProduct(delta, backEnd.ort.axis[0]);
+	local[1] = DotProduct(delta, backEnd.ort.axis[1]);
+	local[2] = DotProduct(delta, backEnd.ort.axis[2]);
+}
+
+
 static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& stage)
 {
-	// Zawsze ustaw poprawne wartości bazowe.
-	// To usuwa wyciek stanu między drawami / stage'ami.
-	VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
+	// bazowe wartości
+	uniform.eyePos[0] = tess.gpuMd3ViewOriginLocal[0];
+	uniform.eyePos[1] = tess.gpuMd3ViewOriginLocal[1];
+	uniform.eyePos[2] = tess.gpuMd3ViewOriginLocal[2];
 	uniform.eyePos[3] = 0.0f; // regular env
 
 	uniform.light.pos[0] = 0.0f;
 	uniform.light.pos[1] = 0.0f;
 	uniform.light.pos[2] = 0.0f;
-	uniform.light.pos[3] = 0.0f; // !screenMap
+	uniform.light.pos[3] = 0.0f;
 
 	uniform.light.color[0] = 0.0f;
 	uniform.light.color[1] = 0.0f;
@@ -690,31 +970,61 @@ static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& sta
 	uniform.light.vector[2] = 0.0f;
 	uniform.light.vector[3] = 0.0f;
 
-	// Jeżeli to nie env stage, kończymy.
-	if ((stage.tessFlags & TESS_ENV) == 0)
-		return;
 
-	const bool isFirstPerson =
-		backEnd.currentEntity &&
-		(backEnd.currentEntity->e.renderfx & RF_FIRST_PERSON) != 0;
-
-	// CPU path:
-	// if !RF_FIRST_PERSON -> regular env
-	if (!isFirstPerson)
-		return;
-
-	// FP env
-	uniform.eyePos[3] = 1.0f;
-
-	VectorCopy(backEnd.ort.origin, uniform.light.pos);
-	VectorCopy(backEnd.ort.axis[1], uniform.light.color);
-	VectorCopy(backEnd.ort.axis[2], uniform.light.vector);
-
-	// CPU path:
-	// FPscr tylko gdy screenMap && frameSceneNum == 1
-	if (stage.bundle[0].isScreenMap && backEnd.viewParms.frameSceneNum == 1)
+	if (!tess.gpuMd3Active)
 	{
-		uniform.light.pos[3] = 1.0f;
+		return;
+	}
+
+	if ((stage.tessFlags & TESS_ENV) == 0)
+	{
+		return;
+	}
+
+	// Bardzo ważne:
+	// nie wolno tu zgadywać po RF_FIRST_PERSON.
+	// Trzeba użyć PRAWDZIWEJ semantyki tcGen zachowanej w originalTcGen.
+	texCoordGen_t tcGen = stage.bundle[0].tcGen;
+
+	if (stage.bundle[0].gpuTcGenHandledInShader &&
+		stage.bundle[0].originalTcGen != texCoordGen_t::TCGEN_BAD)
+	{
+		tcGen = stage.bundle[0].originalTcGen;
+	}
+
+	// zwykłe environment mapping:
+	// shader używa local eyePos liczonego jak CPU path
+	if (tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED)
+	{
+		return;
+	}
+
+	// first-person environment mapping
+	if (tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP)
+	{
+		uniform.eyePos[3] = 1.0f;
+
+		uniform.light.pos[0] = tess.gpuMd3EntOrigin[0];
+		uniform.light.pos[1] = tess.gpuMd3EntOrigin[1];
+		uniform.light.pos[2] = tess.gpuMd3EntOrigin[2];
+		uniform.light.pos[3] = 0.0f;
+
+		uniform.light.color[0] = tess.gpuMd3EntAxis1[0];
+		uniform.light.color[1] = tess.gpuMd3EntAxis1[1];
+		uniform.light.color[2] = tess.gpuMd3EntAxis1[2];
+		uniform.light.color[3] = 0.0f;
+
+		uniform.light.vector[0] = tess.gpuMd3EntAxis2[0];
+		uniform.light.vector[1] = tess.gpuMd3EntAxis2[1];
+		uniform.light.vector[2] = tess.gpuMd3EntAxis2[2];
+		uniform.light.vector[3] = 0.0f;
+
+		if (stage.bundle[0].isScreenMap && backEnd.viewParms.frameSceneNum == 1)
+		{
+			uniform.light.pos[3] = 1.0f;
+		}
+
+		return;
 	}
 }
 
@@ -732,15 +1042,6 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 	tess_flags = input.shader->tessFlags;
 
 	pushUniform = false;
-
-	if (tess.gpuMd3Active)
-	{
-		uniform.md3Anim[0] = 1.0f - tess.gpuMd3Backlerp; // frontlerp
-		uniform.md3Anim[1] = tess.gpuMd3Backlerp;        // backlerp
-		uniform.md3Anim[2] = 0.0f;
-		uniform.md3Anim[3] = 0.0f;
-		pushUniform = true;
-	}
 
 #ifdef USE_FOG_COLLAPSE
 	if (fogCollapse)
@@ -764,7 +1065,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 
 	for (stage = 0; stage < MAX_SHADER_STAGES; stage++)
 	{
-		const shaderStage_t *pStage = tess.xstages[stage];
+		const shaderStage_t* pStage = tess.xstages[stage];
 		if (!pStage)
 			break;
 
@@ -774,9 +1075,15 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 
 		tess_flags |= pStage->tessFlags;
 
+		// nowe: zawsze ustaw bazowe tc parametry
+		VK_SetIdentityTcParams(uniform);
+		pushUniform = true;
+
 		if (tess.gpuMd3Active)
 		{
 			VK_SetGpuMd3EnvParams(uniform, *pStage);
+
+			VK_SetGpuMd3TcParams(uniform, pStage->bundle[0]);
 			pushUniform = true;
 		}
 
@@ -796,6 +1103,21 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 				}
 				if (tess_flags & (TESS_ENT0 << i) && backEnd.currentEntity)
 				{
+					if (tess.shader && tess.shader->name &&
+						Q_stricmp_cpp(tess.shader->name, "models/weapons2/shotgun/shotgun_laser") == 0 &&
+						(tess_flags & (TESS_ENT0 << i)) && backEnd.currentEntity)
+					{
+						ri.Printf(PRINT_ALL,
+							"GPU_MD3 ENTDBG: shader='%s' rgba=(%u %u %u %u) alphaGen=%d\n",
+							tess.shader->name,
+							(unsigned)backEnd.currentEntity->e.shader.rgba[0],
+							(unsigned)backEnd.currentEntity->e.shader.rgba[1],
+							(unsigned)backEnd.currentEntity->e.shader.rgba[2],
+							(unsigned)backEnd.currentEntity->e.shader.rgba[3],
+							(int)pStage->bundle[i].alphaGen);
+					}
+
+
 					uniform.ent.color[i][0] = backEnd.currentEntity->e.shader.rgba[0] / 255.0;
 					uniform.ent.color[i][1] = backEnd.currentEntity->e.shader.rgba[1] / 255.0;
 					uniform.ent.color[i][2] = backEnd.currentEntity->e.shader.rgba[2] / 255.0;

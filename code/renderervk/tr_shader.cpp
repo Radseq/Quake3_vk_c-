@@ -2489,11 +2489,11 @@ Key complex shaders to validate/check:
 static void FindLightingStage(const int stage) {
 	int i, selected, lightmap;
 
-	for ( i = 0; i < stage; i++ ) {
-		if ( stages[i].bundle[0].image[0] == NULL ) {
+	for (i = 0; i < stage; i++) {
+		if (stages[i].bundle[0].image[0] == NULL) {
 			continue; // sanity check
 		}
-		if ( stages[i].bundle[0].dlight ) {
+		if (stages[i].bundle[0].dlight) {
 			shader.lightingStage = i;
 			return; // already defined via 'dlight' keyword
 		}
@@ -3456,7 +3456,7 @@ static shader_t* FinishShader(void)
 	//
 	// if we are in r_vertexLight mode, never use a lightmap texture
 	//
-	if ( stage > 1 && ( ( r_vertexLight->integer && tr.vertexLightingAllowed && !shader.noVLcollapse ) || glConfig.hardwareType == GLHW_PERMEDIA2 ) ) {
+	if (stage > 1 && ((r_vertexLight->integer && tr.vertexLightingAllowed && !shader.noVLcollapse) || glConfig.hardwareType == GLHW_PERMEDIA2)) {
 		VertexLightingCollapse();
 		stage = 1;
 		hasLightmapStage = false;
@@ -3779,7 +3779,43 @@ static shader_t* FinishShader(void)
 				{
 					const texCoordGen_t tcGenBefore = pStage.bundle[0].tcGen;
 					const auto defBefore = def.shader_type;
-					def.shader_type = static_cast<Vk_Shader_Type>(static_cast<int>(def.shader_type) + 1);
+
+					const texCoordGen_t tcg0 = pStage.bundle[0].tcGen;
+					const bool isEnv0 =
+						tcg0 == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
+						tcg0 == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP;
+
+					if (isEnv0 && !pStage.depthFragment)
+					{
+						switch (def.shader_type)
+						{
+						case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+							def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV;
+							break;
+
+						case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+							def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV;
+							break;
+
+						case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+							def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV;
+							break;
+
+						case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+							def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV;
+							break;
+
+						default:
+							break;
+						}
+
+						shader.tessFlags |= TESS_NNN | TESS_VPOS;
+						pStage.tessFlags &= ~TESS_ST0;
+						pStage.tessFlags |= TESS_ENV;
+					}
+
+
+
 					shader.tessFlags |= TESS_NNN | TESS_VPOS;
 					pStage.tessFlags &= ~TESS_ST0;
 					pStage.tessFlags |= TESS_ENV;

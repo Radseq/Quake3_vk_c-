@@ -67,6 +67,32 @@ static bool R_CreateMD3GpuSurface(md3GpuSurface_t& out, const md3Surface_t& surf
 		reinterpret_cast<const md3XyzNormal_t*>((const byte*)&surf + surf.ofsXyzNormals);
 	const md3St_t* srcSt =
 		reinterpret_cast<const md3St_t*>((const byte*)&surf + surf.ofsSt);
+
+	if (Q_stricmp_cpp(surf.name, "armor_yelg.tga02") == 0)
+	{
+		for (uint32_t i = 0; i < std::min<uint32_t>(surf.numVerts, 8); ++i)
+		{
+			ri.Printf(PRINT_ALL,
+				"GPU_MD3 SRCST: surf='%s' i=%u s=%.6f t=%.6f\n",
+				surf.name,
+				i,
+				srcSt[i].st[0],
+				srcSt[i].st[1]);
+		}
+	}
+
+	if (Q_stricmp_cpp(surf.name, "armor_yelg.tga02") == 0)
+	{
+		for (uint32_t i = 0; i < std::min<uint32_t>(surf.numVerts, 8); ++i)
+		{
+			ri.Printf(PRINT_ALL,
+				"GPU_MD3 SRCST: surf='%s' i=%u s=%.6f t=%.6f\n",
+				surf.name,
+				i,
+				srcSt[i].st[0],
+				srcSt[i].st[1]);
+		}
+	}
 	const md3Triangle_t* tri =
 		reinterpret_cast<const md3Triangle_t*>((const byte*)&surf + surf.ofsTriangles);
 

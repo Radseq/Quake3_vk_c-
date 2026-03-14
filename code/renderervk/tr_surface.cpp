@@ -58,6 +58,26 @@ static ID_INLINE void RB_ResetGpuMd3State() noexcept
 	tess.gpuMd3OldFrame = 0;
 	tess.gpuMd3NewFrame = 0;
 	tess.gpuMd3Layout = gpuMd3Layout_t::NONE;
+
+	tess.gpuMd3ViewOriginLocal[0] = 0.0f;
+	tess.gpuMd3ViewOriginLocal[1] = 0.0f;
+	tess.gpuMd3ViewOriginLocal[2] = 0.0f;
+	tess.gpuMd3ViewOriginLocal[3] = 0.0f;
+
+	tess.gpuMd3EntOrigin[0] = 0.0f;
+	tess.gpuMd3EntOrigin[1] = 0.0f;
+	tess.gpuMd3EntOrigin[2] = 0.0f;
+	tess.gpuMd3EntOrigin[3] = 0.0f;
+
+	tess.gpuMd3EntAxis1[0] = 0.0f;
+	tess.gpuMd3EntAxis1[1] = 0.0f;
+	tess.gpuMd3EntAxis1[2] = 0.0f;
+	tess.gpuMd3EntAxis1[3] = 0.0f;
+
+	tess.gpuMd3EntAxis2[0] = 0.0f;
+	tess.gpuMd3EntAxis2[1] = 0.0f;
+	tess.gpuMd3EntAxis2[2] = 0.0f;
+	tess.gpuMd3EntAxis2[3] = 0.0f;
 }
 
 /*
@@ -999,6 +1019,12 @@ static bool RB_IsPlainModelTcGen(const textureBundle_t & bundle) noexcept
 	return bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE;
 }
 
+static bool RB_IsGpuMd3AffineTcGen(const textureBundle_t & bundle) noexcept
+{
+	return bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE ||
+		bundle.tcGen == texCoordGen_t::TCGEN_VECTOR;
+}
+
 static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 {
 
@@ -1037,8 +1063,10 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 		return false;
 	}
 
-	if (bundle.numTexMods != 0)
-		return false;
+	const bool affineTexModsOk = R_CanGpuMd3UseAffineTexMods(bundle);
+
+	if (!affineTexModsOk && bundle.numTexMods != 0)
+		return  false;
 
 	if (bundle.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR ||
 		bundle.alphaGen == alphaGen_t::AGEN_PORTAL)
@@ -1053,14 +1081,17 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 	switch (def.shader_type)
 	{
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
-		return RB_CanUseGpuMd3GenericSingleTexture(shader, *p, bundle);
+		return RB_CanUseGpuMd3GenericSingleTexture(shader, *p, bundle) &&
+			RB_IsGpuMd3AffineTcGen(bundle) &&
+			affineTexModsOk;
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
-		return RB_IsPlainModelTcGen(bundle) &&
+		return RB_IsGpuMd3AffineTcGen(bundle) &&
 			!bundle.gpuTcGenHandledInShader &&
-			(p->tessFlags & TESS_ENV) == 0;
+			(p->tessFlags & TESS_ENV) == 0 &&
+			affineTexModsOk;
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
@@ -1068,17 +1099,29 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
 		return RB_IsTrueEnvTcGen(bundle) &&
 			bundle.gpuTcGenHandledInShader &&
-			(p->tessFlags & TESS_ENV) != 0;
+			(p->tessFlags & TESS_ENV) != 0 &&
+			bundle.numTexMods == 0;
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
-		return RB_IsPlainModelTcGen(bundle) &&
-			!bundle.gpuTcGenHandledInShader;
+		return RB_IsGpuMd3AffineTcGen(bundle) &&
+			!bundle.gpuTcGenHandledInShader &&
+			affineTexModsOk;
 
 	default:
 		return  false;
-
 	}
+}
+
+static bool GpuMd3DbgInterestingShader() noexcept
+{
+	if (!tess.shader || !tess.shader->name)
+		return false;
+
+	return
+		Q_stricmp_cpp(tess.shader->name, "models/powerups/ammo/plasammo2") == 0 ||
+		Q_stricmp_cpp(tess.shader->name, "models/weapons2/shotgun/shotgun_laser") == 0 ||
+		Q_stricmp_cpp(tess.shader->name, "models/powerups/armor/energy_yel1") == 0;
 }
 
 static bool RB_SurfaceMeshGPU(md3Surface_t * surface)
@@ -1138,6 +1181,27 @@ static bool RB_SurfaceMeshGPU(md3Surface_t * surface)
 	tess.gpuMd3NewFrame = static_cast<uint32_t>(backEnd.currentEntity->e.frame);
 	tess.gpuMd3Lod = static_cast<uint32_t>(lod);
 
+	tess.gpuMd3ViewOriginLocal[0] = backEnd.ort.viewOrigin[0];
+	tess.gpuMd3ViewOriginLocal[1] = backEnd.ort.viewOrigin[1];
+	tess.gpuMd3ViewOriginLocal[2] = backEnd.ort.viewOrigin[2];
+	tess.gpuMd3ViewOriginLocal[3] = 0.0f;
+
+	tess.gpuMd3EntOrigin[0] = backEnd.ort.origin[0];
+	tess.gpuMd3EntOrigin[1] = backEnd.ort.origin[1];
+	tess.gpuMd3EntOrigin[2] = backEnd.ort.origin[2];
+	tess.gpuMd3EntOrigin[3] = 0.0f;
+
+	tess.gpuMd3EntAxis1[0] = backEnd.ort.axis[1][0];
+	tess.gpuMd3EntAxis1[1] = backEnd.ort.axis[1][1];
+	tess.gpuMd3EntAxis1[2] = backEnd.ort.axis[1][2];
+	tess.gpuMd3EntAxis1[3] = 0.0f;
+
+	tess.gpuMd3EntAxis2[0] = backEnd.ort.axis[2][0];
+	tess.gpuMd3EntAxis2[1] = backEnd.ort.axis[2][1];
+	tess.gpuMd3EntAxis2[2] = backEnd.ort.axis[2][2];
+	tess.gpuMd3EntAxis2[3] = 0.0f;
+
+
 	switch (def.shader_type)
 	{
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
@@ -1169,6 +1233,20 @@ static bool RB_SurfaceMeshGPU(md3Surface_t * surface)
 		tess.gpuMd3Layout = gpuMd3Layout_t::NONE;
 		break;
 	}
+
+	//if (GpuMd3DbgInterestingShader())
+	//{
+	//	ri.Printf(PRINT_ALL,
+	//		"GPU_MD3 SURF: shader='%s' defShaderType=%d layout=%d gpuActive=%d oldFrame=%u newFrame=%u backlerp=%.3f\n",
+	//		tess.shader && tess.shader->name ? tess.shader->name : "<null>",
+	//		static_cast<int>(def.shader_type),
+	//		static_cast<int>(tess.gpuMd3Layout),
+	//		tess.gpuMd3Active ? 1 : 0,
+	//		tess.gpuMd3OldFrame,
+	//		tess.gpuMd3NewFrame,
+	//		tess.gpuMd3Backlerp);
+	//}
+
 	return true;
 }
 
@@ -1224,6 +1302,20 @@ static void RB_SurfaceMesh(md3Surface_t * surface)
 	tess.numIndexes += indexes;
 
 	texCoords = (float*)((byte*)surface + surface->ofsSt);
+	if (tess.shader && tess.shader->name &&
+		Q_stricmp_cpp(tess.shader->name, "models/powerups/ammo/plasammo2") == 0)
+	{
+		for (int i = 0; i < std::min(surface->numVerts, 8); ++i)
+		{
+			ri.Printf(PRINT_ALL,
+				"GPU_MD3 CPUST: shader='%s' surf='%s' i=%d s=%.6f t=%.6f\n",
+				tess.shader->name,
+				surface->name,
+				i,
+				texCoords[i * 2 + 0],
+				texCoords[i * 2 + 1]);
+		}
+	}
 
 	numVerts = surface->numVerts;
 	for (j = 0; j < numVerts; j++)
