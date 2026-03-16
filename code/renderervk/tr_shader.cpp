@@ -3726,27 +3726,54 @@ static shader_t* FinishShader(void)
 					def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE;
 					if (pStage.bundle[0].adjustColorsForFog == acff_t::ACFF_NONE || fogCollapse)
 					{
-						if (pStage.bundle[0].rgbGen == colorGen_t::CGEN_IDENTITY)
+						const auto rgbGen = pStage.bundle[0].rgbGen;
+						const auto alphaGen = pStage.bundle[0].alphaGen;
+
+						if (rgbGen == colorGen_t::CGEN_IDENTITY)
 						{
-							if (pStage.bundle[0].alphaGen == alphaGen_t::AGEN_SKIP)
+							if (alphaGen == alphaGen_t::AGEN_SKIP)
 							{
 								pStage.tessFlags = TESS_ST0;
 								def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY;
 							}
+							else if (alphaGen == alphaGen_t::AGEN_CONST)
+							{
+								pStage.tessFlags = TESS_ST0;
+								def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR;
+								def.color.rgb = 255;
+								def.color.alpha = pStage.bundle[0].constantColor.rgba[3];
+							}
 						}
-						else if (pStage.bundle[0].rgbGen == colorGen_t::CGEN_IDENTITY_LIGHTING)
+						else if (rgbGen == colorGen_t::CGEN_IDENTITY_LIGHTING)
 						{
-							if (pStage.bundle[0].alphaGen == alphaGen_t::AGEN_SKIP || pStage.bundle[0].alphaGen == alphaGen_t::AGEN_IDENTITY)
+							if (alphaGen == alphaGen_t::AGEN_SKIP || alphaGen == alphaGen_t::AGEN_IDENTITY || alphaGen == alphaGen_t::AGEN_CONST)
 							{
 								pStage.tessFlags = TESS_ST0;
 								def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR;
 								def.color.rgb = tr.identityLightByte;
-								def.color.alpha = pStage.bundle[0].alphaGen == alphaGen_t::AGEN_IDENTITY ? 255 : tr.identityLightByte;
+								def.color.alpha = alphaGen == alphaGen_t::AGEN_IDENTITY ? 255 : (alphaGen == alphaGen_t::AGEN_CONST ? pStage.bundle[0].constantColor.rgba[3] : tr.identityLightByte);
 							}
 						}
-						else if (pStage.bundle[0].rgbGen == colorGen_t::CGEN_ENTITY)
+						else if (rgbGen == colorGen_t::CGEN_CONST)
 						{
-							if (pStage.bundle[0].alphaGen == alphaGen_t::AGEN_ENTITY || pStage.bundle[0].alphaGen == alphaGen_t::AGEN_SKIP || pStage.bundle[0].alphaGen == alphaGen_t::AGEN_IDENTITY)
+							const color4ub_t c = pStage.bundle[0].constantColor;
+							const bool grayscale = c.rgba[0] == c.rgba[1] && c.rgba[1] == c.rgba[2];
+
+							if (grayscale && (alphaGen == alphaGen_t::AGEN_SKIP || alphaGen == alphaGen_t::AGEN_IDENTITY || alphaGen == alphaGen_t::AGEN_CONST))
+							{
+								pStage.tessFlags = TESS_ST0;
+								def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR;
+								def.color.rgb = c.rgba[0];
+								def.color.alpha = alphaGen == alphaGen_t::AGEN_IDENTITY ? 255 : c.rgba[3];
+							}
+						}
+						else if (rgbGen == colorGen_t::CGEN_ENTITY)
+						{
+							if (alphaGen == alphaGen_t::AGEN_ENTITY ||
+								alphaGen == alphaGen_t::AGEN_SKIP ||
+								alphaGen == alphaGen_t::AGEN_IDENTITY ||
+								alphaGen == alphaGen_t::AGEN_CONST ||
+								alphaGen == alphaGen_t::AGEN_ONE_MINUS_ENTITY)
 							{
 								pStage.tessFlags = TESS_ST0 | TESS_ENT0;
 								def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR;

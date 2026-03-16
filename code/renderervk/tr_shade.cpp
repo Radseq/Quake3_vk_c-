@@ -1362,7 +1362,28 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 					uniform.ent.color[i][0] = backEnd.currentEntity->e.shader.rgba[0] / 255.0;
 					uniform.ent.color[i][1] = backEnd.currentEntity->e.shader.rgba[1] / 255.0;
 					uniform.ent.color[i][2] = backEnd.currentEntity->e.shader.rgba[2] / 255.0;
-					uniform.ent.color[i][3] = pStage->bundle[i].alphaGen == alphaGen_t::AGEN_IDENTITY ? 1.0 : (backEnd.currentEntity->e.shader.rgba[3] / 255.0);
+
+					switch (pStage->bundle[i].alphaGen)
+					{
+					case alphaGen_t::AGEN_IDENTITY:
+						uniform.ent.color[i][3] = 1.0f;
+						break;
+
+					case alphaGen_t::AGEN_CONST:
+						uniform.ent.color[i][3] = pStage->bundle[i].constantColor.rgba[3] / 255.0f;
+						break;
+
+					case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+						uniform.ent.color[i][3] = 1.0f - (backEnd.currentEntity->e.shader.rgba[3] / 255.0f);
+						break;
+
+					case alphaGen_t::AGEN_ENTITY:
+					case alphaGen_t::AGEN_SKIP:
+					default:
+						uniform.ent.color[i][3] = backEnd.currentEntity->e.shader.rgba[3] / 255.0f;
+						break;
+					}
+
 					pushUniform = true;
 				}
 			}
