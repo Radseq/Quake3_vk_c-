@@ -3606,17 +3606,74 @@ void vk_bind_index_ext(const int numIndexes, const uint32_t* indexes)
 	}
 }
 
-static ID_INLINE bool VK_GpuMd3UsesUniformDiffuseColor() noexcept
+enum : uint32_t
+{
+	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0,
+	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA = 1u << 1,
+	GPU_MD3_COLOR_UNIFORM_SOLID_RGBA = 1u << 2
+};
+
+static ID_INLINE uint32_t VK_GpuMd3CurrentColorMode() noexcept
 {
 	if (!tess.gpuMd3Active || tess.gpuMd3Layout != gpuMd3Layout_t::GENERIC_ST_COLOR)
-		return false;
+		return 0u;
 
-	if (!tess.xstages || tess.numPasses <= 0 || !tess.xstages[0])
-		return false;
+	if (!tess.xstages || tess.numPasses <= 0)
+		return 0u;
 
-	const textureBundle_t& b0 = tess.xstages[0]->bundle[0];
-	return b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
-		(b0.alphaGen == alphaGen_t::AGEN_SKIP || b0.alphaGen == alphaGen_t::AGEN_IDENTITY);
+	const int stageIndex = (tess.vboStage >= 0 && tess.vboStage < MAX_SHADER_STAGES) ? tess.vboStage : 0;
+	const shaderStage_t* stage = tess.xstages[stageIndex];
+	if (!stage)
+		return 0u;
+
+	const textureBundle_t& b0 = stage->bundle[0];
+	auto solidAlphaSupported = [&]() noexcept
+	{
+		switch (b0.alphaGen)
+		{
+		case alphaGen_t::AGEN_SKIP:
+		case alphaGen_t::AGEN_IDENTITY:
+		case alphaGen_t::AGEN_CONST:
+			return true;
+		case alphaGen_t::AGEN_ENTITY:
+		case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+			return backEnd.currentEntity != nullptr;
+		default:
+			return false;
+		}
+	};
+
+	if (solidAlphaSupported())
+	{
+		switch (b0.rgbGen)
+		{
+		case colorGen_t::CGEN_CONST:
+			return GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
+		case colorGen_t::CGEN_ENTITY:
+		case colorGen_t::CGEN_ONE_MINUS_ENTITY:
+			return backEnd.currentEntity ? GPU_MD3_COLOR_UNIFORM_SOLID_RGBA : 0u;
+		default:
+			break;
+		}
+	}
+
+	if (b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
+		(b0.alphaGen == alphaGen_t::AGEN_SKIP || b0.alphaGen == alphaGen_t::AGEN_IDENTITY))
+	{
+		return GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB;
+	}
+
+	return 0u;
+}
+
+static ID_INLINE bool VK_GpuMd3UsesUniformDiffuseColor() noexcept
+{
+	return (VK_GpuMd3CurrentColorMode() & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) != 0u;
+}
+
+static ID_INLINE bool VK_GpuMd3UsesUniformSolidColor() noexcept
+{
+	return (VK_GpuMd3CurrentColorMode() & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u;
 }
 
 void vk_bind_geometry(const uint32_t flags)
@@ -3698,12 +3755,13 @@ void vk_bind_geometry(const uint32_t flags)
 			return;
 		}
 
-		// Generic ENV: old/new/color/st/oldNormal/newNormal
+		// Generic ENV: old/new/color-or-dummy/st/oldNormal/newNormal
 		if ((flags & TESS_NNN) && (flags & TESS_RGBA0))
 		{
+			const bool useUniformColor = VK_GpuMd3UsesUniformDiffuseColor() || VK_GpuMd3UsesUniformSolidColor();
 			shade_bufs[0] = s.vertexBuffer.handle;
 			shade_bufs[1] = s.vertexBuffer.handle;
-			shade_bufs[2] = vk_inst.cmd->vertex_buffer;
+			shade_bufs[2] = useUniformColor ? s.vertexBuffer.handle : vk_inst.cmd->vertex_buffer;
 			shade_bufs[3] = s.vertexBuffer.handle;
 			shade_bufs[4] = s.vertexBuffer.handle;
 			shade_bufs[5] = s.vertexBuffer.handle;
@@ -3714,7 +3772,15 @@ void vk_bind_geometry(const uint32_t flags)
 			vk_inst.cmd->buf_offset[1] = newFrameOffset;
 			vk_bind_index_attr(1);
 
-			vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
+			if (useUniformColor)
+			{
+				vk_inst.cmd->buf_offset[2] = 0;
+				vk_bind_index_attr(2);
+			}
+			else
+			{
+				vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
+			}
 
 			vk_inst.cmd->buf_offset[3] = stOffset;
 			vk_bind_index_attr(3);
@@ -3771,10 +3837,12 @@ void vk_bind_geometry(const uint32_t flags)
 		if (flags & TESS_RGBA0)
 		{
 			const bool useUniformDiffuseColor = VK_GpuMd3UsesUniformDiffuseColor();
+			const bool useUniformSolidColor = VK_GpuMd3UsesUniformSolidColor();
+			const bool useUniformColor = useUniformDiffuseColor || useUniformSolidColor;
 
 			shade_bufs[0] = s.vertexBuffer.handle;
 			shade_bufs[1] = s.vertexBuffer.handle;
-			shade_bufs[2] = useUniformDiffuseColor ? s.vertexBuffer.handle : vk_inst.cmd->vertex_buffer;
+			shade_bufs[2] = useUniformColor ? s.vertexBuffer.handle : vk_inst.cmd->vertex_buffer;
 			shade_bufs[3] = s.vertexBuffer.handle;
 			shade_bufs[4] = s.vertexBuffer.handle;
 			shade_bufs[5] = s.vertexBuffer.handle;
@@ -3785,10 +3853,10 @@ void vk_bind_geometry(const uint32_t flags)
 			vk_inst.cmd->buf_offset[1] = newFrameOffset;
 			vk_bind_index_attr(1);
 
-			if (useUniformDiffuseColor)
+			if (useUniformColor)
 			{
 				// Binding 2 musi istnieć, ale shader zignoruje atrybut koloru i policzy
-				// lightingDiffuse z uniformów. Dzięki temu nie dotykamy CPU color streamu.
+				// kolor z uniformów. Dzięki temu nie dotykamy CPU color streamu.
 				vk_inst.cmd->buf_offset[2] = 0;
 				vk_bind_index_attr(2);
 			}

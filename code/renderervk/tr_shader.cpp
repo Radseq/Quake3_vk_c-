@@ -3767,7 +3767,7 @@ static shader_t* FinishShader(void)
 								def.color.alpha = alphaGen == alphaGen_t::AGEN_IDENTITY ? 255 : c.rgba[3];
 							}
 						}
-						else if (rgbGen == colorGen_t::CGEN_ENTITY)
+						else if (rgbGen == colorGen_t::CGEN_ENTITY || rgbGen == colorGen_t::CGEN_ONE_MINUS_ENTITY)
 						{
 							if (alphaGen == alphaGen_t::AGEN_ENTITY ||
 								alphaGen == alphaGen_t::AGEN_SKIP ||

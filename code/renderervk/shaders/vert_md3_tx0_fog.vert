@@ -224,13 +224,18 @@ vec2 calc_fog_tc(const vec4 pos4)
 
 vec4 ComputeGpuColor(vec3 position, vec3 normal, vec4 fallbackColor)
 {
-    const int gpuColorMode = int(ubo.lightPos.w + 0.5);
+    const int gpuColorMode = int(ubo.lightVector.w + 0.5);
     const bool useGpuDiffuseRgb = (gpuColorMode & 1) != 0;
     const bool useGpuSpecularAlpha = (gpuColorMode & 2) != 0;
+    const bool useGpuSolidRgba = (gpuColorMode & 4) != 0;
 
     vec4 color = fallbackColor;
 
-    if (useGpuDiffuseRgb)
+    if (useGpuSolidRgba)
+    {
+        color = vec4(ubo.lightPos.xyz, ubo.lightColor.w);
+    }
+    else if (useGpuDiffuseRgb)
     {
         const float incoming = max(dot(normal, ubo.lightVector.xyz), 0.0);
         const vec3 rgb = clamp(ubo.lightPos.xyz + incoming * ubo.lightColor.xyz, 0.0, 1.0);
@@ -244,6 +249,8 @@ vec4 ComputeGpuColor(vec3 position, vec3 normal, vec4 fallbackColor)
 
     return color;
 }
+
+
 
 void main()
 {

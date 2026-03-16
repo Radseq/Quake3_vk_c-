@@ -1231,7 +1231,8 @@ static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& sta
 enum : uint32_t
 {
 	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0,
-	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA = 1u << 1
+	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA = 1u << 1,
+	GPU_MD3_COLOR_UNIFORM_SOLID_RGBA = 1u << 2
 };
 
 static ID_INLINE uint32_t VK_GpuMd3ColorMode(const shaderStage_t& stage, const uint32_t bundleIndex) noexcept
@@ -1245,17 +1246,46 @@ static ID_INLINE uint32_t VK_GpuMd3ColorMode(const shaderStage_t& stage, const u
 	const textureBundle_t& b0 = stage.bundle[0];
 	uint32_t mode = 0u;
 
-	if (b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
-		(b0.alphaGen == alphaGen_t::AGEN_SKIP ||
-		 b0.alphaGen == alphaGen_t::AGEN_IDENTITY ||
-		 b0.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR))
+	auto solidAlphaSupported = [&]() noexcept
 	{
-		mode |= GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB;
+		switch (b0.alphaGen)
+		{
+		case alphaGen_t::AGEN_SKIP:
+		case alphaGen_t::AGEN_IDENTITY:
+		case alphaGen_t::AGEN_CONST:
+			return true;
+		case alphaGen_t::AGEN_ENTITY:
+		case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+			return backEnd.currentEntity != nullptr;
+		default:
+			return false;
+		}
+	};
+
+	if (solidAlphaSupported())
+	{
+		switch (b0.rgbGen)
+		{
+		case colorGen_t::CGEN_CONST:
+			mode |= GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
+			break;
+		case colorGen_t::CGEN_ENTITY:
+		case colorGen_t::CGEN_ONE_MINUS_ENTITY:
+			if (backEnd.currentEntity)
+			{
+				mode |= GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
+			}
+			break;
+		default:
+			break;
+		}
 	}
 
-	if (b0.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR)
+	if (b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
+		(b0.alphaGen == alphaGen_t::AGEN_SKIP ||
+		 b0.alphaGen == alphaGen_t::AGEN_IDENTITY))
 	{
-		mode |= GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA;
+		mode |= GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB;
 	}
 
 	return mode;
@@ -1271,12 +1301,95 @@ static ID_INLINE bool VK_GpuMd3UsesUniformSpecularAlpha(const shaderStage_t& sta
 	return (VK_GpuMd3ColorMode(stage, bundleIndex) & GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA) != 0u;
 }
 
+static ID_INLINE bool VK_GpuMd3UsesUniformSolidColor(const shaderStage_t& stage, const uint32_t bundleIndex) noexcept
+{
+	return (VK_GpuMd3ColorMode(stage, bundleIndex) & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u;
+}
+
+static ID_INLINE void VK_BuildGpuMd3SolidColor(vec4_t rgba, const shaderStage_t& stage) noexcept
+{
+	rgba[0] = 1.0f;
+	rgba[1] = 1.0f;
+	rgba[2] = 1.0f;
+	rgba[3] = 1.0f;
+
+	const textureBundle_t& b0 = stage.bundle[0];
+	constexpr float kInv255 = 1.0f / 255.0f;
+
+	switch (b0.rgbGen)
+	{
+	case colorGen_t::CGEN_CONST:
+		rgba[0] = b0.constantColor.rgba[0] * kInv255;
+		rgba[1] = b0.constantColor.rgba[1] * kInv255;
+		rgba[2] = b0.constantColor.rgba[2] * kInv255;
+		rgba[3] = b0.constantColor.rgba[3] * kInv255;
+		break;
+	case colorGen_t::CGEN_ENTITY:
+		if (backEnd.currentEntity)
+		{
+			rgba[0] = backEnd.currentEntity->e.shader.rgba[0] * kInv255;
+			rgba[1] = backEnd.currentEntity->e.shader.rgba[1] * kInv255;
+			rgba[2] = backEnd.currentEntity->e.shader.rgba[2] * kInv255;
+			rgba[3] = backEnd.currentEntity->e.shader.rgba[3] * kInv255;
+		}
+		break;
+	case colorGen_t::CGEN_ONE_MINUS_ENTITY:
+		if (backEnd.currentEntity)
+		{
+			rgba[0] = (255.0f - backEnd.currentEntity->e.shader.rgba[0]) * kInv255;
+			rgba[1] = (255.0f - backEnd.currentEntity->e.shader.rgba[1]) * kInv255;
+			rgba[2] = (255.0f - backEnd.currentEntity->e.shader.rgba[2]) * kInv255;
+			rgba[3] = (255.0f - backEnd.currentEntity->e.shader.rgba[3]) * kInv255;
+		}
+		break;
+	default:
+		break;
+	}
+
+	switch (b0.alphaGen)
+	{
+	case alphaGen_t::AGEN_SKIP:
+		break;
+	case alphaGen_t::AGEN_IDENTITY:
+		rgba[3] = 1.0f;
+		break;
+	case alphaGen_t::AGEN_CONST:
+		rgba[3] = b0.constantColor.rgba[3] * kInv255;
+		break;
+	case alphaGen_t::AGEN_ENTITY:
+		if (backEnd.currentEntity)
+		{
+			rgba[3] = backEnd.currentEntity->e.shader.rgba[3] * kInv255;
+		}
+		break;
+	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+		if (backEnd.currentEntity)
+		{
+			rgba[3] = (255.0f - backEnd.currentEntity->e.shader.rgba[3]) * kInv255;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& stage) noexcept
 {
 	const uint32_t colorMode = VK_GpuMd3ColorMode(stage, 0u);
 
-	// domyślnie wyłączone; vert_md3_tx0*.vert potraktuje wtedy color jako zwykły atrybut.
-	uniform.light.pos[3] = static_cast<float>(colorMode);
+	uniform.light.vector[3] = static_cast<float>(colorMode);
+	uniform.light.color[3] = 0.0f;
+
+	if ((colorMode & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u)
+	{
+		vec4_t rgba{};
+		VK_BuildGpuMd3SolidColor(rgba, stage);
+		uniform.light.pos[0] = rgba[0];
+		uniform.light.pos[1] = rgba[1];
+		uniform.light.pos[2] = rgba[2];
+		uniform.light.color[3] = rgba[3];
+		return;
+	}
 
 	if ((colorMode & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) == 0u || !backEnd.currentEntity)
 		return;
@@ -1291,12 +1404,10 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 	uniform.light.color[0] = ent.directedLight[0] * kInv255;
 	uniform.light.color[1] = ent.directedLight[1] * kInv255;
 	uniform.light.color[2] = ent.directedLight[2] * kInv255;
-	uniform.light.color[3] = 0.0f;
 
 	uniform.light.vector[0] = ent.lightDir[0];
 	uniform.light.vector[1] = ent.lightDir[1];
 	uniform.light.vector[2] = ent.lightDir[2];
-	uniform.light.vector[3] = 0.0f;
 }
 
 static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fogCollapse)
@@ -1380,6 +1491,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 						R_ComputeColors(i, tess.svars.colors[i], *pStage);
 					}
 					else if ((gpuMd3ColorMode & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) == 0u &&
+						(gpuMd3ColorMode & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) == 0u &&
 						(gpuMd3ColorMode & GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA) != 0u)
 					{
 						shaderStage_t stageCopy = *pStage;
@@ -1404,9 +1516,23 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 					}
 
 
-					uniform.ent.color[i][0] = backEnd.currentEntity->e.shader.rgba[0] / 255.0;
-					uniform.ent.color[i][1] = backEnd.currentEntity->e.shader.rgba[1] / 255.0;
-					uniform.ent.color[i][2] = backEnd.currentEntity->e.shader.rgba[2] / 255.0;
+					const float entR = backEnd.currentEntity->e.shader.rgba[0] / 255.0f;
+					const float entG = backEnd.currentEntity->e.shader.rgba[1] / 255.0f;
+					const float entB = backEnd.currentEntity->e.shader.rgba[2] / 255.0f;
+					const float entA = backEnd.currentEntity->e.shader.rgba[3] / 255.0f;
+
+					if (pStage->bundle[i].rgbGen == colorGen_t::CGEN_ONE_MINUS_ENTITY)
+					{
+						uniform.ent.color[i][0] = 1.0f - entR;
+						uniform.ent.color[i][1] = 1.0f - entG;
+						uniform.ent.color[i][2] = 1.0f - entB;
+					}
+					else
+					{
+						uniform.ent.color[i][0] = entR;
+						uniform.ent.color[i][1] = entG;
+						uniform.ent.color[i][2] = entB;
+					}
 
 					switch (pStage->bundle[i].alphaGen)
 					{
@@ -1419,13 +1545,17 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 						break;
 
 					case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
-						uniform.ent.color[i][3] = 1.0f - (backEnd.currentEntity->e.shader.rgba[3] / 255.0f);
+						uniform.ent.color[i][3] = 1.0f - entA;
+						break;
+
+					case alphaGen_t::AGEN_SKIP:
+						uniform.ent.color[i][3] =
+							(pStage->bundle[i].rgbGen == colorGen_t::CGEN_ONE_MINUS_ENTITY) ? (1.0f - entA) : entA;
 						break;
 
 					case alphaGen_t::AGEN_ENTITY:
-					case alphaGen_t::AGEN_SKIP:
 					default:
-						uniform.ent.color[i][3] = backEnd.currentEntity->e.shader.rgba[3] / 255.0f;
+						uniform.ent.color[i][3] = entA;
 						break;
 					}
 

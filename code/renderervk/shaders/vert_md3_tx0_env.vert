@@ -205,6 +205,29 @@ vec2 ApplyGpuTcMods(vec3 position, vec2 st)
 }
 
 
+
+const uint GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0;
+const uint GPU_MD3_COLOR_UNIFORM_SOLID_RGBA  = 1u << 2;
+
+vec4 BuildGpuMd3Color(vec3 position, vec3 normal, vec4 fallbackColor)
+{
+    const uint colorMode = uint(ubo.lightVector.w + 0.5);
+
+    if ((colorMode & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u)
+    {
+        return vec4(ubo.lightPos.xyz, ubo.lightColor.w);
+    }
+
+    if ((colorMode & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) != 0u)
+    {
+        const float incoming = max(dot(normal, ubo.lightVector.xyz), 0.0);
+        const vec3 rgb = clamp(ubo.lightPos.xyz + incoming * ubo.lightColor.xyz, 0.0, 1.0);
+        return vec4(rgb, 1.0);
+    }
+
+    return fallbackColor;
+}
+
 void main()
 {
     const vec3 oldPosition = decode_md3_position(in_old_position_packed);
@@ -218,7 +241,7 @@ void main()
 
     const vec4 pos4 = vec4(position, 1.0);
     gl_Position = pc.mvp * pos4;
-    frag_color0 = in_color0;
+    frag_color0 = BuildGpuMd3Color(position, normal, in_color0);
 
     if (ubo.eyePos.w > 0.5)
     {
