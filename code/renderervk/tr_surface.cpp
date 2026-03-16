@@ -1151,18 +1151,22 @@ static ID_INLINE gpuMd3Layout_t RB_GetGpuMd3LayoutForShaderType(const Vk_Shader_
 	}
 }
 
+static ID_INLINE bool RB_GpuMd3CanDoDiffuseColorInShader(const shaderStage_t& stage) noexcept
+{
+	const textureBundle_t& b0 = stage.bundle[0];
+
+	return b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
+		(b0.alphaGen == alphaGen_t::AGEN_SKIP || b0.alphaGen == alphaGen_t::AGEN_IDENTITY);
+}
+
 static ID_INLINE bool RB_GpuMd3NeedsCpuDerivedGeometry(const shaderStage_t& stage) noexcept
 {
 	const textureBundle_t& b0 = stage.bundle[0];
 
-	// Generic model shaders z lightingDiffuse dalej liczą kolor na CPU
-	// z tess.xyz / tess.normal.
-	if (b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE)
-	{
-		return true;
-	}
-
-	return false;
+	// Jeżeli lightingDiffuse ma niestandardowe alphaGen, to kolor/alpha nadal
+	// muszą powstać na CPU z tess.xyz / tess.normal.
+	return b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
+		!RB_GpuMd3CanDoDiffuseColorInShader(stage);
 }
 
 static bool RB_SurfaceMeshGPU(md3Surface_t* surface)

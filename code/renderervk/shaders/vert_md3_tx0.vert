@@ -126,6 +126,19 @@ vec2 ApplyGpuTcMods(vec3 position, vec2 st)
 }
 
 
+vec4 ComputeGpuColor(vec3 normal, vec4 fallbackColor)
+{
+    if (ubo.lightPos.w > 0.5)
+    {
+        const float incoming = max(dot(normal, ubo.lightVector.xyz), 0.0);
+        const vec3 rgb = clamp(ubo.lightPos.xyz + incoming * ubo.lightColor.xyz, 0.0, 1.0);
+        return vec4(rgb, 1.0);
+    }
+
+    return fallbackColor;
+}
+
+
 void main()
 {
     const vec3 oldPosition = decode_md3_position(in_old_position_packed);
@@ -139,6 +152,6 @@ void main()
 
     const vec4 pos4 = vec4(position, 1.0);
     gl_Position = pc.mvp * pos4;
-    frag_color0 = in_color0;
+    frag_color0 = ComputeGpuColor(normal, in_color0);
     frag_tex_coord0 = ApplyGpuTcMods(position, in_tex_coord0);
 }

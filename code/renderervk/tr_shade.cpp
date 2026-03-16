@@ -1222,6 +1222,46 @@ static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& sta
 		return;
 	}
 }
+static ID_INLINE bool VK_GpuMd3UsesUniformDiffuseColor(const shaderStage_t& stage, const uint32_t bundleIndex) noexcept
+{
+	if (!tess.gpuMd3Active || bundleIndex != 0u)
+		return false;
+
+	if (tess.gpuMd3Layout != gpuMd3Layout_t::GENERIC_ST_COLOR)
+		return false;
+
+	const textureBundle_t& b0 = stage.bundle[0];
+	return b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
+		(b0.alphaGen == alphaGen_t::AGEN_SKIP || b0.alphaGen == alphaGen_t::AGEN_IDENTITY);
+}
+
+static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& stage) noexcept
+{
+	// domyślnie wyłączone; vert_md3_tx0*.vert potraktuje wtedy color jako zwykły atrybut.
+	uniform.light.pos[3] = 0.0f;
+
+	if (!VK_GpuMd3UsesUniformDiffuseColor(stage, 0u) || !backEnd.currentEntity)
+		return;
+
+	constexpr float kInv255 = 1.0f / 255.0f;
+	const trRefEntity_t& ent = *backEnd.currentEntity;
+
+	uniform.light.pos[0] = ent.ambientLight[0] * kInv255;
+	uniform.light.pos[1] = ent.ambientLight[1] * kInv255;
+	uniform.light.pos[2] = ent.ambientLight[2] * kInv255;
+	uniform.light.pos[3] = 1.0f; // enable GPU diffuse color path
+
+	uniform.light.color[0] = ent.directedLight[0] * kInv255;
+	uniform.light.color[1] = ent.directedLight[1] * kInv255;
+	uniform.light.color[2] = ent.directedLight[2] * kInv255;
+	uniform.light.color[3] = 0.0f;
+
+	uniform.light.vector[0] = ent.lightDir[0];
+	uniform.light.vector[1] = ent.lightDir[1];
+	uniform.light.vector[2] = ent.lightDir[2];
+	uniform.light.vector[3] = 0.0f;
+}
+
 
 static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fogCollapse)
 {
@@ -1279,6 +1319,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 		if (tess.gpuMd3Active)
 		{
 			VK_SetGpuMd3EnvParams(uniform, *pStage);
+			VK_SetGpuMd3ColorParams(uniform, *pStage);
 			VK_SetGpuMd3TcParams(uniform, pStage->bundle[0]);
 			VK_SetGpuMd3DeformParams(uniform, *pStage);
 			pushUniform = true;
@@ -1296,7 +1337,10 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 				}
 				if (tess_flags & (TESS_RGBA0 << i))
 				{
-					R_ComputeColors(i, tess.svars.colors[i], *pStage);
+					if (!VK_GpuMd3UsesUniformDiffuseColor(*pStage, i))
+					{
+						R_ComputeColors(i, tess.svars.colors[i], *pStage);
+					}
 				}
 				if (tess_flags & (TESS_ENT0 << i) && backEnd.currentEntity)
 				{
