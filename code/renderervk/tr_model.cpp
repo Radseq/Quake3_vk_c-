@@ -744,7 +744,6 @@ static bool R_LoadMD3(model_t& mod, const int lod, void* buffer, const std::size
 		surf = (md3Surface_t*)((byte*)surf + surf->ofsEnd);
 	}
 
-	if (r_gpuAnim && r_gpuAnim->integer)
 	{
 		md3GpuLod_t& gpuLod = mod.md3Gpu[lod];
 		gpuLod.numSurfaces = hdr->numSurfaces;
@@ -753,12 +752,13 @@ static bool R_LoadMD3(model_t& mod, const int lod, void* buffer, const std::size
 		Com_Memset(gpuLod.surfaces, 0, sizeof(md3GpuSurface_t) * gpuLod.numSurfaces);
 
 		md3Surface_t* gpuSurf = reinterpret_cast<md3Surface_t*>((byte*)hdr + hdr->ofsSurfaces);
+		bool gpuReady = true;
 		for (int s = 0; s < gpuLod.numSurfaces; ++s)
 		{
-			R_CreateMD3GpuSurface(gpuLod.surfaces[s], *gpuSurf);
+			gpuReady &= R_CreateMD3GpuSurface(gpuLod.surfaces[s], *gpuSurf);
 			gpuSurf = reinterpret_cast<md3Surface_t*>((byte*)gpuSurf + gpuSurf->ofsEnd);
 		}
-		gpuLod.ready = true;
+		gpuLod.ready = gpuReady;
 	}
 
 	return true;

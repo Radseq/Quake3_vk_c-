@@ -572,6 +572,11 @@ RB_DeformTessGeometry
 */
 void RB_DeformTessGeometry(void)
 {
+	if (tess.gpuMd3Active)
+	{
+		return;
+	}
+
 	int i;
 
 	for (i = 0; i < tess.shader->numDeforms; i++)

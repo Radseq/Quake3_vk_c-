@@ -3685,82 +3685,15 @@ void vk_bind_geometry(const uint32_t flags)
 			return;
 		}
 
-		// Generic ENV: old/new/color/(dummy)/oldNormal/newNormal
+		// Generic ENV: old/new/color/st/oldNormal/newNormal
 		if ((flags & TESS_NNN) && (flags & TESS_RGBA0))
 		{
-			//LogBindBranch("generic env");
-			shade_bufs[0] = s.vertexBuffer.handle;
-			shade_bufs[1] = s.vertexBuffer.handle;
-			shade_bufs[2] = vk_inst.cmd->vertex_buffer;
-			shade_bufs[3] = s.vertexBuffer.handle; // dummy, bo binding 3 jest dziurą
-			shade_bufs[4] = s.vertexBuffer.handle;
-			shade_bufs[5] = s.vertexBuffer.handle;
-
-			vk_inst.cmd->buf_offset[0] = oldFrameOffset;
-			vk_bind_index_attr(0);
-
-			vk_inst.cmd->buf_offset[1] = newFrameOffset;
-			vk_bind_index_attr(1);
-
-			vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
-
-			vk_inst.cmd->buf_offset[3] = 0; // dummy
-			vk_inst.cmd->buf_offset[4] = oldNormalOffset;
-			vk_bind_index_attr(4);
-
-			vk_inst.cmd->buf_offset[5] = newNormalOffset;
-			vk_bind_index_attr(5);
-
-			vk_inst.cmd->command_buffer.bindVertexBuffers(
-				bind_base,
-				bind_count,
-				shade_bufs,
-				vk_inst.cmd->buf_offset + bind_base);
-			return;
-		}
-
-		// Identity / Fixed / Ent ENV: old/new/(dummy)/(dummy)/oldNormal/newNormal
-		if (flags & TESS_NNN)
-		{
-			//LogBindBranch("identity/fixed/ent env");
-			shade_bufs[0] = s.vertexBuffer.handle;
-			shade_bufs[1] = s.vertexBuffer.handle;
-			shade_bufs[2] = s.vertexBuffer.handle; // dummy
-			shade_bufs[3] = s.vertexBuffer.handle; // dummy
-			shade_bufs[4] = s.vertexBuffer.handle;
-			shade_bufs[5] = s.vertexBuffer.handle;
-
-			vk_inst.cmd->buf_offset[0] = oldFrameOffset;
-			vk_bind_index_attr(0);
-
-			vk_inst.cmd->buf_offset[1] = newFrameOffset;
-			vk_bind_index_attr(1);
-
-			vk_inst.cmd->buf_offset[2] = 0; // dummy
-			vk_inst.cmd->buf_offset[3] = 0; // dummy
-
-			vk_inst.cmd->buf_offset[4] = oldNormalOffset;
-			vk_bind_index_attr(4);
-
-			vk_inst.cmd->buf_offset[5] = newNormalOffset;
-			vk_bind_index_attr(5);
-
-			vk_inst.cmd->command_buffer.bindVertexBuffers(
-				bind_base,
-				bind_count,
-				shade_bufs,
-				vk_inst.cmd->buf_offset + bind_base);
-			return;
-		}
-
-		// Generic non-ENV: old/new/color/st
-		if (flags & TESS_RGBA0)
-		{
-			//LogBindBranch("generic non-env");
 			shade_bufs[0] = s.vertexBuffer.handle;
 			shade_bufs[1] = s.vertexBuffer.handle;
 			shade_bufs[2] = vk_inst.cmd->vertex_buffer;
 			shade_bufs[3] = s.vertexBuffer.handle;
+			shade_bufs[4] = s.vertexBuffer.handle;
+			shade_bufs[5] = s.vertexBuffer.handle;
 
 			vk_inst.cmd->buf_offset[0] = oldFrameOffset;
 			vk_bind_index_attr(0);
@@ -3773,6 +3706,12 @@ void vk_bind_geometry(const uint32_t flags)
 			vk_inst.cmd->buf_offset[3] = stOffset;
 			vk_bind_index_attr(3);
 
+			vk_inst.cmd->buf_offset[4] = oldNormalOffset;
+			vk_bind_index_attr(4);
+
+			vk_inst.cmd->buf_offset[5] = newNormalOffset;
+			vk_bind_index_attr(5);
+
 			vk_inst.cmd->command_buffer.bindVertexBuffers(
 				bind_base,
 				bind_count,
@@ -3781,11 +3720,82 @@ void vk_bind_geometry(const uint32_t flags)
 			return;
 		}
 
-		// Identity / Fixed / Ent non-ENV: old/new/st
-		//LogBindBranch("identity/fixed/ent non-env");
+		// Identity / Fixed / Ent ENV: old/new/(dummy)/st/oldNormal/newNormal
+		if (flags & TESS_NNN)
+		{
+			shade_bufs[0] = s.vertexBuffer.handle;
+			shade_bufs[1] = s.vertexBuffer.handle;
+			shade_bufs[2] = s.vertexBuffer.handle; // unused binding 2
+			shade_bufs[3] = s.vertexBuffer.handle;
+			shade_bufs[4] = s.vertexBuffer.handle;
+			shade_bufs[5] = s.vertexBuffer.handle;
+
+			vk_inst.cmd->buf_offset[0] = oldFrameOffset;
+			vk_bind_index_attr(0);
+
+			vk_inst.cmd->buf_offset[1] = newFrameOffset;
+			vk_bind_index_attr(1);
+
+			vk_inst.cmd->buf_offset[2] = 0;
+			vk_inst.cmd->buf_offset[3] = stOffset;
+			vk_bind_index_attr(3);
+
+			vk_inst.cmd->buf_offset[4] = oldNormalOffset;
+			vk_bind_index_attr(4);
+
+			vk_inst.cmd->buf_offset[5] = newNormalOffset;
+			vk_bind_index_attr(5);
+
+			vk_inst.cmd->command_buffer.bindVertexBuffers(
+				bind_base,
+				bind_count,
+				shade_bufs,
+				vk_inst.cmd->buf_offset + bind_base);
+			return;
+		}
+
+		// Generic non-ENV: old/new/color/st/oldNormal/newNormal
+		if (flags & TESS_RGBA0)
+		{
+			shade_bufs[0] = s.vertexBuffer.handle;
+			shade_bufs[1] = s.vertexBuffer.handle;
+			shade_bufs[2] = vk_inst.cmd->vertex_buffer;
+			shade_bufs[3] = s.vertexBuffer.handle;
+			shade_bufs[4] = s.vertexBuffer.handle;
+			shade_bufs[5] = s.vertexBuffer.handle;
+
+			vk_inst.cmd->buf_offset[0] = oldFrameOffset;
+			vk_bind_index_attr(0);
+
+			vk_inst.cmd->buf_offset[1] = newFrameOffset;
+			vk_bind_index_attr(1);
+
+			vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
+
+			vk_inst.cmd->buf_offset[3] = stOffset;
+			vk_bind_index_attr(3);
+
+			vk_inst.cmd->buf_offset[4] = oldNormalOffset;
+			vk_bind_index_attr(4);
+
+			vk_inst.cmd->buf_offset[5] = newNormalOffset;
+			vk_bind_index_attr(5);
+
+			vk_inst.cmd->command_buffer.bindVertexBuffers(
+				bind_base,
+				bind_count,
+				shade_bufs,
+				vk_inst.cmd->buf_offset + bind_base);
+			return;
+		}
+
+		// Identity / Fixed / Ent non-ENV: old/new/st/(dummy)/oldNormal/newNormal
 		shade_bufs[0] = s.vertexBuffer.handle;
 		shade_bufs[1] = s.vertexBuffer.handle;
 		shade_bufs[2] = s.vertexBuffer.handle;
+		shade_bufs[3] = s.vertexBuffer.handle; // dummy gap
+		shade_bufs[4] = s.vertexBuffer.handle;
+		shade_bufs[5] = s.vertexBuffer.handle;
 
 		vk_inst.cmd->buf_offset[0] = oldFrameOffset;
 		vk_bind_index_attr(0);
@@ -3796,9 +3806,13 @@ void vk_bind_geometry(const uint32_t flags)
 		vk_inst.cmd->buf_offset[2] = stOffset;
 		vk_bind_index_attr(2);
 
+		vk_inst.cmd->buf_offset[3] = 0;
 
+		vk_inst.cmd->buf_offset[4] = oldNormalOffset;
+		vk_bind_index_attr(4);
 
-
+		vk_inst.cmd->buf_offset[5] = newNormalOffset;
+		vk_bind_index_attr(5);
 
 		vk_inst.cmd->command_buffer.bindVertexBuffers(
 			bind_base,

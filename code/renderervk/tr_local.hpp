@@ -204,6 +204,14 @@ typedef struct vkUniform_s
 	// only for TCGEN_VECTOR
 	vec4_t tcGenVector0;
 	vec4_t tcGenVector1;
+
+	// GPU deformVertexes params for MD3 path.
+	// deform0.x = mode (0 = none, 1 = wave(sin), 2 = bulge)
+	// wave:  deform0.y = spread, deform0.w = phaseNow,
+	//        deform1.x = base, deform1.y = amplitude, deform1.z = useSpread
+	// bulge: deform0.y = bulgeWidth, deform0.z = bulgeHeight, deform0.w = now
+	vec4_t deform0;
+	vec4_t deform1;
 } vkUniform_t;
 
 typedef struct dlight_s

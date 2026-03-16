@@ -169,6 +169,7 @@ static bool R_SkipCpuTexCoordsForGpuMd3(const textureBundle_t& bundle) noexcept
 	}
 }
 
+
 struct gpuTcAffine_t
 {
 	float s_s;
@@ -177,6 +178,18 @@ struct gpuTcAffine_t
 	float t_s;
 	float t_t;
 	float t_o;
+};
+
+struct gpuTcProgram_t
+{
+	gpuTcAffine_t pre{};
+	gpuTcAffine_t post{};
+
+	bool useVectorTcGen = false;
+	bool useTurbulent = false;
+
+	float turbulentAmplitude = 0.0f;
+	float turbulentNow = 0.0f;
 };
 
 static ID_INLINE void GpuTcAffineIdentity(gpuTcAffine_t& m) noexcept
@@ -188,6 +201,33 @@ static ID_INLINE void GpuTcAffineIdentity(gpuTcAffine_t& m) noexcept
 static ID_INLINE float GpuTcFrac(const float v) noexcept
 {
 	return static_cast<float>(v - std::floor(v));
+}
+
+static ID_INLINE const float* GpuTcTableForFunc(const genFunc_t func) noexcept
+{
+	switch (func)
+	{
+	case genFunc_t::GF_SIN:              return tr.sinTable.data();
+	case genFunc_t::GF_SQUARE:           return tr.squareTable.data();
+	case genFunc_t::GF_TRIANGLE:         return tr.triangleTable.data();
+	case genFunc_t::GF_SAWTOOTH:         return tr.sawToothTable.data();
+	case genFunc_t::GF_INVERSE_SAWTOOTH: return tr.inverseSawToothTable.data();
+	default:                             return nullptr;
+	}
+}
+
+static ID_INLINE float GpuTcEvalWaveForm(const waveForm_t& wf) noexcept
+{
+	const float* const table = GpuTcTableForFunc(wf.func);
+	if (!table)
+	{
+		return wf.base;
+	}
+
+	const int64_t index =
+		static_cast<int64_t>(((wf.phase + static_cast<float>(tess.shaderTime) * wf.frequency) * FUNCTABLE_SIZE));
+
+	return wf.base + table[index & FUNCTABLE_MASK] * wf.amplitude;
 }
 
 // compose: next(current(tc))
@@ -207,7 +247,94 @@ static ID_INLINE void GpuTcAffineCompose(
 	cur.t_o = n_t_s * old.s_o + n_t_t * old.t_o + n_t_o;
 }
 
-bool R_CanGpuMd3UseAffineTexMods(const textureBundle_t& bundle) noexcept
+static ID_INLINE bool GpuTcComposeAffineMod(gpuTcAffine_t& dst, const texModInfo_t& tm) noexcept
+{
+	switch (tm.type)
+	{
+	case texMod_t::TMOD_NONE:
+		return true;
+
+	case texMod_t::TMOD_SCROLL:
+	{
+		const float ds = GpuTcFrac(tm.scroll[0] * static_cast<float>(tess.shaderTime));
+		const float dt = GpuTcFrac(tm.scroll[1] * static_cast<float>(tess.shaderTime));
+		GpuTcAffineCompose(dst,
+			1.0f, 0.0f, ds,
+			0.0f, 1.0f, dt);
+		return true;
+	}
+
+	case texMod_t::TMOD_ENTITY_TRANSLATE:
+	{
+		const float ds = GpuTcFrac(backEnd.currentEntity->e.shaderTexCoord[0] * static_cast<float>(tess.shaderTime));
+		const float dt = GpuTcFrac(backEnd.currentEntity->e.shaderTexCoord[1] * static_cast<float>(tess.shaderTime));
+		GpuTcAffineCompose(dst,
+			1.0f, 0.0f, ds,
+			0.0f, 1.0f, dt);
+		return true;
+	}
+
+	case texMod_t::TMOD_SCALE:
+		GpuTcAffineCompose(dst,
+			tm.scale[0], 0.0f, 0.0f,
+			0.0f, tm.scale[1], 0.0f);
+		return true;
+
+	case texMod_t::TMOD_OFFSET:
+		GpuTcAffineCompose(dst,
+			1.0f, 0.0f, tm.offset[0],
+			0.0f, 1.0f, tm.offset[1]);
+		return true;
+
+	case texMod_t::TMOD_SCALE_OFFSET:
+		GpuTcAffineCompose(dst,
+			tm.scale[0], 0.0f, tm.offset[0],
+			0.0f, tm.scale[1], tm.offset[1]);
+		return true;
+
+	case texMod_t::TMOD_OFFSET_SCALE:
+		GpuTcAffineCompose(dst,
+			tm.scale[0], 0.0f, tm.offset[0] * tm.scale[0],
+			0.0f, tm.scale[1], tm.offset[1] * tm.scale[1]);
+		return true;
+
+	case texMod_t::TMOD_TRANSFORM:
+		GpuTcAffineCompose(dst,
+			tm.matrix[0][0], tm.matrix[1][0], tm.translate[0],
+			tm.matrix[0][1], tm.matrix[1][1], tm.translate[1]);
+		return true;
+
+	case texMod_t::TMOD_ROTATE:
+	{
+		const double degs = -tm.rotateSpeed * tess.shaderTime;
+		const float radians = static_cast<float>(degs * (M_PI / 180.0));
+		const float s = std::sin(radians);
+		const float c = std::cos(radians);
+
+		const float tr0 = 0.5f - 0.5f * c + 0.5f * s;
+		const float tr1 = 0.5f - 0.5f * s - 0.5f * c;
+
+		GpuTcAffineCompose(dst,
+			c, -s, tr0,
+			s, c, tr1);
+		return true;
+	}
+
+	case texMod_t::TMOD_STRETCH:
+	{
+		const float p = 1.0f / GpuTcEvalWaveForm(tm.wave);
+		GpuTcAffineCompose(dst,
+			p, 0.0f, 0.5f - 0.5f * p,
+			0.0f, p, 0.5f - 0.5f * p);
+		return true;
+	}
+
+	default:
+		return false;
+	}
+}
+
+static bool R_CanGpuMd3UsePureAffineTexMods(const textureBundle_t& bundle) noexcept
 {
 	for (int i = 0; i < bundle.numTexMods; ++i)
 	{
@@ -222,15 +349,108 @@ bool R_CanGpuMd3UseAffineTexMods(const textureBundle_t& bundle) noexcept
 		case texMod_t::TMOD_TRANSFORM:
 		case texMod_t::TMOD_ROTATE:
 		case texMod_t::TMOD_ENTITY_TRANSLATE:
+		case texMod_t::TMOD_STRETCH:
 			break;
 
-			// jeszcze nie:
 		case texMod_t::TMOD_TURBULENT:
-		case texMod_t::TMOD_STRETCH:
 		default:
 			return false;
 		}
 	}
+	return true;
+}
+
+bool R_CanGpuMd3UseAffineTexMods(const textureBundle_t& bundle) noexcept
+{
+	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE &&
+		bundle.tcGen != texCoordGen_t::TCGEN_VECTOR)
+	{
+		return false;
+	}
+
+	bool seenTurbulent = false;
+
+	for (int i = 0; i < bundle.numTexMods; ++i)
+	{
+		switch (bundle.texMods[i].type)
+		{
+		case texMod_t::TMOD_NONE:
+		case texMod_t::TMOD_SCROLL:
+		case texMod_t::TMOD_SCALE:
+		case texMod_t::TMOD_OFFSET:
+		case texMod_t::TMOD_SCALE_OFFSET:
+		case texMod_t::TMOD_OFFSET_SCALE:
+		case texMod_t::TMOD_TRANSFORM:
+		case texMod_t::TMOD_ROTATE:
+		case texMod_t::TMOD_ENTITY_TRANSLATE:
+		case texMod_t::TMOD_STRETCH:
+			break;
+
+		case texMod_t::TMOD_TURBULENT:
+			if (seenTurbulent)
+				return false;
+
+			// turbulent repurposes tcGenVector uniforms as post-transform storage,
+			// so keep vector tcGen on the old path for now.
+			if (bundle.tcGen == texCoordGen_t::TCGEN_VECTOR)
+				return false;
+
+			seenTurbulent = true;
+			break;
+
+		default:
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool R_BuildGpuMd3TcProgram(gpuTcProgram_t& prog, const textureBundle_t& bundle) noexcept
+{
+	GpuTcAffineIdentity(prog.pre);
+	GpuTcAffineIdentity(prog.post);
+
+	prog.useVectorTcGen = false;
+	prog.useTurbulent = false;
+	prog.turbulentAmplitude = 0.0f;
+	prog.turbulentNow = 0.0f;
+
+	if (!R_CanGpuMd3UseAffineTexMods(bundle))
+		return false;
+
+	switch (bundle.tcGen)
+	{
+	case texCoordGen_t::TCGEN_TEXTURE:
+		break;
+
+	case texCoordGen_t::TCGEN_VECTOR:
+		prog.useVectorTcGen = true;
+		break;
+
+	default:
+		return false;
+	}
+
+	gpuTcAffine_t* current = &prog.pre;
+
+	for (int i = 0; i < bundle.numTexMods; ++i)
+	{
+		const texModInfo_t& tm = bundle.texMods[i];
+
+		if (tm.type == texMod_t::TMOD_TURBULENT)
+		{
+			prog.useTurbulent = true;
+			prog.turbulentAmplitude = tm.wave.amplitude;
+			prog.turbulentNow = tm.wave.phase + static_cast<float>(tess.shaderTime) * tm.wave.frequency;
+			current = &prog.post;
+			continue;
+		}
+
+		if (!GpuTcComposeAffineMod(*current, tm))
+			return false;
+	}
+
 	return true;
 }
 
@@ -243,11 +463,61 @@ static ID_INLINE void VK_SetIdentityTcParams(vkUniform_t& u) noexcept
 	u.tcGenVector1[0] = 0.0f; u.tcGenVector1[1] = 0.0f; u.tcGenVector1[2] = 0.0f; u.tcGenVector1[3] = 0.0f;
 }
 
+static ID_INLINE void VK_SetIdentityGpuMd3DeformParams(vkUniform_t& u) noexcept
+{
+	u.deform0[0] = 0.0f; u.deform0[1] = 0.0f; u.deform0[2] = 0.0f; u.deform0[3] = 0.0f;
+	u.deform1[0] = 0.0f; u.deform1[1] = 0.0f; u.deform1[2] = 0.0f; u.deform1[3] = 0.0f;
+}
+
 
 static bool R_IsGpuMd3EnvLayout() noexcept
 {
 	return tess.gpuMd3Layout == gpuMd3Layout_t::GENERIC_ENV_COLOR ||
 		tess.gpuMd3Layout == gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+}
+
+static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage) noexcept
+{
+	VK_SetIdentityGpuMd3DeformParams(u);
+
+	if (!tess.gpuMd3Active || !tess.shader || tess.shader->numDeforms != 1)
+	{
+		return;
+	}
+
+	const deformStage_t& ds = tess.shader->deforms[0];
+
+	switch (ds.deformation)
+	{
+	case deform_t::DEFORM_WAVE:
+		if (ds.deformationWave.func != genFunc_t::GF_SIN)
+		{
+			return;
+		}
+
+		u.deform0[0] = 1.0f;
+		u.deform0[1] = ds.deformationSpread;
+		u.deform0[2] = 0.0f;
+		u.deform0[3] = ds.deformationWave.phase + static_cast<float>(tess.shaderTime) * ds.deformationWave.frequency;
+
+		u.deform1[0] = ds.deformationWave.base;
+		u.deform1[1] = ds.deformationWave.amplitude;
+		u.deform1[2] = (ds.deformationWave.frequency != 0.0f) ? 1.0f : 0.0f;
+		u.deform1[3] = 0.0f;
+		return;
+
+	case deform_t::DEFORM_BULGE:
+		// Bulge uses the model's base ST set, not the stage tcGen result.
+		// GPU MD3 env pipelines bind ST as well, so bulge can remain on GPU.
+		u.deform0[0] = 2.0f;
+		u.deform0[1] = ds.bulgeWidth;
+		u.deform0[2] = ds.bulgeHeight;
+		u.deform0[3] = static_cast<float>(backEnd.refdef.floatTime * ds.bulgeSpeed);
+		return;
+
+	default:
+		return;
+	}
 }
 
 static void VK_SetGpuMd3TcParams(vkUniform_t& u, const textureBundle_t& bundle)
@@ -259,23 +529,24 @@ static void VK_SetGpuMd3TcParams(vkUniform_t& u, const textureBundle_t& bundle)
 		return;
 	}
 
-	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE &&
-		bundle.tcGen != texCoordGen_t::TCGEN_VECTOR)
+	gpuTcProgram_t prog{};
+	if (!R_BuildGpuMd3TcProgram(prog, bundle))
 	{
 		return;
 	}
 
-	if (!R_CanGpuMd3UseAffineTexMods(bundle))
-	{
-		return;
-	}
+	u.tcMod0[0] = prog.pre.s_s;
+	u.tcMod0[1] = prog.pre.s_t;
+	u.tcMod0[2] = prog.pre.s_o;
+	u.tcMod0[3] = static_cast<float>((prog.useVectorTcGen ? 1 : 0) | (prog.useTurbulent ? 2 : 0));
 
-	gpuTcAffine_t m{};
-	GpuTcAffineIdentity(m);
+	u.tcMod1[0] = prog.pre.t_s;
+	u.tcMod1[1] = prog.pre.t_t;
+	u.tcMod1[2] = prog.pre.t_o;
+	u.tcMod1[3] = prog.turbulentAmplitude;
 
-	if (bundle.tcGen == texCoordGen_t::TCGEN_VECTOR)
+	if (prog.useVectorTcGen)
 	{
-		u.tcMod0[3] = 1.0f; // useVectorTcGen
 		u.tcGenVector0[0] = bundle.tcGenVectors[0][0];
 		u.tcGenVector0[1] = bundle.tcGenVectors[0][1];
 		u.tcGenVector0[2] = bundle.tcGenVectors[0][2];
@@ -287,93 +558,29 @@ static void VK_SetGpuMd3TcParams(vkUniform_t& u, const textureBundle_t& bundle)
 		u.tcGenVector1[3] = 0.0f;
 	}
 
-	for (int i = 0; i < bundle.numTexMods; ++i)
+	if (prog.useTurbulent)
 	{
-		const texModInfo_t& tm = bundle.texMods[i];
+		u.tcGenVector0[0] = prog.post.s_s;
+		u.tcGenVector0[1] = prog.post.s_t;
+		u.tcGenVector0[2] = prog.post.s_o;
+		u.tcGenVector0[3] = prog.turbulentNow;
 
-		switch (tm.type)
-		{
-		case texMod_t::TMOD_NONE:
-			break;
-
-		case texMod_t::TMOD_SCROLL:
-		{
-			const float ds = GpuTcFrac(tm.scroll[0] * static_cast<float>(tess.shaderTime));
-			const float dt = GpuTcFrac(tm.scroll[1] * static_cast<float>(tess.shaderTime));
-			GpuTcAffineCompose(m,
-				1.0f, 0.0f, ds,
-				0.0f, 1.0f, dt);
-			break;
-		}
-
-		case texMod_t::TMOD_ENTITY_TRANSLATE:
-		{
-			const float ds = GpuTcFrac(backEnd.currentEntity->e.shaderTexCoord[0] * static_cast<float>(tess.shaderTime));
-			const float dt = GpuTcFrac(backEnd.currentEntity->e.shaderTexCoord[1] * static_cast<float>(tess.shaderTime));
-			GpuTcAffineCompose(m,
-				1.0f, 0.0f, ds,
-				0.0f, 1.0f, dt);
-			break;
-		}
-
-		case texMod_t::TMOD_SCALE:
-			GpuTcAffineCompose(m,
-				tm.scale[0], 0.0f, 0.0f,
-				0.0f, tm.scale[1], 0.0f);
-			break;
-
-		case texMod_t::TMOD_OFFSET:
-			GpuTcAffineCompose(m,
-				1.0f, 0.0f, tm.offset[0],
-				0.0f, 1.0f, tm.offset[1]);
-			break;
-
-		case texMod_t::TMOD_SCALE_OFFSET:
-			GpuTcAffineCompose(m,
-				tm.scale[0], 0.0f, tm.offset[0],
-				0.0f, tm.scale[1], tm.offset[1]);
-			break;
-
-		case texMod_t::TMOD_OFFSET_SCALE:
-			GpuTcAffineCompose(m,
-				tm.scale[0], 0.0f, tm.offset[0] * tm.scale[0],
-				0.0f, tm.scale[1], tm.offset[1] * tm.scale[1]);
-			break;
-
-		case texMod_t::TMOD_TRANSFORM:
-			GpuTcAffineCompose(m,
-				tm.matrix[0][0], tm.matrix[1][0], tm.translate[0],
-				tm.matrix[0][1], tm.matrix[1][1], tm.translate[1]);
-			break;
-
-		case texMod_t::TMOD_ROTATE:
-		{
-			const double degs = -tm.rotateSpeed * tess.shaderTime;
-			const float radians = static_cast<float>(degs * (M_PI / 180.0));
-			const float s = std::sin(radians);
-			const float c = std::cos(radians);
-
-			const float tr0 = 0.5f - 0.5f * c + 0.5f * s;
-			const float tr1 = 0.5f - 0.5f * s - 0.5f * c;
-
-			GpuTcAffineCompose(m,
-				c, -s, tr0,
-				s, c, tr1);
-			break;
-		}
-
-		default:
-			break;
-		}
+		u.tcGenVector1[0] = prog.post.t_s;
+		u.tcGenVector1[1] = prog.post.t_t;
+		u.tcGenVector1[2] = prog.post.t_o;
+		u.tcGenVector1[3] = 0.0f;
 	}
+}
 
-	u.tcMod0[0] = m.s_s;
-	u.tcMod0[1] = m.s_t;
-	u.tcMod0[2] = m.s_o;
+static bool GpuMd3DbgInterestingShader() noexcept
+{
+	if (!tess.shader || !tess.shader->name)
+		return false;
 
-	u.tcMod1[0] = m.t_s;
-	u.tcMod1[1] = m.t_t;
-	u.tcMod1[2] = m.t_o;
+	return
+		Q_stricmp_cpp(tess.shader->name, "models/powerups/ammo/plasammo2") == 0 ||
+		Q_stricmp_cpp(tess.shader->name, "models/weapons2/shotgun/shotgun_laser") == 0 ||
+		Q_stricmp_cpp(tess.shader->name, "models/powerups/armor/energy_yel1") == 0;
 }
 
 
@@ -1022,7 +1229,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 	int stage;
 	uint32_t i;
 	uint32_t pipeline;
-	int fog_stage;
+	int fog_stage = 0;
 	bool pushUniform;
 
 	vk_bind_index();
@@ -1066,13 +1273,14 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 
 		// nowe: zawsze ustaw bazowe tc parametry
 		VK_SetIdentityTcParams(uniform);
+		VK_SetIdentityGpuMd3DeformParams(uniform);
 		pushUniform = true;
 
 		if (tess.gpuMd3Active)
 		{
 			VK_SetGpuMd3EnvParams(uniform, *pStage);
-
 			VK_SetGpuMd3TcParams(uniform, pStage->bundle[0]);
+			VK_SetGpuMd3DeformParams(uniform, *pStage);
 			pushUniform = true;
 		}
 
@@ -1356,7 +1564,7 @@ static void RB_FogPass(bool rebindIndex)
 {
 	uint32_t pipeline = vk_inst.fog_pipelines[static_cast<int>(tess.shader->fogPass) - 1][static_cast<int>(tess.shader->cullType)][tess.shader->polygonOffset];
 #ifdef USE_FOG_ONLY
-	int fog_stage;
+	int fog_stage = 0;
 
 	// fog parameters
 	vk_bind_pipeline(pipeline);
