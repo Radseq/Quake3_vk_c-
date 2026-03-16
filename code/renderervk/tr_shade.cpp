@@ -1,4 +1,4 @@
-﻿/*
+/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -496,7 +496,7 @@ static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage)
 	switch (ds.deformation)
 	{
 	case deform_t::DEFORM_WAVE:
-		if (ds.deformationWave.func != genFunc_t::GF_SIN)
+		if (ds.deformationWave.func == genFunc_t::GF_NONE || ds.deformationWave.func == genFunc_t::GF_NOISE)
 		{
 			return;
 		}
@@ -508,8 +508,8 @@ static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage)
 
 		u.deform1[0] = ds.deformationWave.base;
 		u.deform1[1] = ds.deformationWave.amplitude;
-		u.deform1[2] = (ds.deformationWave.frequency != 0.0f) ? 1.0f : 0.0f;
-		u.deform1[3] = 0.0f;
+		u.deform1[2] = static_cast<float>(std::to_underlying(ds.deformationWave.func));
+		u.deform1[3] = (ds.deformationWave.frequency != 0.0f) ? 1.0f : 0.0f;
 		return;
 
 	case deform_t::DEFORM_BULGE:
@@ -521,11 +521,28 @@ static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage)
 		u.deform0[3] = static_cast<float>(backEnd.refdef.floatTime * ds.bulgeSpeed);
 		return;
 
+	case deform_t::DEFORM_MOVE:
+		if (ds.deformationWave.func == genFunc_t::GF_NONE || ds.deformationWave.func == genFunc_t::GF_NOISE)
+		{
+			return;
+		}
+
+		u.deform0[0] = 3.0f;
+		u.deform0[1] = ds.moveVector[0];
+		u.deform0[2] = ds.moveVector[1];
+		u.deform0[3] = ds.moveVector[2];
+
+		u.deform1[0] = ds.deformationWave.base;
+		u.deform1[1] = ds.deformationWave.amplitude;
+		u.deform1[2] = static_cast<float>(std::to_underlying(ds.deformationWave.func));
+		u.deform1[3] = ds.deformationWave.phase + static_cast<float>(tess.shaderTime) * ds.deformationWave.frequency;
+		return;
+
 	default:
+		(void)stage;
 		return;
 	}
 }
-
 static void VK_SetGpuMd3TcParams(vkUniform_t& u, const textureBundle_t& bundle)
 {
 	VK_SetIdentityTcParams(u);
@@ -572,18 +589,6 @@ static void VK_SetGpuMd3TcParams(vkUniform_t& u, const textureBundle_t& bundle)
 		u.tcGenVector1[3] = 0.0f;
 	}
 }
-
-static bool GpuMd3DbgInterestingShader() noexcept
-{
-	if (!tess.shader || !tess.shader->name)
-		return false;
-
-	return
-		Q_stricmp_cpp(tess.shader->name, "models/powerups/ammo/plasammo2") == 0 ||
-		Q_stricmp_cpp(tess.shader->name, "models/weapons2/shotgun/shotgun_laser") == 0 ||
-		Q_stricmp_cpp(tess.shader->name, "models/powerups/armor/energy_yel1") == 0;
-}
-
 
 static bool R_GpuMd3TexCoordsHandledInShader(const textureBundle_t& bundle) noexcept
 {
@@ -1223,25 +1228,57 @@ static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& sta
 		return;
 	}
 }
-static ID_INLINE bool VK_GpuMd3UsesUniformDiffuseColor(const shaderStage_t& stage, const uint32_t bundleIndex) noexcept
+enum : uint32_t
+{
+	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0,
+	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA = 1u << 1
+};
+
+static ID_INLINE uint32_t VK_GpuMd3ColorMode(const shaderStage_t& stage, const uint32_t bundleIndex) noexcept
 {
 	if (!tess.gpuMd3Active || bundleIndex != 0u)
-		return false;
+		return 0u;
 
 	if (tess.gpuMd3Layout != gpuMd3Layout_t::GENERIC_ST_COLOR)
-		return false;
+		return 0u;
 
 	const textureBundle_t& b0 = stage.bundle[0];
-	return b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
-		(b0.alphaGen == alphaGen_t::AGEN_SKIP || b0.alphaGen == alphaGen_t::AGEN_IDENTITY);
+	uint32_t mode = 0u;
+
+	if (b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
+		(b0.alphaGen == alphaGen_t::AGEN_SKIP ||
+		 b0.alphaGen == alphaGen_t::AGEN_IDENTITY ||
+		 b0.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR))
+	{
+		mode |= GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB;
+	}
+
+	if (b0.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR)
+	{
+		mode |= GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA;
+	}
+
+	return mode;
+}
+
+static ID_INLINE bool VK_GpuMd3UsesUniformDiffuseColor(const shaderStage_t& stage, const uint32_t bundleIndex) noexcept
+{
+	return (VK_GpuMd3ColorMode(stage, bundleIndex) & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) != 0u;
+}
+
+static ID_INLINE bool VK_GpuMd3UsesUniformSpecularAlpha(const shaderStage_t& stage, const uint32_t bundleIndex) noexcept
+{
+	return (VK_GpuMd3ColorMode(stage, bundleIndex) & GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA) != 0u;
 }
 
 static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& stage) noexcept
 {
-	// domyślnie wyłączone; vert_md3_tx0*.vert potraktuje wtedy color jako zwykły atrybut.
-	uniform.light.pos[3] = 0.0f;
+	const uint32_t colorMode = VK_GpuMd3ColorMode(stage, 0u);
 
-	if (!VK_GpuMd3UsesUniformDiffuseColor(stage, 0u) || !backEnd.currentEntity)
+	// domyślnie wyłączone; vert_md3_tx0*.vert potraktuje wtedy color jako zwykły atrybut.
+	uniform.light.pos[3] = static_cast<float>(colorMode);
+
+	if ((colorMode & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) == 0u || !backEnd.currentEntity)
 		return;
 
 	constexpr float kInv255 = 1.0f / 255.0f;
@@ -1250,7 +1287,6 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 	uniform.light.pos[0] = ent.ambientLight[0] * kInv255;
 	uniform.light.pos[1] = ent.ambientLight[1] * kInv255;
 	uniform.light.pos[2] = ent.ambientLight[2] * kInv255;
-	uniform.light.pos[3] = 1.0f; // enable GPU diffuse color path
 
 	uniform.light.color[0] = ent.directedLight[0] * kInv255;
 	uniform.light.color[1] = ent.directedLight[1] * kInv255;
@@ -1262,7 +1298,6 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 	uniform.light.vector[2] = ent.lightDir[2];
 	uniform.light.vector[3] = 0.0f;
 }
-
 
 static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fogCollapse)
 {
@@ -1338,9 +1373,18 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 				}
 				if (tess_flags & (TESS_RGBA0 << i))
 				{
-					if (!VK_GpuMd3UsesUniformDiffuseColor(*pStage, i))
+					const uint32_t gpuMd3ColorMode = VK_GpuMd3ColorMode(*pStage, i);
+
+					if (gpuMd3ColorMode == 0u)
 					{
 						R_ComputeColors(i, tess.svars.colors[i], *pStage);
+					}
+					else if ((gpuMd3ColorMode & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) == 0u &&
+						(gpuMd3ColorMode & GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA) != 0u)
+					{
+						shaderStage_t stageCopy = *pStage;
+						stageCopy.bundle[i].alphaGen = alphaGen_t::AGEN_SKIP;
+						R_ComputeColors(i, tess.svars.colors[i], stageCopy);
 					}
 				}
 				if (tess_flags & (TESS_ENT0 << i) && backEnd.currentEntity)

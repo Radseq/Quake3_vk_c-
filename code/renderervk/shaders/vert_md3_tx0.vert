@@ -61,6 +61,35 @@ layout(location = 0) out vec4 frag_color0;
 layout(location = 1) out vec2 frag_tex_coord0;
 
 
+float ApplyGpuWave(float phase, int func)
+{
+    const float twoPi = 6.28318530717958647692;
+    const float t = fract(phase);
+
+    if (func == 1)
+    {
+        return sin(phase * twoPi);
+    }
+    if (func == 2)
+    {
+        return t < 0.5 ? 1.0 : -1.0;
+    }
+    if (func == 3)
+    {
+        return t < 0.5 ? (4.0 * t - 1.0) : (3.0 - 4.0 * t);
+    }
+    if (func == 4)
+    {
+        return t;
+    }
+    if (func == 5)
+    {
+        return 1.0 - t;
+    }
+
+    return 0.0;
+}
+
 vec3 ApplyGpuDeform(vec3 position, vec3 normal, vec2 baseSt)
 {
     const int mode = int(ubo.deform0.x + 0.5);
@@ -68,12 +97,13 @@ vec3 ApplyGpuDeform(vec3 position, vec3 normal, vec2 baseSt)
     if (mode == 1)
     {
         float phaseNow = ubo.deform0.w;
-        if (ubo.deform1.z > 0.5)
+        if (ubo.deform1.w > 0.5)
         {
             phaseNow += (position.x + position.y + position.z) * ubo.deform0.y;
         }
 
-        const float scale = ubo.deform1.x + sin(phaseNow * 6.28318530717958647692) * ubo.deform1.y;
+        const int func = int(ubo.deform1.z + 0.5);
+        const float scale = ubo.deform1.x + ApplyGpuWave(phaseNow, func) * ubo.deform1.y;
         return position + normal * scale;
     }
 
@@ -83,7 +113,40 @@ vec3 ApplyGpuDeform(vec3 position, vec3 normal, vec2 baseSt)
         return position + normal * scale;
     }
 
+    if (mode == 3)
+    {
+        const int func = int(ubo.deform1.z + 0.5);
+        const float scale = ubo.deform1.x + ApplyGpuWave(ubo.deform1.w, func) * ubo.deform1.y;
+        return position + ubo.deform0.yzw * scale;
+    }
+
     return position;
+}
+
+const vec3 kSpecularLightOrigin = vec3(-960.0, 1980.0, 96.0);
+
+float CalcGpuSpecularAlpha(vec3 position, vec3 normal)
+{
+    const vec3 lightDir = safe_normalize(kSpecularLightOrigin - position);
+    const float d = dot(normal, lightDir);
+    const vec3 reflected = normal * (2.0 * d) - lightDir;
+    const vec3 viewer = ubo.eyePos.xyz - position;
+    const float viewerLen2 = dot(viewer, viewer);
+
+    if (viewerLen2 <= 1e-20)
+    {
+        return 0.0;
+    }
+
+    float l = dot(reflected, viewer) * inversesqrt(viewerLen2);
+    if (l < 0.0)
+    {
+        return 0.0;
+    }
+
+    l *= l;
+    l *= l;
+    return clamp(l, 0.0, 1.0);
 }
 
 vec2 ApplyGpuTcMods(vec3 position, vec2 st)
@@ -126,18 +189,28 @@ vec2 ApplyGpuTcMods(vec3 position, vec2 st)
 }
 
 
-vec4 ComputeGpuColor(vec3 normal, vec4 fallbackColor)
+vec4 ComputeGpuColor(vec3 position, vec3 normal, vec4 fallbackColor)
 {
-    if (ubo.lightPos.w > 0.5)
+    const int gpuColorMode = int(ubo.lightPos.w + 0.5);
+    const bool useGpuDiffuseRgb = (gpuColorMode & 1) != 0;
+    const bool useGpuSpecularAlpha = (gpuColorMode & 2) != 0;
+
+    vec4 color = fallbackColor;
+
+    if (useGpuDiffuseRgb)
     {
         const float incoming = max(dot(normal, ubo.lightVector.xyz), 0.0);
         const vec3 rgb = clamp(ubo.lightPos.xyz + incoming * ubo.lightColor.xyz, 0.0, 1.0);
-        return vec4(rgb, 1.0);
+        color = vec4(rgb, 1.0);
     }
 
-    return fallbackColor;
-}
+    if (useGpuSpecularAlpha)
+    {
+        color.a = CalcGpuSpecularAlpha(position, normal);
+    }
 
+    return color;
+}
 
 void main()
 {
@@ -152,6 +225,6 @@ void main()
 
     const vec4 pos4 = vec4(position, 1.0);
     gl_Position = pc.mvp * pos4;
-    frag_color0 = ComputeGpuColor(normal, in_color0);
+    frag_color0 = ComputeGpuColor(position, normal, in_color0);
     frag_tex_coord0 = ApplyGpuTcMods(position, in_tex_coord0);
 }

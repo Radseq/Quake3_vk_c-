@@ -60,6 +60,35 @@ layout(location = 1) out vec2 frag_tex_coord0;
 layout(location = 4) out vec2 fog_tex_coord;
 
 
+float ApplyGpuWave(float phase, int func)
+{
+    const float twoPi = 6.28318530717958647692;
+    const float t = fract(phase);
+
+    if (func == 1)
+    {
+        return sin(phase * twoPi);
+    }
+    if (func == 2)
+    {
+        return t < 0.5 ? 1.0 : -1.0;
+    }
+    if (func == 3)
+    {
+        return t < 0.5 ? (4.0 * t - 1.0) : (3.0 - 4.0 * t);
+    }
+    if (func == 4)
+    {
+        return t;
+    }
+    if (func == 5)
+    {
+        return 1.0 - t;
+    }
+
+    return 0.0;
+}
+
 vec3 ApplyGpuDeform(vec3 position, vec3 normal, vec2 baseSt)
 {
     const int mode = int(ubo.deform0.x + 0.5);
@@ -67,12 +96,13 @@ vec3 ApplyGpuDeform(vec3 position, vec3 normal, vec2 baseSt)
     if (mode == 1)
     {
         float phaseNow = ubo.deform0.w;
-        if (ubo.deform1.z > 0.5)
+        if (ubo.deform1.w > 0.5)
         {
             phaseNow += (position.x + position.y + position.z) * ubo.deform0.y;
         }
 
-        const float scale = ubo.deform1.x + sin(phaseNow * 6.28318530717958647692) * ubo.deform1.y;
+        const int func = int(ubo.deform1.z + 0.5);
+        const float scale = ubo.deform1.x + ApplyGpuWave(phaseNow, func) * ubo.deform1.y;
         return position + normal * scale;
     }
 
@@ -80,6 +110,13 @@ vec3 ApplyGpuDeform(vec3 position, vec3 normal, vec2 baseSt)
     {
         const float scale = sin(baseSt.x * ubo.deform0.y + ubo.deform0.w) * ubo.deform0.z;
         return position + normal * scale;
+    }
+
+    if (mode == 3)
+    {
+        const int func = int(ubo.deform1.z + 0.5);
+        const float scale = ubo.deform1.x + ApplyGpuWave(ubo.deform1.w, func) * ubo.deform1.y;
+        return position + ubo.deform0.yzw * scale;
     }
 
     return position;
