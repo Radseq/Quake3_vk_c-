@@ -428,6 +428,12 @@ static bool R_BuildGpuMd3TcProgram(gpuTcProgram_t& prog, const textureBundle_t& 
 		prog.useVectorTcGen = true;
 		break;
 
+	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
+	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP:
+		// Base env tc is generated directly in the MD3 env vertex shaders.
+		// We still want to run the affine/turbulent tcMod program on top of that.
+		break;
+
 	default:
 		return false;
 	}
@@ -524,11 +530,6 @@ static void VK_SetGpuMd3TcParams(vkUniform_t& u, const textureBundle_t& bundle)
 {
 	VK_SetIdentityTcParams(u);
 
-	if (R_IsGpuMd3EnvLayout())
-	{
-		return;
-	}
-
 	gpuTcProgram_t prog{};
 	if (!R_BuildGpuMd3TcProgram(prog, bundle))
 	{
@@ -591,7 +592,7 @@ static bool R_GpuMd3TexCoordsHandledInShader(const textureBundle_t& bundle) noex
 
 	if (R_IsGpuMd3EnvLayout())
 	{
-		return bundle.numTexMods == 0 &&
+		return R_CanGpuMd3UseAffineTexMods(bundle) &&
 			(bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
 				bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP);
 	}

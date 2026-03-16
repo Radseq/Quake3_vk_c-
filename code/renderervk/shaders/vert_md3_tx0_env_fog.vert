@@ -1,4 +1,4 @@
-#version 450
+﻿#version 450
 
 layout(push_constant) uniform Transform
 {
@@ -220,16 +220,16 @@ void main()
     {
         if (ubo.lightPos.w > 0.5)
         {
-            frag_tex_coord0 = calc_env_tc_fpscr(position, normal);
+            frag_tex_coord0 = ApplyGpuTcMods(position, calc_env_tc_fpscr(position, normal));
         }
         else
         {
-            frag_tex_coord0 = calc_env_tc_fp(position, normal);
+            frag_tex_coord0 = ApplyGpuTcMods(position, calc_env_tc_fp(position, normal));
         }
     }
     else
     {
-        frag_tex_coord0 = calc_env_tc_regular(position, normal);
+        frag_tex_coord0 = ApplyGpuTcMods(position, calc_env_tc_regular(position, normal));
     }
     fog_tex_coord = calc_fog_tc(pos4);
 }

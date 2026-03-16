@@ -1109,7 +1109,7 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 		return RB_IsTrueEnvTcGen(bundle) &&
 			bundle.gpuTcGenHandledInShader &&
 			(p->tessFlags & TESS_ENV) != 0 &&
-			bundle.numTexMods == 0;
+			gpuTexModsOk;
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
