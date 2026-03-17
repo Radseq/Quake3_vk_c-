@@ -3,7 +3,7 @@
 layout(push_constant) uniform Transform
 {
     mat4 mvp;
-    vec4 md3Anim; // x = frontlerp, y = backlerp
+    vec4 md3Anim; // x = frontlerp, y = backlerp, z = identityLight
 } pc;
 
 layout(set = 0, binding = 0, std140) uniform UBO
@@ -222,35 +222,60 @@ vec2 calc_fog_tc(const vec4 pos4)
 }
 
 
+
 vec4 ComputeGpuColor(vec3 position, vec3 normal, vec4 fallbackColor)
 {
-    const int gpuColorMode = int(ubo.lightVector.w + 0.5);
+    const int gpuColorMode = int(ubo.lightPos.w + 0.5);
     const bool useGpuDiffuseRgb = (gpuColorMode & 1) != 0;
     const bool useGpuSpecularAlpha = (gpuColorMode & 2) != 0;
     const bool useGpuSolidRgba = (gpuColorMode & 4) != 0;
-
-    vec4 color = fallbackColor;
+    const bool useGpuVertexRgb = (gpuColorMode & 8) != 0;
+    const bool useGpuOneMinusVertexRgb = (gpuColorMode & 16) != 0;
+    const bool useGpuExactVertexRgb = (gpuColorMode & 32) != 0;
+    const bool useGpuOneMinusVertexAlpha = (gpuColorMode & 64) != 0;
+    const bool useGpuUniformAlpha = (gpuColorMode & 128) != 0;
 
     if (useGpuSolidRgba)
     {
-        color = vec4(ubo.lightPos.xyz, ubo.lightColor.w);
+        return vec4(ubo.lightPos.xyz, ubo.lightColor.w);
     }
-    else if (useGpuDiffuseRgb)
+
+    vec4 color = fallbackColor;
+
+    if (useGpuDiffuseRgb)
     {
         const float incoming = max(dot(normal, ubo.lightVector.xyz), 0.0);
         const vec3 rgb = clamp(ubo.lightPos.xyz + incoming * ubo.lightColor.xyz, 0.0, 1.0);
         color = vec4(rgb, 1.0);
+    }
+    else if (useGpuExactVertexRgb)
+    {
+        color.rgb = fallbackColor.rgb;
+    }
+    else if (useGpuVertexRgb)
+    {
+        color.rgb = fallbackColor.rgb * pc.md3Anim.z;
+    }
+    else if (useGpuOneMinusVertexRgb)
+    {
+        color.rgb = (vec3(1.0) - fallbackColor.rgb) * pc.md3Anim.z;
     }
 
     if (useGpuSpecularAlpha)
     {
         color.a = CalcGpuSpecularAlpha(position, normal);
     }
+    else if (useGpuOneMinusVertexAlpha)
+    {
+        color.a = 1.0 - fallbackColor.a;
+    }
+    else if (useGpuUniformAlpha)
+    {
+        color.a = ubo.lightColor.w;
+    }
 
-    return color;
+    return clamp(color, 0.0, 1.0);
 }
-
-
 
 void main()
 {

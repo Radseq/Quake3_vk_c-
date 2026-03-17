@@ -3606,12 +3606,69 @@ void vk_bind_index_ext(const int numIndexes, const uint32_t* indexes)
 	}
 }
 
+
 enum : uint32_t
 {
-	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0,
-	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA = 1u << 1,
-	GPU_MD3_COLOR_UNIFORM_SOLID_RGBA = 1u << 2
+	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB      = 1u << 0,
+	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA   = 1u << 1,
+	GPU_MD3_COLOR_UNIFORM_SOLID_RGBA       = 1u << 2,
+	GPU_MD3_COLOR_VERTEX_RGB               = 1u << 3,
+	GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB     = 1u << 4,
+	GPU_MD3_COLOR_EXACT_VERTEX_RGB         = 1u << 5,
+	GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA   = 1u << 6,
+	GPU_MD3_COLOR_UNIFORM_ALPHA            = 1u << 7
 };
+
+static ID_INLINE bool VK_GpuMd3SolidAlphaSupported(const textureBundle_t& b0) noexcept
+{
+	switch (b0.alphaGen)
+	{
+	case alphaGen_t::AGEN_SKIP:
+	case alphaGen_t::AGEN_IDENTITY:
+	case alphaGen_t::AGEN_CONST:
+	case alphaGen_t::AGEN_WAVEFORM:
+		return true;
+
+	case alphaGen_t::AGEN_ENTITY:
+	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+		return backEnd.currentEntity != nullptr;
+
+	default:
+		return false;
+	}
+}
+
+static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textureBundle_t& b0) noexcept
+{
+	switch (b0.alphaGen)
+	{
+	case alphaGen_t::AGEN_SKIP:
+	case alphaGen_t::AGEN_VERTEX:
+		return true;
+
+	case alphaGen_t::AGEN_ONE_MINUS_VERTEX:
+		mode |= GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA;
+		return true;
+
+	case alphaGen_t::AGEN_IDENTITY:
+	case alphaGen_t::AGEN_CONST:
+	case alphaGen_t::AGEN_WAVEFORM:
+		mode |= GPU_MD3_COLOR_UNIFORM_ALPHA;
+		return true;
+
+	case alphaGen_t::AGEN_ENTITY:
+	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+		if (backEnd.currentEntity)
+		{
+			mode |= GPU_MD3_COLOR_UNIFORM_ALPHA;
+			return true;
+		}
+		return false;
+
+	default:
+		return false;
+	}
+}
 
 static ID_INLINE uint32_t VK_GpuMd3CurrentColorMode() noexcept
 {
@@ -3627,34 +3684,47 @@ static ID_INLINE uint32_t VK_GpuMd3CurrentColorMode() noexcept
 		return 0u;
 
 	const textureBundle_t& b0 = stage->bundle[0];
-	auto solidAlphaSupported = [&]() noexcept
-	{
-		switch (b0.alphaGen)
-		{
-		case alphaGen_t::AGEN_SKIP:
-		case alphaGen_t::AGEN_IDENTITY:
-		case alphaGen_t::AGEN_CONST:
-			return true;
-		case alphaGen_t::AGEN_ENTITY:
-		case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
-			return backEnd.currentEntity != nullptr;
-		default:
-			return false;
-		}
-	};
 
-	if (solidAlphaSupported())
+	if (VK_GpuMd3SolidAlphaSupported(b0))
 	{
 		switch (b0.rgbGen)
 		{
 		case colorGen_t::CGEN_CONST:
-			return GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
 		case colorGen_t::CGEN_ENTITY:
 		case colorGen_t::CGEN_ONE_MINUS_ENTITY:
-			return backEnd.currentEntity ? GPU_MD3_COLOR_UNIFORM_SOLID_RGBA : 0u;
+		case colorGen_t::CGEN_WAVEFORM:
+			return GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
+
 		default:
 			break;
 		}
+	}
+
+	uint32_t mode = 0u;
+
+	switch (b0.rgbGen)
+	{
+	case colorGen_t::CGEN_VERTEX:
+		mode |= GPU_MD3_COLOR_VERTEX_RGB;
+		break;
+
+	case colorGen_t::CGEN_ONE_MINUS_VERTEX:
+		mode |= GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB;
+		break;
+
+	case colorGen_t::CGEN_EXACT_VERTEX:
+		mode |= GPU_MD3_COLOR_EXACT_VERTEX_RGB;
+		break;
+
+	default:
+		break;
+	}
+
+	if (mode != 0u)
+	{
+		if (VK_GpuMd3VertexAlphaSupported(mode, b0))
+			return mode;
+		return 0u;
 	}
 
 	if (b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
@@ -3674,6 +3744,15 @@ static ID_INLINE bool VK_GpuMd3UsesUniformDiffuseColor() noexcept
 static ID_INLINE bool VK_GpuMd3UsesUniformSolidColor() noexcept
 {
 	return (VK_GpuMd3CurrentColorMode() & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u;
+}
+
+static ID_INLINE bool VK_GpuMd3UsesRawVertexColor() noexcept
+{
+	return (VK_GpuMd3CurrentColorMode() &
+		(GPU_MD3_COLOR_VERTEX_RGB |
+		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB |
+		 GPU_MD3_COLOR_EXACT_VERTEX_RGB |
+		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA)) != 0u;
 }
 
 void vk_bind_geometry(const uint32_t flags)
@@ -3758,10 +3837,13 @@ void vk_bind_geometry(const uint32_t flags)
 		// Generic ENV: old/new/color-or-dummy/st/oldNormal/newNormal
 		if ((flags & TESS_NNN) && (flags & TESS_RGBA0))
 		{
-			const bool useUniformColor = VK_GpuMd3UsesUniformDiffuseColor() || VK_GpuMd3UsesUniformSolidColor();
+			const bool useGeneratedColor = VK_GpuMd3CurrentColorMode() != 0u;
+			const bool useRawVertexColor = VK_GpuMd3UsesRawVertexColor();
 			shade_bufs[0] = s.vertexBuffer.handle;
 			shade_bufs[1] = s.vertexBuffer.handle;
-			shade_bufs[2] = useUniformColor ? s.vertexBuffer.handle : vk_inst.cmd->vertex_buffer;
+			shade_bufs[2] = useGeneratedColor
+				? (useRawVertexColor ? vk_inst.cmd->vertex_buffer : s.vertexBuffer.handle)
+				: vk_inst.cmd->vertex_buffer;
 			shade_bufs[3] = s.vertexBuffer.handle;
 			shade_bufs[4] = s.vertexBuffer.handle;
 			shade_bufs[5] = s.vertexBuffer.handle;
@@ -3772,10 +3854,17 @@ void vk_bind_geometry(const uint32_t flags)
 			vk_inst.cmd->buf_offset[1] = newFrameOffset;
 			vk_bind_index_attr(1);
 
-			if (useUniformColor)
+			if (useGeneratedColor)
 			{
-				vk_inst.cmd->buf_offset[2] = 0;
-				vk_bind_index_attr(2);
+				if (useRawVertexColor)
+				{
+					vk_bind_attr(2, sizeof(color4ub_t), tess.vertexColors[0].rgba);
+				}
+				else
+				{
+					vk_inst.cmd->buf_offset[2] = 0;
+					vk_bind_index_attr(2);
+				}
 			}
 			else
 			{
@@ -3836,13 +3925,14 @@ void vk_bind_geometry(const uint32_t flags)
 		// Generic non-ENV: old/new/color-or-dummy/st/oldNormal/newNormal
 		if (flags & TESS_RGBA0)
 		{
-			const bool useUniformDiffuseColor = VK_GpuMd3UsesUniformDiffuseColor();
-			const bool useUniformSolidColor = VK_GpuMd3UsesUniformSolidColor();
-			const bool useUniformColor = useUniformDiffuseColor || useUniformSolidColor;
+			const bool useGeneratedColor = VK_GpuMd3CurrentColorMode() != 0u;
+			const bool useRawVertexColor = VK_GpuMd3UsesRawVertexColor();
 
 			shade_bufs[0] = s.vertexBuffer.handle;
 			shade_bufs[1] = s.vertexBuffer.handle;
-			shade_bufs[2] = useUniformColor ? s.vertexBuffer.handle : vk_inst.cmd->vertex_buffer;
+			shade_bufs[2] = useGeneratedColor
+				? (useRawVertexColor ? vk_inst.cmd->vertex_buffer : s.vertexBuffer.handle)
+				: vk_inst.cmd->vertex_buffer;
 			shade_bufs[3] = s.vertexBuffer.handle;
 			shade_bufs[4] = s.vertexBuffer.handle;
 			shade_bufs[5] = s.vertexBuffer.handle;
@@ -3853,12 +3943,19 @@ void vk_bind_geometry(const uint32_t flags)
 			vk_inst.cmd->buf_offset[1] = newFrameOffset;
 			vk_bind_index_attr(1);
 
-			if (useUniformColor)
+			if (useGeneratedColor)
 			{
-				// Binding 2 musi istnieć, ale shader zignoruje atrybut koloru i policzy
-				// kolor z uniformów. Dzięki temu nie dotykamy CPU color streamu.
-				vk_inst.cmd->buf_offset[2] = 0;
-				vk_bind_index_attr(2);
+				if (useRawVertexColor)
+				{
+					vk_bind_attr(2, sizeof(color4ub_t), tess.vertexColors[0].rgba);
+				}
+				else
+				{
+					// Binding 2 musi istnieć, ale shader zignoruje atrybut koloru i policzy
+					// kolor z uniformów. Dzięki temu nie dotykamy CPU color streamu.
+					vk_inst.cmd->buf_offset[2] = 0;
+					vk_bind_index_attr(2);
+				}
 			}
 			else
 			{

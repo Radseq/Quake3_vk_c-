@@ -1228,12 +1228,133 @@ static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& sta
 		return;
 	}
 }
+
 enum : uint32_t
 {
-	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0,
-	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA = 1u << 1,
-	GPU_MD3_COLOR_UNIFORM_SOLID_RGBA = 1u << 2
+	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB      = 1u << 0,
+	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA   = 1u << 1,
+	GPU_MD3_COLOR_UNIFORM_SOLID_RGBA       = 1u << 2,
+	GPU_MD3_COLOR_VERTEX_RGB               = 1u << 3,
+	GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB     = 1u << 4,
+	GPU_MD3_COLOR_EXACT_VERTEX_RGB         = 1u << 5,
+	GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA   = 1u << 6,
+	GPU_MD3_COLOR_UNIFORM_ALPHA            = 1u << 7
 };
+
+static ID_INLINE float VK_GpuMd3Clamp01(const float v) noexcept
+{
+	if (v < 0.0f)
+		return 0.0f;
+	if (v > 1.0f)
+		return 1.0f;
+	return v;
+}
+
+static ID_INLINE bool VK_TryBuildGpuMd3UniformAlpha(float& outAlpha, const textureBundle_t& b0) noexcept
+{
+	constexpr float kInv255 = 1.0f / 255.0f;
+
+	switch (b0.alphaGen)
+	{
+	case alphaGen_t::AGEN_IDENTITY:
+		outAlpha = 1.0f;
+		return true;
+
+	case alphaGen_t::AGEN_CONST:
+		outAlpha = b0.constantColor.rgba[3] * kInv255;
+		return true;
+
+	case alphaGen_t::AGEN_ENTITY:
+		if (backEnd.currentEntity)
+		{
+			outAlpha = backEnd.currentEntity->e.shader.rgba[3] * kInv255;
+			return true;
+		}
+		return false;
+
+	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+		if (backEnd.currentEntity)
+		{
+			outAlpha = (255.0f - backEnd.currentEntity->e.shader.rgba[3]) * kInv255;
+			return true;
+		}
+		return false;
+
+	case alphaGen_t::AGEN_WAVEFORM:
+		outAlpha = VK_GpuMd3Clamp01(GpuTcEvalWaveForm(b0.alphaWave));
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+static ID_INLINE float VK_EvalGpuMd3WaveRgb(const waveForm_t& wf) noexcept
+{
+	float glow = 0.0f;
+
+	if (wf.func == genFunc_t::GF_NOISE)
+	{
+		glow = wf.base + R_NoiseGet4f(0.0f, 0.0f, 0.0f, (tess.shaderTime + wf.phase) * wf.frequency) * wf.amplitude;
+	}
+	else
+	{
+		glow = GpuTcEvalWaveForm(wf) * tr.identityLight;
+	}
+
+	return VK_GpuMd3Clamp01(glow);
+}
+
+static ID_INLINE bool VK_GpuMd3SolidAlphaSupported(const textureBundle_t& b0) noexcept
+{
+	switch (b0.alphaGen)
+	{
+	case alphaGen_t::AGEN_SKIP:
+	case alphaGen_t::AGEN_IDENTITY:
+	case alphaGen_t::AGEN_CONST:
+	case alphaGen_t::AGEN_WAVEFORM:
+		return true;
+
+	case alphaGen_t::AGEN_ENTITY:
+	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+		return backEnd.currentEntity != nullptr;
+
+	default:
+		return false;
+	}
+}
+
+static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textureBundle_t& b0) noexcept
+{
+	switch (b0.alphaGen)
+	{
+	case alphaGen_t::AGEN_SKIP:
+	case alphaGen_t::AGEN_VERTEX:
+		return true;
+
+	case alphaGen_t::AGEN_ONE_MINUS_VERTEX:
+		mode |= GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA;
+		return true;
+
+	case alphaGen_t::AGEN_IDENTITY:
+	case alphaGen_t::AGEN_CONST:
+	case alphaGen_t::AGEN_WAVEFORM:
+		mode |= GPU_MD3_COLOR_UNIFORM_ALPHA;
+		return true;
+
+	case alphaGen_t::AGEN_ENTITY:
+	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+		if (backEnd.currentEntity)
+		{
+			mode |= GPU_MD3_COLOR_UNIFORM_ALPHA;
+			return true;
+		}
+		return false;
+
+	default:
+		return false;
+	}
+}
 
 static ID_INLINE uint32_t VK_GpuMd3ColorMode(const shaderStage_t& stage, const uint32_t bundleIndex) noexcept
 {
@@ -1244,41 +1365,47 @@ static ID_INLINE uint32_t VK_GpuMd3ColorMode(const shaderStage_t& stage, const u
 		return 0u;
 
 	const textureBundle_t& b0 = stage.bundle[0];
-	uint32_t mode = 0u;
 
-	auto solidAlphaSupported = [&]() noexcept
-	{
-		switch (b0.alphaGen)
-		{
-		case alphaGen_t::AGEN_SKIP:
-		case alphaGen_t::AGEN_IDENTITY:
-		case alphaGen_t::AGEN_CONST:
-			return true;
-		case alphaGen_t::AGEN_ENTITY:
-		case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
-			return backEnd.currentEntity != nullptr;
-		default:
-			return false;
-		}
-	};
-
-	if (solidAlphaSupported())
+	if (VK_GpuMd3SolidAlphaSupported(b0))
 	{
 		switch (b0.rgbGen)
 		{
 		case colorGen_t::CGEN_CONST:
-			mode |= GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
-			break;
 		case colorGen_t::CGEN_ENTITY:
 		case colorGen_t::CGEN_ONE_MINUS_ENTITY:
-			if (backEnd.currentEntity)
-			{
-				mode |= GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
-			}
-			break;
+		case colorGen_t::CGEN_WAVEFORM:
+			return GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
+
 		default:
 			break;
 		}
+	}
+
+	uint32_t mode = 0u;
+
+	switch (b0.rgbGen)
+	{
+	case colorGen_t::CGEN_VERTEX:
+		mode |= GPU_MD3_COLOR_VERTEX_RGB;
+		break;
+
+	case colorGen_t::CGEN_ONE_MINUS_VERTEX:
+		mode |= GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB;
+		break;
+
+	case colorGen_t::CGEN_EXACT_VERTEX:
+		mode |= GPU_MD3_COLOR_EXACT_VERTEX_RGB;
+		break;
+
+	default:
+		break;
+	}
+
+	if (mode != 0u)
+	{
+		if (VK_GpuMd3VertexAlphaSupported(mode, b0))
+			return mode;
+		return 0u;
 	}
 
 	if (b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
@@ -1306,6 +1433,15 @@ static ID_INLINE bool VK_GpuMd3UsesUniformSolidColor(const shaderStage_t& stage,
 	return (VK_GpuMd3ColorMode(stage, bundleIndex) & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u;
 }
 
+static ID_INLINE bool VK_GpuMd3UsesRawVertexColor(const shaderStage_t& stage, const uint32_t bundleIndex) noexcept
+{
+	return (VK_GpuMd3ColorMode(stage, bundleIndex) &
+		(GPU_MD3_COLOR_VERTEX_RGB |
+		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB |
+		 GPU_MD3_COLOR_EXACT_VERTEX_RGB |
+		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA)) != 0u;
+}
+
 static ID_INLINE void VK_BuildGpuMd3SolidColor(vec4_t rgba, const shaderStage_t& stage) noexcept
 {
 	rgba[0] = 1.0f;
@@ -1324,6 +1460,7 @@ static ID_INLINE void VK_BuildGpuMd3SolidColor(vec4_t rgba, const shaderStage_t&
 		rgba[2] = b0.constantColor.rgba[2] * kInv255;
 		rgba[3] = b0.constantColor.rgba[3] * kInv255;
 		break;
+
 	case colorGen_t::CGEN_ENTITY:
 		if (backEnd.currentEntity)
 		{
@@ -1333,6 +1470,7 @@ static ID_INLINE void VK_BuildGpuMd3SolidColor(vec4_t rgba, const shaderStage_t&
 			rgba[3] = backEnd.currentEntity->e.shader.rgba[3] * kInv255;
 		}
 		break;
+
 	case colorGen_t::CGEN_ONE_MINUS_ENTITY:
 		if (backEnd.currentEntity)
 		{
@@ -1342,34 +1480,25 @@ static ID_INLINE void VK_BuildGpuMd3SolidColor(vec4_t rgba, const shaderStage_t&
 			rgba[3] = (255.0f - backEnd.currentEntity->e.shader.rgba[3]) * kInv255;
 		}
 		break;
+
+	case colorGen_t::CGEN_WAVEFORM:
+	{
+		const float glow = VK_EvalGpuMd3WaveRgb(b0.rgbWave);
+		rgba[0] = glow;
+		rgba[1] = glow;
+		rgba[2] = glow;
+		rgba[3] = 1.0f;
+	}
+	break;
+
 	default:
 		break;
 	}
 
-	switch (b0.alphaGen)
+	float alpha = 1.0f;
+	if (VK_TryBuildGpuMd3UniformAlpha(alpha, b0))
 	{
-	case alphaGen_t::AGEN_SKIP:
-		break;
-	case alphaGen_t::AGEN_IDENTITY:
-		rgba[3] = 1.0f;
-		break;
-	case alphaGen_t::AGEN_CONST:
-		rgba[3] = b0.constantColor.rgba[3] * kInv255;
-		break;
-	case alphaGen_t::AGEN_ENTITY:
-		if (backEnd.currentEntity)
-		{
-			rgba[3] = backEnd.currentEntity->e.shader.rgba[3] * kInv255;
-		}
-		break;
-	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
-		if (backEnd.currentEntity)
-		{
-			rgba[3] = (255.0f - backEnd.currentEntity->e.shader.rgba[3]) * kInv255;
-		}
-		break;
-	default:
-		break;
+		rgba[3] = alpha;
 	}
 }
 
@@ -1377,8 +1506,11 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 {
 	const uint32_t colorMode = VK_GpuMd3ColorMode(stage, 0u);
 
-	uniform.light.vector[3] = static_cast<float>(colorMode);
+	uniform.light.pos[3] = static_cast<float>(colorMode);
 	uniform.light.color[3] = 0.0f;
+
+	if (colorMode == 0u)
+		return;
 
 	if ((colorMode & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u)
 	{
@@ -1389,6 +1521,15 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 		uniform.light.pos[2] = rgba[2];
 		uniform.light.color[3] = rgba[3];
 		return;
+	}
+
+	if ((colorMode & GPU_MD3_COLOR_UNIFORM_ALPHA) != 0u)
+	{
+		float alpha = 1.0f;
+		if (VK_TryBuildGpuMd3UniformAlpha(alpha, stage.bundle[0]))
+		{
+			uniform.light.color[3] = alpha;
+		}
 	}
 
 	if ((colorMode & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) == 0u || !backEnd.currentEntity)
@@ -1489,14 +1630,6 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 					if (gpuMd3ColorMode == 0u)
 					{
 						R_ComputeColors(i, tess.svars.colors[i], *pStage);
-					}
-					else if ((gpuMd3ColorMode & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) == 0u &&
-						(gpuMd3ColorMode & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) == 0u &&
-						(gpuMd3ColorMode & GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA) != 0u)
-					{
-						shaderStage_t stageCopy = *pStage;
-						stageCopy.bundle[i].alphaGen = alphaGen_t::AGEN_SKIP;
-						R_ComputeColors(i, tess.svars.colors[i], stageCopy);
 					}
 				}
 				if (tess_flags & (TESS_ENT0 << i) && backEnd.currentEntity)
