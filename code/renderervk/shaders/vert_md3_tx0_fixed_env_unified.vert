@@ -1,3 +1,6 @@
+// Unified MD3 vertex shader: supports both fog and non-fog pipelines.
+// Non-fog fragment shaders simply ignore fog_tex_coord.
+
 #version 450
 
 layout(push_constant) uniform Transform
@@ -52,13 +55,12 @@ vec3 safe_normalize(vec3 v)
 
 layout(location = 0) in ivec4 in_old_position_packed;
 layout(location = 1) in ivec4 in_new_position_packed;
-layout(location = 2) in vec4  in_color0;
 layout(location = 3) in vec2  in_tex_coord0;
 layout(location = 4) in uint  in_old_normal_packed;
 layout(location = 5) in uint  in_new_normal_packed;
 
-layout(location = 0) out vec4 frag_color0;
 layout(location = 1) out vec2 frag_tex_coord0;
+layout(location = 4) out vec2 fog_tex_coord;
 
 out gl_PerVertex
 {
@@ -205,28 +207,37 @@ vec2 ApplyGpuTcMods(vec3 position, vec2 st)
 }
 
 
-
-const uint GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0;
-const uint GPU_MD3_COLOR_UNIFORM_SOLID_RGBA  = 1u << 2;
-
-vec4 BuildGpuMd3Color(vec3 position, vec3 normal, vec4 fallbackColor)
+vec2 calc_fog_tc(const vec4 pos4)
 {
-    const uint colorMode = uint(ubo.lightVector.w + 0.5);
+    float s = dot(pos4, ubo.fogDistanceVector);
+    float t = dot(pos4, ubo.fogDepthVector);
 
-    if ((colorMode & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u)
+    if (ubo.fogEyeT.y == 1.0)
     {
-        return vec4(ubo.lightPos.xyz, ubo.lightColor.w);
+        if (t < 0.0)
+        {
+            t = 1.0 / 32.0;
+        }
+        else
+        {
+            t = 31.0 / 32.0;
+        }
+    }
+    else
+    {
+        if (t < 1.0)
+        {
+            t = 1.0 / 32.0;
+        }
+        else
+        {
+            t = 1.0 / 32.0 + (30.0 / 32.0 * t) / (t - ubo.fogEyeT.x);
+        }
     }
 
-    if ((colorMode & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) != 0u)
-    {
-        const float incoming = max(dot(normal, ubo.lightVector.xyz), 0.0);
-        const vec3 rgb = clamp(ubo.lightPos.xyz + incoming * ubo.lightColor.xyz, 0.0, 1.0);
-        return vec4(rgb, 1.0);
-    }
-
-    return fallbackColor;
+    return vec2(s, t);
 }
+
 
 void main()
 {
@@ -241,7 +252,6 @@ void main()
 
     const vec4 pos4 = vec4(position, 1.0);
     gl_Position = pc.mvp * pos4;
-    frag_color0 = BuildGpuMd3Color(position, normal, in_color0);
 
     if (ubo.eyePos.w > 0.5)
     {
@@ -258,4 +268,5 @@ void main()
     {
         frag_tex_coord0 = ApplyGpuTcMods(position, calc_env_tc_regular(position, normal));
     }
+    fog_tex_coord = calc_fog_tc(pos4);
 }

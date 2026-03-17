@@ -1,3 +1,6 @@
+// Unified MD3 vertex shader: supports both fog and non-fog pipelines.
+// Non-fog fragment shaders simply ignore fog_tex_coord.
+
 #version 450
 
 layout(push_constant) uniform Transform
@@ -52,20 +55,12 @@ vec3 safe_normalize(vec3 v)
 
 layout(location = 0) in ivec4 in_old_position_packed;
 layout(location = 1) in ivec4 in_new_position_packed;
-layout(location = 2) in vec2  in_tex_coord0;
-layout(location = 3) in uint  in_old_normal_packed;
-layout(location = 4) in uint  in_new_normal_packed;
+layout(location = 2) in vec2 in_tex_coord0;
+layout(location = 4) in uint in_old_normal_packed;
+layout(location = 5) in uint in_new_normal_packed;
 
-layout(location = 0) out vec2 frag_tex_coord;
-layout(location = 1) out vec3 N;
-layout(location = 2) out vec4 L;
-layout(location = 3) out vec4 V;
+layout(location = 1) out vec2 frag_tex_coord0;
 layout(location = 4) out vec2 fog_tex_coord;
-
-out gl_PerVertex
-{
-    vec4 gl_Position;
-};
 
 
 float ApplyGpuWave(float phase, int func)
@@ -210,15 +205,11 @@ void main()
     const vec3 newNormal = decode_md3_normal(in_new_normal_packed);
 
     const vec3 normal = safe_normalize(oldNormal * pc.md3Anim.y + newNormal * pc.md3Anim.x);
-    const vec3 position = oldPosition * pc.md3Anim.y + newPosition * pc.md3Anim.x;
-    const vec3 deformedPosition = ApplyGpuDeform(position, normal, in_tex_coord0);
+    vec3 position = oldPosition * pc.md3Anim.y + newPosition * pc.md3Anim.x;
+    position = ApplyGpuDeform(position, normal, in_tex_coord0);
 
-    const vec4 pos4 = vec4(deformedPosition, 1.0);
+    const vec4 pos4 = vec4(position, 1.0);
     gl_Position = pc.mvp * pos4;
-
-    frag_tex_coord = ApplyGpuTcMods(deformedPosition, in_tex_coord0);
-    N = normal;
-    L = ubo.lightPos - pos4;
-    V = ubo.eyePos - pos4;
+    frag_tex_coord0 = ApplyGpuTcMods(position, in_tex_coord0);
     fog_tex_coord = calc_fog_tc(pos4);
 }

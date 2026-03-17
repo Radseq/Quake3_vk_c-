@@ -1,9 +1,12 @@
+// Unified MD3 vertex shader: supports both fog and non-fog pipelines.
+// Non-fog fragment shaders simply ignore fog_tex_coord.
+
 #version 450
 
 layout(push_constant) uniform Transform
 {
     mat4 mvp;
-    vec4 md3Anim; // x = frontlerp, y = backlerp
+    vec4 md3Anim; // x = frontlerp, y = backlerp, z = identityLight
 } pc;
 
 layout(set = 0, binding = 0, std140) uniform UBO
@@ -52,10 +55,12 @@ vec3 safe_normalize(vec3 v)
 
 layout(location = 0) in ivec4 in_old_position_packed;
 layout(location = 1) in ivec4 in_new_position_packed;
-layout(location = 2) in vec2 in_tex_coord0;
+layout(location = 2) in vec4 in_color0;
+layout(location = 3) in vec2 in_tex_coord0;
 layout(location = 4) in uint in_old_normal_packed;
 layout(location = 5) in uint in_new_normal_packed;
 
+layout(location = 0) out vec4 frag_color0;
 layout(location = 1) out vec2 frag_tex_coord0;
 layout(location = 4) out vec2 fog_tex_coord;
 
@@ -120,6 +125,32 @@ vec3 ApplyGpuDeform(vec3 position, vec3 normal, vec2 baseSt)
     }
 
     return position;
+}
+
+const vec3 kSpecularLightOrigin = vec3(-960.0, 1980.0, 96.0);
+
+float CalcGpuSpecularAlpha(vec3 position, vec3 normal)
+{
+    const vec3 lightDir = safe_normalize(kSpecularLightOrigin - position);
+    const float d = dot(normal, lightDir);
+    const vec3 reflected = normal * (2.0 * d) - lightDir;
+    const vec3 viewer = ubo.eyePos.xyz - position;
+    const float viewerLen2 = dot(viewer, viewer);
+
+    if (viewerLen2 <= 1e-20)
+    {
+        return 0.0;
+    }
+
+    float l = dot(reflected, viewer) * inversesqrt(viewerLen2);
+    if (l < 0.0)
+    {
+        return 0.0;
+    }
+
+    l *= l;
+    l *= l;
+    return clamp(l, 0.0, 1.0);
 }
 
 vec2 ApplyGpuTcMods(vec3 position, vec2 st)
@@ -194,6 +225,61 @@ vec2 calc_fog_tc(const vec4 pos4)
 }
 
 
+
+vec4 ComputeGpuColor(vec3 position, vec3 normal, vec4 fallbackColor)
+{
+    const int gpuColorMode = int(ubo.lightPos.w + 0.5);
+    const bool useGpuDiffuseRgb = (gpuColorMode & 1) != 0;
+    const bool useGpuSpecularAlpha = (gpuColorMode & 2) != 0;
+    const bool useGpuSolidRgba = (gpuColorMode & 4) != 0;
+    const bool useGpuVertexRgb = (gpuColorMode & 8) != 0;
+    const bool useGpuOneMinusVertexRgb = (gpuColorMode & 16) != 0;
+    const bool useGpuExactVertexRgb = (gpuColorMode & 32) != 0;
+    const bool useGpuOneMinusVertexAlpha = (gpuColorMode & 64) != 0;
+    const bool useGpuUniformAlpha = (gpuColorMode & 128) != 0;
+
+    if (useGpuSolidRgba)
+    {
+        return vec4(ubo.lightPos.xyz, ubo.lightColor.w);
+    }
+
+    vec4 color = fallbackColor;
+
+    if (useGpuDiffuseRgb)
+    {
+        const float incoming = max(dot(normal, ubo.lightVector.xyz), 0.0);
+        const vec3 rgb = clamp(ubo.lightPos.xyz + incoming * ubo.lightColor.xyz, 0.0, 1.0);
+        color = vec4(rgb, 1.0);
+    }
+    else if (useGpuExactVertexRgb)
+    {
+        color.rgb = fallbackColor.rgb;
+    }
+    else if (useGpuVertexRgb)
+    {
+        color.rgb = fallbackColor.rgb * pc.md3Anim.z;
+    }
+    else if (useGpuOneMinusVertexRgb)
+    {
+        color.rgb = (vec3(1.0) - fallbackColor.rgb) * pc.md3Anim.z;
+    }
+
+    if (useGpuSpecularAlpha)
+    {
+        color.a = CalcGpuSpecularAlpha(position, normal);
+    }
+    else if (useGpuOneMinusVertexAlpha)
+    {
+        color.a = 1.0 - fallbackColor.a;
+    }
+    else if (useGpuUniformAlpha)
+    {
+        color.a = ubo.lightColor.w;
+    }
+
+    return clamp(color, 0.0, 1.0);
+}
+
 void main()
 {
     const vec3 oldPosition = decode_md3_position(in_old_position_packed);
@@ -207,6 +293,7 @@ void main()
 
     const vec4 pos4 = vec4(position, 1.0);
     gl_Position = pc.mvp * pos4;
+    frag_color0 = ComputeGpuColor(position, normal, in_color0);
     frag_tex_coord0 = ApplyGpuTcMods(position, in_tex_coord0);
     fog_tex_coord = calc_fog_tc(pos4);
 }

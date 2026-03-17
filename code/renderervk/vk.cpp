@@ -1391,26 +1391,25 @@ static void vk_create_shader_modules(void)
 
 
 
-	vk_inst.modules.vert.md3_gen[0][0] = SHADER_MODULE(vert_md3_tx0_vert_spv);
-	vk_inst.modules.vert.md3_gen[0][1] = SHADER_MODULE(vert_md3_tx0_fog_vert_spv);
-	vk_inst.modules.vert.md3_gen[1][0] = SHADER_MODULE(vert_md3_tx0_env_vert_spv);
-	vk_inst.modules.vert.md3_gen[1][1] = SHADER_MODULE(vert_md3_tx0_env_fog_vert_spv);
+	vk_inst.modules.vert.md3_gen[0][0] = SHADER_MODULE(vert_md3_tx0_unified_vert_spv);
+	vk_inst.modules.vert.md3_gen[0][1] = SHADER_MODULE(vert_md3_tx0_unified_vert_spv);
+	vk_inst.modules.vert.md3_gen[1][0] = SHADER_MODULE(vert_md3_tx0_env_unified_vert_spv);
+	vk_inst.modules.vert.md3_gen[1][1] = SHADER_MODULE(vert_md3_tx0_env_unified_vert_spv);
 
-	vk_inst.modules.vert.md3_ident1[0][0] = SHADER_MODULE(vert_md3_tx0_ident1_vert_spv);
-	vk_inst.modules.vert.md3_ident1[0][1] = SHADER_MODULE(vert_md3_tx0_ident1_fog_vert_spv);
-	vk_inst.modules.vert.md3_ident1[1][0] = SHADER_MODULE(vert_md3_tx0_ident1_env_vert_spv);
-	vk_inst.modules.vert.md3_ident1[1][1] = SHADER_MODULE(vert_md3_tx0_ident1_env_fog_vert_spv);
+	vk_inst.modules.vert.md3_ident1[0][0] = SHADER_MODULE(vert_md3_tx0_fixed_unified_vert_spv);
+	vk_inst.modules.vert.md3_ident1[0][1] = SHADER_MODULE(vert_md3_tx0_fixed_unified_vert_spv);
+	vk_inst.modules.vert.md3_ident1[1][0] = SHADER_MODULE(vert_md3_tx0_fixed_env_unified_vert_spv);
+	vk_inst.modules.vert.md3_ident1[1][1] = SHADER_MODULE(vert_md3_tx0_fixed_env_unified_vert_spv);
 
-	vk_inst.modules.vert.md3_fixed[0][0] = SHADER_MODULE(vert_md3_tx0_fixed_vert_spv);
-	vk_inst.modules.vert.md3_fixed[0][1] = SHADER_MODULE(vert_md3_tx0_fixed_fog_vert_spv);
-	vk_inst.modules.vert.md3_fixed[1][0] = SHADER_MODULE(vert_md3_tx0_fixed_env_vert_spv);
-	vk_inst.modules.vert.md3_fixed[1][1] = SHADER_MODULE(vert_md3_tx0_fixed_env_fog_vert_spv);
+	vk_inst.modules.vert.md3_fixed[0][0] = SHADER_MODULE(vert_md3_tx0_fixed_unified_vert_spv);
+	vk_inst.modules.vert.md3_fixed[0][1] = SHADER_MODULE(vert_md3_tx0_fixed_unified_vert_spv);
+	vk_inst.modules.vert.md3_fixed[1][0] = SHADER_MODULE(vert_md3_tx0_fixed_env_unified_vert_spv);
+	vk_inst.modules.vert.md3_fixed[1][1] = SHADER_MODULE(vert_md3_tx0_fixed_env_unified_vert_spv);
 
-	vk_inst.modules.vert.md3_light[0][0] = SHADER_MODULE(vert_md3_light_vert_spv);
-	vk_inst.modules.vert.md3_light[0][1] = SHADER_MODULE(vert_md3_light_fog_vert_spv);
-	vk_inst.modules.vert.md3_light[1][0] = SHADER_MODULE(vert_md3_light_linear_vert_spv);
-	vk_inst.modules.vert.md3_light[1][1] = SHADER_MODULE(vert_md3_light_linear_fog_vert_spv);
-
+	vk_inst.modules.vert.md3_light[0][0] = SHADER_MODULE(vert_md3_light_unified_vert_spv);
+	vk_inst.modules.vert.md3_light[0][1] = SHADER_MODULE(vert_md3_light_unified_vert_spv);
+	vk_inst.modules.vert.md3_light[1][0] = SHADER_MODULE(vert_md3_light_unified_vert_spv);
+	vk_inst.modules.vert.md3_light[1][1] = SHADER_MODULE(vert_md3_light_unified_vert_spv);
 
 
 

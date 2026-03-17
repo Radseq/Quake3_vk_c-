@@ -1,3 +1,6 @@
+// Unified MD3 vertex shader: supports both fog and non-fog pipelines.
+// Non-fog fragment shaders simply ignore fog_tex_coord.
+
 #version 450
 
 layout(push_constant) uniform Transform
@@ -52,20 +55,56 @@ vec3 safe_normalize(vec3 v)
 
 layout(location = 0) in ivec4 in_old_position_packed;
 layout(location = 1) in ivec4 in_new_position_packed;
-layout(location = 2) in vec2  in_tex_coord0;
-layout(location = 3) in uint  in_old_normal_packed;
-layout(location = 4) in uint  in_new_normal_packed;
+layout(location = 2) in vec4  in_color0;
+layout(location = 3) in vec2  in_tex_coord0;
+layout(location = 4) in uint  in_old_normal_packed;
+layout(location = 5) in uint  in_new_normal_packed;
 
-layout(location = 0) out vec2 frag_tex_coord;
-layout(location = 1) out vec3 N;
-layout(location = 2) out vec4 L;
-layout(location = 3) out vec4 V;
+layout(location = 0) out vec4 frag_color0;
+layout(location = 1) out vec2 frag_tex_coord0;
 layout(location = 4) out vec2 fog_tex_coord;
 
 out gl_PerVertex
 {
     vec4 gl_Position;
 };
+
+
+vec2 calc_env_tc_regular(vec3 position, vec3 normal)
+{
+    const vec3 viewer = safe_normalize(ubo.eyePos.xyz - position);
+    const float d = dot(normal, viewer);
+    const vec2 reflected = normal.yz * (2.0 * d) - viewer.yz;
+    return vec2(0.5 + reflected.x * 0.5, 0.5 - reflected.y * 0.5);
+}
+
+vec2 calc_env_tc_fp(vec3 position, vec3 normal)
+{
+    const vec3 why    = safe_normalize(ubo.lightColor.xyz - position);
+    const vec3 who    = safe_normalize(ubo.lightVector.xyz - position);
+    const vec3 where  = safe_normalize(ubo.lightPos.xyz - position);
+    const vec3 viewer = safe_normalize(ubo.eyePos.xyz - position);
+
+    const float d = dot(normal, viewer);
+
+    vec2 reflected;
+    reflected.x = normal.y * (2.0 * d) - viewer.y - (where.y * 5.0) + (why.y * 4.0);
+    reflected.y = normal.z * (2.0 * d) - viewer.z - (where.z * 5.0) + (who.z * 4.0);
+
+    return vec2(0.33 + reflected.x * 0.33, 0.33 - reflected.y * 0.33);
+}
+
+vec2 calc_env_tc_fpscr(vec3 position, vec3 normal)
+{
+    const vec3 viewer = safe_normalize(ubo.eyePos.xyz - position);
+    const float d = dot(normal, viewer);
+
+    vec2 reflected;
+    reflected.x = normal.y * (2.0 * d) - viewer.y;
+    reflected.y = normal.z * (2.0 * d) - viewer.z;
+
+    return vec2(0.5 - reflected.x * 0.5, 0.5 + reflected.y * 0.5);
+}
 
 
 float ApplyGpuWave(float phase, int func)
@@ -202,6 +241,29 @@ vec2 calc_fog_tc(const vec4 pos4)
 }
 
 
+
+const uint GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0;
+const uint GPU_MD3_COLOR_UNIFORM_SOLID_RGBA  = 1u << 2;
+
+vec4 BuildGpuMd3Color(vec3 position, vec3 normal, vec4 fallbackColor)
+{
+    const uint colorMode = uint(ubo.lightVector.w + 0.5);
+
+    if ((colorMode & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u)
+    {
+        return vec4(ubo.lightPos.xyz, ubo.lightColor.w);
+    }
+
+    if ((colorMode & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) != 0u)
+    {
+        const float incoming = max(dot(normal, ubo.lightVector.xyz), 0.0);
+        const vec3 rgb = clamp(ubo.lightPos.xyz + incoming * ubo.lightColor.xyz, 0.0, 1.0);
+        return vec4(rgb, 1.0);
+    }
+
+    return fallbackColor;
+}
+
 void main()
 {
     const vec3 oldPosition = decode_md3_position(in_old_position_packed);
@@ -210,15 +272,27 @@ void main()
     const vec3 newNormal = decode_md3_normal(in_new_normal_packed);
 
     const vec3 normal = safe_normalize(oldNormal * pc.md3Anim.y + newNormal * pc.md3Anim.x);
-    const vec3 position = oldPosition * pc.md3Anim.y + newPosition * pc.md3Anim.x;
-    const vec3 deformedPosition = ApplyGpuDeform(position, normal, in_tex_coord0);
+    vec3 position = oldPosition * pc.md3Anim.y + newPosition * pc.md3Anim.x;
+    position = ApplyGpuDeform(position, normal, in_tex_coord0);
 
-    const vec4 pos4 = vec4(deformedPosition, 1.0);
+    const vec4 pos4 = vec4(position, 1.0);
     gl_Position = pc.mvp * pos4;
+    frag_color0 = BuildGpuMd3Color(position, normal, in_color0);
 
-    frag_tex_coord = ApplyGpuTcMods(deformedPosition, in_tex_coord0);
-    N = normal;
-    L = ubo.lightPos - pos4;
-    V = ubo.eyePos - pos4;
+    if (ubo.eyePos.w > 0.5)
+    {
+        if (ubo.lightPos.w > 0.5)
+        {
+            frag_tex_coord0 = ApplyGpuTcMods(position, calc_env_tc_fpscr(position, normal));
+        }
+        else
+        {
+            frag_tex_coord0 = ApplyGpuTcMods(position, calc_env_tc_fp(position, normal));
+        }
+    }
+    else
+    {
+        frag_tex_coord0 = ApplyGpuTcMods(position, calc_env_tc_regular(position, normal));
+    }
     fog_tex_coord = calc_fog_tc(pos4);
 }
