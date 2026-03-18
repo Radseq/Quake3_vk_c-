@@ -3616,9 +3616,16 @@ enum : uint32_t
 	GPU_MD3_COLOR_EXACT_VERTEX_RGB         = 1u << 5,
 	GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA   = 1u << 6,
 	GPU_MD3_COLOR_UNIFORM_ALPHA            = 1u << 7,
-	GPU_MD3_COLOR_VERTEX_ALPHA             = 1u << 8
+	GPU_MD3_COLOR_VERTEX_ALPHA             = 1u << 8,
+	GPU_MD3_COLOR_PORTAL_ALPHA             = 1u << 9
 };
 
+
+static ID_INLINE bool VK_GpuMd3SupportsWaveAlpha(const textureBundle_t& b0) noexcept
+{
+	return b0.alphaGen == alphaGen_t::AGEN_WAVEFORM &&
+		b0.alphaWave.func != genFunc_t::GF_NOISE;
+}
 
 static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textureBundle_t& b0) noexcept
 {
@@ -3637,11 +3644,17 @@ static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textur
 
 	case alphaGen_t::AGEN_IDENTITY:
 	case alphaGen_t::AGEN_CONST:
+		mode |= GPU_MD3_COLOR_UNIFORM_ALPHA;
+		return true;
+
 	case alphaGen_t::AGEN_WAVEFORM:
+		if (!VK_GpuMd3SupportsWaveAlpha(b0))
+			return false;
+		mode |= GPU_MD3_COLOR_UNIFORM_ALPHA;
+		return true;
+
 	case alphaGen_t::AGEN_LIGHTING_SPECULAR:
-		mode |= (b0.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR)
-			? GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA
-			: GPU_MD3_COLOR_UNIFORM_ALPHA;
+		mode |= GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA;
 		return true;
 
 	case alphaGen_t::AGEN_ENTITY:
@@ -3652,6 +3665,10 @@ static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textur
 			return true;
 		}
 		return false;
+
+	case alphaGen_t::AGEN_PORTAL:
+		mode |= GPU_MD3_COLOR_PORTAL_ALPHA;
+		return true;
 
 	default:
 		return false;
@@ -3684,6 +3701,7 @@ static ID_INLINE uint32_t VK_GpuMd3CurrentColorMode() noexcept
 	case colorGen_t::CGEN_ENTITY:
 	case colorGen_t::CGEN_ONE_MINUS_ENTITY:
 	case colorGen_t::CGEN_WAVEFORM:
+	case colorGen_t::CGEN_FOG:
 		mode |= GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
 		break;
 

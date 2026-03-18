@@ -362,8 +362,15 @@ static bool R_CanGpuMd3UsePureAffineTexMods(const textureBundle_t& bundle) noexc
 
 bool R_CanGpuMd3UseAffineTexMods(const textureBundle_t& bundle) noexcept
 {
-	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE &&
-		bundle.tcGen != texCoordGen_t::TCGEN_VECTOR)
+	const bool isBaseAffineTcGen =
+		bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE ||
+		bundle.tcGen == texCoordGen_t::TCGEN_VECTOR;
+
+	const bool isEnvTcGen =
+		bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
+		bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP;
+
+	if (!isBaseAffineTcGen && !isEnvTcGen)
 	{
 		return false;
 	}
@@ -390,8 +397,10 @@ bool R_CanGpuMd3UseAffineTexMods(const textureBundle_t& bundle) noexcept
 			if (seenTurbulent)
 				return false;
 
-			// turbulent repurposes tcGenVector uniforms as post-transform storage,
-			// so keep vector tcGen on the old path for now.
+			// Turbulent repurposes tcGenVector uniforms as post-transform storage,
+			// so keep vector tcGen on the old path for now. Regular base ST and
+			// env-generated ST are both safe, because the shader computes the base
+			// coordinates first and only then applies the post-turbulent affine step.
 			if (bundle.tcGen == texCoordGen_t::TCGEN_VECTOR)
 				return false;
 
@@ -1239,7 +1248,8 @@ enum : uint32_t
 	GPU_MD3_COLOR_EXACT_VERTEX_RGB         = 1u << 5,
 	GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA   = 1u << 6,
 	GPU_MD3_COLOR_UNIFORM_ALPHA            = 1u << 7,
-	GPU_MD3_COLOR_VERTEX_ALPHA             = 1u << 8
+	GPU_MD3_COLOR_VERTEX_ALPHA             = 1u << 8,
+	GPU_MD3_COLOR_PORTAL_ALPHA             = 1u << 9
 };
 
 static ID_INLINE float VK_GpuMd3Clamp01(const float v) noexcept
@@ -1249,6 +1259,12 @@ static ID_INLINE float VK_GpuMd3Clamp01(const float v) noexcept
 	if (v > 1.0f)
 		return 1.0f;
 	return v;
+}
+
+static ID_INLINE bool VK_GpuMd3SupportsWaveAlpha(const textureBundle_t& b0) noexcept
+{
+	return b0.alphaGen == alphaGen_t::AGEN_WAVEFORM &&
+		b0.alphaWave.func != genFunc_t::GF_NOISE;
 }
 
 static ID_INLINE bool VK_TryBuildGpuMd3UniformAlpha(float& outAlpha, const textureBundle_t& b0) noexcept
@@ -1282,6 +1298,8 @@ static ID_INLINE bool VK_TryBuildGpuMd3UniformAlpha(float& outAlpha, const textu
 		return false;
 
 	case alphaGen_t::AGEN_WAVEFORM:
+		if (!VK_GpuMd3SupportsWaveAlpha(b0))
+			return false;
 		outAlpha = VK_GpuMd3Clamp01(GpuTcEvalWaveForm(b0.alphaWave));
 		return true;
 
@@ -1324,11 +1342,17 @@ static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textur
 
 	case alphaGen_t::AGEN_IDENTITY:
 	case alphaGen_t::AGEN_CONST:
+		mode |= GPU_MD3_COLOR_UNIFORM_ALPHA;
+		return true;
+
 	case alphaGen_t::AGEN_WAVEFORM:
+		if (!VK_GpuMd3SupportsWaveAlpha(b0))
+			return false;
+		mode |= GPU_MD3_COLOR_UNIFORM_ALPHA;
+		return true;
+
 	case alphaGen_t::AGEN_LIGHTING_SPECULAR:
-		mode |= (b0.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR)
-			? GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA
-			: GPU_MD3_COLOR_UNIFORM_ALPHA;
+		mode |= GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA;
 		return true;
 
 	case alphaGen_t::AGEN_ENTITY:
@@ -1339,6 +1363,10 @@ static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textur
 			return true;
 		}
 		return false;
+
+	case alphaGen_t::AGEN_PORTAL:
+		mode |= GPU_MD3_COLOR_PORTAL_ALPHA;
+		return true;
 
 	default:
 		return false;
@@ -1365,6 +1393,7 @@ static ID_INLINE uint32_t VK_GpuMd3ColorMode(const shaderStage_t& stage, const u
 	case colorGen_t::CGEN_ENTITY:
 	case colorGen_t::CGEN_ONE_MINUS_ENTITY:
 	case colorGen_t::CGEN_WAVEFORM:
+	case colorGen_t::CGEN_FOG:
 		mode |= GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
 		break;
 
@@ -1470,6 +1499,17 @@ static ID_INLINE void VK_BuildGpuMd3SolidColor(vec4_t rgba, const shaderStage_t&
 	}
 	break;
 
+	case colorGen_t::CGEN_FOG:
+		if (tr.world && tess.fogNum > 0)
+		{
+			const fog_t& fog = tr.world->fogs[tess.fogNum];
+			rgba[0] = fog.color[0];
+			rgba[1] = fog.color[1];
+			rgba[2] = fog.color[2];
+			rgba[3] = fog.color[3];
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -1495,6 +1535,7 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 		uniform.light.pos[3] = static_cast<float>(colorMode);
 	}
 	uniform.light.color[3] = 0.0f;
+	uniform.fogEyeT[2] = 0.0f;
 
 	if (colorMode == 0u)
 		return;
@@ -1507,6 +1548,10 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 		uniform.light.pos[1] = rgba[1];
 		uniform.light.pos[2] = rgba[2];
 		uniform.light.color[3] = rgba[3];
+		if ((colorMode & GPU_MD3_COLOR_PORTAL_ALPHA) != 0u)
+		{
+			uniform.fogEyeT[2] = tess.shader ? tess.shader->portalRangeR : 0.0f;
+		}
 		return;
 	}
 
@@ -1517,6 +1562,11 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 		{
 			uniform.light.color[3] = alpha;
 		}
+	}
+
+	if ((colorMode & GPU_MD3_COLOR_PORTAL_ALPHA) != 0u)
+	{
+		uniform.fogEyeT[2] = tess.shader ? tess.shader->portalRangeR : 0.0f;
 	}
 
 	if ((colorMode & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) == 0u || !backEnd.currentEntity)

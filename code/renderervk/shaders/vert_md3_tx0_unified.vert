@@ -238,6 +238,7 @@ vec4 ComputeGpuColor(vec3 position, vec3 normal, vec4 fallbackColor)
     const bool useGpuOneMinusVertexAlpha = (gpuColorMode & 64) != 0;
     const bool useGpuUniformAlpha = (gpuColorMode & 128) != 0;
     const bool useGpuVertexAlpha = (gpuColorMode & 256) != 0;
+    const bool useGpuPortalAlpha = (gpuColorMode & 512) != 0;
 
     vec4 color = fallbackColor;
 
@@ -268,6 +269,10 @@ vec4 ComputeGpuColor(vec3 position, vec3 normal, vec4 fallbackColor)
     if (useGpuSpecularAlpha)
     {
         color.a = CalcGpuSpecularAlpha(position, normal);
+    }
+    else if (useGpuPortalAlpha)
+    {
+        color.a = clamp(length(ubo.eyePos.xyz - position) * ubo.fogEyeT.z, 0.0, 1.0);
     }
     else if (useGpuOneMinusVertexAlpha)
     {

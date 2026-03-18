@@ -1076,24 +1076,25 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 
 
 
-	if ((p->tessFlags & TESS_ENV) != 0 && bundle.isScreenMap)
-	{
-		//LogCanUse("env && screenMap", false);
-		return false;
-	}
-
+	// Screen-map env can stay on GPU. The MD3 env shader already has a dedicated
+	// branch for the first-person screen-map variant, so do not reject it here.
 	const bool gpuTexModsOk = R_CanGpuMd3UseAffineTexMods(bundle);
 
 	if (!gpuTexModsOk && bundle.numTexMods != 0)
 		return  false;
 
-	if (bundle.alphaGen == alphaGen_t::AGEN_PORTAL)
+	Vk_Pipeline_Def def{};
+	vk_get_pipeline_def(p->vk_pipeline[0], def);
+
+	// Portal alpha can stay on the colored generic MD3 paths.
+	// Fixed/no-color variants still need the legacy CPU path, because their
+	// dedicated shaders do not consume the dynamic per-vertex alpha stream.
+	if (bundle.alphaGen == alphaGen_t::AGEN_PORTAL &&
+		def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE &&
+		def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV)
 	{
 		return false;
 	}
-
-	Vk_Pipeline_Def def{};
-	vk_get_pipeline_def(p->vk_pipeline[0], def);
 
 	// GPU specular alpha is implemented for the generic MD3 color path.
 	// Today that means the regular single-texture variant and the env-colored variant.
@@ -1184,9 +1185,12 @@ static ID_INLINE bool RB_GpuMd3CanDoDiffuseColorInShader(const shaderStage_t& st
 	case alphaGen_t::AGEN_IDENTITY:
 	case alphaGen_t::AGEN_CONST:
 	case alphaGen_t::AGEN_WAVEFORM:
+		return b0.alphaWave.func != genFunc_t::GF_NOISE;
+
 	case alphaGen_t::AGEN_VERTEX:
 	case alphaGen_t::AGEN_ONE_MINUS_VERTEX:
 	case alphaGen_t::AGEN_LIGHTING_SPECULAR:
+	case alphaGen_t::AGEN_PORTAL:
 		return true;
 
 	case alphaGen_t::AGEN_ENTITY:
@@ -1202,8 +1206,10 @@ static ID_INLINE bool RB_GpuMd3NeedsCpuDerivedGeometry(const shaderStage_t& stag
 {
 	const textureBundle_t& b0 = stage.bundle[0];
 
-	// Jeżeli lightingDiffuse ma niestandardowe alphaGen, to kolor/alpha nadal
-	// muszą powstać na CPU z tess.xyz / tess.normal.
+	// Jeżeli lightingDiffuse ma alphaGen, którego obecny shader MD3 nie umie
+	// policzyć zgodnie z CPU (np. portal w nieobsługiwanym wariancie albo
+	// waveform/noise), to kolor/alpha nadal muszą powstać na CPU z
+	// tess.xyz / tess.normal.
 	return b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
 		!RB_GpuMd3CanDoDiffuseColorInShader(stage);
 }
