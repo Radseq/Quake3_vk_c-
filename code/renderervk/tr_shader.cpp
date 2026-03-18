@@ -3800,56 +3800,90 @@ static shader_t* FinishShader(void)
 				}
 			}
 
+			static auto ConvertEnvShaderType = [](Vk_Shader_Type& type) noexcept -> bool
+				{
+					switch (type)
+					{
+					case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+						type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+						type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+						type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+						type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
+						type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
+						type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR:
+						type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR:
+						type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2:
+						type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1:
+						type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2:
+						type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3:
+						type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1:
+						type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV;
+						return true;
+
+					case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3:
+						type = Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV;
+						return true;
+
+					default:
+						return false;
+					}
+				};
+
 			if (env_mask == 1 && !pStage.depthFragment)
 			{
-				if (def.shader_type >= Vk_Shader_Type::TYPE_GENERIC_BEGIN && def.shader_type <= Vk_Shader_Type::TYPE_GENERIC_END)
+				if (def.shader_type >= Vk_Shader_Type::TYPE_GENERIC_BEGIN &&
+					def.shader_type <= Vk_Shader_Type::TYPE_GENERIC_END)
 				{
-					const texCoordGen_t tcGenBefore = pStage.bundle[0].tcGen;
-					const auto defBefore = def.shader_type;
-
 					const texCoordGen_t tcg0 = pStage.bundle[0].tcGen;
 					const bool isEnv0 =
 						tcg0 == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
 						tcg0 == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP;
 
-					if (isEnv0 && !pStage.depthFragment)
+					if (isEnv0 && ConvertEnvShaderType(def.shader_type))
 					{
-						switch (def.shader_type)
-						{
-						case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
-							def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV;
-							break;
-
-						case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
-							def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV;
-							break;
-
-						case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
-							def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV;
-							break;
-
-						case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
-							def.shader_type = Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV;
-							break;
-
-						default:
-							break;
-						}
-
 						shader.tessFlags |= TESS_NNN | TESS_VPOS;
 						pStage.tessFlags &= ~TESS_ST0;
 						pStage.tessFlags |= TESS_ENV;
+
+						pStage.bundle[0].originalTcGen = pStage.bundle[0].tcGen;
+						pStage.bundle[0].gpuTcGenHandledInShader = true;
 					}
-
-
-
-					shader.tessFlags |= TESS_NNN | TESS_VPOS;
-					pStage.tessFlags &= ~TESS_ST0;
-					pStage.tessFlags |= TESS_ENV;
-
-					// zachowaj prawdziwą semantykę tcGen
-					pStage.bundle[0].originalTcGen = pStage.bundle[0].tcGen;
-					pStage.bundle[0].gpuTcGenHandledInShader = true;
 				}
 			}
 
