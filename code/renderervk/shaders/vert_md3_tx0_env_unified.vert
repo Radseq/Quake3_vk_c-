@@ -242,26 +242,98 @@ vec2 calc_fog_tc(const vec4 pos4)
 
 
 
-const uint GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0;
-const uint GPU_MD3_COLOR_UNIFORM_SOLID_RGBA  = 1u << 2;
+const uint GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB    = 1u << 0;
+const uint GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA = 1u << 1;
+const uint GPU_MD3_COLOR_UNIFORM_SOLID_RGBA     = 1u << 2;
+const uint GPU_MD3_COLOR_VERTEX_RGB             = 1u << 3;
+const uint GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB   = 1u << 4;
+const uint GPU_MD3_COLOR_EXACT_VERTEX_RGB       = 1u << 5;
+const uint GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA = 1u << 6;
+const uint GPU_MD3_COLOR_UNIFORM_ALPHA          = 1u << 7;
+const uint GPU_MD3_COLOR_VERTEX_ALPHA           = 1u << 8;
+
+float CalcGpuSpecularAlpha(vec3 position, vec3 normal)
+{
+    const vec3 lightOrigin = vec3(-960.0, 1980.0, 96.0);
+    const vec3 lightDir = safe_normalize(lightOrigin - position);
+    const float d = dot(normal, lightDir);
+    const vec3 reflected = normal * (2.0 * d) - lightDir;
+    const vec3 viewer = ubo.eyePos.xyz - position;
+    const float viewerLen2 = dot(viewer, viewer);
+
+    if (viewerLen2 <= 1e-20)
+    {
+        return 0.0;
+    }
+
+    float l = dot(reflected, viewer) * inversesqrt(viewerLen2);
+    if (l < 0.0)
+    {
+        return 0.0;
+    }
+
+    l *= l;
+    l *= l;
+    return clamp(l, 0.0, 1.0);
+}
 
 vec4 BuildGpuMd3Color(vec3 position, vec3 normal, vec4 fallbackColor)
 {
     const uint colorMode = uint(ubo.lightVector.w + 0.5);
+    const bool useGpuDiffuseRgb        = (colorMode & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) != 0u;
+    const bool useGpuSpecularAlpha     = (colorMode & GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA) != 0u;
+    const bool useGpuSolidRgba         = (colorMode & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u;
+    const bool useGpuVertexRgb         = (colorMode & GPU_MD3_COLOR_VERTEX_RGB) != 0u;
+    const bool useGpuOneMinusVertexRgb = (colorMode & GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB) != 0u;
+    const bool useGpuExactVertexRgb    = (colorMode & GPU_MD3_COLOR_EXACT_VERTEX_RGB) != 0u;
+    const bool useGpuOneMinusVertexAlpha = (colorMode & GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA) != 0u;
+    const bool useGpuUniformAlpha      = (colorMode & GPU_MD3_COLOR_UNIFORM_ALPHA) != 0u;
+    const bool useGpuVertexAlpha       = (colorMode & GPU_MD3_COLOR_VERTEX_ALPHA) != 0u;
 
-    if ((colorMode & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u)
+    vec4 color = fallbackColor;
+
+    if (useGpuSolidRgba)
     {
-        return vec4(ubo.lightPos.xyz, ubo.lightColor.w);
+        color.rgb = ubo.lightPos.xyz;
+        color.a = ubo.lightColor.w;
     }
-
-    if ((colorMode & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) != 0u)
+    else if (useGpuDiffuseRgb)
     {
         const float incoming = max(dot(normal, ubo.lightVector.xyz), 0.0);
         const vec3 rgb = clamp(ubo.lightPos.xyz + incoming * ubo.lightColor.xyz, 0.0, 1.0);
-        return vec4(rgb, 1.0);
+        color = vec4(rgb, 1.0);
+    }
+    else if (useGpuExactVertexRgb)
+    {
+        color.rgb = fallbackColor.rgb;
+    }
+    else if (useGpuVertexRgb)
+    {
+        color.rgb = fallbackColor.rgb * pc.md3Anim.z;
+    }
+    else if (useGpuOneMinusVertexRgb)
+    {
+        color.rgb = (vec3(1.0) - fallbackColor.rgb) * pc.md3Anim.z;
     }
 
-    return fallbackColor;
+    if (useGpuSpecularAlpha)
+    {
+        color.a = CalcGpuSpecularAlpha(position, normal);
+    }
+    else if (useGpuOneMinusVertexAlpha)
+    {
+        color.a = 1.0 - fallbackColor.a;
+    }
+    else if (useGpuVertexAlpha)
+    {
+        color.a = fallbackColor.a;
+    }
+    else if (useGpuUniformAlpha)
+    {
+        color.a = ubo.lightColor.w;
+    }
+
+    return clamp(color, 0.0, 1.0);
 }
 
 void main()

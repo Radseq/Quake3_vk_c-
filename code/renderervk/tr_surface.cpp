@@ -1014,7 +1014,10 @@ static bool RB_CanGpuMd3UseDeforms(
 	switch (ds.deformation)
 	{
 	case deform_t::DEFORM_WAVE:
-		return ds.deformationWave.func == genFunc_t::GF_SIN;
+		// GPU shader supports the same table-driven wave family as CPU path,
+		// except GF_NONE / GF_NOISE which are not representable in the MD3 vertex shader.
+		return ds.deformationWave.func != genFunc_t::GF_NONE &&
+			ds.deformationWave.func != genFunc_t::GF_NOISE;
 
 	case deform_t::DEFORM_BULGE:
 		// Bulge is driven by the model's base ST channel.
@@ -1024,6 +1027,15 @@ static bool RB_CanGpuMd3UseDeforms(
 		(void)bundle;
 		(void)shaderType;
 		return true;
+
+	case deform_t::DEFORM_MOVE:
+		// Same limitation as DEFORM_WAVE: GPU path supports table-driven waves,
+		// but not GF_NONE / GF_NOISE.
+		(void)stage;
+		(void)bundle;
+		(void)shaderType;
+		return ds.deformationWave.func != genFunc_t::GF_NONE &&
+			ds.deformationWave.func != genFunc_t::GF_NOISE;
 
 	default:
 		return false;
@@ -1075,14 +1087,22 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 	if (!gpuTexModsOk && bundle.numTexMods != 0)
 		return  false;
 
-	if (bundle.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR ||
-		bundle.alphaGen == alphaGen_t::AGEN_PORTAL)
+	if (bundle.alphaGen == alphaGen_t::AGEN_PORTAL)
 	{
 		return false;
 	}
 
 	Vk_Pipeline_Def def{};
 	vk_get_pipeline_def(p->vk_pipeline[0], def);
+
+	// GPU specular alpha is implemented for the generic MD3 color path.
+	// Today that means the regular single-texture variant and the env-colored variant.
+	if (bundle.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR &&
+		def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE &&
+		def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV)
+	{
+		return false;
+	}
 
 	if (!RB_CanGpuMd3UseDeforms(shader, *p, bundle, def.shader_type))
 		return false;
@@ -1155,8 +1175,27 @@ static ID_INLINE bool RB_GpuMd3CanDoDiffuseColorInShader(const shaderStage_t& st
 {
 	const textureBundle_t& b0 = stage.bundle[0];
 
-	return b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
-		(b0.alphaGen == alphaGen_t::AGEN_SKIP || b0.alphaGen == alphaGen_t::AGEN_IDENTITY);
+	if (b0.rgbGen != colorGen_t::CGEN_LIGHTING_DIFFUSE)
+		return false;
+
+	switch (b0.alphaGen)
+	{
+	case alphaGen_t::AGEN_SKIP:
+	case alphaGen_t::AGEN_IDENTITY:
+	case alphaGen_t::AGEN_CONST:
+	case alphaGen_t::AGEN_WAVEFORM:
+	case alphaGen_t::AGEN_VERTEX:
+	case alphaGen_t::AGEN_ONE_MINUS_VERTEX:
+	case alphaGen_t::AGEN_LIGHTING_SPECULAR:
+		return true;
+
+	case alphaGen_t::AGEN_ENTITY:
+	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+		return backEnd.currentEntity != nullptr;
+
+	default:
+		return false;
+	}
 }
 
 static ID_INLINE bool RB_GpuMd3NeedsCpuDerivedGeometry(const shaderStage_t& stage) noexcept

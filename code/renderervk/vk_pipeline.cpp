@@ -1487,7 +1487,7 @@ static constexpr bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_
 
 static void vk_push_md3_lerp(const float backlerp)
 {
-	alignas(16) float md3Anim[4] = { 1.0f - backlerp, backlerp, 0.0f, 0.0f };
+	alignas(16) float md3Anim[4] = { 1.0f - backlerp, backlerp, tr.identityLight, 0.0f };
 	vk_inst.cmd->command_buffer.pushConstants(
 		vk_inst.pipeline_layout,
 		vk::ShaderStageFlagBits::eVertex,
@@ -1528,7 +1528,7 @@ void vk_bind_pipeline(const uint32_t pipeline)
 		{
 			1.0f - tess.gpuMd3Backlerp,
 			tess.gpuMd3Backlerp,
-			0.0f,
+			tr.identityLight,
 			0.0f
 		};
 

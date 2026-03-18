@@ -237,15 +237,16 @@ vec4 ComputeGpuColor(vec3 position, vec3 normal, vec4 fallbackColor)
     const bool useGpuExactVertexRgb = (gpuColorMode & 32) != 0;
     const bool useGpuOneMinusVertexAlpha = (gpuColorMode & 64) != 0;
     const bool useGpuUniformAlpha = (gpuColorMode & 128) != 0;
-
-    if (useGpuSolidRgba)
-    {
-        return vec4(ubo.lightPos.xyz, ubo.lightColor.w);
-    }
+    const bool useGpuVertexAlpha = (gpuColorMode & 256) != 0;
 
     vec4 color = fallbackColor;
 
-    if (useGpuDiffuseRgb)
+    if (useGpuSolidRgba)
+    {
+        color.rgb = ubo.lightPos.xyz;
+        color.a = ubo.lightColor.w;
+    }
+    else if (useGpuDiffuseRgb)
     {
         const float incoming = max(dot(normal, ubo.lightVector.xyz), 0.0);
         const vec3 rgb = clamp(ubo.lightPos.xyz + incoming * ubo.lightColor.xyz, 0.0, 1.0);
@@ -271,6 +272,10 @@ vec4 ComputeGpuColor(vec3 position, vec3 normal, vec4 fallbackColor)
     else if (useGpuOneMinusVertexAlpha)
     {
         color.a = 1.0 - fallbackColor.a;
+    }
+    else if (useGpuVertexAlpha)
+    {
+        color.a = fallbackColor.a;
     }
     else if (useGpuUniformAlpha)
     {

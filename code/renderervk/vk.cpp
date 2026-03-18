@@ -3615,34 +3615,20 @@ enum : uint32_t
 	GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB     = 1u << 4,
 	GPU_MD3_COLOR_EXACT_VERTEX_RGB         = 1u << 5,
 	GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA   = 1u << 6,
-	GPU_MD3_COLOR_UNIFORM_ALPHA            = 1u << 7
+	GPU_MD3_COLOR_UNIFORM_ALPHA            = 1u << 7,
+	GPU_MD3_COLOR_VERTEX_ALPHA             = 1u << 8
 };
 
-static ID_INLINE bool VK_GpuMd3SolidAlphaSupported(const textureBundle_t& b0) noexcept
-{
-	switch (b0.alphaGen)
-	{
-	case alphaGen_t::AGEN_SKIP:
-	case alphaGen_t::AGEN_IDENTITY:
-	case alphaGen_t::AGEN_CONST:
-	case alphaGen_t::AGEN_WAVEFORM:
-		return true;
-
-	case alphaGen_t::AGEN_ENTITY:
-	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
-		return backEnd.currentEntity != nullptr;
-
-	default:
-		return false;
-	}
-}
 
 static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textureBundle_t& b0) noexcept
 {
 	switch (b0.alphaGen)
 	{
 	case alphaGen_t::AGEN_SKIP:
+		return true;
+
 	case alphaGen_t::AGEN_VERTEX:
+		mode |= GPU_MD3_COLOR_VERTEX_ALPHA;
 		return true;
 
 	case alphaGen_t::AGEN_ONE_MINUS_VERTEX:
@@ -3652,7 +3638,10 @@ static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textur
 	case alphaGen_t::AGEN_IDENTITY:
 	case alphaGen_t::AGEN_CONST:
 	case alphaGen_t::AGEN_WAVEFORM:
-		mode |= GPU_MD3_COLOR_UNIFORM_ALPHA;
+	case alphaGen_t::AGEN_LIGHTING_SPECULAR:
+		mode |= (b0.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR)
+			? GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA
+			: GPU_MD3_COLOR_UNIFORM_ALPHA;
 		return true;
 
 	case alphaGen_t::AGEN_ENTITY:
@@ -3671,7 +3660,9 @@ static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textur
 
 static ID_INLINE uint32_t VK_GpuMd3CurrentColorMode() noexcept
 {
-	if (!tess.gpuMd3Active || tess.gpuMd3Layout != gpuMd3Layout_t::GENERIC_ST_COLOR)
+	if (!tess.gpuMd3Active ||
+		(tess.gpuMd3Layout != gpuMd3Layout_t::GENERIC_ST_COLOR &&
+		 tess.gpuMd3Layout != gpuMd3Layout_t::GENERIC_ENV_COLOR))
 		return 0u;
 
 	if (!tess.xstages || tess.numPasses <= 0)
@@ -3683,26 +3674,19 @@ static ID_INLINE uint32_t VK_GpuMd3CurrentColorMode() noexcept
 		return 0u;
 
 	const textureBundle_t& b0 = stage->bundle[0];
-
-	if (VK_GpuMd3SolidAlphaSupported(b0))
-	{
-		switch (b0.rgbGen)
-		{
-		case colorGen_t::CGEN_CONST:
-		case colorGen_t::CGEN_ENTITY:
-		case colorGen_t::CGEN_ONE_MINUS_ENTITY:
-		case colorGen_t::CGEN_WAVEFORM:
-			return GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
-
-		default:
-			break;
-		}
-	}
-
 	uint32_t mode = 0u;
 
 	switch (b0.rgbGen)
 	{
+	case colorGen_t::CGEN_IDENTITY:
+	case colorGen_t::CGEN_IDENTITY_LIGHTING:
+	case colorGen_t::CGEN_CONST:
+	case colorGen_t::CGEN_ENTITY:
+	case colorGen_t::CGEN_ONE_MINUS_ENTITY:
+	case colorGen_t::CGEN_WAVEFORM:
+		mode |= GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
+		break;
+
 	case colorGen_t::CGEN_VERTEX:
 		mode |= GPU_MD3_COLOR_VERTEX_RGB;
 		break;
@@ -3715,35 +3699,21 @@ static ID_INLINE uint32_t VK_GpuMd3CurrentColorMode() noexcept
 		mode |= GPU_MD3_COLOR_EXACT_VERTEX_RGB;
 		break;
 
-	default:
+	case colorGen_t::CGEN_LIGHTING_DIFFUSE:
+		mode |= GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB;
 		break;
-	}
 
-	if (mode != 0u)
-	{
-		if (VK_GpuMd3VertexAlphaSupported(mode, b0))
-			return mode;
+	default:
 		return 0u;
 	}
 
-	if (b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
-		(b0.alphaGen == alphaGen_t::AGEN_SKIP || b0.alphaGen == alphaGen_t::AGEN_IDENTITY))
-	{
-		return GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB;
-	}
+	if (!VK_GpuMd3VertexAlphaSupported(mode, b0))
+		return 0u;
 
-	return 0u;
+	return mode;
 }
 
-static ID_INLINE bool VK_GpuMd3UsesUniformDiffuseColor() noexcept
-{
-	return (VK_GpuMd3CurrentColorMode() & GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB) != 0u;
-}
 
-static ID_INLINE bool VK_GpuMd3UsesUniformSolidColor() noexcept
-{
-	return (VK_GpuMd3CurrentColorMode() & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u;
-}
 
 static ID_INLINE bool VK_GpuMd3UsesRawVertexColor() noexcept
 {
@@ -3751,7 +3721,8 @@ static ID_INLINE bool VK_GpuMd3UsesRawVertexColor() noexcept
 		(GPU_MD3_COLOR_VERTEX_RGB |
 		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB |
 		 GPU_MD3_COLOR_EXACT_VERTEX_RGB |
-		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA)) != 0u;
+		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA |
+		 GPU_MD3_COLOR_VERTEX_ALPHA)) != 0u;
 }
 
 void vk_bind_geometry(const uint32_t flags)
