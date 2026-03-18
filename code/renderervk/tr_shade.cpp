@@ -492,11 +492,47 @@ static ID_INLINE void VK_SetIdentityGpuMd3DeformParams(vkUniform_t& u) noexcept
 	u.deform1[0] = 0.0f; u.deform1[1] = 0.0f; u.deform1[2] = 0.0f; u.deform1[3] = 0.0f;
 }
 
-
-static bool R_IsGpuMd3EnvLayout() noexcept
+static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForShaderType(const Vk_Shader_Type shaderType) noexcept
 {
-	return tess.gpuMd3Layout == gpuMd3Layout_t::GENERIC_ENV_COLOR ||
-		tess.gpuMd3Layout == gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+	switch (shaderType)
+	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+		return gpuMd3Layout_t::GENERIC_ST_COLOR;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
+		return gpuMd3Layout_t::GENERIC_ENV_COLOR;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+		return gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+		return gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+		return gpuMd3Layout_t::LIGHTING;
+
+	default:
+		return gpuMd3Layout_t::NONE;
+	}
+}
+
+static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForStage(const shaderStage_t& stage) noexcept
+{
+	Vk_Pipeline_Def def{};
+	vk_get_pipeline_def(stage.vk_pipeline[0], def);
+	return VK_GpuMd3LayoutForShaderType(def.shader_type);
+}
+
+static ID_INLINE bool R_IsGpuMd3EnvLayout(const shaderStage_t& stage) noexcept
+{
+	const gpuMd3Layout_t layout = VK_GpuMd3LayoutForStage(stage);
+	return layout == gpuMd3Layout_t::GENERIC_ENV_COLOR ||
+		layout == gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
 }
 
 static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage) noexcept
@@ -617,12 +653,12 @@ static void VK_SetGpuMd3TcParams(vkUniform_t& u, const textureBundle_t& bundle)
 	}
 }
 
-static bool R_GpuMd3TexCoordsHandledInShader(const textureBundle_t& bundle) noexcept
+static bool R_GpuMd3TexCoordsHandledInShader(const shaderStage_t& stage, const textureBundle_t& bundle) noexcept
 {
 	if (!tess.gpuMd3Active)
 		return false;
 
-	if (R_IsGpuMd3EnvLayout())
+	if (R_IsGpuMd3EnvLayout(stage))
 	{
 		return R_CanGpuMd3UseAffineTexMods(bundle) &&
 			(bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
@@ -649,7 +685,12 @@ void R_ComputeTexCoords(const int b, const textureBundle_t& bundle)
 	if (!tess.numVertexes)
 		return;
 
-	const bool gpuHandled = R_GpuMd3TexCoordsHandledInShader(bundle);
+	const shaderStage_t* const stage =
+		(tess.shader && tess.vboStage >= 0 && tess.vboStage < MAX_SHADER_STAGES)
+		? tess.shader->stages[tess.vboStage]
+		: nullptr;
+
+	const bool gpuHandled = stage ? R_GpuMd3TexCoordsHandledInShader(*stage, bundle) : false;
 
 	//if (tess.gpuMd3Active &&
 	//	tess.shader && tess.shader->name &&
@@ -1399,8 +1440,9 @@ static ID_INLINE uint32_t VK_GpuMd3ColorMode(const shaderStage_t& stage, const u
 	if (!tess.gpuMd3Active || bundleIndex != 0u)
 		return 0u;
 
-	if (tess.gpuMd3Layout != gpuMd3Layout_t::GENERIC_ST_COLOR &&
-		tess.gpuMd3Layout != gpuMd3Layout_t::GENERIC_ENV_COLOR)
+	const gpuMd3Layout_t stageLayout = VK_GpuMd3LayoutForStage(stage);
+	if (stageLayout != gpuMd3Layout_t::GENERIC_ST_COLOR &&
+		stageLayout != gpuMd3Layout_t::GENERIC_ENV_COLOR)
 		return 0u;
 
 	const textureBundle_t& b0 = stage.bundle[0];
@@ -1550,8 +1592,9 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 	// ENV MD3 shader keeps light.pos.w for env FP/screen-map semantics,
 	// so it reads the mode from light.vector.w instead.
 	uniform.light.vector[3] = static_cast<float>(colorMode);
-	if (tess.gpuMd3Layout != gpuMd3Layout_t::GENERIC_ENV_COLOR &&
-		tess.gpuMd3Layout != gpuMd3Layout_t::GENERIC_ENV_NO_COLOR)
+	const gpuMd3Layout_t stageLayout = VK_GpuMd3LayoutForStage(stage);
+	if (stageLayout != gpuMd3Layout_t::GENERIC_ENV_COLOR &&
+		stageLayout != gpuMd3Layout_t::GENERIC_ENV_NO_COLOR)
 	{
 		uniform.light.pos[3] = static_cast<float>(colorMode);
 	}
@@ -1651,9 +1694,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 		if (!pStage)
 			break;
 
-#ifdef USE_VBO
 		tess.vboStage = stage;
-#endif
 
 		tess_flags |= pStage->tessFlags;
 

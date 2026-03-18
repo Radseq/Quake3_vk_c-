@@ -1047,136 +1047,6 @@ static bool RB_CanGpuMd3UseDeforms(
 	}
 }
 
-static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
-{
-
-	const shaderStage_t* const p = shader.stages[0];
-
-	if (!r_gpuAnim || !r_gpuAnim->integer)
-		return false;
-
-
-#ifdef USE_FOG_COLLAPSE
-	if (fogNum && static_cast<int>(shader.fogPass) && !shader.fogCollapse)
-		return false;
-#else
-	if (fogNum && static_cast<int>(shader.fogPass))
-		return false;
-#endif
-
-	if (shader.numUnfoggedPasses != 1)
-		return false;
-
-
-	if (!p || !p->active)
-		return false;
-
-	if (p->depthFragment)
-		return false;
-
-	if (p->numTexBundles != 1 || !p->bundle[0].image[0])
-		return false;
-
-	const textureBundle_t& bundle = p->bundle[0];
-
-
-
-	// Screen-map env can stay on GPU. The MD3 env shader already has a dedicated
-	// branch for the first-person screen-map variant, so do not reject it here.
-	const bool gpuTexModsOk = R_CanGpuMd3UseAffineTexMods(bundle);
-
-	if (!gpuTexModsOk && bundle.numTexMods != 0)
-		return  false;
-
-	Vk_Pipeline_Def def{};
-	vk_get_pipeline_def(p->vk_pipeline[0], def);
-
-	// Portal alpha can stay on the colored generic MD3 paths.
-	// Fixed/no-color variants still need the legacy CPU path, because their
-	// dedicated shaders do not consume the dynamic per-vertex alpha stream.
-	if (bundle.alphaGen == alphaGen_t::AGEN_PORTAL &&
-		def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE &&
-		def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV)
-	{
-		return false;
-	}
-
-	// GPU specular alpha is implemented for the generic MD3 color path.
-	// Today that means the regular single-texture variant and the env-colored variant.
-	if (bundle.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR &&
-		def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE &&
-		def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV)
-	{
-		return false;
-	}
-
-	if (!RB_CanGpuMd3UseDeforms(shader, *p, bundle, def.shader_type))
-		return false;
-
-	switch (def.shader_type)
-	{
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
-		return RB_CanUseGpuMd3GenericSingleTexture(shader, *p, bundle) &&
-			RB_IsGpuMd3AffineTcGen(bundle) &&
-			gpuTexModsOk;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
-		return RB_IsGpuMd3AffineTcGen(bundle) &&
-			!bundle.gpuTcGenHandledInShader &&
-			(p->tessFlags & TESS_ENV) == 0 &&
-			gpuTexModsOk;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
-		return RB_IsTrueEnvTcGen(bundle) &&
-			bundle.gpuTcGenHandledInShader &&
-			(p->tessFlags & TESS_ENV) != 0 &&
-			gpuTexModsOk;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
-		return RB_IsGpuMd3AffineTcGen(bundle) &&
-			!bundle.gpuTcGenHandledInShader &&
-			gpuTexModsOk;
-
-	default:
-		return  false;
-	}
-}
-
-static ID_INLINE gpuMd3Layout_t RB_GetGpuMd3LayoutForShaderType(const Vk_Shader_Type shaderType) noexcept
-{
-	switch (shaderType)
-	{
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
-		return gpuMd3Layout_t::GENERIC_ST_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
-		return gpuMd3Layout_t::GENERIC_ENV_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
-		return gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
-		return gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
-		return gpuMd3Layout_t::LIGHTING;
-
-	default:
-		return gpuMd3Layout_t::NONE;
-	}
-}
-
 static ID_INLINE bool RB_GpuMd3CanDoDiffuseColorInShader(const shaderStage_t& stage) noexcept
 {
 	const textureBundle_t& b0 = stage.bundle[0];
@@ -1217,6 +1087,150 @@ static ID_INLINE bool RB_GpuMd3NeedsCpuDerivedGeometry(const shaderStage_t& stag
 	// tess.xyz / tess.normal.
 	return b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
 		!RB_GpuMd3CanDoDiffuseColorInShader(stage);
+}
+
+
+static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
+{
+	if (!r_gpuAnim || !r_gpuAnim->integer)
+		return false;
+
+#ifdef USE_FOG_COLLAPSE
+	if (fogNum && static_cast<int>(shader.fogPass) && !shader.fogCollapse)
+		return false;
+#else
+	if (fogNum && static_cast<int>(shader.fogPass))
+		return false;
+#endif
+
+	if (shader.numUnfoggedPasses <= 0)
+		return false;
+
+	for (int stageIndex = 0; stageIndex < shader.numUnfoggedPasses; ++stageIndex)
+	{
+		const shaderStage_t* const p = shader.stages[stageIndex];
+		if (!p || !p->active)
+			return false;
+
+		if (p->depthFragment)
+			return false;
+
+		if (p->numTexBundles != 1 || !p->bundle[0].image[0])
+			return false;
+
+		const textureBundle_t& bundle = p->bundle[0];
+
+		// Screen-map env can stay on GPU. The MD3 env shader already has a dedicated
+		// branch for the first-person screen-map variant, so do not reject it here.
+		const bool gpuTexModsOk = R_CanGpuMd3UseAffineTexMods(bundle);
+		if (!gpuTexModsOk && bundle.numTexMods != 0)
+			return false;
+
+		Vk_Pipeline_Def def{};
+		vk_get_pipeline_def(p->vk_pipeline[0], def);
+
+		// Portal alpha and specular alpha are implemented only by the generic colored MD3 paths.
+		if (bundle.alphaGen == alphaGen_t::AGEN_PORTAL &&
+			def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE &&
+			def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV)
+		{
+			return false;
+		}
+
+		if (bundle.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR &&
+			def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE &&
+			def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV)
+		{
+			return false;
+		}
+
+		if (!RB_CanGpuMd3UseDeforms(shader, *p, bundle, def.shader_type))
+			return false;
+
+		if (RB_GpuMd3NeedsCpuDerivedGeometry(*p))
+			return false;
+
+		switch (def.shader_type)
+		{
+		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+			if (!(RB_CanUseGpuMd3GenericSingleTexture(shader, *p, bundle) &&
+				RB_IsGpuMd3AffineTcGen(bundle) &&
+				gpuTexModsOk))
+			{
+				return false;
+			}
+			break;
+
+		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+			if (!(RB_IsGpuMd3AffineTcGen(bundle) &&
+				!bundle.gpuTcGenHandledInShader &&
+				(p->tessFlags & TESS_ENV) == 0 &&
+				gpuTexModsOk))
+			{
+				return false;
+			}
+			break;
+
+		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
+		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
+		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+			if (!(RB_IsTrueEnvTcGen(bundle) &&
+				bundle.gpuTcGenHandledInShader &&
+				(p->tessFlags & TESS_ENV) != 0 &&
+				gpuTexModsOk))
+			{
+				return false;
+			}
+			break;
+
+		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
+		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+			if (!(RB_IsGpuMd3AffineTcGen(bundle) &&
+				!bundle.gpuTcGenHandledInShader &&
+				gpuTexModsOk))
+			{
+				return false;
+			}
+			break;
+
+		default:
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static ID_INLINE gpuMd3Layout_t RB_GetGpuMd3LayoutForShaderType(const Vk_Shader_Type shaderType) noexcept
+{
+	switch (shaderType)
+	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+		return gpuMd3Layout_t::GENERIC_ST_COLOR;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
+		return gpuMd3Layout_t::GENERIC_ENV_COLOR;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+		return gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+		return gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+		return gpuMd3Layout_t::LIGHTING;
+
+	default:
+		return gpuMd3Layout_t::NONE;
+	}
 }
 
 static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
@@ -1267,15 +1281,8 @@ static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
 		: backEnd.currentEntity->e.backlerp;
 
 	const gpuMd3Layout_t newLayout = RB_GetGpuMd3LayoutForShaderType(def.shader_type);
-
-	// Jeżeli shader generic dalej potrzebuje CPU-derived xyz/normal (np. lightingDiffuse),
-	// to policz je tylko pomocniczo do R_ComputeColors(), ale draw nadal zostaje na GPU.
-	if (RB_GpuMd3NeedsCpuDerivedGeometry(*stage))
-	{
-		tess.numVertexes = 0;
-		tess.numIndexes = 0;
-		LerpMeshVertexes(surface, backlerp);
-	}
+	if (newLayout == gpuMd3Layout_t::NONE)
+		return false;
 
 	tess.numVertexes = gpuSurface->numVerts;
 	tess.numIndexes = gpuSurface->numIndexes;

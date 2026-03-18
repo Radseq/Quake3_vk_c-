@@ -3677,9 +3677,7 @@ static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textur
 
 static ID_INLINE uint32_t VK_GpuMd3CurrentColorMode() noexcept
 {
-	if (!tess.gpuMd3Active ||
-		(tess.gpuMd3Layout != gpuMd3Layout_t::GENERIC_ST_COLOR &&
-		 tess.gpuMd3Layout != gpuMd3Layout_t::GENERIC_ENV_COLOR))
+	if (!tess.gpuMd3Active)
 		return 0u;
 
 	if (!tess.xstages || tess.numPasses <= 0)
@@ -3688,6 +3686,15 @@ static ID_INLINE uint32_t VK_GpuMd3CurrentColorMode() noexcept
 	const int stageIndex = (tess.vboStage >= 0 && tess.vboStage < MAX_SHADER_STAGES) ? tess.vboStage : 0;
 	const shaderStage_t* stage = tess.xstages[stageIndex];
 	if (!stage)
+		return 0u;
+
+	Vk_Pipeline_Def def{};
+	vk_get_pipeline_def(stage->vk_pipeline[0], def);
+
+	const bool genericColorLayout =
+		def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE ||
+		def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV;
+	if (!genericColorLayout)
 		return 0u;
 
 	const textureBundle_t& b0 = stage->bundle[0];
