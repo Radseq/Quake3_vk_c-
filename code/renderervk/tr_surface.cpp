@@ -1014,10 +1014,9 @@ static bool RB_CanGpuMd3UseDeforms(
 	switch (ds.deformation)
 	{
 	case deform_t::DEFORM_WAVE:
-		// GPU shader supports the same table-driven wave family as CPU path,
-		// except GF_NONE / GF_NOISE which are not representable in the MD3 vertex shader.
-		return ds.deformationWave.func != genFunc_t::GF_NONE &&
-			ds.deformationWave.func != genFunc_t::GF_NOISE;
+		// GPU shader supports all waveform families used by the CPU path
+		// except GF_NONE, which intentionally means "no valid wave".
+		return ds.deformationWave.func != genFunc_t::GF_NONE;
 
 	case deform_t::DEFORM_BULGE:
 		// Bulge is driven by the model's base ST channel.
@@ -1029,13 +1028,11 @@ static bool RB_CanGpuMd3UseDeforms(
 		return true;
 
 	case deform_t::DEFORM_MOVE:
-		// Same limitation as DEFORM_WAVE: GPU path supports table-driven waves,
-		// but not GF_NONE / GF_NOISE.
+		// Same limitation as DEFORM_WAVE: only GF_NONE is rejected.
 		(void)stage;
 		(void)bundle;
 		(void)shaderType;
-		return ds.deformationWave.func != genFunc_t::GF_NONE &&
-			ds.deformationWave.func != genFunc_t::GF_NOISE;
+		return ds.deformationWave.func != genFunc_t::GF_NONE;
 
 	default:
 		return false;
@@ -1185,7 +1182,7 @@ static ID_INLINE bool RB_GpuMd3CanDoDiffuseColorInShader(const shaderStage_t& st
 	case alphaGen_t::AGEN_IDENTITY:
 	case alphaGen_t::AGEN_CONST:
 	case alphaGen_t::AGEN_WAVEFORM:
-		return b0.alphaWave.func != genFunc_t::GF_NOISE;
+		return true;
 
 	case alphaGen_t::AGEN_VERTEX:
 	case alphaGen_t::AGEN_ONE_MINUS_VERTEX:

@@ -105,6 +105,22 @@ vec2 calc_env_tc_fpscr(vec3 position, vec3 normal)
 }
 
 
+float GpuHash11(float p)
+{
+    p = fract(p * 0.1031);
+    p *= p + 33.33;
+    p *= p + p;
+    return fract(p);
+}
+
+float GpuNoise1(float x)
+{
+    const float i = floor(x);
+    const float f = fract(x);
+    const float u = f * f * (3.0 - 2.0 * f);
+    return mix(GpuHash11(i), GpuHash11(i + 1.0), u) * 2.0 - 1.0;
+}
+
 float ApplyGpuWave(float phase, int func)
 {
     const float twoPi = 6.28318530717958647692;
@@ -129,6 +145,10 @@ float ApplyGpuWave(float phase, int func)
     if (func == 5)
     {
         return 1.0 - t;
+    }
+    if (func == 6)
+    {
+        return GpuNoise1(phase * 256.0);
     }
 
     return 0.0;

@@ -218,6 +218,14 @@ static ID_INLINE const float* GpuTcTableForFunc(const genFunc_t func) noexcept
 
 static ID_INLINE float GpuTcEvalWaveForm(const waveForm_t& wf) noexcept
 {
+	if (wf.func == genFunc_t::GF_NOISE)
+	{
+		return wf.base +
+			R_NoiseGet4f(0.0f, 0.0f, 0.0f,
+				(tess.shaderTime + static_cast<double>(wf.phase)) * static_cast<double>(wf.frequency)) *
+			wf.amplitude;
+	}
+
 	const float* const table = GpuTcTableForFunc(wf.func);
 	if (!table)
 	{
@@ -505,7 +513,7 @@ static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage)
 	switch (ds.deformation)
 	{
 	case deform_t::DEFORM_WAVE:
-		if (ds.deformationWave.func == genFunc_t::GF_NONE || ds.deformationWave.func == genFunc_t::GF_NOISE)
+		if (ds.deformationWave.func == genFunc_t::GF_NONE)
 		{
 			return;
 		}
@@ -531,7 +539,7 @@ static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage)
 		return;
 
 	case deform_t::DEFORM_MOVE:
-		if (ds.deformationWave.func == genFunc_t::GF_NONE || ds.deformationWave.func == genFunc_t::GF_NOISE)
+		if (ds.deformationWave.func == genFunc_t::GF_NONE)
 		{
 			return;
 		}
@@ -1267,8 +1275,7 @@ static ID_INLINE float VK_GpuMd3Clamp01(const float v) noexcept
 
 static ID_INLINE bool VK_GpuMd3SupportsWaveAlpha(const textureBundle_t& b0) noexcept
 {
-	return b0.alphaGen == alphaGen_t::AGEN_WAVEFORM &&
-		b0.alphaWave.func != genFunc_t::GF_NOISE;
+	return b0.alphaGen == alphaGen_t::AGEN_WAVEFORM;
 }
 
 static ID_INLINE bool VK_TryBuildGpuMd3UniformAlpha(float& outAlpha, const textureBundle_t& b0) noexcept
