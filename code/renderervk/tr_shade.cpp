@@ -555,6 +555,16 @@ static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage)
 		u.deform1[3] = ds.deformationWave.phase + static_cast<float>(tess.shaderTime) * ds.deformationWave.frequency;
 		return;
 
+	case deform_t::DEFORM_NORMALS:
+		// Mirror RB_CalcDeformNormals() on the GPU.
+		// The shader derives the animated time slice from deform0.w and
+		// uses the amplitude from deform0.y.
+		u.deform0[0] = 4.0f;
+		u.deform0[1] = ds.deformationWave.amplitude;
+		u.deform0[2] = 0.0f;
+		u.deform0[3] = static_cast<float>(tess.shaderTime * ds.deformationWave.frequency);
+		return;
+
 	default:
 		(void)stage;
 		return;

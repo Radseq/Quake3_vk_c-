@@ -112,6 +112,31 @@ float ApplyGpuWave(float phase, int func)
     return 0.0;
 }
 
+
+float GpuNoise4(vec4 p)
+{
+    return GpuNoise1(dot(p, vec4(1.0, 57.0, 113.0, 271.0)));
+}
+
+vec3 ApplyGpuNormalDeform(vec3 normal, vec3 position)
+{
+    const int mode = int(ubo.deform0.x + 0.5);
+    if (mode != 4)
+    {
+        return normal;
+    }
+
+    const float amp = ubo.deform0.y;
+    const float now = ubo.deform0.w;
+    const float scale = 0.98;
+
+    vec3 n = normal;
+    n.x += amp * GpuNoise4(vec4(position.x * scale, position.y * scale, position.z * scale, now));
+    n.y += amp * GpuNoise4(vec4(100.0 + position.x * scale, position.y * scale, position.z * scale, now));
+    n.z += amp * GpuNoise4(vec4(200.0 + position.x * scale, position.y * scale, position.z * scale, now));
+    return safe_normalize(n);
+}
+
 vec3 ApplyGpuDeform(vec3 position, vec3 normal, vec2 baseSt)
 {
     const int mode = int(ubo.deform0.x + 0.5);
@@ -224,8 +249,9 @@ void main()
     const vec3 oldNormal = decode_md3_normal(in_old_normal_packed);
     const vec3 newNormal = decode_md3_normal(in_new_normal_packed);
 
-    const vec3 normal = safe_normalize(oldNormal * pc.md3Anim.y + newNormal * pc.md3Anim.x);
+    vec3 normal = safe_normalize(oldNormal * pc.md3Anim.y + newNormal * pc.md3Anim.x);
     vec3 position = oldPosition * pc.md3Anim.y + newPosition * pc.md3Anim.x;
+    normal = ApplyGpuNormalDeform(normal, position);
     position = ApplyGpuDeform(position, normal, in_tex_coord0);
 
     const vec4 pos4 = vec4(position, 1.0);

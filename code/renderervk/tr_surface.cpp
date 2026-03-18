@@ -1034,6 +1034,14 @@ static bool RB_CanGpuMd3UseDeforms(
 		(void)shaderType;
 		return ds.deformationWave.func != genFunc_t::GF_NONE;
 
+	case deform_t::DEFORM_NORMALS:
+		// Normal wiggle is evaluated directly in the MD3 vertex shader.
+		// This keeps env-mapped / diffuse-lit model shaders off the CPU path.
+		(void)stage;
+		(void)bundle;
+		(void)shaderType;
+		return true;
+
 	default:
 		return false;
 	}
