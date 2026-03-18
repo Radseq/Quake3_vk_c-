@@ -1760,6 +1760,12 @@ typedef struct shaderCommands_s
 	int numPasses;
 	shaderStage_t **xstages;
 
+	// Aktualnie renderowany stage dla GPU MD3 multi-pass.
+	// Niezależne od vboStage: to pole służy wyłącznie do stage-derived
+	// decyzji w ścieżce GPU MD3 (kolor/tc/deform/layout), również gdy USE_VBO
+	// nie jest aktywne. Wartość -1 oznacza brak aktywnego generic stage.
+	int gpuStageIndex;
+
 	bool gpuMd3Active;
 	const md3GpuSurface_t* gpuMd3Surface;
 	int gpuMd3Lod;

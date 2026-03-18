@@ -3675,26 +3675,62 @@ static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textur
 	}
 }
 
+static ID_INLINE const shaderStage_t* VK_GpuMd3CurrentStage() noexcept
+{
+	if (!tess.gpuMd3Active || !tess.xstages || tess.numPasses <= 0)
+		return nullptr;
+
+	if (tess.gpuStageIndex < 0 || tess.gpuStageIndex >= MAX_SHADER_STAGES)
+		return nullptr;
+
+	return tess.xstages[tess.gpuStageIndex];
+}
+
+static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForShaderType(const Vk_Shader_Type shaderType) noexcept
+{
+	switch (shaderType)
+	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+		return gpuMd3Layout_t::GENERIC_ST_COLOR;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
+		return gpuMd3Layout_t::GENERIC_ENV_COLOR;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+		return gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+		return gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+		return gpuMd3Layout_t::LIGHTING;
+
+	default:
+		return gpuMd3Layout_t::NONE;
+	}
+}
+
+static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForStage(const shaderStage_t& stage) noexcept
+{
+	Vk_Pipeline_Def def{};
+	vk_get_pipeline_def(stage.vk_pipeline[0], def);
+	return VK_GpuMd3LayoutForShaderType(def.shader_type);
+}
+
 static ID_INLINE uint32_t VK_GpuMd3CurrentColorMode() noexcept
 {
-	if (!tess.gpuMd3Active)
-		return 0u;
-
-	if (!tess.xstages || tess.numPasses <= 0)
-		return 0u;
-
-	const int stageIndex = (tess.vboStage >= 0 && tess.vboStage < MAX_SHADER_STAGES) ? tess.vboStage : 0;
-	const shaderStage_t* stage = tess.xstages[stageIndex];
+	const shaderStage_t* stage = VK_GpuMd3CurrentStage();
 	if (!stage)
 		return 0u;
 
-	Vk_Pipeline_Def def{};
-	vk_get_pipeline_def(stage->vk_pipeline[0], def);
-
-	const bool genericColorLayout =
-		def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE ||
-		def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV;
-	if (!genericColorLayout)
+	const gpuMd3Layout_t stageLayout = VK_GpuMd3LayoutForStage(*stage);
+	if (stageLayout != gpuMd3Layout_t::GENERIC_ST_COLOR &&
+		stageLayout != gpuMd3Layout_t::GENERIC_ENV_COLOR)
 		return 0u;
 
 	const textureBundle_t& b0 = stage->bundle[0];
@@ -3737,8 +3773,6 @@ static ID_INLINE uint32_t VK_GpuMd3CurrentColorMode() noexcept
 
 	return mode;
 }
-
-
 
 static ID_INLINE bool VK_GpuMd3UsesRawVertexColor() noexcept
 {
@@ -4018,6 +4052,20 @@ void vk_bind_geometry(const uint32_t flags)
 #ifdef USE_VBO
 	if (tess.vboIndex)
 	{
+		shaderStage_t* currentVboStage = nullptr;
+		if (tess.shader && tess.vboStage >= 0 && tess.vboStage < MAX_SHADER_STAGES)
+		{
+			currentVboStage = tess.shader->stages[tess.vboStage];
+		}
+		if (!currentVboStage && tess.shader)
+		{
+			currentVboStage = tess.shader->stages[0];
+		}
+		if (!currentVboStage)
+		{
+			ri.Error(ERR_DROP, "vk_bind_geometry: invalid VBO stage state");
+			return;
+		}
 
 		shade_bufs[0] = shade_bufs[1] = shade_bufs[2] = shade_bufs[3] = shade_bufs[4] = shade_bufs[5] = shade_bufs[6] = shade_bufs[7] = vk_inst.vbo.vertex_buffer;
 
@@ -4029,25 +4077,25 @@ void vk_bind_geometry(const uint32_t flags)
 
 		if (flags & TESS_RGBA0)
 		{ // 1
-			vk_inst.cmd->vbo_offset[1] = tess.shader->stages[tess.vboStage]->rgb_offset[0];
+			vk_inst.cmd->vbo_offset[1] = currentVboStage->rgb_offset[0];
 			vk_bind_index_attr(1);
 		}
 
 		if (flags & TESS_ST0)
 		{ // 2
-			vk_inst.cmd->vbo_offset[2] = tess.shader->stages[tess.vboStage]->tex_offset[0];
+			vk_inst.cmd->vbo_offset[2] = currentVboStage->tex_offset[0];
 			vk_bind_index_attr(2);
 		}
 
 		if (flags & TESS_ST1)
 		{ // 3
-			vk_inst.cmd->vbo_offset[3] = tess.shader->stages[tess.vboStage]->tex_offset[1];
+			vk_inst.cmd->vbo_offset[3] = currentVboStage->tex_offset[1];
 			vk_bind_index_attr(3);
 		}
 
 		if (flags & TESS_ST2)
 		{ // 4
-			vk_inst.cmd->vbo_offset[4] = tess.shader->stages[tess.vboStage]->tex_offset[2];
+			vk_inst.cmd->vbo_offset[4] = currentVboStage->tex_offset[2];
 			vk_bind_index_attr(4);
 		}
 
@@ -4059,13 +4107,13 @@ void vk_bind_geometry(const uint32_t flags)
 
 		if (flags & TESS_RGBA1)
 		{ // 6
-			vk_inst.cmd->vbo_offset[6] = tess.shader->stages[tess.vboStage]->rgb_offset[1];
+			vk_inst.cmd->vbo_offset[6] = currentVboStage->rgb_offset[1];
 			vk_bind_index_attr(6);
 		}
 
 		if (flags & TESS_RGBA2)
 		{ // 7
-			vk_inst.cmd->vbo_offset[7] = tess.shader->stages[tess.vboStage]->rgb_offset[2];
+			vk_inst.cmd->vbo_offset[7] = currentVboStage->rgb_offset[2];
 			vk_bind_index_attr(7);
 		}
 

@@ -60,9 +60,25 @@ because a surface may be forced to perform a RB_End due
 to overflow.
 ==============
 */
-void RB_BeginSurface(shader_t &shader, const int fogNum)
+static ID_INLINE void RB_ResetStageTracking() noexcept
 {
-	shader_t *state;
+	tess.gpuStageIndex = -1;
+#ifdef USE_VBO
+	tess.vboStage = 0;
+#endif
+}
+
+static ID_INLINE void RB_SetStageTracking(const int stageIndex) noexcept
+{
+	tess.gpuStageIndex = stageIndex;
+#ifdef USE_VBO
+	tess.vboStage = stageIndex;
+#endif
+}
+
+void RB_BeginSurface(shader_t& shader, const int fogNum)
+{
+	shader_t* state;
 
 #ifdef USE_VBO
 	if (shader.isStaticShader && !shader.remappedShader)
@@ -115,6 +131,7 @@ void RB_BeginSurface(shader_t &shader, const int fogNum)
 	tess.gpuMd3OldFrame = 0;
 	tess.gpuMd3NewFrame = 0;
 	tess.gpuMd3Layout = gpuMd3Layout_t::NONE;
+	RB_ResetStageTracking();
 
 	tess.gpuMd3ViewOriginLocal[0] = 0.0f;
 	tess.gpuMd3ViewOriginLocal[1] = 0.0f;
@@ -492,6 +509,7 @@ static ID_INLINE void VK_SetIdentityGpuMd3DeformParams(vkUniform_t& u) noexcept
 	u.deform1[0] = 0.0f; u.deform1[1] = 0.0f; u.deform1[2] = 0.0f; u.deform1[3] = 0.0f;
 }
 
+
 static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForShaderType(const Vk_Shader_Type shaderType) noexcept
 {
 	switch (shaderType)
@@ -686,25 +704,11 @@ void R_ComputeTexCoords(const int b, const textureBundle_t& bundle)
 		return;
 
 	const shaderStage_t* const stage =
-		(tess.shader && tess.vboStage >= 0 && tess.vboStage < MAX_SHADER_STAGES)
-		? tess.shader->stages[tess.vboStage]
+		(tess.shader && tess.gpuStageIndex >= 0 && tess.gpuStageIndex < MAX_SHADER_STAGES)
+		? tess.shader->stages[tess.gpuStageIndex]
 		: nullptr;
 
 	const bool gpuHandled = stage ? R_GpuMd3TexCoordsHandledInShader(*stage, bundle) : false;
-
-	//if (tess.gpuMd3Active &&
-	//	tess.shader && tess.shader->name &&
-	//	(Q_stricmp_cpp(tess.shader->name, "models/powerups/ammo/plasammo2") == 0 ||
-	//		Q_stricmp_cpp(tess.shader->name, "models/weapons2/shotgun/shotgun_laser") == 0))
-	//{
-	//	ri.Printf(PRINT_ALL,
-	//		"GPU_MD3 FINAL: shader='%s' layout=%d tcGen=%d numTexMods=%d skip=%d\n",
-	//		tess.shader->name,
-	//		static_cast<int>(tess.gpuMd3Layout),
-	//		static_cast<int>(bundle.tcGen),
-	//		bundle.numTexMods,
-	//		gpuHandled ? 1 : 0);
-	//}
 
 	if (gpuHandled)
 		return;
@@ -826,7 +830,7 @@ void R_ComputeTexCoords(const int b, const textureBundle_t& bundle)
 	tess.svars.texcoordPtr[b] = src;
 }
 
-void VK_SetFogParams(vkUniform_t &uniform, int &fogStage)
+void VK_SetFogParams(vkUniform_t& uniform, int& fogStage)
 {
 	if (tess.fogNum && static_cast<int>(tess.shader->fogPass))
 	{
@@ -854,7 +858,7 @@ void VK_SetFogParams(vkUniform_t &uniform, int &fogStage)
 	}
 }
 
-void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
+void R_ComputeColors(const int b, color4ub_t* dest, const shaderStage_t& pStage)
 {
 	if (tess.numVertexes == 0)
 		return;
@@ -874,7 +878,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 		Com_Memset(dest, tr.identityLightByte, tess.numVertexes * 4);
 		break;
 	case colorGen_t::CGEN_LIGHTING_DIFFUSE:
-		RB_CalcDiffuseColor((unsigned char *)dest);
+		RB_CalcDiffuseColor((unsigned char*)dest);
 		break;
 	case colorGen_t::CGEN_EXACT_VERTEX:
 		Com_Memcpy(dest, tess.vertexColors, tess.numVertexes * sizeof(tess.vertexColors[0]));
@@ -923,7 +927,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 		break;
 	case colorGen_t::CGEN_FOG:
 	{
-		const fog_t *fog = tr.world->fogs + tess.fogNum;
+		const fog_t* fog = tr.world->fogs + tess.fogNum;
 
 		for (i = 0; i < tess.numVertexes; i++)
 		{
@@ -1037,7 +1041,7 @@ void R_ComputeColors(const int b, color4ub_t *dest, const shaderStage_t &pStage)
 	}
 }
 
-uint32_t VK_PushUniform(const vkUniform_t &uniform)
+uint32_t VK_PushUniform(const vkUniform_t& uniform)
 {
 	const uint32_t offset = vk_inst.cmd->uniform_read_offset = pad_up(vk_inst.cmd->vertex_buffer_offset, vk_inst.uniform_alignment);
 
@@ -1055,7 +1059,7 @@ uint32_t VK_PushUniform(const vkUniform_t &uniform)
 	return offset;
 }
 
-static void R_BindAnimatedImage(const textureBundle_t &bundle)
+static void R_BindAnimatedImage(const textureBundle_t& bundle)
 {
 	int64_t index;
 	double v;
@@ -1101,7 +1105,7 @@ static void R_BindAnimatedImage(const textureBundle_t &bundle)
 }
 
 #ifdef USE_PMLIGHT
-static void VK_SetLightParams(vkUniform_t &uniform, const dlight_t &dl)
+static void VK_SetLightParams(vkUniform_t& uniform, const dlight_t& dl)
 {
 	float radius;
 	if (!glConfig.deviceSupportsGamma && !vk_inst.fboActive)
@@ -1136,7 +1140,7 @@ void VK_LightingPass(void)
 	static uint32_t uniform_offset;
 	static int fog_stage;
 	uint32_t pipeline;
-	const shaderStage_t *pStage;
+	const shaderStage_t* pStage;
 	cullType_t cull;
 	int abs_light;
 
@@ -1303,16 +1307,16 @@ static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& sta
 
 enum : uint32_t
 {
-	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB      = 1u << 0,
-	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA   = 1u << 1,
-	GPU_MD3_COLOR_UNIFORM_SOLID_RGBA       = 1u << 2,
-	GPU_MD3_COLOR_VERTEX_RGB               = 1u << 3,
-	GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB     = 1u << 4,
-	GPU_MD3_COLOR_EXACT_VERTEX_RGB         = 1u << 5,
-	GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA   = 1u << 6,
-	GPU_MD3_COLOR_UNIFORM_ALPHA            = 1u << 7,
-	GPU_MD3_COLOR_VERTEX_ALPHA             = 1u << 8,
-	GPU_MD3_COLOR_PORTAL_ALPHA             = 1u << 9
+	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0,
+	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA = 1u << 1,
+	GPU_MD3_COLOR_UNIFORM_SOLID_RGBA = 1u << 2,
+	GPU_MD3_COLOR_VERTEX_RGB = 1u << 3,
+	GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB = 1u << 4,
+	GPU_MD3_COLOR_EXACT_VERTEX_RGB = 1u << 5,
+	GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA = 1u << 6,
+	GPU_MD3_COLOR_UNIFORM_ALPHA = 1u << 7,
+	GPU_MD3_COLOR_VERTEX_ALPHA = 1u << 8,
+	GPU_MD3_COLOR_PORTAL_ALPHA = 1u << 9
 };
 
 static ID_INLINE float VK_GpuMd3Clamp01(const float v) noexcept
@@ -1493,10 +1497,10 @@ static ID_INLINE bool VK_GpuMd3UsesRawVertexColor(const shaderStage_t& stage, co
 {
 	return (VK_GpuMd3ColorMode(stage, bundleIndex) &
 		(GPU_MD3_COLOR_VERTEX_RGB |
-		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB |
-		 GPU_MD3_COLOR_EXACT_VERTEX_RGB |
-		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA |
-		 GPU_MD3_COLOR_VERTEX_ALPHA)) != 0u;
+			GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB |
+			GPU_MD3_COLOR_EXACT_VERTEX_RGB |
+			GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA |
+			GPU_MD3_COLOR_VERTEX_ALPHA)) != 0u;
 }
 
 static ID_INLINE void VK_BuildGpuMd3SolidColor(vec4_t rgba, const shaderStage_t& stage) noexcept
@@ -1652,7 +1656,7 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 	uniform.light.vector[2] = ent.lightDir[2];
 }
 
-static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fogCollapse)
+static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fogCollapse)
 {
 	int tess_flags;
 	int stage;
@@ -1688,13 +1692,15 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 		}
 	}
 
+	RB_ResetStageTracking();
+
 	for (stage = 0; stage < MAX_SHADER_STAGES; stage++)
 	{
 		const shaderStage_t* pStage = tess.xstages[stage];
 		if (!pStage)
 			break;
 
-		tess.vboStage = stage;
+		RB_SetStageTracking(stage);
 
 		tess_flags |= pStage->tessFlags;
 
@@ -1849,6 +1855,11 @@ static void RB_IterateStagesGeneric(const shaderCommands_t &input, const bool fo
 	{
 		VK_PushUniform(uniform);
 	}
+
+	// Po zakończeniu generic passów nie zostawiaj aktywnego stage-derived stanu
+	// dla późniejszych fog/dlight/debug drawów.
+	RB_ResetStageTracking();
+
 	if (tess_flags) // fog-only shaders?
 		vk_bind_geometry(tess_flags);
 }
@@ -1884,8 +1895,8 @@ static bool ProjectDlightTexture(void)
 	int i;
 	uint32_t l;
 	vec3_t origin{};
-	float *texCoords;
-	byte *colors;
+	float* texCoords;
+	byte* colors;
 	byte clipBits[SHADER_MAX_VERTEXES]{};
 	uint32_t pipeline;
 
@@ -1902,10 +1913,10 @@ static bool ProjectDlightTexture(void)
 			continue; // this surface definitely doesn't have any of this light
 		}
 
-		texCoords = (float *)&tess.svars.texcoords[0][0];
+		texCoords = (float*)&tess.svars.texcoords[0][0];
 		tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
 		colors = tess.svars.colors[0][0].rgba;
-		const dlight_t &dl = backEnd.refdef.dlights[l];
+		const dlight_t& dl = backEnd.refdef.dlights[l];
 		VectorCopy(dl.transformed, origin);
 		radius = dl.radius;
 		scale = 1.0f / radius;
@@ -1925,8 +1936,8 @@ static bool ProjectDlightTexture(void)
 			if (!r_dlightBacks->integer &&
 				// dist . tess.normal[i]
 				(dist[0] * tess.normal[i][0] +
-				 dist[1] * tess.normal[i][1] +
-				 dist[2] * tess.normal[i][2]) < 0.0f)
+					dist[1] * tess.normal[i][1] +
+					dist[2] * tess.normal[i][2]) < 0.0f)
 			{
 				clip = 63;
 			}
@@ -2049,7 +2060,7 @@ static void RB_FogPass(bool rebindIndex)
 	vk_update_descriptor(VK_DESC_FOG_ONLY, tr.fogImage->descriptor);
 	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, true);
 #else
-	const fog_t *fog = tr.world->fogs + tess.fogNum;
+	const fog_t* fog = tr.world->fogs + tess.fogNum;
 	int i;
 
 	for (i = 0; i < tess.numVertexes; i++)
@@ -2057,7 +2068,7 @@ static void RB_FogPass(bool rebindIndex)
 		tess.svars.colors[0][i] = fog->colorInt;
 	}
 
-	RB_CalcFogTexCoords((float *)tess.svars.texcoords[0]);
+	RB_CalcFogTexCoords((float*)tess.svars.texcoords[0]);
 	tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
 	GL_Bind(tr.fogImage);
 
@@ -2080,7 +2091,7 @@ void RB_StageIteratorGeneric(void)
 	if (tess.vboIndex != 0)
 	{
 		VBO_PrepareQueues();
-		tess.vboStage = 0;
+		RB_ResetStageTracking();
 	}
 	else
 #endif
@@ -2129,7 +2140,7 @@ DrawTris
 Draws triangle outlines for debugging
 ================
 */
-static void DrawTris(const shaderCommands_t &input)
+static void DrawTris(const shaderCommands_t& input)
 {
 	uint32_t pipeline;
 
@@ -2174,7 +2185,7 @@ DrawNormals
 Draws vertex normals for debugging
 ================
 */
-static void DrawNormals(const shaderCommands_t &input)
+static void DrawNormals(const shaderCommands_t& input)
 {
 	int i;
 #ifdef USE_VBO
@@ -2203,7 +2214,7 @@ static void DrawNormals(const shaderCommands_t &input)
 
 void RB_EndSurface(void)
 {
-	const shaderCommands_t &input = tess;
+	const shaderCommands_t& input = tess;
 
 	if (input.numIndexes == 0)
 	{
