@@ -861,16 +861,6 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	fragSpec.fixedColor = static_cast<float>(def.color.rgb) / 255.0f;
 	fragSpec.fixedAlpha = static_cast<float>(def.color.alpha) / 255.0f;
 
-	if (def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR)
-	{
-		ri.Printf(PRINT_ALL,
-			"GPU_MD3 PIPELINE ENT_COLOR: def.color.rgb=%u def.color.alpha=%u fixedColor=%.3f fixedAlpha=%.3f\n",
-			static_cast<unsigned int>(def.color.rgb),
-			static_cast<unsigned int>(def.color.alpha),
-			fragSpec.fixedColor,
-			fragSpec.fixedAlpha);
-	}
-
 	fragSpec.acff = def.fog_stage ? def.acff : 0;
 
 	shader_stages[0].pSpecializationInfo = nullptr;

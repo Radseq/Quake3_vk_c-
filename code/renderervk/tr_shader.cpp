@@ -2800,11 +2800,13 @@ static bool EqualTCgen(const int bundle, const shaderStage_t* st1, const shaderS
 		}
 	}
 
-	// if ( b1.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP ) {
-	//	if ( b1.isScreenMap != b2.isScreenMap ) {
-	//		return false;
-	//	}
-	// }
+	if (b1.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP)
+	{
+		if (b1.isScreenMap != b2.isScreenMap)
+		{
+			return false;
+		}
+	}
 
 	// if ( b1.tcGen != texCoordGen_t::TCGEN_LIGHTMAP && b1.lightmap != b2.lightmap && r_mergeLightmaps->integer ) {
 	//	return false;
@@ -3137,6 +3139,7 @@ static void InitShader(std::string_view name, const int lightmapIndex)
 	for (i = 0; i < MAX_SHADER_STAGES; i++)
 	{
 		stages[i].bundle[0].texMods = texMods[i];
+		stages[i].gpuEnvBundleIndex = -1;
 	}
 
 #ifdef USE_PMLIGHT
@@ -3599,7 +3602,6 @@ static shader_t* FinishShader(void)
 
 		for (i = 0; i < stage; i++)
 		{
-			int env_mask;
 			shaderStage_t& pStage = stages[i];
 			def.state_bits = pStage.stateBits;
 
@@ -3784,22 +3786,6 @@ static shader_t* FinishShader(void)
 				}
 			} // switch mtEnv3 / mtEnv
 
-			for (env_mask = 0, n = 0; n < pStage.numTexBundles; n++)
-			{
-				if (pStage.bundle[n].numTexMods)
-				{
-					continue;
-				}
-
-				const texCoordGen_t tcg = pStage.bundle[n].tcGen;
-				if ((tcg == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
-					tcg == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP) &&
-					(pStage.bundle[n].lightmap == LIGHTMAP_INDEX_NONE || !tr.mergeLightmaps))
-				{
-					env_mask |= (1 << n);
-				}
-			}
-
 			static auto ConvertEnvShaderType = [](Vk_Shader_Type& type) noexcept -> bool
 				{
 					switch (type)
@@ -3865,26 +3851,67 @@ static shader_t* FinishShader(void)
 					}
 				};
 
-			if (env_mask == 1 && !pStage.depthFragment)
+
+			int envBundle = -1;
+			bool multipleEnvBundles = false;
+
+			for (n = 0; n < static_cast<int>(pStage.numTexBundles); ++n)
 			{
-				if (def.shader_type >= Vk_Shader_Type::TYPE_GENERIC_BEGIN &&
-					def.shader_type <= Vk_Shader_Type::TYPE_GENERIC_END)
+				const textureBundle_t& bundle = pStage.bundle[n];
+
+				if (bundle.numTexMods)
 				{
-					const texCoordGen_t tcg0 = pStage.bundle[0].tcGen;
-					const bool isEnv0 =
-						tcg0 == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
-						tcg0 == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP;
-
-					if (isEnv0 && ConvertEnvShaderType(def.shader_type))
-					{
-						shader.tessFlags |= TESS_NNN | TESS_VPOS;
-						pStage.tessFlags &= ~TESS_ST0;
-						pStage.tessFlags |= TESS_ENV;
-
-						pStage.bundle[0].originalTcGen = pStage.bundle[0].tcGen;
-						pStage.bundle[0].gpuTcGenHandledInShader = true;
-					}
+					continue;
 				}
+
+				const texCoordGen_t tcg = bundle.tcGen;
+				const bool isEnv =
+					tcg == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
+					tcg == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP;
+
+				if (!isEnv)
+				{
+					continue;
+				}
+
+				if (bundle.lightmap != LIGHTMAP_INDEX_NONE && tr.mergeLightmaps)
+				{
+					continue;
+				}
+
+				if (envBundle != -1)
+				{
+					multipleEnvBundles = true;
+					break;
+				}
+
+				envBundle = static_cast<int>(n);
+			}
+
+			// zapamiętaj semantycznie, w którym bundle wykryto env tcGen
+			pStage.gpuEnvBundleIndex =
+				(!multipleEnvBundles && envBundle >= 0)
+				? static_cast<int8_t>(envBundle)
+				: static_cast<int8_t>(-1);
+
+
+			// UWAGA:
+			// aktualny rewrite/pipeline path nadal wspiera env tylko wtedy,
+			// gdy env siedzi w bundle[0]. To jest zgodne z dawną logiką i
+			// nie rozwala obecnych shader/pipeline assumptions.
+			if (!multipleEnvBundles &&
+				envBundle == 0 &&
+				!pStage.depthFragment &&
+				def.shader_type >= Vk_Shader_Type::TYPE_GENERIC_BEGIN &&
+				def.shader_type <= Vk_Shader_Type::TYPE_GENERIC_END &&
+				ConvertEnvShaderType(def.shader_type))
+			{
+				shader.tessFlags |= TESS_NNN | TESS_VPOS;
+				pStage.tessFlags &= ~TESS_ST0;
+				pStage.tessFlags |= TESS_ENV;
+
+				pStage.bundle[0].originalTcGen = pStage.bundle[0].tcGen;
+				pStage.bundle[0].gpuTcGenHandledInShader = true;
 			}
 
 			def.mirror = false;

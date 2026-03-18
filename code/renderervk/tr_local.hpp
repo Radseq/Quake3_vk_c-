@@ -517,6 +517,8 @@ typedef struct
 	uint32_t tessFlags;
 	uint32_t numTexBundles;
 
+	int8_t gpuEnvBundleIndex;
+
 	uint32_t vk_pipeline[2]; // normal,fogged
 	uint32_t vk_mirror_pipeline[2];
 

@@ -1180,7 +1180,6 @@ static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& sta
 	uniform.light.vector[2] = 0.0f;
 	uniform.light.vector[3] = 0.0f;
 
-
 	if (!tess.gpuMd3Active)
 	{
 		return;
@@ -1191,19 +1190,24 @@ static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& sta
 		return;
 	}
 
-	// Bardzo ważne:
-	// nie wolno tu zgadywać po RF_FIRST_PERSON.
-	// Trzeba użyć PRAWDZIWEJ semantyki tcGen zachowanej w originalTcGen.
-	texCoordGen_t tcGen = stage.bundle[0].tcGen;
-
-	if (stage.bundle[0].gpuTcGenHandledInShader &&
-		stage.bundle[0].originalTcGen != texCoordGen_t::TCGEN_BAD)
+	int envBundleIndex = static_cast<int>(stage.gpuEnvBundleIndex);
+	if (envBundleIndex < 0 || envBundleIndex >= NUM_TEXTURE_BUNDLES)
 	{
-		tcGen = stage.bundle[0].originalTcGen;
+		envBundleIndex = 0;
 	}
 
-	// zwykłe environment mapping:
-	// shader używa local eyePos liczonego jak CPU path
+	const textureBundle_t& envBundle = stage.bundle[envBundleIndex];
+
+	// nie zgadujemy po RF_FIRST_PERSON
+	texCoordGen_t tcGen = envBundle.tcGen;
+
+	if (envBundle.gpuTcGenHandledInShader &&
+		envBundle.originalTcGen != texCoordGen_t::TCGEN_BAD)
+	{
+		tcGen = envBundle.originalTcGen;
+	}
+
+	// zwykłe environment mapping
 	if (tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED)
 	{
 		return;
@@ -1229,7 +1233,7 @@ static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& sta
 		uniform.light.vector[2] = tess.gpuMd3EntAxis2[2];
 		uniform.light.vector[3] = 0.0f;
 
-		if (stage.bundle[0].isScreenMap && backEnd.viewParms.frameSceneNum == 1)
+		if (envBundle.isScreenMap && backEnd.viewParms.frameSceneNum == 1)
 		{
 			uniform.light.pos[3] = 1.0f;
 		}
