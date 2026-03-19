@@ -1,4 +1,50 @@
-#include "vk_descriptors.hpp"
+﻿#include "vk_descriptors.hpp"
+#include <array>
+
+namespace
+{
+	struct VkMagFilterLUTEntry
+	{
+		int glValue;
+		vk::Filter filter;
+	};
+
+	struct VkMinFilterLUTEntry
+	{
+		int glValue;
+		vk::Filter filter;
+		vk::SamplerMipmapMode mipmapMode;
+		float maxLod;
+	};
+
+	inline constexpr auto kMagFilterLUT = std::to_array<VkMagFilterLUTEntry>({
+		{ std::to_underlying(glCompat::GL_NEAREST), vk::Filter::eNearest },
+		{ std::to_underlying(glCompat::GL_LINEAR),  vk::Filter::eLinear  },
+	});
+
+	inline constexpr auto kMinFilterLUT = std::to_array<VkMinFilterLUTEntry>({
+		{ std::to_underlying(glCompat::GL_NEAREST),                vk::Filter::eNearest, vk::SamplerMipmapMode::eNearest, 0.25f },
+		{ std::to_underlying(glCompat::GL_LINEAR),                 vk::Filter::eLinear,  vk::SamplerMipmapMode::eNearest, 0.25f },
+		{ std::to_underlying(glCompat::GL_NEAREST_MIPMAP_NEAREST), vk::Filter::eNearest, vk::SamplerMipmapMode::eNearest, -1.0f },
+		{ std::to_underlying(glCompat::GL_LINEAR_MIPMAP_NEAREST),  vk::Filter::eLinear,  vk::SamplerMipmapMode::eNearest, -1.0f },
+		{ std::to_underlying(glCompat::GL_NEAREST_MIPMAP_LINEAR),  vk::Filter::eNearest, vk::SamplerMipmapMode::eLinear,  -1.0f },
+		{ std::to_underlying(glCompat::GL_LINEAR_MIPMAP_LINEAR),   vk::Filter::eLinear,  vk::SamplerMipmapMode::eLinear,  -1.0f },
+	});
+
+	template <typename T, std::size_t N>
+	static constexpr const T* FindGlLUTEntry(const int glValue, const std::array<T, N>& lut) noexcept
+	{
+		for (const auto& entry : lut)
+		{
+			if (entry.glValue == glValue)
+			{
+				return &entry;
+			}
+		}
+
+		return nullptr;
+	}
+}
 
 static inline bool sampler_def_equal(const Vk_Sampler_Def& a, const Vk_Sampler_Def& b) noexcept {
 	return a.address_mode == b.address_mode &&
@@ -27,8 +73,7 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def& def)
 
 	vk::SamplerAddressMode address_mode;
 	vk::Sampler sampler;
-	vk::Filter mag_filter;
-	float maxLod;
+	float maxLod = vk_inst.maxLod;
 
 	// Create new sampler.
 	if (vk_inst.samplers.count >= MAX_VK_SAMPLERS) {
@@ -38,30 +83,26 @@ static vk::Sampler vk_find_sampler(const Vk_Sampler_Def& def)
 
 	address_mode = def.address_mode;
 
-	switch (def.gl_mag_filter) {
-		case std::to_underlying(glCompat::GL_NEAREST): mag_filter = vk::Filter::eNearest; break;
-		case std::to_underlying(glCompat::GL_LINEAR):  mag_filter = vk::Filter::eLinear;  break;
-		default: ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_mag_filter"); return nullptr;
+	const auto* const magEntry = FindGlLUTEntry(def.gl_mag_filter, kMagFilterLUT);
+	if (!magEntry)
+	{
+		ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_mag_filter");
+		return nullptr;
 	}
 
-	maxLod = vk_inst.maxLod;
-	vk::SamplerMipmapMode mipmap_mode;
-	vk::Filter min_filter;
+	const auto* const minEntry = FindGlLUTEntry(def.gl_min_filter, kMinFilterLUT);
+	if (!minEntry)
+	{
+		ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_min_filter");
+		return nullptr;
+	}
 
-	switch (def.gl_min_filter) {
-	case std::to_underlying(glCompat::GL_NEAREST):
-		min_filter = vk::Filter::eNearest; mipmap_mode = vk::SamplerMipmapMode::eNearest; maxLod = 0.25f; break;
-	case std::to_underlying(glCompat::GL_LINEAR):
-		min_filter = vk::Filter::eLinear;  mipmap_mode = vk::SamplerMipmapMode::eNearest; maxLod = 0.25f; break;
-	case std::to_underlying(glCompat::GL_NEAREST_MIPMAP_NEAREST):
-		min_filter = vk::Filter::eNearest; mipmap_mode = vk::SamplerMipmapMode::eNearest; break;
-	case std::to_underlying(glCompat::GL_LINEAR_MIPMAP_NEAREST):
-		min_filter = vk::Filter::eLinear;  mipmap_mode = vk::SamplerMipmapMode::eNearest; break;
-	case std::to_underlying(glCompat::GL_NEAREST_MIPMAP_LINEAR):
-		min_filter = vk::Filter::eNearest; mipmap_mode = vk::SamplerMipmapMode::eLinear;  break;
-	case std::to_underlying(glCompat::GL_LINEAR_MIPMAP_LINEAR):
-		min_filter = vk::Filter::eLinear;  mipmap_mode = vk::SamplerMipmapMode::eLinear;  break;
-	default: ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_min_filter"); return nullptr;
+	const vk::Filter mag_filter = magEntry->filter;
+	const vk::Filter min_filter = minEntry->filter;
+	const vk::SamplerMipmapMode mipmap_mode = minEntry->mipmapMode;
+	if (minEntry->maxLod >= 0.0f)
+	{
+		maxLod = minEntry->maxLod;
 	}
 
 	if (def.max_lod_1_0)

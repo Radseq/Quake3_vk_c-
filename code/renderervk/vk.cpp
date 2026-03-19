@@ -1,4 +1,4 @@
-#include "vk.hpp"
+﻿#include "vk.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <vulkan/vulkan.hpp>
@@ -3688,31 +3688,7 @@ static ID_INLINE const shaderStage_t* VK_GpuMd3CurrentStage() noexcept
 
 static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForShaderType(const Vk_Shader_Type shaderType) noexcept
 {
-	switch (shaderType)
-	{
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
-		return gpuMd3Layout_t::GENERIC_ST_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
-		return gpuMd3Layout_t::GENERIC_ENV_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
-		return gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
-		return gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
-		return gpuMd3Layout_t::LIGHTING;
-
-	default:
-		return gpuMd3Layout_t::NONE;
-	}
+	return VK_GpuMd3LayoutForShaderTypeShared(shaderType);
 }
 
 static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForStage(const shaderStage_t& stage) noexcept

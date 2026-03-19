@@ -1,6 +1,7 @@
 ﻿#include "vk_pipeline.hpp"
 #include "utils.hpp"
 #include "string_operations.hpp"
+#include <array>
 
 void vk_alloc_persistent_pipelines()
 {
@@ -292,22 +293,179 @@ inline constexpr std::array<vk::SpecializationMapEntry, 11> kFragSpecEntries = {
 	{10, offsetof(FragSpec, acff),             sizeof(int)   },
 } };
 
+namespace
+{
+	struct CullModeLUTEntry
+	{
+		cullType_t cullType;
+		vk::CullModeFlags regular;
+		vk::CullModeFlags mirrored;
+	};
+
+	inline constexpr auto kCullModeLUT = std::to_array<CullModeLUTEntry>({
+		CullModeLUTEntry{ cullType_t::CT_TWO_SIDED,   vk::CullModeFlagBits::eNone,  vk::CullModeFlagBits::eNone },
+		CullModeLUTEntry{ cullType_t::CT_FRONT_SIDED, vk::CullModeFlagBits::eBack,  vk::CullModeFlagBits::eFront },
+		CullModeLUTEntry{ cullType_t::CT_BACK_SIDED,  vk::CullModeFlagBits::eFront, vk::CullModeFlagBits::eBack },
+	});
+
+	inline constexpr auto kTopologyLUT = std::to_array<std::pair<Vk_Primitive_Topology, vk::PrimitiveTopology>>({
+		std::pair{ Vk_Primitive_Topology::TRIANGLE_LIST,  vk::PrimitiveTopology::eTriangleList },
+		std::pair{ Vk_Primitive_Topology::TRIANGLE_STRIP, vk::PrimitiveTopology::eTriangleStrip },
+		std::pair{ Vk_Primitive_Topology::LINE_LIST,      vk::PrimitiveTopology::eLineList },
+		std::pair{ Vk_Primitive_Topology::POINT_LIST,     vk::PrimitiveTopology::ePointList },
+	});
+
+	inline constexpr auto kFragColorModeLUT = []() noexcept
+	{
+		std::array<int, VK_SHADER_TYPE_LUT_COUNT> lut{};
+		lut.fill(0);
+		lut[std::to_underlying(Vk_Shader_Type::TYPE_COLOR_WHITE)] = 1;
+		lut[std::to_underlying(Vk_Shader_Type::TYPE_COLOR_GREEN)] = 2;
+		lut[std::to_underlying(Vk_Shader_Type::TYPE_COLOR_RED)] = 3;
+		return lut;
+	}();
+
+	inline constexpr auto kFragMultiTexModeLUT = []() noexcept
+	{
+		std::array<int, VK_SHADER_TYPE_LUT_COUNT> lut{};
+		lut.fill(-1);
+
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3_ENV,
+			Vk_Shader_Type::TYPE_BLEND2_MUL,
+			Vk_Shader_Type::TYPE_BLEND2_MUL_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_MUL,
+			Vk_Shader_Type::TYPE_BLEND3_MUL_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 0;
+		}
+
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 1;
+		}
+
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV,
+			Vk_Shader_Type::TYPE_BLEND2_ADD,
+			Vk_Shader_Type::TYPE_BLEND2_ADD_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_ADD,
+			Vk_Shader_Type::TYPE_BLEND3_ADD_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 2;
+		}
+
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_BLEND2_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND2_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND3_ALPHA_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 3;
+		}
+
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 4;
+		}
+
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 5;
+		}
+
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 6;
+		}
+
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 7;
+		}
+
+		return lut;
+	}();
+
+	static constexpr bool TryGetCullModeLUT(const Vk_Pipeline_Def& def, vk::CullModeFlags& outCullMode) noexcept
+	{
+		for (const auto& entry : kCullModeLUT)
+		{
+			if (entry.cullType == def.face_culling)
+			{
+				outCullMode = def.mirror ? entry.mirrored : entry.regular;
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	static constexpr vk::PrimitiveTopology GetTopologyLUT(const Vk_Primitive_Topology p) noexcept
+	{
+		for (const auto& [key, value] : kTopologyLUT)
+		{
+			if (key == p)
+			{
+				return value;
+			}
+		}
+
+		return vk::PrimitiveTopology::eTriangleList;
+	}
+
+	static constexpr int GetFragColorModeLUT(const Vk_Shader_Type shaderType) noexcept
+	{
+		const auto idx = static_cast<std::size_t>(std::to_underlying(shaderType));
+		return idx < kFragColorModeLUT.size() ? kFragColorModeLUT[idx] : 0;
+	}
+
+	static constexpr int GetFragMultiTexModeLUT(const Vk_Shader_Type shaderType) noexcept
+	{
+		const auto idx = static_cast<std::size_t>(std::to_underlying(shaderType));
+		return idx < kFragMultiTexModeLUT.size() ? kFragMultiTexModeLUT[idx] : -1;
+	}
+}
+
 static void GetCullModeByFaceCulling(const Vk_Pipeline_Def& def, vk::CullModeFlags& cullMode)
 {
-	switch (def.face_culling)
+	if (!TryGetCullModeLUT(def, cullMode))
 	{
-	case cullType_t::CT_TWO_SIDED:
-		cullMode = vk::CullModeFlagBits::eNone;
-		break;
-	case cullType_t::CT_FRONT_SIDED:
-		cullMode = (def.mirror ? vk::CullModeFlagBits::eFront : vk::CullModeFlagBits::eBack);
-		break;
-	case cullType_t::CT_BACK_SIDED:
-		cullMode = (def.mirror ? vk::CullModeFlagBits::eBack : vk::CullModeFlagBits::eFront);
-		break;
-	default:
 		ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode %i\n", static_cast<int>(def.face_culling));
-		break;
 	}
 }
 
@@ -333,20 +491,9 @@ static void push_attr(const uint32_t location, const uint32_t binding, const vk:
 	num_attrs++;
 }
 
-constexpr vk::PrimitiveTopology kTopo[] = {
-	vk::PrimitiveTopology::eTriangleList,   // default
-	vk::PrimitiveTopology::eLineList,       // LINE_LIST
-	vk::PrimitiveTopology::ePointList,      // POINT_LIST
-	vk::PrimitiveTopology::eTriangleStrip,  // TRIANGLE_STRIP
-};
-
-inline static vk::PrimitiveTopology GetTopologyByPrimitivies(Vk_Primitive_Topology p) {
-	switch (p) {
-	case Vk_Primitive_Topology::LINE_LIST: return kTopo[1];
-	case Vk_Primitive_Topology::POINT_LIST: return kTopo[2];
-	case Vk_Primitive_Topology::TRIANGLE_STRIP: return kTopo[3];
-	default: return kTopo[0];
-	}
+inline static vk::PrimitiveTopology GetTopologyByPrimitivies(const Vk_Primitive_Topology p) noexcept
+{
+	return GetTopologyLUT(p);
 }
 
 static vk::PipelineColorBlendAttachmentState createBlendAttachmentState(const uint32_t state_bits, const Vk_Pipeline_Def& def)
@@ -752,21 +899,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 
 	fragSpec.depthFrag = 0.85f;
 
-	switch (def.shader_type)
-	{
-	default:
-		fragSpec.colorMode = 0;
-		break;
-	case Vk_Shader_Type::TYPE_COLOR_WHITE:
-		fragSpec.colorMode = 1;
-		break;
-	case Vk_Shader_Type::TYPE_COLOR_GREEN:
-		fragSpec.colorMode = 2;
-		break;
-	case Vk_Shader_Type::TYPE_COLOR_RED:
-		fragSpec.colorMode = 3;
-		break;
-	}
+	fragSpec.colorMode = GetFragColorModeLUT(def.shader_type);
 
 	switch (def.shader_type)
 	{
@@ -778,84 +911,10 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		break;
 	}
 
-	switch (def.shader_type)
+	if (const int multiTexMode = GetFragMultiTexModeLUT(def.shader_type); multiTexMode >= 0)
 	{
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_ENV:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3_ENV:
-	case Vk_Shader_Type::TYPE_BLEND2_MUL:
-	case Vk_Shader_Type::TYPE_BLEND2_MUL_ENV:
-	case Vk_Shader_Type::TYPE_BLEND3_MUL:
-	case Vk_Shader_Type::TYPE_BLEND3_MUL_ENV:
-		fragSpec.multiTexMode = 0;
-		break;
-
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1_ENV:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV:
-		fragSpec.multiTexMode = 1;
-		break;
-
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_ENV:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3:
-	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV:
-	case Vk_Shader_Type::TYPE_BLEND2_ADD:
-	case Vk_Shader_Type::TYPE_BLEND2_ADD_ENV:
-	case Vk_Shader_Type::TYPE_BLEND3_ADD:
-	case Vk_Shader_Type::TYPE_BLEND3_ADD_ENV:
-		fragSpec.multiTexMode = 2;
-		break;
-
-	case Vk_Shader_Type::TYPE_BLEND2_ALPHA:
-	case Vk_Shader_Type::TYPE_BLEND2_ALPHA_ENV:
-	case Vk_Shader_Type::TYPE_BLEND3_ALPHA:
-	case Vk_Shader_Type::TYPE_BLEND3_ALPHA_ENV:
-		fragSpec.multiTexMode = 3;
-		break;
-
-	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA:
-	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA_ENV:
-	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA:
-	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA_ENV:
-		fragSpec.multiTexMode = 4;
-		break;
-
-	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA:
-	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV:
-	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA:
-	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV:
-		fragSpec.multiTexMode = 5;
-		break;
-
-	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA:
-	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
-	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA:
-	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
-		fragSpec.multiTexMode = 6;
-		break;
-
-	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA:
-	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
-	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA:
-	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
-		fragSpec.multiTexMode = 7;
-		break;
-
-	default:
-		break;
+		fragSpec.multiTexMode = multiTexMode;
 	}
-
 
 
 	fragSpec.fixedColor = static_cast<float>(def.color.rgb) / 255.0f;

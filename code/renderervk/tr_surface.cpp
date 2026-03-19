@@ -1206,31 +1206,7 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 
 static ID_INLINE gpuMd3Layout_t RB_GetGpuMd3LayoutForShaderType(const Vk_Shader_Type shaderType) noexcept
 {
-	switch (shaderType)
-	{
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
-		return gpuMd3Layout_t::GENERIC_ST_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
-		return gpuMd3Layout_t::GENERIC_ENV_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
-		return gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
-		return gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
-		return gpuMd3Layout_t::LIGHTING;
-
-	default:
-		return gpuMd3Layout_t::NONE;
-	}
+	return VK_GpuMd3LayoutForShaderTypeShared(shaderType);
 }
 
 static bool RB_SurfaceMeshGPU(md3Surface_t* surface)

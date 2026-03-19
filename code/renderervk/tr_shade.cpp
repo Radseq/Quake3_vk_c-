@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -222,15 +222,23 @@ static ID_INLINE float GpuTcFrac(const float v) noexcept
 
 static ID_INLINE const float* GpuTcTableForFunc(const genFunc_t func) noexcept
 {
-	switch (func)
+	static const std::array<const float*, 7> kPtrLUT = {
+		/* GF_NONE             */ nullptr,
+		/* GF_SIN              */ tr.sinTable.data(),
+		/* GF_SQUARE           */ tr.squareTable.data(),
+		/* GF_TRIANGLE         */ tr.triangleTable.data(),
+		/* GF_SAWTOOTH         */ tr.sawToothTable.data(),
+		/* GF_INVERSE_SAWTOOTH */ tr.inverseSawToothTable.data(),
+		/* GF_NOISE            */ nullptr
+	};
+
+	const auto idx = static_cast<std::uint8_t>(func);
+	if (idx >= kPtrLUT.size()) [[unlikely]]
 	{
-	case genFunc_t::GF_SIN:              return tr.sinTable.data();
-	case genFunc_t::GF_SQUARE:           return tr.squareTable.data();
-	case genFunc_t::GF_TRIANGLE:         return tr.triangleTable.data();
-	case genFunc_t::GF_SAWTOOTH:         return tr.sawToothTable.data();
-	case genFunc_t::GF_INVERSE_SAWTOOTH: return tr.inverseSawToothTable.data();
-	default:                             return nullptr;
+		return nullptr;
 	}
+
+	return kPtrLUT[idx];
 }
 
 static ID_INLINE float GpuTcEvalWaveForm(const waveForm_t& wf) noexcept
@@ -512,31 +520,7 @@ static ID_INLINE void VK_SetIdentityGpuMd3DeformParams(vkUniform_t& u) noexcept
 
 static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForShaderType(const Vk_Shader_Type shaderType) noexcept
 {
-	switch (shaderType)
-	{
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
-		return gpuMd3Layout_t::GENERIC_ST_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
-		return gpuMd3Layout_t::GENERIC_ENV_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
-		return gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
-		return gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
-
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
-	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
-		return gpuMd3Layout_t::LIGHTING;
-
-	default:
-		return gpuMd3Layout_t::NONE;
-	}
+	return VK_GpuMd3LayoutForShaderTypeShared(shaderType);
 }
 
 static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForStage(const shaderStage_t& stage) noexcept

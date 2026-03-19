@@ -1699,6 +1699,42 @@ enum class gpuMd3Layout_t : uint8_t
 	LIGHTING
 };
 
+inline constexpr std::size_t VK_SHADER_TYPE_LUT_COUNT =
+	static_cast<std::size_t>(std::to_underlying(Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV)) + 1u;
+
+inline constexpr auto gpuMd3LayoutByShaderTypeLUT = []() noexcept
+{
+	std::array<gpuMd3Layout_t, VK_SHADER_TYPE_LUT_COUNT> lut{};
+	lut.fill(gpuMd3Layout_t::NONE);
+
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE)] = gpuMd3Layout_t::GENERIC_ST_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV)] = gpuMd3Layout_t::GENERIC_ENV_COLOR;
+
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY)] = gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR)] = gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR)] = gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
+
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV)] = gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV)] = gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV)] = gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING)] = gpuMd3Layout_t::LIGHTING;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR)] = gpuMd3Layout_t::LIGHTING;
+
+	return lut;
+}();
+
+static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForShaderTypeShared(const Vk_Shader_Type shaderType) noexcept
+{
+	const auto idx = static_cast<std::size_t>(std::to_underlying(shaderType));
+	if (idx >= gpuMd3LayoutByShaderTypeLUT.size()) [[unlikely]]
+	{
+		return gpuMd3Layout_t::NONE;
+	}
+
+	return gpuMd3LayoutByShaderTypeLUT[idx];
+}
+
 typedef struct stageVars
 {
 	color4ub_t colors[NUM_TEXTURE_BUNDLES][SHADER_MAX_VERTEXES]; // we need at least 2xSHADER_MAX_VERTEXES for shadows and normals

@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk.hpp"
 #include "tr_shade.hpp"
 #include "tr_surface.hpp"
+#include <array>
 
 #ifdef USE_VBO
 
@@ -97,49 +98,48 @@ host-visible index buffer which is finally rendered via single draw call.
 
 void VBO_Cleanup(void);
 
-constexpr static bool isStaticRGBgen(colorGen_t cgen)
+constexpr static bool isStaticRGBgen(const colorGen_t cgen) noexcept
 {
-	switch (cgen)
-	{
-	case colorGen_t::CGEN_BAD:
-	case colorGen_t::CGEN_IDENTITY_LIGHTING: // tr.identityLight
-	case colorGen_t::CGEN_IDENTITY:			 // always (1,1,1,1)
-	case colorGen_t::CGEN_ENTITY:			 // grabbed from entity's modulate field
-	case colorGen_t::CGEN_ONE_MINUS_ENTITY:	 // grabbed from 1 - entity.modulate
-	case colorGen_t::CGEN_EXACT_VERTEX:		 // tess.vertexColors
-	case colorGen_t::CGEN_VERTEX:			 // tess.vertexColors * tr.identityLight
-	case colorGen_t::CGEN_ONE_MINUS_VERTEX:
-	// case colorGen_t::CGEN_WAVEFORM:			// programmatically generated
-	case colorGen_t::CGEN_LIGHTING_DIFFUSE:
-	// case colorGen_t::CGEN_FOG:				// standard fog
-	case colorGen_t::CGEN_CONST: // fixed color
-		return true;
-	default:
-		return false;
-	}
+	static constexpr auto kStaticRGBGenLUT = std::to_array<bool>({
+		/* CGEN_BAD               */ true,
+		/* CGEN_IDENTITY_LIGHTING */ true,
+		/* CGEN_IDENTITY          */ true,
+		/* CGEN_ENTITY            */ true,
+		/* CGEN_ONE_MINUS_ENTITY  */ true,
+		/* CGEN_EXACT_VERTEX      */ true,
+		/* CGEN_VERTEX            */ true,
+		/* CGEN_ONE_MINUS_VERTEX  */ true,
+		/* CGEN_WAVEFORM          */ false,
+		/* CGEN_LIGHTING_DIFFUSE  */ true,
+		/* CGEN_FOG               */ false,
+		/* CGEN_CONST             */ true,
+	});
+
+	const auto idx = static_cast<std::size_t>(std::to_underlying(cgen));
+	return idx < kStaticRGBGenLUT.size() ? kStaticRGBGenLUT[idx] : false;
 }
 
-constexpr static bool isStaticTCgen(const shaderStage_t &stage, const int bundle)
+constexpr static bool isStaticTCgen(const shaderStage_t& stage, const int bundle) noexcept
 {
-	switch (stage.bundle[bundle].tcGen)
+	static constexpr auto kStaticTCGenBaseLUT = std::to_array<bool>({
+		/* TCGEN_BAD                    */ true,
+		/* TCGEN_IDENTITY               */ true,
+		/* TCGEN_LIGHTMAP               */ true,
+		/* TCGEN_TEXTURE                */ true,
+		/* TCGEN_ENVIRONMENT_MAPPED     */ false,
+		/* TCGEN_ENVIRONMENT_MAPPED_FP  */ false,
+		/* TCGEN_FOG                    */ false,
+		/* TCGEN_VECTOR                 */ true,
+	});
+
+	const auto tcGen = stage.bundle[bundle].tcGen;
+	if (tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED)
 	{
-	case texCoordGen_t::TCGEN_BAD:
-	case texCoordGen_t::TCGEN_IDENTITY: // clear to 0,0
-	case texCoordGen_t::TCGEN_LIGHTMAP:
-	case texCoordGen_t::TCGEN_TEXTURE:
-	// case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
-	// case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP:
-	// case texCoordGen_t::TCGEN_FOG:
-	case texCoordGen_t::TCGEN_VECTOR: // S and T from world coordinates
-		return true;
-	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
-		if (bundle == 0 && (stage.tessFlags & TESS_ENV))
-			return true;
-		else
-			return false;
-	default:
-		return false;
+		return bundle == 0 && (stage.tessFlags & TESS_ENV) != 0;
 	}
+
+	const auto idx = static_cast<std::size_t>(std::to_underlying(tcGen));
+	return idx < kStaticTCGenBaseLUT.size() ? kStaticTCGenBaseLUT[idx] : false;
 }
 
 constexpr static bool isStaticTCmod(const textureBundle_t &bundle)
@@ -163,24 +163,23 @@ constexpr static bool isStaticTCmod(const textureBundle_t &bundle)
 	return true;
 }
 
-constexpr static bool isStaticAgen(alphaGen_t agen)
+constexpr static bool isStaticAgen(const alphaGen_t agen) noexcept
 {
-	switch (agen)
-	{
-	case alphaGen_t::AGEN_IDENTITY:
-	case alphaGen_t::AGEN_SKIP:
-	case alphaGen_t::AGEN_ENTITY:
-	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
-	case alphaGen_t::AGEN_VERTEX:
-	case alphaGen_t::AGEN_ONE_MINUS_VERTEX:
-	// case alphaGen_t::AGEN_LIGHTING_SPECULAR:
-	// case alphaGen_t::AGEN_WAVEFORM:
-	// case alphaGen_t::AGEN_PORTAL:
-	case alphaGen_t::AGEN_CONST:
-		return true;
-	default:
-		return false;
-	}
+	static constexpr auto kStaticAGenLUT = std::to_array<bool>({
+		/* AGEN_IDENTITY           */ true,
+		/* AGEN_SKIP               */ true,
+		/* AGEN_ENTITY             */ true,
+		/* AGEN_ONE_MINUS_ENTITY   */ true,
+		/* AGEN_VERTEX             */ true,
+		/* AGEN_ONE_MINUS_VERTEX   */ true,
+		/* AGEN_LIGHTING_SPECULAR  */ false,
+		/* AGEN_WAVEFORM           */ false,
+		/* AGEN_PORTAL             */ false,
+		/* AGEN_CONST              */ true,
+	});
+
+	const auto idx = static_cast<std::size_t>(std::to_underlying(agen));
+	return idx < kStaticAGenLUT.size() ? kStaticAGenLUT[idx] : false;
 }
 
 /*

@@ -45,6 +45,23 @@ static shaderStage_t stages[MAX_SHADER_STAGES];
 static shader_t shader;
 static texModInfo_t texMods[MAX_SHADER_STAGES][TR_MAX_TEXMODS + 1]; // reserve one additional texmod for lightmap atlas correction
 
+template <typename T, std::size_t N>
+static ID_INLINE T LookupTokenCI(
+	const std::string_view key,
+	const std::array<std::pair<std::string_view, T>, N>& lut,
+	const T fallback) noexcept
+{
+	for (const auto& [name, value] : lut)
+	{
+		if (!Q_stricmp_cpp(key, name))
+		{
+			return value;
+		}
+	}
+
+	return fallback;
+}
+
 constexpr int FILE_HASH_SIZE = 1024;
 static std::array<shader_t*, FILE_HASH_SIZE> shaderHashTable;
 
@@ -175,17 +192,16 @@ NameToAFunc
 */
 static unsigned int NameToAFunc(std::string_view funcname)
 {
-	if (!Q_stricmp_cpp(funcname, "GT0"))
+	static constexpr auto kAlphaFuncLUT = std::to_array<std::pair<std::string_view, unsigned int>>({
+		{ "GT0",   GLS_ATEST_GT_0  },
+		{ "LT128", GLS_ATEST_LT_80 },
+		{ "GE128", GLS_ATEST_GE_80 },
+	});
+
+	const auto value = LookupTokenCI(funcname, kAlphaFuncLUT, 0u);
+	if (value != 0u)
 	{
-		return GLS_ATEST_GT_0;
-	}
-	else if (!Q_stricmp_cpp(funcname, "LT128"))
-	{
-		return GLS_ATEST_LT_80;
-	}
-	else if (!Q_stricmp_cpp(funcname, "GE128"))
-	{
-		return GLS_ATEST_GE_80;
+		return value;
 	}
 
 	ri.Printf(PRINT_WARNING, "WARNING: invalid alphaFunc name '%s' in shader '%s'\n", funcname.data(), shader.name);
@@ -199,41 +215,22 @@ NameToSrcBlendMode
 */
 static int NameToSrcBlendMode(std::string_view name)
 {
-	if (!Q_stricmp_cpp(name, "GL_ONE"))
+	static constexpr auto kSrcBlendLUT = std::to_array<std::pair<std::string_view, int>>({
+		{ "GL_ONE",                 GLS_SRCBLEND_ONE },
+		{ "GL_ZERO",                GLS_SRCBLEND_ZERO },
+		{ "GL_DST_COLOR",           GLS_SRCBLEND_DST_COLOR },
+		{ "GL_ONE_MINUS_DST_COLOR", GLS_SRCBLEND_ONE_MINUS_DST_COLOR },
+		{ "GL_SRC_ALPHA",           GLS_SRCBLEND_SRC_ALPHA },
+		{ "GL_ONE_MINUS_SRC_ALPHA", GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA },
+		{ "GL_DST_ALPHA",           GLS_SRCBLEND_DST_ALPHA },
+		{ "GL_ONE_MINUS_DST_ALPHA", GLS_SRCBLEND_ONE_MINUS_DST_ALPHA },
+		{ "GL_SRC_ALPHA_SATURATE",  GLS_SRCBLEND_ALPHA_SATURATE },
+	});
+
+	const auto value = LookupTokenCI(name, kSrcBlendLUT, 0);
+	if (value != 0)
 	{
-		return GLS_SRCBLEND_ONE;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_ZERO"))
-	{
-		return GLS_SRCBLEND_ZERO;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_DST_COLOR"))
-	{
-		return GLS_SRCBLEND_DST_COLOR;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_ONE_MINUS_DST_COLOR"))
-	{
-		return GLS_SRCBLEND_ONE_MINUS_DST_COLOR;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_SRC_ALPHA"))
-	{
-		return GLS_SRCBLEND_SRC_ALPHA;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_ONE_MINUS_SRC_ALPHA"))
-	{
-		return GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_DST_ALPHA"))
-	{
-		return GLS_SRCBLEND_DST_ALPHA;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_ONE_MINUS_DST_ALPHA"))
-	{
-		return GLS_SRCBLEND_ONE_MINUS_DST_ALPHA;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_SRC_ALPHA_SATURATE"))
-	{
-		return GLS_SRCBLEND_ALPHA_SATURATE;
+		return value;
 	}
 
 	ri.Printf(PRINT_WARNING, "WARNING: unknown blend mode '%s' in shader '%s', substituting GL_ONE\n", name.data(), shader.name);
@@ -247,37 +244,21 @@ NameToDstBlendMode
 */
 static int NameToDstBlendMode(std::string_view name)
 {
-	if (!Q_stricmp_cpp(name, "GL_ONE"))
+	static constexpr auto kDstBlendLUT = std::to_array<std::pair<std::string_view, int>>({
+		{ "GL_ONE",                 GLS_DSTBLEND_ONE },
+		{ "GL_ZERO",                GLS_DSTBLEND_ZERO },
+		{ "GL_SRC_ALPHA",           GLS_DSTBLEND_SRC_ALPHA },
+		{ "GL_ONE_MINUS_SRC_ALPHA", GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA },
+		{ "GL_DST_ALPHA",           GLS_DSTBLEND_DST_ALPHA },
+		{ "GL_ONE_MINUS_DST_ALPHA", GLS_DSTBLEND_ONE_MINUS_DST_ALPHA },
+		{ "GL_SRC_COLOR",           GLS_DSTBLEND_SRC_COLOR },
+		{ "GL_ONE_MINUS_SRC_COLOR", GLS_DSTBLEND_ONE_MINUS_SRC_COLOR },
+	});
+
+	const auto value = LookupTokenCI(name, kDstBlendLUT, 0);
+	if (value != 0)
 	{
-		return GLS_DSTBLEND_ONE;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_ZERO"))
-	{
-		return GLS_DSTBLEND_ZERO;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_SRC_ALPHA"))
-	{
-		return GLS_DSTBLEND_SRC_ALPHA;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_ONE_MINUS_SRC_ALPHA"))
-	{
-		return GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_DST_ALPHA"))
-	{
-		return GLS_DSTBLEND_DST_ALPHA;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_ONE_MINUS_DST_ALPHA"))
-	{
-		return GLS_DSTBLEND_ONE_MINUS_DST_ALPHA;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_SRC_COLOR"))
-	{
-		return GLS_DSTBLEND_SRC_COLOR;
-	}
-	else if (!Q_stricmp_cpp(name, "GL_ONE_MINUS_SRC_COLOR"))
-	{
-		return GLS_DSTBLEND_ONE_MINUS_SRC_COLOR;
+		return value;
 	}
 
 	ri.Printf(PRINT_WARNING, "WARNING: unknown blend mode '%s' in shader '%s', substituting GL_ONE\n", name.data(), shader.name);
@@ -291,29 +272,19 @@ NameToGenFunc
 */
 static genFunc_t NameToGenFunc(std::string_view funcname)
 {
-	if (!Q_stricmp_cpp(funcname, "sin"))
+	static constexpr auto kGenFuncLUT = std::to_array<std::pair<std::string_view, genFunc_t>>({
+		{ "sin",             genFunc_t::GF_SIN },
+		{ "square",          genFunc_t::GF_SQUARE },
+		{ "triangle",        genFunc_t::GF_TRIANGLE },
+		{ "sawtooth",        genFunc_t::GF_SAWTOOTH },
+		{ "inversesawtooth", genFunc_t::GF_INVERSE_SAWTOOTH },
+		{ "noise",           genFunc_t::GF_NOISE },
+	});
+
+	const auto value = LookupTokenCI(funcname, kGenFuncLUT, genFunc_t::GF_NONE);
+	if (value != genFunc_t::GF_NONE)
 	{
-		return genFunc_t::GF_SIN;
-	}
-	else if (!Q_stricmp_cpp(funcname, "square"))
-	{
-		return genFunc_t::GF_SQUARE;
-	}
-	else if (!Q_stricmp_cpp(funcname, "triangle"))
-	{
-		return genFunc_t::GF_TRIANGLE;
-	}
-	else if (!Q_stricmp_cpp(funcname, "sawtooth"))
-	{
-		return genFunc_t::GF_SAWTOOTH;
-	}
-	else if (!Q_stricmp_cpp(funcname, "inversesawtooth"))
-	{
-		return genFunc_t::GF_INVERSE_SAWTOOTH;
-	}
-	else if (!Q_stricmp_cpp(funcname, "noise"))
-	{
-		return genFunc_t::GF_NOISE;
+		return value;
 	}
 
 	ri.Printf(PRINT_WARNING, "WARNING: invalid genfunc name '%s' in shader '%s'\n", funcname.data(), shader.name);

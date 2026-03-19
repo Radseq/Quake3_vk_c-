@@ -1,4 +1,5 @@
-#include "vk_utils.hpp"
+﻿#include "vk_utils.hpp"
+#include <array>
 
 vk::CommandBuffer begin_command_buffer()
 {
@@ -67,83 +68,85 @@ void end_command_buffer(const vk::CommandBuffer& command_buffer, const char* loc
 		&command_buffer);
 }
 
-static constexpr vk::AccessFlags get_src_access_mask(const vk::ImageLayout old_layout)
+namespace
 {
-	switch (old_layout)
+	template <typename T>
+	struct ImageLayoutLUTEntry
 	{
-	case vk::ImageLayout::eUndefined:
-		return vk::AccessFlagBits::eNone;
-	case vk::ImageLayout::eTransferDstOptimal:
-		return vk::AccessFlagBits::eTransferWrite;
-	case vk::ImageLayout::eTransferSrcOptimal:
-		return vk::AccessFlagBits::eTransferRead;
-	case vk::ImageLayout::eShaderReadOnlyOptimal:
-		return vk::AccessFlagBits::eShaderRead;
-	case vk::ImageLayout::ePresentSrcKHR:
-		return vk::AccessFlagBits::eNone;
-	default:
-		return vk::AccessFlagBits::eNone;
+		vk::ImageLayout layout;
+		T value;
+	};
+
+	template <typename T, std::size_t N>
+	static inline T FindImageLayoutValue(
+		const vk::ImageLayout layout,
+		const std::array<ImageLayoutLUTEntry<T>, N>& lut,
+		const T fallback) noexcept
+	{
+		for (const auto& entry : lut)
+		{
+			if (entry.layout == layout)
+			{
+				return entry.value;
+			}
+		}
+
+		return fallback;
 	}
+
+	static const auto kSrcAccessMaskLUT = std::to_array<ImageLayoutLUTEntry<vk::AccessFlags>>({
+		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eUndefined,             vk::AccessFlags{} },
+		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eTransferDstOptimal,    vk::AccessFlags{ vk::AccessFlagBits::eTransferWrite } },
+		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eTransferSrcOptimal,    vk::AccessFlags{ vk::AccessFlagBits::eTransferRead } },
+		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlags{ vk::AccessFlagBits::eShaderRead } },
+		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::ePresentSrcKHR,         vk::AccessFlags{} },
+	});
+
+	static const auto kDstAccessMaskLUT = std::to_array<ImageLayoutLUTEntry<vk::AccessFlags>>({
+		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eColorAttachmentOptimal,        vk::AccessFlags{ vk::AccessFlagBits::eColorAttachmentWrite } },
+		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::AccessFlags{ vk::AccessFlagBits::eDepthStencilAttachmentWrite } },
+		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::ePresentSrcKHR,                 vk::AccessFlags{} },
+		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eTransferSrcOptimal,            vk::AccessFlags{ vk::AccessFlagBits::eTransferRead } },
+		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eTransferDstOptimal,            vk::AccessFlags{ vk::AccessFlagBits::eTransferWrite } },
+		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eShaderReadOnlyOptimal,         vk::AccessFlags{ vk::AccessFlagBits::eShaderRead } | vk::AccessFlags{ vk::AccessFlagBits::eInputAttachmentRead } },
+	});
+
+	static const auto kSrcStageLUT = std::to_array<ImageLayoutLUTEntry<vk::PipelineStageFlagBits>>({
+		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eUndefined,             vk::PipelineStageFlagBits::eTopOfPipe },
+		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eTransferDstOptimal,    vk::PipelineStageFlagBits::eTransfer },
+		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eTransferSrcOptimal,    vk::PipelineStageFlagBits::eTransfer },
+		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eShaderReadOnlyOptimal, vk::PipelineStageFlagBits::eFragmentShader },
+		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::ePresentSrcKHR,         vk::PipelineStageFlagBits::eTransfer },
+	});
+
+	static const auto kDstStageLUT = std::to_array<ImageLayoutLUTEntry<vk::PipelineStageFlagBits>>({
+		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eColorAttachmentOptimal,        vk::PipelineStageFlagBits::eColorAttachmentOutput },
+		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::PipelineStageFlagBits::eEarlyFragmentTests },
+		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::ePresentSrcKHR,                 vk::PipelineStageFlagBits::eTransfer },
+		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eTransferSrcOptimal,            vk::PipelineStageFlagBits::eTransfer },
+		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eTransferDstOptimal,            vk::PipelineStageFlagBits::eTransfer },
+		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eShaderReadOnlyOptimal,         vk::PipelineStageFlagBits::eFragmentShader },
+	});
 }
 
-static constexpr vk::AccessFlags get_dst_access_mask(const vk::ImageLayout new_layout)
+static inline vk::AccessFlags get_src_access_mask(const vk::ImageLayout old_layout) noexcept
 {
-	switch (new_layout)
-	{
-	case vk::ImageLayout::eColorAttachmentOptimal:
-		return vk::AccessFlagBits::eColorAttachmentWrite;
-	case vk::ImageLayout::eDepthStencilAttachmentOptimal:
-		return vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-	case vk::ImageLayout::ePresentSrcKHR:
-		return vk::AccessFlagBits::eNone;
-	case vk::ImageLayout::eTransferSrcOptimal:
-		return vk::AccessFlagBits::eTransferRead;
-	case vk::ImageLayout::eTransferDstOptimal:
-		return vk::AccessFlagBits::eTransferWrite;
-	case vk::ImageLayout::eShaderReadOnlyOptimal:
-		return vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eInputAttachmentRead;
-	default:
-		return vk::AccessFlagBits::eNone;
-	}
+	return FindImageLayoutValue(old_layout, kSrcAccessMaskLUT, vk::AccessFlags{});
 }
 
-static constexpr vk::PipelineStageFlagBits get_src_stage(const vk::ImageLayout old_layout) noexcept
+static inline vk::AccessFlags get_dst_access_mask(const vk::ImageLayout new_layout) noexcept
 {
-	switch (old_layout)
-	{
-	case vk::ImageLayout::eUndefined:
-		return vk::PipelineStageFlagBits::eTopOfPipe;
-	case vk::ImageLayout::eTransferDstOptimal:
-	case vk::ImageLayout::eTransferSrcOptimal:
-		return vk::PipelineStageFlagBits::eTransfer;
-	case vk::ImageLayout::eShaderReadOnlyOptimal:
-		return vk::PipelineStageFlagBits::eFragmentShader;
-	case vk::ImageLayout::ePresentSrcKHR:
-		return vk::PipelineStageFlagBits::eTransfer;
-	default:
-		return vk::PipelineStageFlagBits::eAllCommands;
-	}
+	return FindImageLayoutValue(new_layout, kDstAccessMaskLUT, vk::AccessFlags{});
 }
 
-static constexpr vk::PipelineStageFlagBits get_dst_stage(const vk::ImageLayout new_layout)
+static inline vk::PipelineStageFlagBits get_src_stage(const vk::ImageLayout old_layout) noexcept
 {
-	switch (new_layout)
-	{
-	case vk::ImageLayout::eColorAttachmentOptimal:
-		return vk::PipelineStageFlagBits::eColorAttachmentOutput;
-	case vk::ImageLayout::eDepthStencilAttachmentOptimal:
-		return vk::PipelineStageFlagBits::eEarlyFragmentTests;
-	case vk::ImageLayout::ePresentSrcKHR:
-		return vk::PipelineStageFlagBits::eTransfer;
-	case vk::ImageLayout::eTransferSrcOptimal:
-		return vk::PipelineStageFlagBits::eTransfer;
-	case vk::ImageLayout::eTransferDstOptimal:
-		return vk::PipelineStageFlagBits::eTransfer;
-	case vk::ImageLayout::eShaderReadOnlyOptimal:
-		return vk::PipelineStageFlagBits::eFragmentShader;
-	default:
-		return vk::PipelineStageFlagBits::eAllCommands;
-	}
+	return FindImageLayoutValue(old_layout, kSrcStageLUT, vk::PipelineStageFlagBits::eAllCommands);
+}
+
+static inline vk::PipelineStageFlagBits get_dst_stage(const vk::ImageLayout new_layout) noexcept
+{
+	return FindImageLayoutValue(new_layout, kDstStageLUT, vk::PipelineStageFlagBits::eAllCommands);
 }
 
 

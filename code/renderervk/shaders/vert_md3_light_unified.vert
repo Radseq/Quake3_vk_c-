@@ -92,32 +92,23 @@ float ApplyGpuWave(float phase, int func)
     const float twoPi = 6.28318530717958647692;
     const float t = fract(phase);
 
-    if (func == 1)
+    switch (func)
     {
+    case 1:
         return sin(phase * twoPi);
-    }
-    if (func == 2)
-    {
+    case 2:
         return t < 0.5 ? 1.0 : -1.0;
-    }
-    if (func == 3)
-    {
+    case 3:
         return t < 0.5 ? (4.0 * t - 1.0) : (3.0 - 4.0 * t);
-    }
-    if (func == 4)
-    {
+    case 4:
         return t;
-    }
-    if (func == 5)
-    {
+    case 5:
         return 1.0 - t;
-    }
-    if (func == 6)
-    {
+    case 6:
         return GpuNoise1(phase * 256.0);
+    default:
+        return 0.0;
     }
-
-    return 0.0;
 }
 
 
