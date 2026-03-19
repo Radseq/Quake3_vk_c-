@@ -505,7 +505,9 @@ static vk::PipelineColorBlendAttachmentState createBlendAttachmentState(const ui
 
 	// Initialize colorWriteMask based on shader phase/type
 	vk::ColorComponentFlags colorWriteMask =
-		(def.shadow_phase == Vk_Shadow_Phase::SHADOW_EDGES || def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF) ? vk::ColorComponentFlags(0) : vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+		(def.shadow_phase == Vk_Shadow_Phase::SHADOW_EDGES ||
+		 def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF ||
+		 def.shader_type == Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_DF) ? vk::ColorComponentFlags(0) : vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
 
 	vk::BlendFactor srcColorBlendFactor = {};
 	vk::BlendFactor dstColorBlendFactor = {};
@@ -624,6 +626,12 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF:
 		state_bits |= GLS_DEPTHMASK_TRUE;
 		vs_module = &vk_inst.modules.vert.ident1[0][0][0];
+		fs_module = &vk_inst.modules.frag.gen0_df;
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_DF:
+		state_bits |= GLS_DEPTHMASK_TRUE;
+		vs_module = &vk_inst.modules.vert.md3_fixed[0][0];
 		fs_module = &vk_inst.modules.frag.gen0_df;
 		break;
 
@@ -873,6 +881,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		case Vk_Shader_Type::TYPE_MD3_FOG_ONLY:
 		case Vk_Shader_Type::TYPE_DOT:
 		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF:
+		case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_DF:
 		case Vk_Shader_Type::TYPE_COLOR_BLACK:
 		case Vk_Shader_Type::TYPE_COLOR_WHITE:
 		case Vk_Shader_Type::TYPE_COLOR_GREEN:
@@ -1042,6 +1051,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		push_attr(5, 5, vk::Format::eR16Uint);
 		break;
 
+	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_DF:
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_IDENTITY:
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_FIXED_COLOR:
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_ENT_COLOR:
@@ -1554,6 +1564,10 @@ static constexpr bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_
 
 	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
 		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_LIGHTING_LINEAR;
+		return true;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF:
+		out = Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_DF;
 		return true;
 
 	case Vk_Shader_Type::TYPE_FOG_ONLY:

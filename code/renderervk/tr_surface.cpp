@@ -1108,7 +1108,10 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 		if (!p || !p->active)
 			return false;
 
-		if (p->depthFragment)
+		Vk_Pipeline_Def def{};
+		vk_get_pipeline_def(p->vk_pipeline[0], def);
+
+		if (p->depthFragment && def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF)
 			return false;
 
 		if (p->numTexBundles != 1 || !p->bundle[0].image[0])
@@ -1122,8 +1125,6 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 		if (!gpuTexModsOk && bundle.numTexMods != 0)
 			return false;
 
-		Vk_Pipeline_Def def{};
-		vk_get_pipeline_def(p->vk_pipeline[0], def);
 
 		// Portal alpha and specular alpha are implemented only by the generic colored MD3 paths.
 		if (bundle.alphaGen == alphaGen_t::AGEN_PORTAL &&
@@ -1184,6 +1185,15 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 
 		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
 		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+			if (!(RB_IsGpuMd3AffineTcGen(bundle) &&
+				!bundle.gpuTcGenHandledInShader &&
+				gpuTexModsOk))
+			{
+				return false;
+			}
+			break;
+
+		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF:
 			if (!(RB_IsGpuMd3AffineTcGen(bundle) &&
 				!bundle.gpuTcGenHandledInShader &&
 				gpuTexModsOk))

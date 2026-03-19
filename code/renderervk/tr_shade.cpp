@@ -1116,7 +1116,6 @@ static void VK_SetLightParams(vkUniform_t& uniform, const dlight_t& dl)
 		Vector4Copy(ab, uniform.light.vector);
 	}
 }
-
 #endif
 
 #ifdef USE_LEGACY_DLIGHTS

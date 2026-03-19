@@ -1720,6 +1720,8 @@ inline constexpr auto gpuMd3LayoutByShaderTypeLUT = []() noexcept
 
 	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING)] = gpuMd3Layout_t::LIGHTING;
 	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR)] = gpuMd3Layout_t::LIGHTING;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF)] = gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_DF)] = gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
 
 	return lut;
 }();
