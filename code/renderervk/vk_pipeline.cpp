@@ -1,4 +1,4 @@
-﻿#include "vk_pipeline.hpp"
+#include "vk_pipeline.hpp"
 #include "utils.hpp"
 #include "string_operations.hpp"
 #include <array>
@@ -102,6 +102,8 @@ void vk_alloc_persistent_pipelines()
 #else
 					vk_inst.dlight_pipelines[i][j][k] = vk_find_pipeline_ext(0, def, true);
 #endif
+					def.shader_type = Vk_Shader_Type::TYPE_MD3_LEGACY_DLIGHT;
+					vk_inst.dlight_md3_pipelines[i][j][k] = vk_find_pipeline_ext(0, def, true);
 #endif
 				}
 			}
@@ -725,6 +727,11 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		fs_module = &vk_inst.modules.frag.light[1][0];
 		break;
 
+	case Vk_Shader_Type::TYPE_MD3_LEGACY_DLIGHT:
+		vs_module = &vk_inst.modules.vert.md3_dlight;
+		fs_module = &vk_inst.modules.frag.md3_dlight;
+		break;
+
 	case Vk_Shader_Type::TYPE_MD3_FOG_ONLY:
 		vs_module = &vk_inst.modules.vert.md3_fixed[0][1];
 		fs_module = &vk_inst.modules.fog_fs;
@@ -1067,6 +1074,7 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_LIGHTING:
 	case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+	case Vk_Shader_Type::TYPE_MD3_LEGACY_DLIGHT:
 		push_bind(0, sizeof(md3XyzNormal_t)); // old packed md3 vertex
 		push_bind(1, sizeof(md3XyzNormal_t)); // new packed md3 vertex
 		push_bind(2, sizeof(md3St_t));        // st

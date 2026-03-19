@@ -1,4 +1,4 @@
-﻿#include "vk.hpp"
+#include "vk.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <vulkan/vulkan.hpp>
@@ -1410,6 +1410,7 @@ static void vk_create_shader_modules(void)
 	vk_inst.modules.vert.md3_light[0][1] = SHADER_MODULE(vert_md3_light_unified_vert_spv);
 	vk_inst.modules.vert.md3_light[1][0] = SHADER_MODULE(vert_md3_light_unified_vert_spv);
 	vk_inst.modules.vert.md3_light[1][1] = SHADER_MODULE(vert_md3_light_unified_vert_spv);
+	vk_inst.modules.vert.md3_dlight = SHADER_MODULE(vert_md3_legacy_dlight_unified_vert_spv);
 
 
 
@@ -1579,11 +1580,14 @@ static void vk_create_shader_modules(void)
 	vk_inst.modules.frag.light[0][1] = SHADER_MODULE(frag_light_fog);
 	vk_inst.modules.frag.light[1][0] = SHADER_MODULE(frag_light_line);
 	vk_inst.modules.frag.light[1][1] = SHADER_MODULE(frag_light_line_fog);
+	vk_inst.modules.frag.md3_dlight = SHADER_MODULE(legacy_dlight_md3_frag_spv);
 #ifdef USE_VK_VALIDATION
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.light[0][0]), "light fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.light[0][1]), "light fog fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.light[1][0]), "linear light fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.light[1][1]), "linear light fog fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.vert.md3_dlight), "legacy dlight md3 vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+	SET_OBJECT_NAME(VkShaderModule(vk_inst.modules.frag.md3_dlight), "legacy dlight md3 fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 #endif
 	vk_inst.modules.color_fs = SHADER_MODULE(color_frag_spv);
 	vk_inst.modules.color_vs = SHADER_MODULE(color_vert_spv);
@@ -2522,6 +2526,8 @@ static void reset_vk_instance(Vk_Instance& s) noexcept
 		for (auto& m : row)
 			reset_to_default(m);
 
+	reset_to_default(s.modules.vert.md3_dlight);
+	reset_to_default(s.modules.frag.md3_dlight);
 
 	// Pipeline cache / pipelines
 	reset_to_default(s.pipelineCache);
@@ -2537,6 +2543,7 @@ static void reset_vk_instance(Vk_Instance& s) noexcept
 	for (auto& a : s.fog_pipelines) for (auto& b : a) for (auto& c : b) c = 0;
 #ifdef USE_LEGACY_DLIGHTS
 	for (auto& a : s.dlight_pipelines) for (auto& b : a) for (auto& c : b) c = 0;
+	for (auto& a : s.dlight_md3_pipelines) for (auto& b : a) for (auto& c : b) c = 0;
 #endif
 #ifdef USE_PMLIGHT
 	for (auto& a : s.dlight_pipelines_x)  for (auto& b : a) for (auto& c : b) for (auto& d : c) d = 0;
@@ -2796,6 +2803,17 @@ void vk_shutdown(const refShutdownCode_t code)
 
 	vk_inst.device.destroyShaderModule(vk_inst.modules.gamma_vs);
 	vk_inst.device.destroyShaderModule(vk_inst.modules.gamma_fs);
+
+	if (vk_inst.modules.vert.md3_dlight)
+	{
+		vk_inst.device.destroyShaderModule(vk_inst.modules.vert.md3_dlight);
+		vk_inst.modules.vert.md3_dlight = nullptr;
+	}
+	if (vk_inst.modules.frag.md3_dlight)
+	{
+		vk_inst.device.destroyShaderModule(vk_inst.modules.frag.md3_dlight);
+		vk_inst.modules.frag.md3_dlight = nullptr;
+	}
 
 __cleanup:
 	if (vk_inst.device)

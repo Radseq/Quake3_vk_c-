@@ -1,4 +1,4 @@
-﻿/*
+/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -1116,6 +1116,33 @@ static void VK_SetLightParams(vkUniform_t& uniform, const dlight_t& dl)
 		Vector4Copy(ab, uniform.light.vector);
 	}
 }
+
+#endif
+
+#ifdef USE_LEGACY_DLIGHTS
+static void VK_SetLegacyGpuMd3DlightParams(vkUniform_t& uniform, const dlight_t& dl, const shaderStage_t* stage) noexcept
+{
+	VectorCopy(dl.transformed, uniform.light.pos);
+	uniform.light.pos[3] = dl.radius > 0.0f ? 1.0f / dl.radius : 0.0f;
+
+	uniform.light.color[0] = dl.color[0];
+	uniform.light.color[1] = dl.color[1];
+	uniform.light.color[2] = dl.color[2];
+	uniform.light.color[3] = 1.0f;
+
+	uniform.light.vector[0] = dl.radius;
+	uniform.light.vector[1] = r_dlightBacks->integer ? 1.0f : 0.0f;
+	uniform.light.vector[2] = dl.radius * 0.5f;
+	uniform.light.vector[3] = 0.0f;
+
+	VK_SetIdentityTcParams(uniform);
+	VK_SetIdentityGpuMd3DeformParams(uniform);
+
+	if (stage)
+	{
+		VK_SetGpuMd3DeformParams(uniform, *stage);
+	}
+}
 #endif
 
 #ifdef USE_PMLIGHT
@@ -1890,6 +1917,11 @@ static bool ProjectDlightTexture(void)
 	float radius;
 	float modulate = 0.0f;
 
+	const shaderStage_t* const gpuMd3Stage =
+		(tess.gpuMd3Active && tess.xstages && tess.numPasses > 0)
+		? tess.xstages[0]
+		: nullptr;
+
 	for (l = 0; l < backEnd.refdef.num_dlights; l++)
 	{
 		if (!(tess.dlightBits & (1 << l)))
@@ -1897,10 +1929,29 @@ static bool ProjectDlightTexture(void)
 			continue; // this surface definitely doesn't have any of this light
 		}
 
+		const dlight_t& dl = backEnd.refdef.dlights[l];
+
+		if (tess.gpuMd3Active)
+		{
+			Bind(tr.dlightImage);
+			VK_SetLegacyGpuMd3DlightParams(uniform, dl, gpuMd3Stage);
+			VK_PushUniform(uniform);
+
+			pipeline = vk_inst.dlight_md3_pipelines[dl.additive > 0 ? 1 : 0][static_cast<int>(tess.shader->cullType)][tess.shader->polygonOffset];
+			vk_bind_pipeline(pipeline);
+			vk_bind_index();
+			vk_bind_geometry(TESS_ST0 | TESS_NNN);
+			vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, true);
+
+			backEnd.pc.c_dlightVertexes += tess.numVertexes;
+			backEnd.pc.c_totalIndexes += tess.numIndexes;
+			backEnd.pc.c_dlightIndexes += tess.numIndexes;
+			continue;
+		}
+
 		texCoords = (float*)&tess.svars.texcoords[0][0];
 		tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
 		colors = tess.svars.colors[0][0].rgba;
-		const dlight_t& dl = backEnd.refdef.dlights[l];
 		VectorCopy(dl.transformed, origin);
 		radius = dl.radius;
 		scale = 1.0f / radius;

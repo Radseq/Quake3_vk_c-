@@ -1,4 +1,4 @@
-﻿#ifndef DEFINITIONS_HPP
+#ifndef DEFINITIONS_HPP
 #define DEFINITIONS_HPP
 
 #if defined(_WIN32) && defined(_DEBUG)
@@ -142,6 +142,7 @@ enum class Vk_Shader_Type : uint8_t
     TYPE_MD3_SIGNLE_TEXTURE_LIGHTING,
     TYPE_MD3_SIGNLE_TEXTURE_LIGHTING_LINEAR,
     TYPE_MD3_FOG_ONLY,
+    TYPE_MD3_LEGACY_DLIGHT,
 
 
 
@@ -420,6 +421,7 @@ struct Vk_Instance
             vk::ShaderModule md3_ident1[2][2]{};   // env[0,1], fog[0,1]
             vk::ShaderModule md3_fixed[2][2]{};    // env[0,1], fog[0,1]
             vk::ShaderModule md3_light[2][2]{};    // linear[0,1], fog[0,1]
+            vk::ShaderModule md3_dlight{};         // legacy dlight blob projection for GPU-MD3
         } vert;
         struct
         {
@@ -429,6 +431,7 @@ struct Vk_Instance
             vk::ShaderModule  fixed[2][2]{}; // tx[0,1], fog[0,1]
             vk::ShaderModule    ent[1][2]{}; // tx[0], fog[0,1]
             vk::ShaderModule  light[2][2]{}; // linear[0,1] fog[0,1]
+            vk::ShaderModule md3_dlight{};   // legacy dlight blob projection for GPU-MD3
         } frag;
 
 
@@ -478,6 +481,7 @@ struct Vk_Instance
     // dim 2 is a polygon offset value (0 - off, 1 - on).
 #ifdef USE_LEGACY_DLIGHTS
     uint32_t dlight_pipelines[2][3][2]{};
+    uint32_t dlight_md3_pipelines[2][3][2]{};
 #endif
 
     // cullType[3], polygonOffset[2], fogStage[2], absLight[2]
