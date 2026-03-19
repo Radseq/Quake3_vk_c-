@@ -1095,13 +1095,9 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 	if (!r_gpuAnim || !r_gpuAnim->integer)
 		return false;
 
-#ifdef USE_FOG_COLLAPSE
-	if (fogNum && static_cast<int>(shader.fogPass) && !shader.fogCollapse)
-		return false;
-#else
-	if (fogNum && static_cast<int>(shader.fogPass))
-		return false;
-#endif
+	// Fogged MD3 surfaces can stay on the GPU too.
+	// If fogCollapse is available we use the collapsed stage path; otherwise
+	// the dedicated fog-only pass is rebound against MD3 vertex streams.
 
 	if (shader.numUnfoggedPasses <= 0)
 		return false;

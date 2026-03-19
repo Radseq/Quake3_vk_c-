@@ -2039,6 +2039,7 @@ static void RB_FogPass(bool rebindIndex)
 	{
 		vk_bind_index();
 	}
+	vk_bind_geometry(TESS_XYZ);
 	VK_SetFogParams(uniform, fog_stage);
 	VK_PushUniform(uniform);
 	vk_update_descriptor(VK_DESC_FOG_ONLY, tr.fogImage->descriptor);

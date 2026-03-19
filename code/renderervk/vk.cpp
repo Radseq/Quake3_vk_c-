@@ -3623,8 +3623,7 @@ enum : uint32_t
 
 static ID_INLINE bool VK_GpuMd3SupportsWaveAlpha(const textureBundle_t& b0) noexcept
 {
-	return b0.alphaGen == alphaGen_t::AGEN_WAVEFORM &&
-		b0.alphaWave.func != genFunc_t::GF_NOISE;
+	return b0.alphaGen == alphaGen_t::AGEN_WAVEFORM;
 }
 
 static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textureBundle_t& b0) noexcept
