@@ -1723,6 +1723,29 @@ inline constexpr auto gpuMd3LayoutByShaderTypeLUT = []() noexcept
 	lut[std::to_underlying(Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF)] = gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
 	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_DF)] = gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
 
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY)] = gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY)] = gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR)] = gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR)] = gpuMd3Layout_t::GENERIC_ST_NO_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY_ENV)] = gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY_ENV)] = gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV)] = gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV)] = gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
+
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2)] = gpuMd3Layout_t::GENERIC_ST_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1)] = gpuMd3Layout_t::GENERIC_ST_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2)] = gpuMd3Layout_t::GENERIC_ST_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_ENV)] = gpuMd3Layout_t::GENERIC_ENV_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1_ENV)] = gpuMd3Layout_t::GENERIC_ENV_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_ENV)] = gpuMd3Layout_t::GENERIC_ENV_COLOR;
+
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3)] = gpuMd3Layout_t::GENERIC_ST_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1)] = gpuMd3Layout_t::GENERIC_ST_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3)] = gpuMd3Layout_t::GENERIC_ST_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3_ENV)] = gpuMd3Layout_t::GENERIC_ENV_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1_ENV)] = gpuMd3Layout_t::GENERIC_ENV_COLOR;
+	lut[std::to_underlying(Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_ENV)] = gpuMd3Layout_t::GENERIC_ENV_COLOR;
+
 	return lut;
 }();
 

@@ -145,8 +145,29 @@ enum class Vk_Shader_Type : uint8_t
     TYPE_MD3_FOG_ONLY,
     TYPE_MD3_LEGACY_DLIGHT,
 
+    TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY,
+    TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY_ENV,
+    TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY,
+    TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY_ENV,
 
+    TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR,
+    TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV,
+    TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR,
+    TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV,
 
+    TYPE_MD3_MULTI_TEXTURE_MUL2,
+    TYPE_MD3_MULTI_TEXTURE_MUL2_ENV,
+    TYPE_MD3_MULTI_TEXTURE_ADD2_1_1,
+    TYPE_MD3_MULTI_TEXTURE_ADD2_1_1_ENV,
+    TYPE_MD3_MULTI_TEXTURE_ADD2,
+    TYPE_MD3_MULTI_TEXTURE_ADD2_ENV,
+
+    TYPE_MD3_MULTI_TEXTURE_MUL3,
+    TYPE_MD3_MULTI_TEXTURE_MUL3_ENV,
+    TYPE_MD3_MULTI_TEXTURE_ADD3_1_1,
+    TYPE_MD3_MULTI_TEXTURE_ADD3_1_1_ENV,
+    TYPE_MD3_MULTI_TEXTURE_ADD3,
+    TYPE_MD3_MULTI_TEXTURE_ADD3_ENV,
 
     TYPE_MULTI_TEXTURE_ADD2_IDENTITY,
     TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV,
@@ -422,6 +443,7 @@ struct Vk_Instance
             vk::ShaderModule md3_ident1[2][2]{};   // env[0,1], fog[0,1]
             vk::ShaderModule md3_fixed[2][2]{};    // env[0,1], fog[0,1]
             vk::ShaderModule md3_light[2][2]{};    // linear[0,1], fog[0,1]
+            vk::ShaderModule md3_multi[2][2]{};    // env[0,1], fog[0,1]
             vk::ShaderModule md3_dlight{};         // legacy dlight blob projection for GPU-MD3
         } vert;
         struct

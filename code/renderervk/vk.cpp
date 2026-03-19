@@ -1410,6 +1410,12 @@ static void vk_create_shader_modules(void)
 	vk_inst.modules.vert.md3_light[0][1] = SHADER_MODULE(vert_md3_light_unified_vert_spv);
 	vk_inst.modules.vert.md3_light[1][0] = SHADER_MODULE(vert_md3_light_unified_vert_spv);
 	vk_inst.modules.vert.md3_light[1][1] = SHADER_MODULE(vert_md3_light_unified_vert_spv);
+
+	vk_inst.modules.vert.md3_multi[0][0] = SHADER_MODULE(vert_md3_multitex_unified_vert_spv);
+	vk_inst.modules.vert.md3_multi[0][1] = SHADER_MODULE(vert_md3_multitex_unified_vert_spv);
+	vk_inst.modules.vert.md3_multi[1][0] = SHADER_MODULE(vert_md3_multitex_env_unified_vert_spv);
+	vk_inst.modules.vert.md3_multi[1][1] = SHADER_MODULE(vert_md3_multitex_env_unified_vert_spv);
+
 	vk_inst.modules.vert.md3_dlight = SHADER_MODULE(vert_md3_legacy_dlight_unified_vert_spv);
 
 
@@ -2523,6 +2529,10 @@ static void reset_vk_instance(Vk_Instance& s) noexcept
 			reset_to_default(m);
 
 	for (auto& row : s.modules.vert.md3_light)
+		for (auto& m : row)
+			reset_to_default(m);
+
+	for (auto& row : s.modules.vert.md3_multi)
 		for (auto& m : row)
 			reset_to_default(m);
 
@@ -3820,6 +3830,91 @@ void vk_bind_geometry(const uint32_t flags)
 		bind_count = 0;
 
 
+		const bool md3StageUsesColor =
+			tess.gpuMd3Layout == gpuMd3Layout_t::GENERIC_ST_COLOR ||
+			tess.gpuMd3Layout == gpuMd3Layout_t::GENERIC_ENV_COLOR;
+
+		auto bindMd3StageColor = [&]() {
+			if (!md3StageUsesColor)
+			{
+				shade_bufs[2] = s.vertexBuffer.handle;
+				vk_inst.cmd->buf_offset[2] = 0;
+				vk_bind_index_attr(2);
+				return;
+			}
+
+			const bool useGeneratedColor = VK_GpuMd3CurrentColorMode() != 0u;
+			const bool useRawVertexColor = VK_GpuMd3UsesRawVertexColor();
+			shade_bufs[2] = useGeneratedColor
+				? (useRawVertexColor ? vk_inst.cmd->vertex_buffer : s.vertexBuffer.handle)
+				: vk_inst.cmd->vertex_buffer;
+
+			if (useGeneratedColor)
+			{
+				if (useRawVertexColor)
+				{
+					vk_bind_attr(2, sizeof(color4ub_t), tess.vertexColors[0].rgba);
+				}
+				else
+				{
+					vk_inst.cmd->buf_offset[2] = 0;
+					vk_bind_index_attr(2);
+				}
+			}
+			else
+			{
+				vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
+			}
+		};
+
+		// MD3 multi-texture path: old/new/color/baseST/st1/st2/oldNormal/newNormal.
+		// Bundle 0 stays GPU-derived, bundle 1/2 keep CPU-derived texcoords.
+		if (flags & TESS_ST1)
+		{
+			shade_bufs[0] = s.vertexBuffer.handle;
+			shade_bufs[1] = s.vertexBuffer.handle;
+			shade_bufs[3] = s.vertexBuffer.handle;
+			shade_bufs[4] = vk_inst.cmd->vertex_buffer;
+			shade_bufs[5] = (flags & TESS_ST2) ? vk_inst.cmd->vertex_buffer : s.vertexBuffer.handle;
+			shade_bufs[6] = s.vertexBuffer.handle;
+			shade_bufs[7] = s.vertexBuffer.handle;
+
+			vk_inst.cmd->buf_offset[0] = oldFrameOffset;
+			vk_bind_index_attr(0);
+
+			vk_inst.cmd->buf_offset[1] = newFrameOffset;
+			vk_bind_index_attr(1);
+
+			bindMd3StageColor();
+
+			vk_inst.cmd->buf_offset[3] = stOffset;
+			vk_bind_index_attr(3);
+
+			vk_bind_attr(4, sizeof(vec2_t), tess.svars.texcoords[1][0]);
+
+			if (flags & TESS_ST2)
+			{
+				vk_bind_attr(5, sizeof(vec2_t), tess.svars.texcoords[2][0]);
+			}
+			else
+			{
+				vk_inst.cmd->buf_offset[5] = stOffset;
+				vk_bind_index_attr(5);
+			}
+
+			vk_inst.cmd->buf_offset[6] = oldNormalOffset;
+			vk_bind_index_attr(6);
+
+			vk_inst.cmd->buf_offset[7] = newNormalOffset;
+			vk_bind_index_attr(7);
+
+			vk_inst.cmd->command_buffer.bindVertexBuffers(
+				bind_base,
+				bind_count,
+				shade_bufs,
+				vk_inst.cmd->buf_offset + bind_base);
+			return;
+		}
 
 		// Lighting: old/new/st/oldNormal/newNormal
 		// Musi być przed ogólnym branchem "if (flags & TESS_NNN)",

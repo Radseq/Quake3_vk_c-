@@ -341,6 +341,14 @@ namespace
 			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_ENV,
 			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3,
 			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3_ENV,
 			Vk_Shader_Type::TYPE_BLEND2_MUL,
 			Vk_Shader_Type::TYPE_BLEND2_MUL_ENV,
 			Vk_Shader_Type::TYPE_BLEND3_MUL,
@@ -357,7 +365,15 @@ namespace
 			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1,
 			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1_ENV,
 			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1,
-			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV })
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1_ENV })
 		{
 			lut[std::to_underlying(shaderType)] = 1;
 		}
@@ -367,6 +383,10 @@ namespace
 			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_ENV,
 			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3,
 			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_ENV,
 			Vk_Shader_Type::TYPE_BLEND2_ADD,
 			Vk_Shader_Type::TYPE_BLEND2_ADD_ENV,
 			Vk_Shader_Type::TYPE_BLEND3_ADD,
@@ -754,6 +774,58 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 
 
 
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY:
+		vs_module = &vk_inst.modules.vert.md3_multi[0][0];
+		fs_module = &vk_inst.modules.frag.ident1[1][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY_ENV:
+		vs_module = &vk_inst.modules.vert.md3_multi[1][0];
+		fs_module = &vk_inst.modules.frag.ident1[1][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR:
+		vs_module = &vk_inst.modules.vert.md3_multi[0][0];
+		fs_module = &vk_inst.modules.frag.fixed[1][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV:
+		vs_module = &vk_inst.modules.vert.md3_multi[1][0];
+		fs_module = &vk_inst.modules.frag.fixed[1][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2:
+		vs_module = &vk_inst.modules.vert.md3_multi[0][0];
+		fs_module = &vk_inst.modules.frag.gen[1][0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_ENV:
+		vs_module = &vk_inst.modules.vert.md3_multi[1][0];
+		fs_module = &vk_inst.modules.frag.gen[1][0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3:
+		vs_module = &vk_inst.modules.vert.md3_multi[0][0];
+		fs_module = &vk_inst.modules.frag.gen[2][0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_ENV:
+		vs_module = &vk_inst.modules.vert.md3_multi[1][0];
+		fs_module = &vk_inst.modules.frag.gen[2][0][0];
+		break;
+
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
 		vs_module = &vk_inst.modules.vert.ident1[1][0][0];
@@ -1116,6 +1188,44 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 
 
 
+
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1_ENV:
+	case Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_ENV:
+		push_bind(0, sizeof(md3XyzNormal_t));
+		push_bind(1, sizeof(md3XyzNormal_t));
+		push_bind(2, sizeof(color4ub_t));
+		push_bind(3, sizeof(md3St_t));
+		push_bind(4, sizeof(vec2_t));
+		push_bind(5, sizeof(vec2_t));
+		push_bind(6, sizeof(md3XyzNormal_t));
+		push_bind(7, sizeof(md3XyzNormal_t));
+		push_attr(0, 0, vk::Format::eR16G16B16A16Sint);
+		push_attr(1, 1, vk::Format::eR16G16B16A16Sint);
+		push_attr(2, 2, vk::Format::eR8G8B8A8Unorm);
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
+		push_attr(4, 4, vk::Format::eR32G32Sfloat);
+		push_attr(5, 5, vk::Format::eR32G32Sfloat);
+		push_attr(6, 6, vk::Format::eR16Uint);
+		push_attr(7, 7, vk::Format::eR16Uint);
+		break;
 
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
@@ -1572,6 +1682,67 @@ static constexpr bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_
 
 	case Vk_Shader_Type::TYPE_FOG_ONLY:
 		out = Vk_Shader_Type::TYPE_MD3_FOG_ONLY;
+		return true;
+
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3;
+		return true;
+	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_ENV;
 		return true;
 
 	default:

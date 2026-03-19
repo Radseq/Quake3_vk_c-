@@ -655,10 +655,15 @@ static void VK_SetGpuMd3TcParams(vkUniform_t& u, const textureBundle_t& bundle)
 	}
 }
 
-static bool R_GpuMd3TexCoordsHandledInShader(const shaderStage_t& stage, const textureBundle_t& bundle) noexcept
+static bool R_GpuMd3TexCoordsHandledInShader(const shaderStage_t& stage, const int bundleIndex, const textureBundle_t& bundle) noexcept
 {
 	if (!tess.gpuMd3Active)
 		return false;
+
+	if (bundleIndex != 0)
+	{
+		return false;
+	}
 
 	if (R_IsGpuMd3EnvLayout(stage))
 	{
@@ -692,7 +697,7 @@ void R_ComputeTexCoords(const int b, const textureBundle_t& bundle)
 		? tess.shader->stages[tess.gpuStageIndex]
 		: nullptr;
 
-	const bool gpuHandled = stage ? R_GpuMd3TexCoordsHandledInShader(*stage, bundle) : false;
+	const bool gpuHandled = stage ? R_GpuMd3TexCoordsHandledInShader(*stage, b, bundle) : false;
 
 	if (gpuHandled)
 		return;
