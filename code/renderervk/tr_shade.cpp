@@ -166,26 +166,7 @@ void RB_BeginSurface(shader_t& shader, const int fogNum)
 	}
 }
 
-static bool R_SkipCpuTexCoordsForGpuMd3(const textureBundle_t& bundle) noexcept
-{
-	if (!tess.gpuMd3Active)
-		return false;
-
-	// tcMod na razie nadal nie jest przeniesiony na GPU,
-	// więc dla bezpieczeństwa nie omijamy CPU path w takich przypadkach.
-	if (bundle.numTexMods != 0)
-		return false;
-
-	switch (bundle.tcGen)
-	{
-	case texCoordGen_t::TCGEN_TEXTURE:
-	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
-		return true;
-	default:
-		return false;
-	}
-}
-
+// GPU-MD3 texcoord skipping is controlled by R_GpuMd3TexCoordsHandledInShader().
 
 struct gpuTcAffine_t
 {
@@ -502,13 +483,54 @@ static bool R_BuildGpuMd3TcProgram(gpuTcProgram_t& prog, const textureBundle_t& 
 	return true;
 }
 
+enum class gpuTcSlot_t : std::uint8_t
+{
+	bundle0,
+	bundle1,
+	bundle2
+};
+
+static ID_INLINE void VK_SetIdentityTcParamsForSlot(vkUniform_t& u, const gpuTcSlot_t slot) noexcept
+{
+	vec4_t* mod0 = nullptr;
+	vec4_t* mod1 = nullptr;
+	vec4_t* gen0 = nullptr;
+	vec4_t* gen1 = nullptr;
+
+	switch (slot)
+	{
+	case gpuTcSlot_t::bundle0:
+		mod0 = &u.tcMod0;
+		mod1 = &u.tcMod1;
+		gen0 = &u.tcGenVector0;
+		gen1 = &u.tcGenVector1;
+		break;
+	case gpuTcSlot_t::bundle1:
+		mod0 = &u.tc1Mod0;
+		mod1 = &u.tc1Mod1;
+		gen0 = &u.tc1GenVector0;
+		gen1 = &u.tc1GenVector1;
+		break;
+	case gpuTcSlot_t::bundle2:
+		mod0 = &u.tc2Mod0;
+		mod1 = &u.tc2Mod1;
+		gen0 = &u.tc2GenVector0;
+		gen1 = &u.tc2GenVector1;
+		break;
+	}
+
+	(*mod0)[0] = 1.0f; (*mod0)[1] = 0.0f; (*mod0)[2] = 0.0f; (*mod0)[3] = 0.0f;
+	(*mod1)[0] = 0.0f; (*mod1)[1] = 1.0f; (*mod1)[2] = 0.0f; (*mod1)[3] = 0.0f;
+
+	(*gen0)[0] = 0.0f; (*gen0)[1] = 0.0f; (*gen0)[2] = 0.0f; (*gen0)[3] = 0.0f;
+	(*gen1)[0] = 0.0f; (*gen1)[1] = 0.0f; (*gen1)[2] = 0.0f; (*gen1)[3] = 0.0f;
+}
+
 static ID_INLINE void VK_SetIdentityTcParams(vkUniform_t& u) noexcept
 {
-	u.tcMod0[0] = 1.0f; u.tcMod0[1] = 0.0f; u.tcMod0[2] = 0.0f; u.tcMod0[3] = 0.0f;
-	u.tcMod1[0] = 0.0f; u.tcMod1[1] = 1.0f; u.tcMod1[2] = 0.0f; u.tcMod1[3] = 0.0f;
-
-	u.tcGenVector0[0] = 0.0f; u.tcGenVector0[1] = 0.0f; u.tcGenVector0[2] = 0.0f; u.tcGenVector0[3] = 0.0f;
-	u.tcGenVector1[0] = 0.0f; u.tcGenVector1[1] = 0.0f; u.tcGenVector1[2] = 0.0f; u.tcGenVector1[3] = 0.0f;
+	VK_SetIdentityTcParamsForSlot(u, gpuTcSlot_t::bundle0);
+	VK_SetIdentityTcParamsForSlot(u, gpuTcSlot_t::bundle1);
+	VK_SetIdentityTcParamsForSlot(u, gpuTcSlot_t::bundle2);
 }
 
 static ID_INLINE void VK_SetIdentityGpuMd3DeformParams(vkUniform_t& u) noexcept
@@ -608,9 +630,9 @@ static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage)
 		return;
 	}
 }
-static void VK_SetGpuMd3TcParams(vkUniform_t& u, const textureBundle_t& bundle)
+static void VK_SetGpuMd3TcParamsForSlot(vkUniform_t& u, const textureBundle_t& bundle, const gpuTcSlot_t slot) noexcept
 {
-	VK_SetIdentityTcParams(u);
+	VK_SetIdentityTcParamsForSlot(u, slot);
 
 	gpuTcProgram_t prog{};
 	if (!R_BuildGpuMd3TcProgram(prog, bundle))
@@ -618,40 +640,72 @@ static void VK_SetGpuMd3TcParams(vkUniform_t& u, const textureBundle_t& bundle)
 		return;
 	}
 
-	u.tcMod0[0] = prog.pre.s_s;
-	u.tcMod0[1] = prog.pre.s_t;
-	u.tcMod0[2] = prog.pre.s_o;
-	u.tcMod0[3] = static_cast<float>((prog.useVectorTcGen ? 1 : 0) | (prog.useTurbulent ? 2 : 0));
+	vec4_t* mod0 = nullptr;
+	vec4_t* mod1 = nullptr;
+	vec4_t* gen0 = nullptr;
+	vec4_t* gen1 = nullptr;
 
-	u.tcMod1[0] = prog.pre.t_s;
-	u.tcMod1[1] = prog.pre.t_t;
-	u.tcMod1[2] = prog.pre.t_o;
-	u.tcMod1[3] = prog.turbulentAmplitude;
+	switch (slot)
+	{
+	case gpuTcSlot_t::bundle0:
+		mod0 = &u.tcMod0;
+		mod1 = &u.tcMod1;
+		gen0 = &u.tcGenVector0;
+		gen1 = &u.tcGenVector1;
+		break;
+	case gpuTcSlot_t::bundle1:
+		mod0 = &u.tc1Mod0;
+		mod1 = &u.tc1Mod1;
+		gen0 = &u.tc1GenVector0;
+		gen1 = &u.tc1GenVector1;
+		break;
+	case gpuTcSlot_t::bundle2:
+		mod0 = &u.tc2Mod0;
+		mod1 = &u.tc2Mod1;
+		gen0 = &u.tc2GenVector0;
+		gen1 = &u.tc2GenVector1;
+		break;
+	}
+
+	const int flagBits =
+		(prog.useVectorTcGen ? 1 : 0) |
+		(prog.useTurbulent ? 2 : 0) |
+		((slot == gpuTcSlot_t::bundle0) ? 0 : 4);
+
+	(*mod0)[0] = prog.pre.s_s;
+	(*mod0)[1] = prog.pre.s_t;
+	(*mod0)[2] = prog.pre.s_o;
+	(*mod0)[3] = static_cast<float>(flagBits);
+
+	(*mod1)[0] = prog.pre.t_s;
+	(*mod1)[1] = prog.pre.t_t;
+	(*mod1)[2] = prog.pre.t_o;
+	(*mod1)[3] = prog.turbulentAmplitude;
 
 	if (prog.useVectorTcGen)
 	{
-		u.tcGenVector0[0] = bundle.tcGenVectors[0][0];
-		u.tcGenVector0[1] = bundle.tcGenVectors[0][1];
-		u.tcGenVector0[2] = bundle.tcGenVectors[0][2];
-		u.tcGenVector0[3] = 0.0f;
+		(*gen0)[0] = bundle.tcGenVectors[0][0];
+		(*gen0)[1] = bundle.tcGenVectors[0][1];
+		(*gen0)[2] = bundle.tcGenVectors[0][2];
+		(*gen0)[3] = 0.0f;
 
-		u.tcGenVector1[0] = bundle.tcGenVectors[1][0];
-		u.tcGenVector1[1] = bundle.tcGenVectors[1][1];
-		u.tcGenVector1[2] = bundle.tcGenVectors[1][2];
-		u.tcGenVector1[3] = 0.0f;
+		(*gen1)[0] = bundle.tcGenVectors[1][0];
+		(*gen1)[1] = bundle.tcGenVectors[1][1];
+		(*gen1)[2] = bundle.tcGenVectors[1][2];
+		(*gen1)[3] = 0.0f;
 	}
 
 	if (prog.useTurbulent)
 	{
-		u.tcGenVector0[0] = prog.post.s_s;
-		u.tcGenVector0[1] = prog.post.s_t;
-		u.tcGenVector0[2] = prog.post.s_o;
-		u.tcGenVector0[3] = prog.turbulentNow;
+		(*gen0)[0] = prog.post.s_s;
+		(*gen0)[1] = prog.post.s_t;
+		(*gen0)[2] = prog.post.s_o;
+		(*gen0)[3] = prog.turbulentNow;
 
-		u.tcGenVector1[0] = prog.post.t_s;
-		u.tcGenVector1[1] = prog.post.t_t;
-		u.tcGenVector1[2] = prog.post.t_o;
-		u.tcGenVector1[3] = 0.0f;
+		(*gen1)[0] = prog.post.t_s;
+		(*gen1)[1] = prog.post.t_t;
+		(*gen1)[2] = prog.post.t_o;
+		(*gen1)[3] = 0.0f;
 	}
 }
 
@@ -660,30 +714,39 @@ static bool R_GpuMd3TexCoordsHandledInShader(const shaderStage_t& stage, const i
 	if (!tess.gpuMd3Active)
 		return false;
 
-	if (bundleIndex != 0)
+	if (bundleIndex == 0)
 	{
-		return false;
+		if (R_IsGpuMd3EnvLayout(stage))
+		{
+			return R_CanGpuMd3UseAffineTexMods(bundle) &&
+				(bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
+					bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP);
+		}
+
+		if (!R_CanGpuMd3UseAffineTexMods(bundle))
+			return false;
+
+		switch (bundle.tcGen)
+		{
+		case texCoordGen_t::TCGEN_TEXTURE:
+		case texCoordGen_t::TCGEN_VECTOR:
+			return true;
+
+		default:
+			return false;
+		}
 	}
 
-	if (R_IsGpuMd3EnvLayout(stage))
-	{
-		return R_CanGpuMd3UseAffineTexMods(bundle) &&
-			(bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
-				bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP);
-	}
-
-	if (!R_CanGpuMd3UseAffineTexMods(bundle))
+	if (bundleIndex <= 0 || bundleIndex >= stage.numTexBundles)
 		return false;
 
-	switch (bundle.tcGen)
-	{
-	case texCoordGen_t::TCGEN_TEXTURE:
-	case texCoordGen_t::TCGEN_VECTOR:
-		return true;
-
-	default:
+	if (!bundle.image[0] || bundle.gpuTcGenHandledInShader)
 		return false;
-	}
+
+	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE)
+		return false;
+
+	return R_CanGpuMd3UseAffineTexMods(bundle);
 }
 
 
@@ -1728,7 +1791,19 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 		{
 			VK_SetGpuMd3EnvParams(uniform, *pStage);
 			VK_SetGpuMd3ColorParams(uniform, *pStage);
-			VK_SetGpuMd3TcParams(uniform, pStage->bundle[0]);
+			VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[0], gpuTcSlot_t::bundle0);
+
+			if (pStage->numTexBundles > 1 &&
+				R_GpuMd3TexCoordsHandledInShader(*pStage, 1, pStage->bundle[1]))
+			{
+				VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[1], gpuTcSlot_t::bundle1);
+			}
+
+			if (pStage->numTexBundles > 2 &&
+				R_GpuMd3TexCoordsHandledInShader(*pStage, 2, pStage->bundle[2]))
+			{
+				VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[2], gpuTcSlot_t::bundle2);
+			}
 			VK_SetGpuMd3DeformParams(uniform, *pStage);
 			pushUniform = true;
 		}

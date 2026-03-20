@@ -212,6 +212,22 @@ typedef struct vkUniform_s
 	// bulge: deform0.y = bulgeWidth, deform0.z = bulgeHeight, deform0.w = now
 	vec4_t deform0;
 	vec4_t deform1;
+
+	// Secondary GPU texcoord params for MD3 multi-texture path.
+	// Flags in *.w:
+	// bit 0 = use vector tcGen
+	// bit 1 = use turbulent post-step
+	// bit 2 = slot enabled (otherwise shader keeps the incoming attrib)
+	// Kept after deform params so existing shader UBO offsets remain stable.
+	vec4_t tc1Mod0;
+	vec4_t tc1Mod1;
+	vec4_t tc1GenVector0;
+	vec4_t tc1GenVector1;
+
+	vec4_t tc2Mod0;
+	vec4_t tc2Mod1;
+	vec4_t tc2GenVector0;
+	vec4_t tc2GenVector1;
 } vkUniform_t;
 
 typedef struct dlight_s

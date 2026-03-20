@@ -25,6 +25,14 @@ vec4 tcGenVector0;
 vec4 tcGenVector1;
 vec4 deform0;
 vec4 deform1;
+vec4 tc1Mod0;
+vec4 tc1Mod1;
+vec4 tc1GenVector0;
+vec4 tc1GenVector1;
+vec4 tc2Mod0;
+vec4 tc2Mod1;
+vec4 tc2GenVector0;
+vec4 tc2GenVector1;
 } ubo;
 
 const float kMd3PositionScale = 1.0 / 64.0;
@@ -232,6 +240,56 @@ vec2 ApplyGpuTcMods(vec3 position, vec2 st)
     return tc;
 }
 
+vec2 ApplyGpuTcModsExt(
+    vec3 position,
+    vec2 st,
+    vec4 mod0,
+    vec4 mod1,
+    vec4 gen0,
+    vec4 gen1)
+{
+    const int flags = int(mod0.w + 0.5);
+    const bool useVectorTcGen = (flags & 1) != 0;
+    const bool useTurbulent   = (flags & 2) != 0;
+    const bool enabled        = (flags & 4) != 0;
+
+    if (!enabled)
+    {
+        return st;
+    }
+
+    vec2 tc = st;
+
+    if (useVectorTcGen)
+    {
+        tc = vec2(
+            dot(position, gen0.xyz) + gen0.w,
+            dot(position, gen1.xyz) + gen1.w
+        );
+    }
+
+    tc = vec2(
+        tc.x * mod0.x + tc.y * mod0.y + mod0.z,
+        tc.x * mod1.x + tc.y * mod1.y + mod1.z
+    );
+
+    if (useTurbulent)
+    {
+        const float now = gen0.w;
+        const float amplitude = mod1.w;
+        const float twoPi = 6.28318530717958647692;
+
+        tc.x += sin((((position.x + position.z) * (1.0 / 1024.0)) + now) * twoPi) * amplitude;
+        tc.y += sin(((position.y * (1.0 / 1024.0)) + now) * twoPi) * amplitude;
+
+        tc = vec2(
+            tc.x * gen0.x + tc.y * gen0.y + gen0.z,
+            tc.x * gen1.x + tc.y * gen1.y + gen1.z
+        );
+    }
+
+    return tc;
+}
 
 vec2 calc_fog_tc(const vec4 pos4)
 {
@@ -346,7 +404,7 @@ void main()
     gl_Position = pc.mvp * pos4;
     frag_color0 = ComputeGpuColor(position, normal, in_color0);
     frag_tex_coord0 = ApplyGpuTcMods(position, in_tex_coord0);
-    frag_tex_coord1 = in_tex_coord1;
-    frag_tex_coord2 = in_tex_coord2;
+    frag_tex_coord1 = ApplyGpuTcModsExt(position, in_tex_coord0, ubo.tc1Mod0, ubo.tc1Mod1, ubo.tc1GenVector0, ubo.tc1GenVector1);
+    frag_tex_coord2 = ApplyGpuTcModsExt(position, in_tex_coord0, ubo.tc2Mod0, ubo.tc2Mod1, ubo.tc2GenVector0, ubo.tc2GenVector1);
     fog_tex_coord = calc_fog_tc(pos4);
 }

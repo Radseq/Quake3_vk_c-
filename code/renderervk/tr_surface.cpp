@@ -1026,8 +1026,9 @@ static bool RB_CanUseGpuMd3SecondaryBundle(const textureBundle_t& bundle) noexce
 	if (!bundle.image[0])
 		return false;
 
-	// Dodatkowe bundle nadal liczymy na CPU, więc muszą bazować na zwykłym model ST.
-	// tcMod mogą zostać, bo CPU path umie je policzyć z bazowych texcoordów.
+	// Secondary bundle may stay on the GPU as long as it derives from plain model ST.
+	// Unsupported texMods can still fall back to CPU-generated ST1/ST2, but the common
+	// affine case is rebuilt directly in the MD3 multi-texture vertex shader.
 	return RB_IsPlainModelTcGen(bundle) && !bundle.gpuTcGenHandledInShader;
 }
 

@@ -3787,6 +3787,56 @@ static ID_INLINE bool VK_GpuMd3UsesRawVertexColor() noexcept
 		 GPU_MD3_COLOR_VERTEX_ALPHA)) != 0u;
 }
 
+static ID_INLINE bool VK_GpuMd3SecondaryBundleCanUseGpuTexCoords(const textureBundle_t& bundle) noexcept
+{
+	if (!bundle.image[0] || bundle.gpuTcGenHandledInShader)
+		return false;
+
+	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE)
+		return false;
+
+	bool seenTurbulent = false;
+
+	for (int i = 0; i < bundle.numTexMods; ++i)
+	{
+		switch (bundle.texMods[i].type)
+		{
+		case texMod_t::TMOD_NONE:
+		case texMod_t::TMOD_SCROLL:
+		case texMod_t::TMOD_SCALE:
+		case texMod_t::TMOD_OFFSET:
+		case texMod_t::TMOD_SCALE_OFFSET:
+		case texMod_t::TMOD_OFFSET_SCALE:
+		case texMod_t::TMOD_TRANSFORM:
+		case texMod_t::TMOD_ROTATE:
+		case texMod_t::TMOD_ENTITY_TRANSLATE:
+		case texMod_t::TMOD_STRETCH:
+			break;
+		case texMod_t::TMOD_TURBULENT:
+			if (seenTurbulent)
+				return false;
+			seenTurbulent = true;
+			break;
+		default:
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static ID_INLINE bool VK_GpuMd3CurrentSecondaryTexCoordsHandledInShader(const int bundleIndex) noexcept
+{
+	const shaderStage_t* stage = VK_GpuMd3CurrentStage();
+	if (!stage)
+		return false;
+
+	if (bundleIndex <= 0 || bundleIndex >= stage->numTexBundles)
+		return false;
+
+	return VK_GpuMd3SecondaryBundleCanUseGpuTexCoords(stage->bundle[bundleIndex]);
+}
+
 void vk_bind_geometry(const uint32_t flags)
 {
 	if (tess.gpuMd3Active)
@@ -3868,14 +3918,18 @@ void vk_bind_geometry(const uint32_t flags)
 		};
 
 		// MD3 multi-texture path: old/new/color/baseST/st1/st2/oldNormal/newNormal.
-		// Bundle 0 stays GPU-derived, bundle 1/2 keep CPU-derived texcoords.
+		// Bundle 0 is always GPU-derived. Bundle 1/2 reuse base ST when their texcoords
+		// are rebuilt in the MD3 vertex shader; otherwise they keep the CPU-generated stream.
 		if (flags & TESS_ST1)
 		{
+			const bool gpuSt1 = VK_GpuMd3CurrentSecondaryTexCoordsHandledInShader(1);
+			const bool gpuSt2 = (flags & TESS_ST2) && VK_GpuMd3CurrentSecondaryTexCoordsHandledInShader(2);
+
 			shade_bufs[0] = s.vertexBuffer.handle;
 			shade_bufs[1] = s.vertexBuffer.handle;
 			shade_bufs[3] = s.vertexBuffer.handle;
-			shade_bufs[4] = vk_inst.cmd->vertex_buffer;
-			shade_bufs[5] = (flags & TESS_ST2) ? vk_inst.cmd->vertex_buffer : s.vertexBuffer.handle;
+			shade_bufs[4] = gpuSt1 ? s.vertexBuffer.handle : vk_inst.cmd->vertex_buffer;
+			shade_bufs[5] = gpuSt2 ? s.vertexBuffer.handle : ((flags & TESS_ST2) ? vk_inst.cmd->vertex_buffer : s.vertexBuffer.handle);
 			shade_bufs[6] = s.vertexBuffer.handle;
 			shade_bufs[7] = s.vertexBuffer.handle;
 
@@ -3890,11 +3944,27 @@ void vk_bind_geometry(const uint32_t flags)
 			vk_inst.cmd->buf_offset[3] = stOffset;
 			vk_bind_index_attr(3);
 
-			vk_bind_attr(4, sizeof(vec2_t), tess.svars.texcoords[1][0]);
+			if (gpuSt1)
+			{
+				vk_inst.cmd->buf_offset[4] = stOffset;
+				vk_bind_index_attr(4);
+			}
+			else
+			{
+				vk_bind_attr(4, sizeof(vec2_t), tess.svars.texcoords[1][0]);
+			}
 
 			if (flags & TESS_ST2)
 			{
-				vk_bind_attr(5, sizeof(vec2_t), tess.svars.texcoords[2][0]);
+				if (gpuSt2)
+				{
+					vk_inst.cmd->buf_offset[5] = stOffset;
+					vk_bind_index_attr(5);
+				}
+				else
+				{
+					vk_bind_attr(5, sizeof(vec2_t), tess.svars.texcoords[2][0]);
+				}
 			}
 			else
 			{
