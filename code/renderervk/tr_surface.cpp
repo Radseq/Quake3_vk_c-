@@ -1015,6 +1015,34 @@ static ID_INLINE bool RB_IsGpuMd3GenericColorShaderType(const Vk_Shader_Type sha
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3:
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_ADD:
+	case Vk_Shader_Type::TYPE_BLEND2_ADD_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_MUL:
+	case Vk_Shader_Type::TYPE_BLEND2_MUL_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_ADD:
+	case Vk_Shader_Type::TYPE_BLEND3_ADD_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_MUL:
+	case Vk_Shader_Type::TYPE_BLEND3_MUL_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA:
+	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
 		return true;
 	default:
 		return false;
@@ -1026,15 +1054,95 @@ static bool RB_CanUseGpuMd3SecondaryBundle(const textureBundle_t& bundle) noexce
 	if (!bundle.image[0])
 		return false;
 
-	// GPU-MD3 does not build CPU vertex positions / normals / base ST for multitexture
-	// stages, so secondary bundles must be fully rebuildable in the vertex shader.
-	if (bundle.gpuTcGenHandledInShader)
+	// Secondary bundle may stay on the GPU as long as it derives from plain model ST.
+	// Unsupported texMods can still fall back to CPU-generated ST1/ST2, but the common
+	// affine case is rebuilt directly in the MD3 multi-texture vertex shader.
+	return RB_IsPlainModelTcGen(bundle) && !bundle.gpuTcGenHandledInShader;
+}
+
+static ID_INLINE bool RB_CanGpuMd3UseCpuSafeBundleColor(const textureBundle_t& bundle) noexcept
+{
+	if (bundle.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE)
 		return false;
 
-	if (!(RB_IsPlainModelTcGen(bundle) || RB_IsTrueEnvTcGen(bundle)))
+	switch (bundle.alphaGen)
+	{
+	case alphaGen_t::AGEN_LIGHTING_SPECULAR:
+	case alphaGen_t::AGEN_PORTAL:
+		return false;
+	default:
+		return true;
+	}
+}
+
+static bool RB_CanUseGpuMd3BlendStage(
+	const shader_t& shader,
+	const shaderStage_t& stage,
+	const Vk_Shader_Type shaderType) noexcept
+{
+	if (stage.numTexBundles < 2 || stage.numTexBundles > 3)
 		return false;
 
-	return R_CanGpuMd3UseAffineTexMods(bundle);
+	const textureBundle_t& b0 = stage.bundle[0];
+	const textureBundle_t& b1 = stage.bundle[1];
+	const textureBundle_t* const b2 = (stage.numTexBundles == 3) ? &stage.bundle[2] : nullptr;
+
+	if (!b0.image[0] || !RB_CanUseGpuMd3SecondaryBundle(b1) || (b2 && !RB_CanUseGpuMd3SecondaryBundle(*b2)))
+		return false;
+
+	if (!RB_CanGpuMd3UseCpuSafeBundleColor(b1) || (b2 && !RB_CanGpuMd3UseCpuSafeBundleColor(*b2)))
+		return false;
+
+	const bool gpuTexModsOk = R_CanGpuMd3UseAffineTexMods(b0);
+	if (!gpuTexModsOk && b0.numTexMods != 0)
+		return false;
+
+	const bool expectsEnv =
+		shaderType == Vk_Shader_Type::TYPE_BLEND2_ADD_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND2_MUL_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND2_ALPHA_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND3_ADD_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND3_MUL_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND3_ALPHA_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV ||
+		shaderType == Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV;
+
+	if (expectsEnv)
+	{
+		if (!(RB_IsTrueEnvTcGen(b0) && b0.gpuTcGenHandledInShader && (stage.tessFlags & TESS_ENV) != 0 && gpuTexModsOk))
+			return false;
+	}
+	else
+	{
+		if (!(RB_IsGpuMd3AffineTcGen(b0) && !b0.gpuTcGenHandledInShader && (stage.tessFlags & TESS_ENV) == 0 && gpuTexModsOk))
+			return false;
+	}
+
+	if ((stage.tessFlags & TESS_ST0) == 0 || (stage.tessFlags & TESS_ST1) == 0)
+		return false;
+
+	if ((stage.tessFlags & TESS_RGBA0) == 0 || (stage.tessFlags & TESS_RGBA1) == 0)
+		return false;
+
+	if (stage.numTexBundles == 3)
+	{
+		if ((stage.tessFlags & TESS_ST2) == 0 || (stage.tessFlags & TESS_RGBA2) == 0)
+			return false;
+	}
+	else
+	{
+		if ((stage.tessFlags & (TESS_ST2 | TESS_RGBA2)) != 0)
+			return false;
+	}
+
+	(void)shader;
+	return true;
 }
 
 static bool RB_CanUseGpuMd3MultiTextureStage(
@@ -1050,17 +1158,6 @@ static bool RB_CanUseGpuMd3MultiTextureStage(
 	const textureBundle_t* const b2 = (stage.numTexBundles == 3) ? &stage.bundle[2] : nullptr;
 
 	if (!b0.image[0] || !RB_CanUseGpuMd3SecondaryBundle(b1) || (b2 && !RB_CanUseGpuMd3SecondaryBundle(*b2)))
-		return false;
-
-	const int envBundleCount =
-		(RB_IsTrueEnvTcGen(b0) ? 1 : 0) +
-		(RB_IsTrueEnvTcGen(b1) ? 1 : 0) +
-		((b2 && RB_IsTrueEnvTcGen(*b2)) ? 1 : 0);
-
-	// The current MD3 rewrite supports at most one env-mapped bundle per merged stage.
-	// That already covers the common chrome/reflection pass patterns while keeping the
-	// shader contract simple and deterministic.
-	if (envBundleCount > 1)
 		return false;
 
 	const bool gpuTexModsOk = R_CanGpuMd3UseAffineTexMods(b0);
@@ -1336,6 +1433,40 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 		case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3:
 		case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV:
 			if (!RB_CanUseGpuMd3MultiTextureStage(shader, *p, def.shader_type))
+			{
+				return false;
+			}
+			break;
+
+		case Vk_Shader_Type::TYPE_BLEND2_ADD:
+		case Vk_Shader_Type::TYPE_BLEND2_ADD_ENV:
+		case Vk_Shader_Type::TYPE_BLEND2_MUL:
+		case Vk_Shader_Type::TYPE_BLEND2_MUL_ENV:
+		case Vk_Shader_Type::TYPE_BLEND2_ALPHA:
+		case Vk_Shader_Type::TYPE_BLEND2_ALPHA_ENV:
+		case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA:
+		case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA_ENV:
+		case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA:
+		case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV:
+		case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA:
+		case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
+		case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA:
+		case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
+		case Vk_Shader_Type::TYPE_BLEND3_ADD:
+		case Vk_Shader_Type::TYPE_BLEND3_ADD_ENV:
+		case Vk_Shader_Type::TYPE_BLEND3_MUL:
+		case Vk_Shader_Type::TYPE_BLEND3_MUL_ENV:
+		case Vk_Shader_Type::TYPE_BLEND3_ALPHA:
+		case Vk_Shader_Type::TYPE_BLEND3_ALPHA_ENV:
+		case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA:
+		case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA_ENV:
+		case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA:
+		case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV:
+		case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA:
+		case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
+		case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA:
+		case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
+			if (!RB_CanUseGpuMd3BlendStage(shader, *p, def.shader_type))
 			{
 				return false;
 			}

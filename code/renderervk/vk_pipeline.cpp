@@ -308,140 +308,168 @@ namespace
 		CullModeLUTEntry{ cullType_t::CT_TWO_SIDED,   vk::CullModeFlagBits::eNone,  vk::CullModeFlagBits::eNone },
 		CullModeLUTEntry{ cullType_t::CT_FRONT_SIDED, vk::CullModeFlagBits::eBack,  vk::CullModeFlagBits::eFront },
 		CullModeLUTEntry{ cullType_t::CT_BACK_SIDED,  vk::CullModeFlagBits::eFront, vk::CullModeFlagBits::eBack },
-		});
+	});
 
 	inline constexpr auto kTopologyLUT = std::to_array<std::pair<Vk_Primitive_Topology, vk::PrimitiveTopology>>({
 		std::pair{ Vk_Primitive_Topology::TRIANGLE_LIST,  vk::PrimitiveTopology::eTriangleList },
 		std::pair{ Vk_Primitive_Topology::TRIANGLE_STRIP, vk::PrimitiveTopology::eTriangleStrip },
 		std::pair{ Vk_Primitive_Topology::LINE_LIST,      vk::PrimitiveTopology::eLineList },
 		std::pair{ Vk_Primitive_Topology::POINT_LIST,     vk::PrimitiveTopology::ePointList },
-		});
+	});
 
 	inline constexpr auto kFragColorModeLUT = []() noexcept
-		{
-			std::array<int, VK_SHADER_TYPE_LUT_COUNT> lut{};
-			lut.fill(0);
-			lut[std::to_underlying(Vk_Shader_Type::TYPE_COLOR_WHITE)] = 1;
-			lut[std::to_underlying(Vk_Shader_Type::TYPE_COLOR_GREEN)] = 2;
-			lut[std::to_underlying(Vk_Shader_Type::TYPE_COLOR_RED)] = 3;
-			return lut;
-		}();
+	{
+		std::array<int, VK_SHADER_TYPE_LUT_COUNT> lut{};
+		lut.fill(0);
+		lut[std::to_underlying(Vk_Shader_Type::TYPE_COLOR_WHITE)] = 1;
+		lut[std::to_underlying(Vk_Shader_Type::TYPE_COLOR_GREEN)] = 2;
+		lut[std::to_underlying(Vk_Shader_Type::TYPE_COLOR_RED)] = 3;
+		return lut;
+	}();
 
 	inline constexpr auto kFragMultiTexModeLUT = []() noexcept
+	{
+		std::array<int, VK_SHADER_TYPE_LUT_COUNT> lut{};
+		lut.fill(-1);
+
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3_ENV,
+			Vk_Shader_Type::TYPE_MD3_BLEND2_MUL,
+			Vk_Shader_Type::TYPE_MD3_BLEND2_MUL_ENV,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_MUL,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_MUL_ENV,
+			Vk_Shader_Type::TYPE_BLEND2_MUL,
+			Vk_Shader_Type::TYPE_BLEND2_MUL_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_MUL,
+			Vk_Shader_Type::TYPE_BLEND3_MUL_ENV })
 		{
-			std::array<int, VK_SHADER_TYPE_LUT_COUNT> lut{};
-			lut.fill(-1);
+			lut[std::to_underlying(shaderType)] = 0;
+		}
 
-			for (auto shaderType : {
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY_ENV,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_ENV,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL3_ENV,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_IDENTITY_ENV,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_FIXED_COLOR_ENV,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL2_ENV,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_MUL3_ENV,
-				Vk_Shader_Type::TYPE_BLEND2_MUL,
-				Vk_Shader_Type::TYPE_BLEND2_MUL_ENV,
-				Vk_Shader_Type::TYPE_BLEND3_MUL,
-				Vk_Shader_Type::TYPE_BLEND3_MUL_ENV })
-			{
-				lut[std::to_underlying(shaderType)] = 0;
-			}
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 1;
+		}
 
-			for (auto shaderType : {
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_IDENTITY_ENV,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_1_1_ENV,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_1_1_ENV,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_IDENTITY_ENV,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_FIXED_COLOR_ENV,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_1_1_ENV,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_1_1_ENV })
-			{
-				lut[std::to_underlying(shaderType)] = 1;
-			}
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_ENV,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3,
+			Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_ENV,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3,
+			Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_ENV,
+			Vk_Shader_Type::TYPE_MD3_BLEND2_ADD,
+			Vk_Shader_Type::TYPE_MD3_BLEND2_ADD_ENV,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_ADD,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_ADD_ENV,
+			Vk_Shader_Type::TYPE_BLEND2_ADD,
+			Vk_Shader_Type::TYPE_BLEND2_ADD_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_ADD,
+			Vk_Shader_Type::TYPE_BLEND3_ADD_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 2;
+		}
 
-			for (auto shaderType : {
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD2_ENV,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3,
-				Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD2_ENV,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3,
-				Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_ENV,
-				Vk_Shader_Type::TYPE_BLEND2_ADD,
-				Vk_Shader_Type::TYPE_BLEND2_ADD_ENV,
-				Vk_Shader_Type::TYPE_BLEND3_ADD,
-				Vk_Shader_Type::TYPE_BLEND3_ADD_ENV })
-			{
-				lut[std::to_underlying(shaderType)] = 2;
-			}
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_MD3_BLEND2_ALPHA,
+			Vk_Shader_Type::TYPE_MD3_BLEND2_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_ALPHA,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND2_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND2_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND3_ALPHA_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 3;
+		}
 
-			for (auto shaderType : {
-				Vk_Shader_Type::TYPE_BLEND2_ALPHA,
-				Vk_Shader_Type::TYPE_BLEND2_ALPHA_ENV,
-				Vk_Shader_Type::TYPE_BLEND3_ALPHA,
-				Vk_Shader_Type::TYPE_BLEND3_ALPHA_ENV })
-			{
-				lut[std::to_underlying(shaderType)] = 3;
-			}
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_MD3_BLEND2_ONE_MINUS_ALPHA,
+			Vk_Shader_Type::TYPE_MD3_BLEND2_ONE_MINUS_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_ONE_MINUS_ALPHA,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_ONE_MINUS_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 4;
+		}
 
-			for (auto shaderType : {
-				Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA,
-				Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA_ENV,
-				Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA,
-				Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA_ENV })
-			{
-				lut[std::to_underlying(shaderType)] = 4;
-			}
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ALPHA,
+			Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ALPHA,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 5;
+		}
 
-			for (auto shaderType : {
-				Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA,
-				Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV,
-				Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA,
-				Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV })
-			{
-				lut[std::to_underlying(shaderType)] = 5;
-			}
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ONE_MINUS_ALPHA,
+			Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ONE_MINUS_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ONE_MINUS_ALPHA,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ONE_MINUS_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 6;
+		}
 
-			for (auto shaderType : {
-				Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA,
-				Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV,
-				Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA,
-				Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV })
-			{
-				lut[std::to_underlying(shaderType)] = 6;
-			}
+		for (auto shaderType : {
+			Vk_Shader_Type::TYPE_MD3_BLEND2_DST_COLOR_SRC_ALPHA,
+			Vk_Shader_Type::TYPE_MD3_BLEND2_DST_COLOR_SRC_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_DST_COLOR_SRC_ALPHA,
+			Vk_Shader_Type::TYPE_MD3_BLEND3_DST_COLOR_SRC_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV,
+			Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA,
+			Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV })
+		{
+			lut[std::to_underlying(shaderType)] = 7;
+		}
 
-			for (auto shaderType : {
-				Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA,
-				Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV,
-				Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA,
-				Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV })
-			{
-				lut[std::to_underlying(shaderType)] = 7;
-			}
-
-			return lut;
-		}();
+		return lut;
+	}();
 
 	static constexpr bool TryGetCullModeLUT(const Vk_Pipeline_Def& def, vk::CullModeFlags& outCullMode) noexcept
 	{
@@ -526,8 +554,8 @@ static vk::PipelineColorBlendAttachmentState createBlendAttachmentState(const ui
 	// Initialize colorWriteMask based on shader phase/type
 	vk::ColorComponentFlags colorWriteMask =
 		(def.shadow_phase == Vk_Shadow_Phase::SHADOW_EDGES ||
-			def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF ||
-			def.shader_type == Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_DF) ? vk::ColorComponentFlags(0) : vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+		 def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF ||
+		 def.shader_type == Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_DF) ? vk::ColorComponentFlags(0) : vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
 
 	vk::BlendFactor srcColorBlendFactor = {};
 	vk::BlendFactor dstColorBlendFactor = {};
@@ -878,6 +906,50 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		fs_module = &vk_inst.modules.frag.gen[2][0][0];
 		break;
 
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_ADD:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_MUL:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_DST_COLOR_SRC_ALPHA:
+		vs_module = &vk_inst.modules.vert.md3_blend[0][0];
+		fs_module = &vk_inst.modules.frag.gen[1][1][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_ADD_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_MUL_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
+		vs_module = &vk_inst.modules.vert.md3_blend[1][0];
+		fs_module = &vk_inst.modules.frag.gen[1][1][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_ADD:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_MUL:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_DST_COLOR_SRC_ALPHA:
+		vs_module = &vk_inst.modules.vert.md3_blend[0][0];
+		fs_module = &vk_inst.modules.frag.gen[2][1][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_ADD_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_MUL_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
+		vs_module = &vk_inst.modules.vert.md3_blend[1][0];
+		fs_module = &vk_inst.modules.frag.gen[2][1][0];
+		break;
+
 	case Vk_Shader_Type::TYPE_BLEND2_ADD:
 	case Vk_Shader_Type::TYPE_BLEND2_MUL:
 	case Vk_Shader_Type::TYPE_BLEND2_ALPHA:
@@ -1225,6 +1297,57 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		push_attr(5, 5, vk::Format::eR32G32Sfloat);
 		push_attr(6, 6, vk::Format::eR16Uint);
 		push_attr(7, 7, vk::Format::eR16Uint);
+		break;
+		break;
+
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_ADD:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_MUL:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_DST_COLOR_SRC_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_ADD_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_MUL_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_ADD:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_MUL:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ONE_MINUS_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_DST_COLOR_SRC_ALPHA:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_ADD_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_MUL_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
+	case Vk_Shader_Type::TYPE_MD3_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
+		push_bind(0, sizeof(md3XyzNormal_t));
+		push_bind(1, sizeof(md3XyzNormal_t));
+		push_bind(2, sizeof(color4ub_t));
+		push_bind(3, sizeof(md3St_t));
+		push_bind(4, sizeof(vec2_t));
+		push_bind(5, sizeof(vec2_t));
+		push_bind(6, sizeof(md3XyzNormal_t));
+		push_bind(7, sizeof(md3XyzNormal_t));
+		push_bind(8, sizeof(color4ub_t));
+		push_bind(9, sizeof(color4ub_t));
+		push_attr(0, 0, vk::Format::eR16G16B16A16Sint);
+		push_attr(1, 1, vk::Format::eR16G16B16A16Sint);
+		push_attr(2, 2, vk::Format::eR8G8B8A8Unorm);
+		push_attr(3, 3, vk::Format::eR32G32Sfloat);
+		push_attr(4, 4, vk::Format::eR32G32Sfloat);
+		push_attr(5, 5, vk::Format::eR32G32Sfloat);
+		push_attr(6, 6, vk::Format::eR16Uint);
+		push_attr(7, 7, vk::Format::eR16Uint);
+		push_attr(8, 8, vk::Format::eR8G8B8A8Unorm);
+		push_attr(9, 9, vk::Format::eR8G8B8A8Unorm);
 		break;
 
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_MUL2_IDENTITY:
@@ -1743,6 +1866,92 @@ static constexpr bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_
 		return true;
 	case Vk_Shader_Type::TYPE_MULTI_TEXTURE_ADD3_ENV:
 		out = Vk_Shader_Type::TYPE_MD3_MULTI_TEXTURE_ADD3_ENV;
+		return true;
+
+	case Vk_Shader_Type::TYPE_BLEND2_ADD:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_ADD;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_ADD_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_ADD_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_MUL:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_MUL;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_MUL_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_MUL_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_ALPHA:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_ALPHA;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_ALPHA_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_ALPHA_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_ONE_MINUS_ALPHA;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_ONE_MINUS_ALPHA_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_ONE_MINUS_ALPHA_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ALPHA;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ALPHA_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ALPHA_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ONE_MINUS_ALPHA;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_MIX_ONE_MINUS_ALPHA_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_MIX_ONE_MINUS_ALPHA_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_DST_COLOR_SRC_ALPHA;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND2_DST_COLOR_SRC_ALPHA_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND2_DST_COLOR_SRC_ALPHA_ENV;
+		return true;
+
+	case Vk_Shader_Type::TYPE_BLEND3_ADD:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_ADD;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_ADD_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_ADD_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_MUL:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_MUL;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_MUL_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_MUL_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_ALPHA:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_ALPHA;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_ALPHA_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_ALPHA_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_ONE_MINUS_ALPHA;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_ONE_MINUS_ALPHA_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_ONE_MINUS_ALPHA_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ALPHA;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ALPHA_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ALPHA_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ONE_MINUS_ALPHA;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_MIX_ONE_MINUS_ALPHA_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_MIX_ONE_MINUS_ALPHA_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_DST_COLOR_SRC_ALPHA;
+		return true;
+	case Vk_Shader_Type::TYPE_BLEND3_DST_COLOR_SRC_ALPHA_ENV:
+		out = Vk_Shader_Type::TYPE_MD3_BLEND3_DST_COLOR_SRC_ALPHA_ENV;
 		return true;
 
 	default:
