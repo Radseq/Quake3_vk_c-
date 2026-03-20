@@ -3636,16 +3636,16 @@ void vk_bind_index_ext(const int numIndexes, const uint32_t* indexes)
 
 enum : uint32_t
 {
-	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB      = 1u << 0,
-	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA   = 1u << 1,
-	GPU_MD3_COLOR_UNIFORM_SOLID_RGBA       = 1u << 2,
-	GPU_MD3_COLOR_VERTEX_RGB               = 1u << 3,
-	GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB     = 1u << 4,
-	GPU_MD3_COLOR_EXACT_VERTEX_RGB         = 1u << 5,
-	GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA   = 1u << 6,
-	GPU_MD3_COLOR_UNIFORM_ALPHA            = 1u << 7,
-	GPU_MD3_COLOR_VERTEX_ALPHA             = 1u << 8,
-	GPU_MD3_COLOR_PORTAL_ALPHA             = 1u << 9
+	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0,
+	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA = 1u << 1,
+	GPU_MD3_COLOR_UNIFORM_SOLID_RGBA = 1u << 2,
+	GPU_MD3_COLOR_VERTEX_RGB = 1u << 3,
+	GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB = 1u << 4,
+	GPU_MD3_COLOR_EXACT_VERTEX_RGB = 1u << 5,
+	GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA = 1u << 6,
+	GPU_MD3_COLOR_UNIFORM_ALPHA = 1u << 7,
+	GPU_MD3_COLOR_VERTEX_ALPHA = 1u << 8,
+	GPU_MD3_COLOR_PORTAL_ALPHA = 1u << 9
 };
 
 
@@ -3781,10 +3781,10 @@ static ID_INLINE bool VK_GpuMd3UsesRawVertexColor() noexcept
 {
 	return (VK_GpuMd3CurrentColorMode() &
 		(GPU_MD3_COLOR_VERTEX_RGB |
-		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB |
-		 GPU_MD3_COLOR_EXACT_VERTEX_RGB |
-		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA |
-		 GPU_MD3_COLOR_VERTEX_ALPHA)) != 0u;
+			GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB |
+			GPU_MD3_COLOR_EXACT_VERTEX_RGB |
+			GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA |
+			GPU_MD3_COLOR_VERTEX_ALPHA)) != 0u;
 }
 
 static ID_INLINE bool VK_GpuMd3SecondaryBundleCanUseGpuTexCoords(const textureBundle_t& bundle) noexcept
@@ -3792,7 +3792,9 @@ static ID_INLINE bool VK_GpuMd3SecondaryBundleCanUseGpuTexCoords(const textureBu
 	if (!bundle.image[0] || bundle.gpuTcGenHandledInShader)
 		return false;
 
-	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE)
+	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE &&
+		bundle.tcGen != texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED &&
+		bundle.tcGen != texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP)
 		return false;
 
 	bool seenTurbulent = false;
@@ -3915,7 +3917,7 @@ void vk_bind_geometry(const uint32_t flags)
 			{
 				vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
 			}
-		};
+			};
 
 		// MD3 multi-texture path: old/new/color/baseST/st1/st2/oldNormal/newNormal.
 		// Bundle 0 is always GPU-derived. Bundle 1/2 reuse base ST when their texcoords

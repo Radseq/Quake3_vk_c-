@@ -205,20 +205,14 @@ typedef struct vkUniform_s
 	vec4_t tcGenVector0;
 	vec4_t tcGenVector1;
 
-	// GPU deformVertexes params for MD3 path.
-	// deform0.x = mode (0 = none, 1 = wave(sin), 2 = bulge)
-	// wave:  deform0.y = spread, deform0.w = phaseNow,
-	//        deform1.x = base, deform1.y = amplitude, deform1.z = useSpread
-	// bulge: deform0.y = bulgeWidth, deform0.z = bulgeHeight, deform0.w = now
-	vec4_t deform0;
-	vec4_t deform1;
-
 	// Secondary GPU texcoord params for MD3 multi-texture path.
 	// Flags in *.w:
 	// bit 0 = use vector tcGen
 	// bit 1 = use turbulent post-step
 	// bit 2 = slot enabled (otherwise shader keeps the incoming attrib)
-	// Kept after deform params so existing shader UBO offsets remain stable.
+	// bit 3 = environment mapping (regular)
+	// bit 4 = environment mapping (first-person)
+	// bit 5 = environment mapping (first-person screen-map)
 	vec4_t tc1Mod0;
 	vec4_t tc1Mod1;
 	vec4_t tc1GenVector0;
@@ -228,6 +222,14 @@ typedef struct vkUniform_s
 	vec4_t tc2Mod1;
 	vec4_t tc2GenVector0;
 	vec4_t tc2GenVector1;
+
+	// GPU deformVertexes params for MD3 path.
+	// deform0.x = mode (0 = none, 1 = wave(sin), 2 = bulge)
+	// wave:  deform0.y = spread, deform0.w = phaseNow,
+	//        deform1.x = base, deform1.y = amplitude, deform1.z = useSpread
+	// bulge: deform0.y = bulgeWidth, deform0.z = bulgeHeight, deform0.w = now
+	vec4_t deform0;
+	vec4_t deform1;
 } vkUniform_t;
 
 typedef struct dlight_s

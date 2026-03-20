@@ -100,7 +100,7 @@ namespace
 		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eTransferSrcOptimal,    vk::AccessFlags{ vk::AccessFlagBits::eTransferRead } },
 		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlags{ vk::AccessFlagBits::eShaderRead } },
 		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::ePresentSrcKHR,         vk::AccessFlags{} },
-	});
+		});
 
 	static const auto kDstAccessMaskLUT = std::to_array<ImageLayoutLUTEntry<vk::AccessFlags>>({
 		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eColorAttachmentOptimal,        vk::AccessFlags{ vk::AccessFlagBits::eColorAttachmentWrite } },
@@ -109,7 +109,7 @@ namespace
 		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eTransferSrcOptimal,            vk::AccessFlags{ vk::AccessFlagBits::eTransferRead } },
 		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eTransferDstOptimal,            vk::AccessFlags{ vk::AccessFlagBits::eTransferWrite } },
 		ImageLayoutLUTEntry<vk::AccessFlags>{ vk::ImageLayout::eShaderReadOnlyOptimal,         vk::AccessFlags{ vk::AccessFlagBits::eShaderRead } | vk::AccessFlags{ vk::AccessFlagBits::eInputAttachmentRead } },
-	});
+		});
 
 	static const auto kSrcStageLUT = std::to_array<ImageLayoutLUTEntry<vk::PipelineStageFlagBits>>({
 		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eUndefined,             vk::PipelineStageFlagBits::eTopOfPipe },
@@ -117,7 +117,7 @@ namespace
 		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eTransferSrcOptimal,    vk::PipelineStageFlagBits::eTransfer },
 		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eShaderReadOnlyOptimal, vk::PipelineStageFlagBits::eFragmentShader },
 		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::ePresentSrcKHR,         vk::PipelineStageFlagBits::eTransfer },
-	});
+		});
 
 	static const auto kDstStageLUT = std::to_array<ImageLayoutLUTEntry<vk::PipelineStageFlagBits>>({
 		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eColorAttachmentOptimal,        vk::PipelineStageFlagBits::eColorAttachmentOutput },
@@ -126,7 +126,7 @@ namespace
 		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eTransferSrcOptimal,            vk::PipelineStageFlagBits::eTransfer },
 		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eTransferDstOptimal,            vk::PipelineStageFlagBits::eTransfer },
 		ImageLayoutLUTEntry<vk::PipelineStageFlagBits>{ vk::ImageLayout::eShaderReadOnlyOptimal,         vk::PipelineStageFlagBits::eFragmentShader },
-	});
+		});
 }
 
 static inline vk::AccessFlags get_src_access_mask(const vk::ImageLayout old_layout) noexcept

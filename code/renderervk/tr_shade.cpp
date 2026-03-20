@@ -667,10 +667,27 @@ static void VK_SetGpuMd3TcParamsForSlot(vkUniform_t& u, const textureBundle_t& b
 		break;
 	}
 
-	const int flagBits =
+	int flagBits =
 		(prog.useVectorTcGen ? 1 : 0) |
 		(prog.useTurbulent ? 2 : 0) |
 		((slot == gpuTcSlot_t::bundle0) ? 0 : 4);
+
+	if (slot != gpuTcSlot_t::bundle0)
+	{
+		switch (bundle.tcGen)
+		{
+		case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
+			flagBits |= 8;
+			break;
+
+		case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP:
+			flagBits |= bundle.isScreenMap ? 32 : 16;
+			break;
+
+		default:
+			break;
+		}
+	}
 
 	(*mod0)[0] = prog.pre.s_s;
 	(*mod0)[1] = prog.pre.s_t;
@@ -1326,14 +1343,14 @@ static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& sta
 		return;
 	}
 
-	if ((stage.tessFlags & TESS_ENV) == 0)
-	{
-		return;
-	}
-
 	int envBundleIndex = static_cast<int>(stage.gpuEnvBundleIndex);
-	if (envBundleIndex < 0 || envBundleIndex >= NUM_TEXTURE_BUNDLES)
+	if (envBundleIndex < 0 || envBundleIndex >= stage.numTexBundles)
 	{
+		if ((stage.tessFlags & TESS_ENV) == 0)
+		{
+			return;
+		}
+
 		envBundleIndex = 0;
 	}
 

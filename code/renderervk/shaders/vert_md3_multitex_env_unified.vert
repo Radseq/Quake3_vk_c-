@@ -23,8 +23,6 @@ vec4 tcMod0;
 vec4 tcMod1;
 vec4 tcGenVector0;
 vec4 tcGenVector1;
-vec4 deform0;
-vec4 deform1;
 vec4 tc1Mod0;
 vec4 tc1Mod1;
 vec4 tc1GenVector0;
@@ -33,6 +31,8 @@ vec4 tc2Mod0;
 vec4 tc2Mod1;
 vec4 tc2GenVector0;
 vec4 tc2GenVector1;
+vec4 deform0;
+vec4 deform1;
 } ubo;
 
 const float kMd3PositionScale = 1.0 / 64.0;
@@ -256,27 +256,44 @@ vec2 ApplyGpuTcMods(vec3 position, vec2 st)
     return tc;
 }
 
-vec2 ApplyGpuTcModsExt(
+vec2 ApplyGpuSecondaryTc(
     vec3 position,
-    vec2 st,
+    vec3 normal,
+    vec2 rawTc,
+    vec2 baseTc,
     vec4 mod0,
     vec4 mod1,
     vec4 gen0,
     vec4 gen1)
 {
     const int flags = int(mod0.w + 0.5);
+    const bool enabled        = (flags & 4) != 0;
     const bool useVectorTcGen = (flags & 1) != 0;
     const bool useTurbulent   = (flags & 2) != 0;
-    const bool enabled        = (flags & 4) != 0;
+    const bool useEnvRegular  = (flags & 8) != 0;
+    const bool useEnvFp       = (flags & 16) != 0;
+    const bool useEnvFpScr    = (flags & 32) != 0;
 
     if (!enabled)
     {
-        return st;
+        return rawTc;
     }
 
-    vec2 tc = st;
+    vec2 tc = baseTc;
 
-    if (useVectorTcGen)
+    if (useEnvFpScr)
+    {
+        tc = calc_env_tc_fpscr(position, normal);
+    }
+    else if (useEnvFp)
+    {
+        tc = calc_env_tc_fp(position, normal);
+    }
+    else if (useEnvRegular)
+    {
+        tc = calc_env_tc_regular(position, normal);
+    }
+    else if (useVectorTcGen)
     {
         tc = vec2(
             dot(position, gen0.xyz) + gen0.w,
@@ -306,6 +323,7 @@ vec2 ApplyGpuTcModsExt(
 
     return tc;
 }
+
 
 vec2 calc_fog_tc(const vec4 pos4)
 {
@@ -471,7 +489,7 @@ void main()
     {
         frag_tex_coord0 = ApplyGpuTcMods(position, calc_env_tc_regular(position, normal));
     }
-    frag_tex_coord1 = ApplyGpuTcModsExt(position, in_tex_coord0, ubo.tc1Mod0, ubo.tc1Mod1, ubo.tc1GenVector0, ubo.tc1GenVector1);
-    frag_tex_coord2 = ApplyGpuTcModsExt(position, in_tex_coord0, ubo.tc2Mod0, ubo.tc2Mod1, ubo.tc2GenVector0, ubo.tc2GenVector1);
+    frag_tex_coord1 = ApplyGpuSecondaryTc(position, normal, in_tex_coord1, in_tex_coord0, ubo.tc1Mod0, ubo.tc1Mod1, ubo.tc1GenVector0, ubo.tc1GenVector1);
+    frag_tex_coord2 = ApplyGpuSecondaryTc(position, normal, in_tex_coord2, in_tex_coord0, ubo.tc2Mod0, ubo.tc2Mod1, ubo.tc2GenVector0, ubo.tc2GenVector1);
     fog_tex_coord = calc_fog_tc(pos4);
 }

@@ -3830,11 +3830,6 @@ static shader_t* FinishShader(void)
 			{
 				const textureBundle_t& bundle = pStage.bundle[n];
 
-				if (bundle.numTexMods)
-				{
-					continue;
-				}
-
 				const texCoordGen_t tcg = bundle.tcGen;
 				const bool isEnv =
 					tcg == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
@@ -3866,10 +3861,10 @@ static shader_t* FinishShader(void)
 				: static_cast<int8_t>(-1);
 
 
-			// UWAGA:
-			// aktualny rewrite/pipeline path nadal wspiera env tylko wtedy,
-			// gdy env siedzi w bundle[0]. To jest zgodne z dawną logiką i
-			// nie rozwala obecnych shader/pipeline assumptions.
+			// Ogólny (nie-MD3) pipeline nadal przełącza wariant *_ENV tylko wtedy,
+			// gdy pojedynczy env tcGen siedzi w bundle[0]. Dla GPU-MD3 zachowujemy
+			// jednak gpuEnvBundleIndex także dla bundle[1]/[2], żeby vertex shader
+			// mógł odtworzyć secondary env tc bez wracania na CPU.
 			if (!multipleEnvBundles &&
 				envBundle == 0 &&
 				!pStage.depthFragment &&

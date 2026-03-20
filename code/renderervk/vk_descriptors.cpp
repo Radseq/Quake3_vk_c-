@@ -20,7 +20,7 @@ namespace
 	inline constexpr auto kMagFilterLUT = std::to_array<VkMagFilterLUTEntry>({
 		{ std::to_underlying(glCompat::GL_NEAREST), vk::Filter::eNearest },
 		{ std::to_underlying(glCompat::GL_LINEAR),  vk::Filter::eLinear  },
-	});
+		});
 
 	inline constexpr auto kMinFilterLUT = std::to_array<VkMinFilterLUTEntry>({
 		{ std::to_underlying(glCompat::GL_NEAREST),                vk::Filter::eNearest, vk::SamplerMipmapMode::eNearest, 0.25f },
@@ -29,7 +29,7 @@ namespace
 		{ std::to_underlying(glCompat::GL_LINEAR_MIPMAP_NEAREST),  vk::Filter::eLinear,  vk::SamplerMipmapMode::eNearest, -1.0f },
 		{ std::to_underlying(glCompat::GL_NEAREST_MIPMAP_LINEAR),  vk::Filter::eNearest, vk::SamplerMipmapMode::eLinear,  -1.0f },
 		{ std::to_underlying(glCompat::GL_LINEAR_MIPMAP_LINEAR),   vk::Filter::eLinear,  vk::SamplerMipmapMode::eLinear,  -1.0f },
-	});
+		});
 
 	template <typename T, std::size_t N>
 	static constexpr const T* FindGlLUTEntry(const int glValue, const std::array<T, N>& lut) noexcept

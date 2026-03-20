@@ -23,8 +23,6 @@ vec4 tcMod0;
 vec4 tcMod1;
 vec4 tcGenVector0;
 vec4 tcGenVector1;
-vec4 deform0;
-vec4 deform1;
 vec4 tc1Mod0;
 vec4 tc1Mod1;
 vec4 tc1GenVector0;
@@ -33,6 +31,8 @@ vec4 tc2Mod0;
 vec4 tc2Mod1;
 vec4 tc2GenVector0;
 vec4 tc2GenVector1;
+vec4 deform0;
+vec4 deform1;
 } ubo;
 
 const float kMd3PositionScale = 1.0 / 64.0;
@@ -240,27 +240,80 @@ vec2 ApplyGpuTcMods(vec3 position, vec2 st)
     return tc;
 }
 
-vec2 ApplyGpuTcModsExt(
+vec2 calc_env_tc_regular(vec3 position, vec3 normal)
+{
+    const vec3 viewer = safe_normalize(ubo.eyePos.xyz - position);
+    const float d = dot(normal, viewer);
+    const vec2 reflected = normal.yz * (2.0 * d) - viewer.yz;
+    return vec2(0.5 + reflected.x * 0.5, 0.5 - reflected.y * 0.5);
+}
+
+vec2 calc_env_tc_fp(vec3 position, vec3 normal)
+{
+    const vec3 why    = safe_normalize(ubo.lightColor.xyz - position);
+    const vec3 who    = safe_normalize(ubo.lightVector.xyz - position);
+    const vec3 where  = safe_normalize(ubo.lightPos.xyz - position);
+    const vec3 viewer = safe_normalize(ubo.eyePos.xyz - position);
+
+    const float d = dot(normal, viewer);
+
+    vec2 reflected;
+    reflected.x = normal.y * (2.0 * d) - viewer.y - (where.y * 5.0) + (why.y * 4.0);
+    reflected.y = normal.z * (2.0 * d) - viewer.z - (where.z * 5.0) + (who.z * 4.0);
+
+    return vec2(0.33 + reflected.x * 0.33, 0.33 - reflected.y * 0.33);
+}
+
+vec2 calc_env_tc_fpscr(vec3 position, vec3 normal)
+{
+    const vec3 viewer = safe_normalize(ubo.eyePos.xyz - position);
+    const float d = dot(normal, viewer);
+
+    vec2 reflected;
+    reflected.x = normal.y * (2.0 * d) - viewer.y;
+    reflected.y = normal.z * (2.0 * d) - viewer.z;
+
+    return vec2(0.5 - reflected.x * 0.5, 0.5 + reflected.y * 0.5);
+}
+
+vec2 ApplyGpuSecondaryTc(
     vec3 position,
-    vec2 st,
+    vec3 normal,
+    vec2 rawTc,
+    vec2 baseTc,
     vec4 mod0,
     vec4 mod1,
     vec4 gen0,
     vec4 gen1)
 {
     const int flags = int(mod0.w + 0.5);
+    const bool enabled        = (flags & 4) != 0;
     const bool useVectorTcGen = (flags & 1) != 0;
     const bool useTurbulent   = (flags & 2) != 0;
-    const bool enabled        = (flags & 4) != 0;
+    const bool useEnvRegular  = (flags & 8) != 0;
+    const bool useEnvFp       = (flags & 16) != 0;
+    const bool useEnvFpScr    = (flags & 32) != 0;
 
     if (!enabled)
     {
-        return st;
+        return rawTc;
     }
 
-    vec2 tc = st;
+    vec2 tc = baseTc;
 
-    if (useVectorTcGen)
+    if (useEnvFpScr)
+    {
+        tc = calc_env_tc_fpscr(position, normal);
+    }
+    else if (useEnvFp)
+    {
+        tc = calc_env_tc_fp(position, normal);
+    }
+    else if (useEnvRegular)
+    {
+        tc = calc_env_tc_regular(position, normal);
+    }
+    else if (useVectorTcGen)
     {
         tc = vec2(
             dot(position, gen0.xyz) + gen0.w,
@@ -290,6 +343,7 @@ vec2 ApplyGpuTcModsExt(
 
     return tc;
 }
+
 
 vec2 calc_fog_tc(const vec4 pos4)
 {
@@ -404,7 +458,7 @@ void main()
     gl_Position = pc.mvp * pos4;
     frag_color0 = ComputeGpuColor(position, normal, in_color0);
     frag_tex_coord0 = ApplyGpuTcMods(position, in_tex_coord0);
-    frag_tex_coord1 = ApplyGpuTcModsExt(position, in_tex_coord0, ubo.tc1Mod0, ubo.tc1Mod1, ubo.tc1GenVector0, ubo.tc1GenVector1);
-    frag_tex_coord2 = ApplyGpuTcModsExt(position, in_tex_coord0, ubo.tc2Mod0, ubo.tc2Mod1, ubo.tc2GenVector0, ubo.tc2GenVector1);
+    frag_tex_coord1 = ApplyGpuSecondaryTc(position, normal, in_tex_coord1, in_tex_coord0, ubo.tc1Mod0, ubo.tc1Mod1, ubo.tc1GenVector0, ubo.tc1GenVector1);
+    frag_tex_coord2 = ApplyGpuSecondaryTc(position, normal, in_tex_coord2, in_tex_coord0, ubo.tc2Mod0, ubo.tc2Mod1, ubo.tc2GenVector0, ubo.tc2GenVector1);
     fog_tex_coord = calc_fog_tc(pos4);
 }

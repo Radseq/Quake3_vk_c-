@@ -1026,10 +1026,15 @@ static bool RB_CanUseGpuMd3SecondaryBundle(const textureBundle_t& bundle) noexce
 	if (!bundle.image[0])
 		return false;
 
-	// Secondary bundle may stay on the GPU as long as it derives from plain model ST.
-	// Unsupported texMods can still fall back to CPU-generated ST1/ST2, but the common
-	// affine case is rebuilt directly in the MD3 multi-texture vertex shader.
-	return RB_IsPlainModelTcGen(bundle) && !bundle.gpuTcGenHandledInShader;
+	// GPU-MD3 does not build CPU vertex positions / normals / base ST for multitexture
+	// stages, so secondary bundles must be fully rebuildable in the vertex shader.
+	if (bundle.gpuTcGenHandledInShader)
+		return false;
+
+	if (!(RB_IsPlainModelTcGen(bundle) || RB_IsTrueEnvTcGen(bundle)))
+		return false;
+
+	return R_CanGpuMd3UseAffineTexMods(bundle);
 }
 
 static bool RB_CanUseGpuMd3MultiTextureStage(
@@ -1045,6 +1050,17 @@ static bool RB_CanUseGpuMd3MultiTextureStage(
 	const textureBundle_t* const b2 = (stage.numTexBundles == 3) ? &stage.bundle[2] : nullptr;
 
 	if (!b0.image[0] || !RB_CanUseGpuMd3SecondaryBundle(b1) || (b2 && !RB_CanUseGpuMd3SecondaryBundle(*b2)))
+		return false;
+
+	const int envBundleCount =
+		(RB_IsTrueEnvTcGen(b0) ? 1 : 0) +
+		(RB_IsTrueEnvTcGen(b1) ? 1 : 0) +
+		((b2 && RB_IsTrueEnvTcGen(*b2)) ? 1 : 0);
+
+	// The current MD3 rewrite supports at most one env-mapped bundle per merged stage.
+	// That already covers the common chrome/reflection pass patterns while keeping the
+	// shader contract simple and deterministic.
+	if (envBundleCount > 1)
 		return false;
 
 	const bool gpuTexModsOk = R_CanGpuMd3UseAffineTexMods(b0);
