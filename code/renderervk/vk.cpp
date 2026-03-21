@@ -3808,16 +3808,18 @@ static ID_INLINE bool VK_GpuMd3UsesRawVertexColor() noexcept
 		 GPU_MD3_COLOR_VERTEX_ALPHA)) != 0u;
 }
 
-static ID_INLINE bool VK_GpuMd3SecondaryBundleCanUseGpuTexCoords(const textureBundle_t& bundle) noexcept
+static ID_INLINE bool VK_GpuMd3SecondaryBundleCanUseGpuTexCoords(
+	const shaderStage_t& stage,
+	const int bundleIndex,
+	const textureBundle_t& bundle) noexcept
 {
+	if (bundleIndex <= 0 || bundleIndex >= stage.numTexBundles)
+		return false;
+
 	if (!bundle.image[0] || bundle.gpuTcGenHandledInShader)
 		return false;
 
-	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE)
-		return false;
-
 	bool seenTurbulent = false;
-
 	for (int i = 0; i < bundle.numTexMods; ++i)
 	{
 		switch (bundle.texMods[i].type)
@@ -3834,7 +3836,7 @@ static ID_INLINE bool VK_GpuMd3SecondaryBundleCanUseGpuTexCoords(const textureBu
 		case texMod_t::TMOD_STRETCH:
 			break;
 		case texMod_t::TMOD_TURBULENT:
-			if (seenTurbulent)
+			if (bundle.tcGen == texCoordGen_t::TCGEN_VECTOR || seenTurbulent)
 				return false;
 			seenTurbulent = true;
 			break;
@@ -3843,7 +3845,19 @@ static ID_INLINE bool VK_GpuMd3SecondaryBundleCanUseGpuTexCoords(const textureBu
 		}
 	}
 
-	return true;
+	switch (bundle.tcGen)
+	{
+	case texCoordGen_t::TCGEN_TEXTURE:
+	case texCoordGen_t::TCGEN_VECTOR:
+	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
+		return true;
+
+	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP:
+		return static_cast<int>(stage.gpuEnvBundleIndex) == bundleIndex;
+
+	default:
+		return false;
+	}
 }
 
 static ID_INLINE bool VK_GpuMd3CurrentSecondaryTexCoordsHandledInShader(const int bundleIndex) noexcept
@@ -3855,7 +3869,7 @@ static ID_INLINE bool VK_GpuMd3CurrentSecondaryTexCoordsHandledInShader(const in
 	if (bundleIndex <= 0 || bundleIndex >= stage->numTexBundles)
 		return false;
 
-	return VK_GpuMd3SecondaryBundleCanUseGpuTexCoords(stage->bundle[bundleIndex]);
+	return VK_GpuMd3SecondaryBundleCanUseGpuTexCoords(*stage, bundleIndex, stage->bundle[bundleIndex]);
 }
 
 void vk_bind_geometry(const uint32_t flags)

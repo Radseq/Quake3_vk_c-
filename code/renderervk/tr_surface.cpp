@@ -453,13 +453,6 @@ RB_SurfaceBeam
 */
 static void RB_SurfaceBeam(void)
 {
-	ri.Printf(PRINT_ALL,
-		"GPU_MD3 BEAM: before reset active=%d layout=%d shader='%s' surf=%p\n",
-		tess.gpuMd3Active ? 1 : 0,
-		static_cast<int>(tess.gpuMd3Layout),
-		(tess.shader && tess.shader->name) ? tess.shader->name : "<null>",
-		(const void*)tess.gpuMd3Surface);
-
 	RB_ResetGpuMd3State();
 
 	constexpr int NUM_BEAM_SEGS = 6;
@@ -1049,15 +1042,37 @@ static ID_INLINE bool RB_IsGpuMd3GenericColorShaderType(const Vk_Shader_Type sha
 	}
 }
 
-static bool RB_CanUseGpuMd3SecondaryBundle(const textureBundle_t& bundle) noexcept
+static bool RB_CanUseGpuMd3SecondaryBundle(
+	const shaderStage_t& stage,
+	const int bundleIndex,
+	const textureBundle_t& bundle) noexcept
 {
-	if (!bundle.image[0])
+	if (bundleIndex <= 0 || bundleIndex >= stage.numTexBundles)
 		return false;
 
-	// Secondary bundle may stay on the GPU as long as it derives from plain model ST.
-	// Unsupported texMods can still fall back to CPU-generated ST1/ST2, but the common
-	// affine case is rebuilt directly in the MD3 multi-texture vertex shader.
-	return RB_IsPlainModelTcGen(bundle) && !bundle.gpuTcGenHandledInShader;
+	if (!bundle.image[0] || bundle.gpuTcGenHandledInShader)
+		return false;
+
+	if (!R_CanGpuMd3UseAffineTexMods(bundle))
+		return false;
+
+	// Secondary bundle texcoords are reconstructed directly in the MD3 vertex shader.
+	// Besides plain model ST we can also keep vector tcGen and regular env-mapping on
+	// the GPU. First-person env-mapping needs the stage-level env metadata to point at
+	// this exact bundle, otherwise the CPU path stays authoritative.
+	switch (bundle.tcGen)
+	{
+	case texCoordGen_t::TCGEN_TEXTURE:
+	case texCoordGen_t::TCGEN_VECTOR:
+	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
+		return true;
+
+	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP:
+		return static_cast<int>(stage.gpuEnvBundleIndex) == bundleIndex;
+
+	default:
+		return false;
+	}
 }
 
 static ID_INLINE bool RB_CanGpuMd3UseCpuSafeBundleColor(const textureBundle_t& bundle) noexcept
@@ -1087,7 +1102,7 @@ static bool RB_CanUseGpuMd3BlendStage(
 	const textureBundle_t& b1 = stage.bundle[1];
 	const textureBundle_t* const b2 = (stage.numTexBundles == 3) ? &stage.bundle[2] : nullptr;
 
-	if (!b0.image[0] || !RB_CanUseGpuMd3SecondaryBundle(b1) || (b2 && !RB_CanUseGpuMd3SecondaryBundle(*b2)))
+	if (!b0.image[0] || !RB_CanUseGpuMd3SecondaryBundle(stage, 1, b1) || (b2 && !RB_CanUseGpuMd3SecondaryBundle(stage, 2, *b2)))
 		return false;
 
 	if (!RB_CanGpuMd3UseCpuSafeBundleColor(b1) || (b2 && !RB_CanGpuMd3UseCpuSafeBundleColor(*b2)))
@@ -1157,7 +1172,7 @@ static bool RB_CanUseGpuMd3MultiTextureStage(
 	const textureBundle_t& b1 = stage.bundle[1];
 	const textureBundle_t* const b2 = (stage.numTexBundles == 3) ? &stage.bundle[2] : nullptr;
 
-	if (!b0.image[0] || !RB_CanUseGpuMd3SecondaryBundle(b1) || (b2 && !RB_CanUseGpuMd3SecondaryBundle(*b2)))
+	if (!b0.image[0] || !RB_CanUseGpuMd3SecondaryBundle(stage, 1, b1) || (b2 && !RB_CanUseGpuMd3SecondaryBundle(stage, 2, *b2)))
 		return false;
 
 	const bool gpuTexModsOk = R_CanGpuMd3UseAffineTexMods(b0);

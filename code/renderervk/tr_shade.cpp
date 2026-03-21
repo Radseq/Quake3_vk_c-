@@ -726,6 +726,35 @@ static void VK_SetGpuMd3TcParamsForSlot(vkUniform_t& u, const textureBundle_t& b
 	}
 }
 
+static bool R_GpuMd3SecondaryTexCoordsHandledInShader(
+	const shaderStage_t& stage,
+	const int bundleIndex,
+	const textureBundle_t& bundle) noexcept
+{
+	if (bundleIndex <= 0 || bundleIndex >= stage.numTexBundles)
+		return false;
+
+	if (!bundle.image[0] || bundle.gpuTcGenHandledInShader)
+		return false;
+
+	if (!R_CanGpuMd3UseAffineTexMods(bundle))
+		return false;
+
+	switch (bundle.tcGen)
+	{
+	case texCoordGen_t::TCGEN_TEXTURE:
+	case texCoordGen_t::TCGEN_VECTOR:
+	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED:
+		return true;
+
+	case texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP:
+		return static_cast<int>(stage.gpuEnvBundleIndex) == bundleIndex;
+
+	default:
+		return false;
+	}
+}
+
 static bool R_GpuMd3TexCoordsHandledInShader(const shaderStage_t& stage, const int bundleIndex, const textureBundle_t& bundle) noexcept
 {
 	if (!tess.gpuMd3Active)
@@ -757,13 +786,7 @@ static bool R_GpuMd3TexCoordsHandledInShader(const shaderStage_t& stage, const i
 	if (bundleIndex <= 0 || bundleIndex >= stage.numTexBundles)
 		return false;
 
-	if (!bundle.image[0] || bundle.gpuTcGenHandledInShader)
-		return false;
-
-	if (bundle.tcGen != texCoordGen_t::TCGEN_TEXTURE)
-		return false;
-
-	return R_CanGpuMd3UseAffineTexMods(bundle);
+	return R_GpuMd3SecondaryTexCoordsHandledInShader(stage, bundleIndex, bundle);
 }
 
 
@@ -1846,21 +1869,6 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 				}
 				if (tess_flags & (TESS_ENT0 << i) && backEnd.currentEntity)
 				{
-					if (tess.shader && tess.shader->name &&
-						Q_stricmp_cpp(tess.shader->name, "models/weapons2/shotgun/shotgun_laser") == 0 &&
-						(tess_flags & (TESS_ENT0 << i)) && backEnd.currentEntity)
-					{
-						ri.Printf(PRINT_ALL,
-							"GPU_MD3 ENTDBG: shader='%s' rgba=(%u %u %u %u) alphaGen=%d\n",
-							tess.shader->name,
-							(unsigned)backEnd.currentEntity->e.shader.rgba[0],
-							(unsigned)backEnd.currentEntity->e.shader.rgba[1],
-							(unsigned)backEnd.currentEntity->e.shader.rgba[2],
-							(unsigned)backEnd.currentEntity->e.shader.rgba[3],
-							(int)pStage->bundle[i].alphaGen);
-					}
-
-
 					const float entR = backEnd.currentEntity->e.shader.rgba[0] / 255.0f;
 					const float entG = backEnd.currentEntity->e.shader.rgba[1] / 255.0f;
 					const float entB = backEnd.currentEntity->e.shader.rgba[2] / 255.0f;
