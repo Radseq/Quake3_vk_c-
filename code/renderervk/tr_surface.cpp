@@ -1345,96 +1345,54 @@ static bool RB_CanUseGpuMd3MultiTextureStage(
 	return true;
 }
 
-static ID_INLINE bool RB_IsGpuMd3NoOpDeform(const deformStage_t& ds) noexcept
-{
-	switch (ds.deformation)
-	{
-	case deform_t::DEFORM_WAVE:
-		return ds.deformationWave.base == 0.0f && ds.deformationWave.amplitude == 0.0f;
-
-	case deform_t::DEFORM_BULGE:
-		return ds.bulgeHeight == 0.0f;
-
-	case deform_t::DEFORM_MOVE:
-		return
-			(ds.moveVector[0] == 0.0f && ds.moveVector[1] == 0.0f && ds.moveVector[2] == 0.0f) ||
-			(ds.deformationWave.base == 0.0f && ds.deformationWave.amplitude == 0.0f);
-
-	case deform_t::DEFORM_NORMALS:
-		return ds.deformationWave.amplitude == 0.0f;
-
-	default:
-		return false;
-	}
-}
-
 static bool RB_CanGpuMd3UseDeforms(
 	const shader_t& shader,
 	const shaderStage_t& stage,
 	const textureBundle_t& bundle,
 	const Vk_Shader_Type shaderType) noexcept
 {
-	int effectiveDeforms = 0;
+	if (shader.numDeforms == 0)
+		return true;
 
-	for (int i = 0; i < shader.numDeforms; ++i)
+	if (shader.numDeforms != 1)
+		return false;
+
+	const deformStage_t& ds = shader.deforms[0];
+
+	switch (ds.deformation)
 	{
-		const deformStage_t& ds = shader.deforms[i];
-		if (RB_IsGpuMd3NoOpDeform(ds))
-		{
-			continue;
-		}
+	case deform_t::DEFORM_WAVE:
+		// GPU shader supports all waveform families used by the CPU path
+		// except GF_NONE, which intentionally means "no valid wave".
+		return ds.deformationWave.func != genFunc_t::GF_NONE;
 
-		++effectiveDeforms;
-		if (effectiveDeforms > 1)
-		{
-			return false;
-		}
+	case deform_t::DEFORM_BULGE:
+		// Bulge is driven by the model's base ST channel.
+		// The GPU MD3 env pipelines bind ST as well, so this can stay on GPU
+		// for both regular and env-mapped passes.
+		(void)stage;
+		(void)bundle;
+		(void)shaderType;
+		return true;
 
-		switch (ds.deformation)
-		{
-		case deform_t::DEFORM_WAVE:
-			// GPU shader supports all waveform families used by the CPU path
-			// except GF_NONE, which intentionally means "no valid wave".
-			if (ds.deformationWave.func == genFunc_t::GF_NONE)
-			{
-				return false;
-			}
-			break;
+	case deform_t::DEFORM_MOVE:
+		// Same limitation as DEFORM_WAVE: only GF_NONE is rejected.
+		(void)stage;
+		(void)bundle;
+		(void)shaderType;
+		return ds.deformationWave.func != genFunc_t::GF_NONE;
 
-		case deform_t::DEFORM_BULGE:
-			// Bulge is driven by the model's base ST channel.
-			// The GPU MD3 env pipelines bind ST as well, so this can stay on GPU
-			// for both regular and env-mapped passes.
-			(void)stage;
-			(void)bundle;
-			(void)shaderType;
-			break;
+	case deform_t::DEFORM_NORMALS:
+		// Normal wiggle is evaluated directly in the MD3 vertex shader.
+		// This keeps env-mapped / diffuse-lit model shaders off the CPU path.
+		(void)stage;
+		(void)bundle;
+		(void)shaderType;
+		return true;
 
-		case deform_t::DEFORM_MOVE:
-			// Same limitation as DEFORM_WAVE: only GF_NONE is rejected.
-			(void)stage;
-			(void)bundle;
-			(void)shaderType;
-			if (ds.deformationWave.func == genFunc_t::GF_NONE)
-			{
-				return false;
-			}
-			break;
-
-		case deform_t::DEFORM_NORMALS:
-			// Normal wiggle is evaluated directly in the MD3 vertex shader.
-			// This keeps env-mapped / diffuse-lit model shaders off the CPU path.
-			(void)stage;
-			(void)bundle;
-			(void)shaderType;
-			break;
-
-		default:
-			return false;
-		}
+	default:
+		return false;
 	}
-
-	return true;
 }
 
 static ID_INLINE bool RB_GpuMd3CanDoDiffuseColorInShader(const shaderStage_t& stage) noexcept
@@ -1511,11 +1469,12 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 		const textureBundle_t& bundle = p->bundle[0];
 		const bool gpuTexModsOk = R_CanGpuMd3UseAffineTexMods(bundle);
 		const bool genericColorType = RB_IsGpuMd3GenericColorShaderType(def.shader_type);
+		const bool diffuseColorHandledInShader = RB_GpuMd3CanDoDiffuseColorInShader(*p);
 
-		if (bundle.alphaGen == alphaGen_t::AGEN_PORTAL && !genericColorType)
+		if (bundle.alphaGen == alphaGen_t::AGEN_PORTAL && !genericColorType && !diffuseColorHandledInShader)
 			return false;
 
-		if (bundle.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR && !genericColorType)
+		if (bundle.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR && !genericColorType && !diffuseColorHandledInShader)
 			return false;
 
 		if (!RB_CanGpuMd3UseDeforms(shader, *p, bundle, def.shader_type))
