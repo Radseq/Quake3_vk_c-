@@ -1592,14 +1592,18 @@ static ID_INLINE uint32_t VK_GpuMd3BuildSecondaryColorMode(const textureBundle_t
 		mode |= GPU_MD3_COLOR_EXACT_VERTEX_RGB;
 		break;
 
+	case colorGen_t::CGEN_LIGHTING_DIFFUSE:
+		mode |= GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB;
+		break;
+
 	default:
 		return 0u;
 	}
 
+	// Unified MD3 multi/blend vertex shaders already know how to evaluate
+	// per-bundle diffuse RGB and specular alpha from the shared entity light
+	// uniforms, so secondary bundles do not need a CPU-derived color path here.
 	if (!VK_GpuMd3VertexAlphaSupported(mode, bundle))
-		return 0u;
-
-	if ((mode & GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA) != 0u)
 		return 0u;
 
 	return mode;
