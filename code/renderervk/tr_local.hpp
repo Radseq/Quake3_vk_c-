@@ -1834,6 +1834,28 @@ static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForShaderTypeShared(const Vk_Shad
 	return gpuMd3LayoutByShaderTypeLUT[idx];
 }
 
+constexpr int MAX_GPU_MD3_BATCH_SURFACES = 128;
+
+struct gpuMd3BatchEntry_t
+{
+	const md3GpuSurface_t* surface{};
+	uint32_t oldFrame{};
+	uint32_t newFrame{};
+	uint32_t lod{};
+	uint32_t entityNum{ REFENTITYNUM_WORLD };
+	uint32_t numVertexes{};
+	uint32_t numIndexes{};
+	float backlerp{};
+	gpuMd3Layout_t layout{ gpuMd3Layout_t::NONE };
+	Vk_Depth_Range depthRange{ Vk_Depth_Range::DEPTH_RANGE_NORMAL };
+	double refdefFloatTime{};
+	double shaderTime{};
+	vec4_t viewOriginLocal{};
+	vec4_t entOrigin{};
+	vec4_t entAxis1{};
+	vec4_t entAxis2{};
+};
+
 typedef struct stageVars
 {
 	color4ub_t colors[NUM_TEXTURE_BUNDLES][SHADER_MAX_VERTEXES]; // we need at least 2xSHADER_MAX_VERTEXES for shadows and normals
@@ -1908,6 +1930,8 @@ typedef struct shaderCommands_s
 	uint32_t gpuMd3NewFrame;
 	float gpuMd3Backlerp;
 	gpuMd3Layout_t gpuMd3Layout;
+	int gpuMd3BatchCount;
+	std::array<gpuMd3BatchEntry_t, MAX_GPU_MD3_BATCH_SURFACES> gpuMd3Batch{};
 
 	vec4_t gpuMd3ViewOriginLocal{};
 	vec4_t gpuMd3EntOrigin{};
@@ -1917,6 +1941,8 @@ typedef struct shaderCommands_s
 } shaderCommands_t;
 
 extern shaderCommands_t tess;
+
+bool RB_CanMergeGpuMd3DrawSurf(const drawSurf_t& drawSurf, const shader_t& shader, int fogNum);
 
 void RB_ShowImages(void);
 

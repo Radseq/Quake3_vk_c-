@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -250,7 +250,13 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 		// change the tess parameters if needed
 		// a "entityMergable" shader is a shader that can have surfaces from separate
 		// entities merged into a single batch, like smoke and blood puff sprites
-		if (((oldSort ^ drawSurfs->sort) & ~QSORT_REFENTITYNUM_MASK) || !shader->entityMergable)
+		const bool sameNonEntitySort = (((oldSort ^ drawSurf->sort) & ~QSORT_REFENTITYNUM_MASK) == 0u);
+		const bool allowGpuMd3EntityMerge =
+			sameNonEntitySort &&
+			tess.gpuMd3Active &&
+			RB_CanMergeGpuMd3DrawSurf(*drawSurf, *shader, fogNum);
+
+		if (!sameNonEntitySort || (!shader->entityMergable && !allowGpuMd3EntityMerge))
 		{
 			//if (oldShader != NULL)
 			//{

@@ -58,6 +58,7 @@ static ID_INLINE void RB_ResetGpuMd3State() noexcept
 	tess.gpuMd3OldFrame = 0;
 	tess.gpuMd3NewFrame = 0;
 	tess.gpuMd3Layout = gpuMd3Layout_t::NONE;
+	tess.gpuMd3BatchCount = 0;
 
 	tess.gpuMd3ViewOriginLocal[0] = 0.0f;
 	tess.gpuMd3ViewOriginLocal[1] = 0.0f;
@@ -973,6 +974,101 @@ static bool RB_CanUseGpuMd3GenericSingleTexture(
 	return true;
 }
 
+
+static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept;
+
+static ID_INLINE uint32_t RB_BackEndCurrentEntityNum() noexcept
+{
+	if (backEnd.currentEntity == nullptr)
+		return REFENTITYNUM_WORLD;
+
+	if (backEnd.currentEntity == &tr.worldEntity)
+		return REFENTITYNUM_WORLD;
+
+	return static_cast<uint32_t>(backEnd.currentEntity - backEnd.refdef.entities);
+}
+
+static ID_INLINE void RB_FillGpuMd3BatchEntry(
+	gpuMd3BatchEntry_t& entry,
+	const md3GpuSurface_t& gpuSurface,
+	const int lod,
+	const float backlerp,
+	const gpuMd3Layout_t layout) noexcept
+{
+	entry.surface = &gpuSurface;
+	entry.oldFrame = static_cast<uint32_t>(backEnd.currentEntity->e.oldframe);
+	entry.newFrame = static_cast<uint32_t>(backEnd.currentEntity->e.frame);
+	entry.lod = static_cast<uint32_t>(lod);
+	entry.entityNum = RB_BackEndCurrentEntityNum();
+	entry.numVertexes = static_cast<uint32_t>(gpuSurface.numVerts);
+	entry.numIndexes = static_cast<uint32_t>(gpuSurface.numIndexes);
+	entry.backlerp = backlerp;
+	entry.layout = layout;
+	entry.depthRange = tess.depthRange;
+	entry.refdefFloatTime = backEnd.refdef.floatTime;
+	entry.shaderTime = tess.shaderTime;
+
+	entry.viewOriginLocal[0] = backEnd.ort.viewOrigin[0];
+	entry.viewOriginLocal[1] = backEnd.ort.viewOrigin[1];
+	entry.viewOriginLocal[2] = backEnd.ort.viewOrigin[2];
+	entry.viewOriginLocal[3] = 0.0f;
+
+	entry.entOrigin[0] = backEnd.ort.origin[0];
+	entry.entOrigin[1] = backEnd.ort.origin[1];
+	entry.entOrigin[2] = backEnd.ort.origin[2];
+	entry.entOrigin[3] = 0.0f;
+
+	entry.entAxis1[0] = backEnd.ort.axis[1][0];
+	entry.entAxis1[1] = backEnd.ort.axis[1][1];
+	entry.entAxis1[2] = backEnd.ort.axis[1][2];
+	entry.entAxis1[3] = 0.0f;
+
+	entry.entAxis2[0] = backEnd.ort.axis[2][0];
+	entry.entAxis2[1] = backEnd.ort.axis[2][1];
+	entry.entAxis2[2] = backEnd.ort.axis[2][2];
+	entry.entAxis2[3] = 0.0f;
+}
+
+static ID_INLINE void RB_LoadGpuMd3BatchEntry(const gpuMd3BatchEntry_t& entry) noexcept
+{
+	tess.gpuMd3Active = true;
+	tess.gpuMd3Surface = entry.surface;
+	tess.gpuMd3Backlerp = entry.backlerp;
+	tess.gpuMd3OldFrame = entry.oldFrame;
+	tess.gpuMd3NewFrame = entry.newFrame;
+	tess.gpuMd3Lod = static_cast<int>(entry.lod);
+	tess.gpuMd3Layout = entry.layout;
+	tess.numVertexes = static_cast<int>(entry.numVertexes);
+	tess.numIndexes = static_cast<int>(entry.numIndexes);
+
+	Vector4Copy(entry.viewOriginLocal, tess.gpuMd3ViewOriginLocal);
+	Vector4Copy(entry.entOrigin, tess.gpuMd3EntOrigin);
+	Vector4Copy(entry.entAxis1, tess.gpuMd3EntAxis1);
+	Vector4Copy(entry.entAxis2, tess.gpuMd3EntAxis2);
+}
+
+bool RB_CanMergeGpuMd3DrawSurf(const drawSurf_t& drawSurf, const shader_t& shader, const int fogNum)
+{
+	if (static_cast<surfaceType_t>(*drawSurf.surface) != surfaceType_t::SF_MD3)
+		return false;
+
+	if (!RB_CanUseGpuMd3(shader, fogNum))
+		return false;
+
+	const uint32_t entityNum = (drawSurf.sort >> QSORT_REFENTITYNUM_SHIFT) & REFENTITYNUM_MASK;
+	if (entityNum == REFENTITYNUM_WORLD)
+		return false;
+
+	const trRefEntity_t& ent = backEnd.refdef.entities[entityNum];
+	model_t* model = R_GetModelByHandle(ent.e.hModel);
+	if (!model || model->type != modtype_t::MOD_MESH)
+		return false;
+
+	const auto* const surface = reinterpret_cast<const md3Surface_t*>(drawSurf.surface);
+	const md3GpuSurface_t* const gpuSurface = R_FindMD3GpuSurface(*model, surface, ent.modelLod);
+	return gpuSurface != nullptr && gpuSurface->ready;
+}
+
 static bool RB_IsTrueEnvTcGen(const textureBundle_t & bundle) noexcept
 {
 	return bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
@@ -1540,13 +1636,15 @@ static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
 	if (!gpuSurface || !gpuSurface->ready)
 		return false;
 
-	// GPU-MD3 nie potrafi batchować wielu surfaces w jednym tess tak jak CPU path,
-	// bo trzyma tylko jeden aktywny gpuMd3Surface.
-	// Dlatego każdy nowy GPU-MD3 surface musi zamknąć poprzedni batch.
 	if (tess.numIndexes != 0 || tess.numVertexes != 0)
 	{
-		RB_EndSurface();
-		RB_BeginSurface(*tess.shader, tess.fogNum);
+		if (!tess.gpuMd3Active || tess.gpuMd3BatchCount >= MAX_GPU_MD3_BATCH_SURFACES)
+		{
+			shader_t* const currentShader = tess.shader;
+			const int currentFogNum = tess.fogNum;
+			RB_EndSurface();
+			RB_BeginSurface(*currentShader, currentFogNum);
+		}
 	}
 
 #ifdef USE_VBO
@@ -1570,36 +1668,23 @@ static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
 	if (newLayout == gpuMd3Layout_t::NONE)
 		return false;
 
-	tess.numVertexes = gpuSurface->numVerts;
-	tess.numIndexes = gpuSurface->numIndexes;
+	const int totalVertexesBeforeAppend = tess.numVertexes;
+	const int totalIndexesBeforeAppend = tess.numIndexes;
 
-	tess.gpuMd3Active = true;
-	tess.gpuMd3Surface = gpuSurface;
-	tess.gpuMd3Backlerp = backlerp;
-	tess.gpuMd3OldFrame = static_cast<uint32_t>(backEnd.currentEntity->e.oldframe);
-	tess.gpuMd3NewFrame = static_cast<uint32_t>(backEnd.currentEntity->e.frame);
-	tess.gpuMd3Lod = static_cast<uint32_t>(lod);
-	tess.gpuMd3Layout = newLayout;
+	gpuMd3BatchEntry_t& entry = tess.gpuMd3Batch[tess.gpuMd3BatchCount++];
+	RB_FillGpuMd3BatchEntry(entry, *gpuSurface, lod, backlerp, newLayout);
+	RB_LoadGpuMd3BatchEntry(entry);
 
-	tess.gpuMd3ViewOriginLocal[0] = backEnd.ort.viewOrigin[0];
-	tess.gpuMd3ViewOriginLocal[1] = backEnd.ort.viewOrigin[1];
-	tess.gpuMd3ViewOriginLocal[2] = backEnd.ort.viewOrigin[2];
-	tess.gpuMd3ViewOriginLocal[3] = 0.0f;
-
-	tess.gpuMd3EntOrigin[0] = backEnd.ort.origin[0];
-	tess.gpuMd3EntOrigin[1] = backEnd.ort.origin[1];
-	tess.gpuMd3EntOrigin[2] = backEnd.ort.origin[2];
-	tess.gpuMd3EntOrigin[3] = 0.0f;
-
-	tess.gpuMd3EntAxis1[0] = backEnd.ort.axis[1][0];
-	tess.gpuMd3EntAxis1[1] = backEnd.ort.axis[1][1];
-	tess.gpuMd3EntAxis1[2] = backEnd.ort.axis[1][2];
-	tess.gpuMd3EntAxis1[3] = 0.0f;
-
-	tess.gpuMd3EntAxis2[0] = backEnd.ort.axis[2][0];
-	tess.gpuMd3EntAxis2[1] = backEnd.ort.axis[2][1];
-	tess.gpuMd3EntAxis2[2] = backEnd.ort.axis[2][2];
-	tess.gpuMd3EntAxis2[3] = 0.0f;
+	if (tess.gpuMd3BatchCount == 1)
+	{
+		tess.numVertexes = static_cast<int>(entry.numVertexes);
+		tess.numIndexes = static_cast<int>(entry.numIndexes);
+	}
+	else
+	{
+		tess.numVertexes = totalVertexesBeforeAppend + static_cast<int>(entry.numVertexes);
+		tess.numIndexes = totalIndexesBeforeAppend + static_cast<int>(entry.numIndexes);
+	}
 
 	return tess.gpuMd3Layout != gpuMd3Layout_t::NONE;
 }

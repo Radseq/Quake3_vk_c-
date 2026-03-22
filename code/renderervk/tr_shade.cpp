@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -32,6 +32,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_pipeline.hpp"
 #include "utils.hpp"
 #include "string_operations.hpp"
+#include "tr_model.hpp"
+#include "tr_main.hpp"
+#include "tr_light.hpp"
 
 shaderCommands_t tess;
 
@@ -131,6 +134,7 @@ void RB_BeginSurface(shader_t& shader, const int fogNum)
 	tess.gpuMd3OldFrame = 0;
 	tess.gpuMd3NewFrame = 0;
 	tess.gpuMd3Layout = gpuMd3Layout_t::NONE;
+	tess.gpuMd3BatchCount = 0;
 	RB_ResetStageTracking();
 
 	tess.gpuMd3ViewOriginLocal[0] = 0.0f;
@@ -1880,8 +1884,234 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 	uniform.light.vector[2] = ent.lightDir[2];
 }
 
+static ID_INLINE void RB_ApplyGpuMd3BatchEntry(const gpuMd3BatchEntry_t& entry) noexcept
+{
+	if (entry.entityNum != REFENTITYNUM_WORLD)
+	{
+		backEnd.currentEntity = &backEnd.refdef.entities[entry.entityNum];
+		tr.currentModel = R_GetModelByHandle(backEnd.currentEntity->e.hModel);
+		backEnd.refdef.floatTime = entry.refdefFloatTime;
+		R_RotateForEntity(*backEnd.currentEntity, backEnd.viewParms, backEnd.ort);
+	}
+	else
+	{
+		backEnd.currentEntity = &tr.worldEntity;
+		tr.currentModel = nullptr;
+		backEnd.refdef.floatTime = entry.refdefFloatTime;
+		backEnd.ort = backEnd.viewParms.world;
+	}
+
+	tess.shaderTime = entry.shaderTime;
+	tess.depthRange = entry.depthRange;
+	tess.gpuMd3Active = true;
+	tess.gpuMd3Surface = entry.surface;
+	tess.gpuMd3Backlerp = entry.backlerp;
+	tess.gpuMd3OldFrame = entry.oldFrame;
+	tess.gpuMd3NewFrame = entry.newFrame;
+	tess.gpuMd3Lod = static_cast<int>(entry.lod);
+	tess.gpuMd3Layout = entry.layout;
+	tess.numVertexes = static_cast<int>(entry.numVertexes);
+	tess.numIndexes = static_cast<int>(entry.numIndexes);
+
+	Vector4Copy(entry.viewOriginLocal, tess.gpuMd3ViewOriginLocal);
+	Vector4Copy(entry.entOrigin, tess.gpuMd3EntOrigin);
+	Vector4Copy(entry.entAxis1, tess.gpuMd3EntAxis1);
+	Vector4Copy(entry.entAxis2, tess.gpuMd3EntAxis2);
+
+	Com_Memcpy(vk_world.modelview_transform, backEnd.ort.modelMatrix, 64);
+	vk_update_mvp(NULL);
+}
+
+static void RB_IterateStagesGenericGpuMd3Batch(const shaderCommands_t& input, const bool fogCollapse)
+{
+	for (int stage = 0; stage < MAX_SHADER_STAGES; ++stage)
+	{
+		const shaderStage_t* pStage = tess.xstages[stage];
+		if (!pStage)
+			break;
+
+		for (int entryIndex = 0; entryIndex < tess.gpuMd3BatchCount; ++entryIndex)
+		{
+			const gpuMd3BatchEntry_t& entry = tess.gpuMd3Batch[entryIndex];
+			RB_ApplyGpuMd3BatchEntry(entry);
+
+			int tess_flags = (stage == 0) ? input.shader->tessFlags : 0;
+			int fog_stage = 0;
+			bool pushUniform = false;
+
+#ifdef USE_FOG_COLLAPSE
+			if (fogCollapse)
+			{
+				VK_SetFogParams(uniform, fog_stage);
+				VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
+				vk_update_descriptor(VK_DESC_FOG_COLLAPSE, tr.fogImage->descriptor);
+				pushUniform = true;
+			}
+			else
+#endif
+			if (tess_flags & TESS_VPOS)
+			{
+				VectorCopy(backEnd.ort.viewOrigin, uniform.eyePos);
+				tess_flags &= ~TESS_VPOS;
+				pushUniform = true;
+			}
+
+			RB_SetStageTracking(stage);
+			tess_flags |= pStage->tessFlags;
+
+			VK_SetIdentityTcParams(uniform);
+			VK_SetIdentityGpuMd3DeformParams(uniform);
+			VK_SetIdentityGpuMd3ColorParams(uniform);
+			pushUniform = true;
+
+			VK_SetGpuMd3EnvParams(uniform, *pStage);
+			VK_SetGpuMd3ColorParams(uniform, *pStage);
+			VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[0], gpuTcSlot_t::bundle0);
+
+			if (pStage->numTexBundles > 1 &&
+				R_GpuMd3TexCoordsHandledInShader(*pStage, 1, pStage->bundle[1]))
+			{
+				VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[1], gpuTcSlot_t::bundle1);
+			}
+
+			if (pStage->numTexBundles > 2 &&
+				R_GpuMd3TexCoordsHandledInShader(*pStage, 2, pStage->bundle[2]))
+			{
+				VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[2], gpuTcSlot_t::bundle2);
+			}
+
+			VK_SetGpuMd3DeformParams(uniform, *pStage);
+			pushUniform = true;
+
+			for (uint32_t i = 0; i < pStage->numTexBundles; ++i)
+			{
+				if (pStage->bundle[i].image[0] == NULL)
+					continue;
+
+				SelectTexture(i);
+				R_BindAnimatedImage(pStage->bundle[i]);
+
+				if (tess_flags & (TESS_ST0 << i))
+				{
+					R_ComputeTexCoords(static_cast<int>(i), pStage->bundle[i]);
+				}
+
+				if (tess_flags & (TESS_RGBA0 << i))
+				{
+					const uint32_t gpuMd3ColorMode =
+						tess.gpuMd3Active
+						? R_GpuMd3SecondaryColorMode(*pStage, i)
+						: 0u;
+
+					if (gpuMd3ColorMode == 0u)
+					{
+						R_ComputeColors(static_cast<int>(i), tess.svars.colors[i], *pStage);
+					}
+				}
+
+				if (tess_flags & (TESS_ENT0 << i) && backEnd.currentEntity)
+				{
+					const float entR = backEnd.currentEntity->e.shader.rgba[0] / 255.0f;
+					const float entG = backEnd.currentEntity->e.shader.rgba[1] / 255.0f;
+					const float entB = backEnd.currentEntity->e.shader.rgba[2] / 255.0f;
+					const float entA = backEnd.currentEntity->e.shader.rgba[3] / 255.0f;
+
+					if (pStage->bundle[i].rgbGen == colorGen_t::CGEN_ONE_MINUS_ENTITY)
+					{
+						uniform.ent.color[i][0] = 1.0f - entR;
+						uniform.ent.color[i][1] = 1.0f - entG;
+						uniform.ent.color[i][2] = 1.0f - entB;
+					}
+					else
+					{
+						uniform.ent.color[i][0] = entR;
+						uniform.ent.color[i][1] = entG;
+						uniform.ent.color[i][2] = entB;
+					}
+
+					switch (pStage->bundle[i].alphaGen)
+					{
+					case alphaGen_t::AGEN_IDENTITY:
+						uniform.ent.color[i][3] = 1.0f;
+						break;
+					case alphaGen_t::AGEN_CONST:
+						uniform.ent.color[i][3] = pStage->bundle[i].constantColor.rgba[3] / 255.0f;
+						break;
+					case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+						uniform.ent.color[i][3] = 1.0f - entA;
+						break;
+					case alphaGen_t::AGEN_SKIP:
+						uniform.ent.color[i][3] =
+							(pStage->bundle[i].rgbGen == colorGen_t::CGEN_ONE_MINUS_ENTITY) ? (1.0f - entA) : entA;
+						break;
+					case alphaGen_t::AGEN_ENTITY:
+					default:
+						uniform.ent.color[i][3] = entA;
+						break;
+					}
+
+					pushUniform = true;
+				}
+			}
+
+			if (pushUniform)
+			{
+				VK_PushUniform(uniform);
+			}
+
+			SelectTexture(0);
+
+			if (r_lightmap->integer && pStage->bundle[1].lightmap != LIGHTMAP_INDEX_NONE)
+			{
+				Bind(tr.whiteImage);
+			}
+
+			uint32_t pipeline;
+			if (backEnd.viewParms.portalView == portalView_t::PV_MIRROR)
+			{
+				pipeline = pStage->vk_mirror_pipeline[fog_stage];
+			}
+			else
+			{
+				pipeline = pStage->vk_pipeline[fog_stage];
+			}
+
+			vk_bind_pipeline(pipeline);
+			vk_bind_index();
+			vk_bind_geometry(tess_flags);
+			vk_draw_geometry(tess.depthRange, true);
+
+			if (pStage->depthFragment)
+			{
+				if (backEnd.viewParms.portalView == portalView_t::PV_MIRROR)
+					pipeline = pStage->vk_mirror_pipeline_df;
+				else
+					pipeline = pStage->vk_pipeline_df;
+
+				vk_bind_pipeline(pipeline);
+				vk_draw_geometry(tess.depthRange, true);
+			}
+
+			if (r_lightmap->integer &&
+				(pStage->bundle[0].lightmap != LIGHTMAP_INDEX_NONE || pStage->bundle[1].lightmap != LIGHTMAP_INDEX_NONE))
+			{
+				break;
+			}
+		}
+	}
+
+	RB_ResetStageTracking();
+}
+
+
 static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fogCollapse)
 {
+	if (tess.gpuMd3Active && tess.gpuMd3BatchCount > 0)
+	{
+		RB_IterateStagesGenericGpuMd3Batch(input, fogCollapse);
+		return;
+	}
+
 	int tess_flags;
 	int stage;
 	uint32_t i;
@@ -2147,19 +2377,32 @@ static bool ProjectDlightTexture(void)
 
 		if (tess.gpuMd3Active)
 		{
-			Bind(tr.dlightImage);
-			VK_SetLegacyGpuMd3DlightParams(uniform, dl, gpuMd3Stage);
-			VK_PushUniform(uniform);
+			for (int entryIndex = 0; entryIndex < tess.gpuMd3BatchCount; ++entryIndex)
+			{
+				const gpuMd3BatchEntry_t& entry = tess.gpuMd3Batch[entryIndex];
+				RB_ApplyGpuMd3BatchEntry(entry);
+#ifdef USE_PMLIGHT
+				if (!r_dlightMode->integer)
+#endif
+					if (backEnd.currentEntity && backEnd.currentEntity != &tr.worldEntity && backEnd.currentEntity->needDlights)
+					{
+						R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
+					}
 
-			pipeline = vk_inst.dlight_md3_pipelines[dl.additive > 0 ? 1 : 0][static_cast<int>(tess.shader->cullType)][tess.shader->polygonOffset];
-			vk_bind_pipeline(pipeline);
-			vk_bind_index();
-			vk_bind_geometry(TESS_ST0 | TESS_NNN);
-			vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, true);
+				Bind(tr.dlightImage);
+				VK_SetLegacyGpuMd3DlightParams(uniform, dl, gpuMd3Stage);
+				VK_PushUniform(uniform);
 
-			backEnd.pc.c_dlightVertexes += tess.numVertexes;
-			backEnd.pc.c_totalIndexes += tess.numIndexes;
-			backEnd.pc.c_dlightIndexes += tess.numIndexes;
+				pipeline = vk_inst.dlight_md3_pipelines[dl.additive > 0 ? 1 : 0][static_cast<int>(tess.shader->cullType)][tess.shader->polygonOffset];
+				vk_bind_pipeline(pipeline);
+				vk_bind_index();
+				vk_bind_geometry(TESS_ST0 | TESS_NNN);
+				vk_draw_geometry(tess.depthRange, true);
+
+				backEnd.pc.c_dlightVertexes += tess.numVertexes;
+				backEnd.pc.c_totalIndexes += tess.numIndexes;
+				backEnd.pc.c_dlightIndexes += tess.numIndexes;
+			}
 			continue;
 		}
 
@@ -2295,6 +2538,40 @@ Blends a fog texture on top of everything else
 static void RB_FogPass(bool rebindIndex)
 {
 	uint32_t pipeline = vk_inst.fog_pipelines[static_cast<int>(tess.shader->fogPass) - 1][static_cast<int>(tess.shader->cullType)][tess.shader->polygonOffset];
+	if (tess.gpuMd3Active && tess.gpuMd3BatchCount > 0)
+	{
+		for (int entryIndex = 0; entryIndex < tess.gpuMd3BatchCount; ++entryIndex)
+		{
+			const gpuMd3BatchEntry_t& entry = tess.gpuMd3Batch[entryIndex];
+			RB_ApplyGpuMd3BatchEntry(entry);
+#ifdef USE_FOG_ONLY
+			int fog_stage = 0;
+			vk_bind_pipeline(pipeline);
+			vk_bind_index();
+			vk_bind_geometry(TESS_XYZ);
+			VK_SetFogParams(uniform, fog_stage);
+			VK_PushUniform(uniform);
+			vk_update_descriptor(VK_DESC_FOG_ONLY, tr.fogImage->descriptor);
+			vk_draw_geometry(tess.depthRange, true);
+#else
+			const fog_t* fog = tr.world->fogs + tess.fogNum;
+			for (int i = 0; i < tess.numVertexes; ++i)
+			{
+				tess.svars.colors[0][i] = fog->colorInt;
+			}
+
+			RB_CalcFogTexCoords((float*)tess.svars.texcoords[0]);
+			tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
+			GL_Bind(tr.fogImage);
+
+			vk_bind_pipeline(pipeline);
+			vk_bind_index();
+			vk_bind_geometry(TESS_ST0 | TESS_RGBA0);
+			vk_draw_geometry(DEPTH_RANGE_NORMAL, true);
+#endif
+		}
+		return;
+	}
 #ifdef USE_FOG_ONLY
 	int fog_stage = 0;
 
@@ -2400,6 +2677,9 @@ static void DrawTris(const shaderCommands_t& input)
 	if (tess.numIndexes == 0)
 		return;
 
+	if (tess.gpuMd3Active && tess.gpuMd3BatchCount > 1)
+		return;
+
 	if (r_fastsky->integer && input.shader->isSky)
 		return;
 
@@ -2438,6 +2718,8 @@ Draws vertex normals for debugging
 static void DrawNormals(const shaderCommands_t& input)
 {
 	int i;
+	if (tess.gpuMd3Active)
+		return;
 #ifdef USE_VBO
 	if (tess.vboIndex)
 		return; // must be handled specially
@@ -2472,14 +2754,17 @@ void RB_EndSurface(void)
 		return;
 	}
 
-	if (input.numIndexes > SHADER_MAX_INDEXES)
+	if (!(tess.gpuMd3Active && tess.gpuMd3BatchCount > 0))
 	{
-		ri.Error(ERR_DROP, "RB_EndSurface() - SHADER_MAX_INDEXES hit");
-	}
+		if (input.numIndexes > SHADER_MAX_INDEXES)
+		{
+			ri.Error(ERR_DROP, "RB_EndSurface() - SHADER_MAX_INDEXES hit");
+		}
 
-	if (input.numVertexes > SHADER_MAX_VERTEXES)
-	{
-		ri.Error(ERR_DROP, "RB_EndSurface() - SHADER_MAX_VERTEXES hit");
+		if (input.numVertexes > SHADER_MAX_VERTEXES)
+		{
+			ri.Error(ERR_DROP, "RB_EndSurface() - SHADER_MAX_VERTEXES hit");
+		}
 	}
 
 	if (tess.shader == tr.shadowShader)
