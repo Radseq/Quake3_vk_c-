@@ -189,6 +189,7 @@ struct gpuTcProgram_t
 
 	bool useVectorTcGen = false;
 	bool useTurbulent = false;
+	bool hasTurbulentPostAffine = false;
 
 	float turbulentAmplitude = 0.0f;
 	float turbulentNow = 0.0f;
@@ -198,6 +199,14 @@ static ID_INLINE void GpuTcAffineIdentity(gpuTcAffine_t& m) noexcept
 {
 	m.s_s = 1.0f; m.s_t = 0.0f; m.s_o = 0.0f;
 	m.t_s = 0.0f; m.t_t = 1.0f; m.t_o = 0.0f;
+}
+
+static ID_INLINE bool GpuTcAffineIsIdentity(const gpuTcAffine_t& m) noexcept
+{
+	constexpr float eps = 1.0e-6f;
+	return
+		std::fabs(m.s_s - 1.0f) <= eps && std::fabs(m.s_t) <= eps && std::fabs(m.s_o) <= eps &&
+		std::fabs(m.t_s) <= eps && std::fabs(m.t_t - 1.0f) <= eps && std::fabs(m.t_o) <= eps;
 }
 
 static ID_INLINE float GpuTcFrac(const float v) noexcept
@@ -397,7 +406,9 @@ bool R_CanGpuMd3UseAffineTexMods(const textureBundle_t& bundle) noexcept
 
 	for (int i = 0; i < bundle.numTexMods; ++i)
 	{
-		switch (bundle.texMods[i].type)
+		const texMod_t type = bundle.texMods[i].type;
+
+		switch (type)
 		{
 		case texMod_t::TMOD_NONE:
 		case texMod_t::TMOD_SCROLL:
@@ -409,17 +420,18 @@ bool R_CanGpuMd3UseAffineTexMods(const textureBundle_t& bundle) noexcept
 		case texMod_t::TMOD_ROTATE:
 		case texMod_t::TMOD_ENTITY_TRANSLATE:
 		case texMod_t::TMOD_STRETCH:
+			// Vector tcGen can share the current uniform budget with turbulent only when
+			// there is no post-transform stage after TMOD_TURBULENT. In that case the
+			// shader can keep tcGenVector uniforms authoritative and simply skip the
+			// final post-affine step.
+			if (seenTurbulent && bundle.tcGen == texCoordGen_t::TCGEN_VECTOR && type != texMod_t::TMOD_NONE)
+			{
+				return false;
+			}
 			break;
 
 		case texMod_t::TMOD_TURBULENT:
 			if (seenTurbulent)
-				return false;
-
-			// Turbulent repurposes tcGenVector uniforms as post-transform storage,
-			// so keep vector tcGen on the old path for now. Regular base ST and
-			// env-generated ST are both safe, because the shader computes the base
-			// coordinates first and only then applies the post-turbulent affine step.
-			if (bundle.tcGen == texCoordGen_t::TCGEN_VECTOR)
 				return false;
 
 			seenTurbulent = true;
@@ -440,6 +452,7 @@ static bool R_BuildGpuMd3TcProgram(gpuTcProgram_t& prog, const textureBundle_t& 
 
 	prog.useVectorTcGen = false;
 	prog.useTurbulent = false;
+	prog.hasTurbulentPostAffine = false;
 	prog.turbulentAmplitude = 0.0f;
 	prog.turbulentNow = 0.0f;
 
@@ -482,6 +495,12 @@ static bool R_BuildGpuMd3TcProgram(gpuTcProgram_t& prog, const textureBundle_t& 
 
 		if (!GpuTcComposeAffineMod(*current, tm))
 			return false;
+	}
+
+	prog.hasTurbulentPostAffine = prog.useTurbulent && !GpuTcAffineIsIdentity(prog.post);
+	if (prog.useVectorTcGen && prog.hasTurbulentPostAffine)
+	{
+		return false;
 	}
 
 	return true;
@@ -561,6 +580,56 @@ static ID_INLINE void VK_SetIdentityGpuMd3ColorParams(vkUniform_t& u) noexcept
 	u.color2Fixed[3] = 1.0f;
 }
 
+static ID_INLINE bool RB_IsGpuMd3NoOpDeform(const deformStage_t& ds) noexcept
+{
+	switch (ds.deformation)
+	{
+	case deform_t::DEFORM_WAVE:
+		return ds.deformationWave.base == 0.0f && ds.deformationWave.amplitude == 0.0f;
+
+	case deform_t::DEFORM_BULGE:
+		return ds.bulgeHeight == 0.0f;
+
+	case deform_t::DEFORM_MOVE:
+		return
+			(ds.moveVector[0] == 0.0f && ds.moveVector[1] == 0.0f && ds.moveVector[2] == 0.0f) ||
+			(ds.deformationWave.base == 0.0f && ds.deformationWave.amplitude == 0.0f);
+
+	case deform_t::DEFORM_NORMALS:
+		return ds.deformationWave.amplitude == 0.0f;
+
+	default:
+		return false;
+	}
+}
+
+static const deformStage_t* RB_FindGpuMd3ActiveDeform(const shader_t* shader) noexcept
+{
+	if (!shader)
+	{
+		return nullptr;
+	}
+
+	const deformStage_t* active = nullptr;
+	for (int i = 0; i < shader->numDeforms; ++i)
+	{
+		const deformStage_t& ds = shader->deforms[i];
+		if (RB_IsGpuMd3NoOpDeform(ds))
+		{
+			continue;
+		}
+
+		if (active != nullptr)
+		{
+			return nullptr;
+		}
+
+		active = &ds;
+	}
+
+	return active;
+}
+
 static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForShaderType(const Vk_Shader_Type shaderType) noexcept
 {
 	return VK_GpuMd3LayoutForShaderTypeShared(shaderType);
@@ -584,12 +653,18 @@ static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage)
 {
 	VK_SetIdentityGpuMd3DeformParams(u);
 
-	if (!tess.gpuMd3Active || !tess.shader || tess.shader->numDeforms != 1)
+	if (!tess.gpuMd3Active || !tess.shader)
 	{
 		return;
 	}
 
-	const deformStage_t& ds = tess.shader->deforms[0];
+	const deformStage_t* const activeDeform = RB_FindGpuMd3ActiveDeform(tess.shader);
+	if (!activeDeform)
+	{
+		return;
+	}
+
+	const deformStage_t& ds = *activeDeform;
 
 	switch (ds.deformation)
 	{

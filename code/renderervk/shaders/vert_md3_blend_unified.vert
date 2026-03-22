@@ -213,6 +213,7 @@ vec2 ApplyGpuTcMods(vec3 position, vec2 st)
     const int flags = int(ubo.tcMod0.w + 0.5);
     const bool useVectorTcGen = (flags & 1) != 0;
     const bool useTurbulent   = (flags & 2) != 0;
+    const bool useTurbulentPost = (flags & 64) != 0;
 
     vec2 tc = st;
 
@@ -238,10 +239,13 @@ vec2 ApplyGpuTcMods(vec3 position, vec2 st)
         tc.x += sin((((position.x + position.z) * (1.0 / 1024.0)) + now) * twoPi) * amplitude;
         tc.y += sin(((position.y * (1.0 / 1024.0)) + now) * twoPi) * amplitude;
 
-        tc = vec2(
-            tc.x * ubo.tcGenVector0.x + tc.y * ubo.tcGenVector0.y + ubo.tcGenVector0.z,
-            tc.x * ubo.tcGenVector1.x + tc.y * ubo.tcGenVector1.y + ubo.tcGenVector1.z
-        );
+        if (useTurbulentPost)
+        {
+            tc = vec2(
+                tc.x * ubo.tcGenVector0.x + tc.y * ubo.tcGenVector0.y + ubo.tcGenVector0.z,
+                tc.x * ubo.tcGenVector1.x + tc.y * ubo.tcGenVector1.y + ubo.tcGenVector1.z
+            );
+        }
     }
 
     return tc;
@@ -297,6 +301,7 @@ vec2 ApplyGpuSecondaryTc(
     const bool enabled        = (flags & 4) != 0;
     const bool useVectorTcGen = (flags & 1) != 0;
     const bool useTurbulent   = (flags & 2) != 0;
+    const bool useTurbulentPost = (flags & 64) != 0;
     const bool useEnvRegular  = (flags & 8) != 0;
     const bool useEnvFp       = (flags & 16) != 0;
     const bool useEnvFpScr    = (flags & 32) != 0;
@@ -342,10 +347,13 @@ vec2 ApplyGpuSecondaryTc(
         tc.x += sin((((position.x + position.z) * (1.0 / 1024.0)) + now) * twoPi) * amplitude;
         tc.y += sin(((position.y * (1.0 / 1024.0)) + now) * twoPi) * amplitude;
 
-        tc = vec2(
-            tc.x * gen0.x + tc.y * gen0.y + gen0.z,
-            tc.x * gen1.x + tc.y * gen1.y + gen1.z
-        );
+        if (useTurbulentPost)
+        {
+            tc = vec2(
+                tc.x * gen0.x + tc.y * gen0.y + gen0.z,
+                tc.x * gen1.x + tc.y * gen1.y + gen1.z
+            );
+        }
     }
 
     return tc;
