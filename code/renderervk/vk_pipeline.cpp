@@ -555,6 +555,7 @@ static vk::PipelineColorBlendAttachmentState createBlendAttachmentState(const ui
 	vk::ColorComponentFlags colorWriteMask =
 		(def.shadow_phase == Vk_Shadow_Phase::SHADOW_EDGES ||
 		 def.shader_type == Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF ||
+		 def.shader_type == Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_DF ||
 		 def.shader_type == Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_DF) ? vk::ColorComponentFlags(0) : vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
 
 	vk::BlendFactor srcColorBlendFactor = {};
@@ -730,6 +731,70 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 
 
 
+
+
+
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE:
+		vs_module = &vk_inst.modules.vert.iqm_gen[0][0];
+		fs_module = &vk_inst.modules.frag.gen[0][0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_ENV:
+		vs_module = &vk_inst.modules.vert.iqm_gen[1][0];
+		fs_module = &vk_inst.modules.frag.gen[0][0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_IDENTITY:
+		vs_module = &vk_inst.modules.vert.iqm_fixed[0][0];
+		fs_module = &vk_inst.modules.frag.ident1[0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_IDENTITY_ENV:
+		vs_module = &vk_inst.modules.vert.iqm_fixed[1][0];
+		fs_module = &vk_inst.modules.frag.ident1[0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_FIXED_COLOR:
+		vs_module = &vk_inst.modules.vert.iqm_fixed[0][0];
+		fs_module = &vk_inst.modules.frag.fixed[0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+		vs_module = &vk_inst.modules.vert.iqm_fixed[1][0];
+		fs_module = &vk_inst.modules.frag.fixed[0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_ENT_COLOR:
+		vs_module = &vk_inst.modules.vert.iqm_fixed[0][0];
+		fs_module = &vk_inst.modules.frag.ent[0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+		vs_module = &vk_inst.modules.vert.iqm_fixed[1][0];
+		fs_module = &vk_inst.modules.frag.ent[0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_LIGHTING:
+		vs_module = &vk_inst.modules.vert.iqm_light[0][0];
+		fs_module = &vk_inst.modules.frag.light[0][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+		vs_module = &vk_inst.modules.vert.iqm_light[1][0];
+		fs_module = &vk_inst.modules.frag.light[1][0];
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_DF:
+		state_bits |= GLS_DEPTHMASK_TRUE;
+		vs_module = &vk_inst.modules.vert.iqm_fixed[0][0];
+		fs_module = &vk_inst.modules.frag.gen0_df;
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_FOG_ONLY:
+		vs_module = &vk_inst.modules.vert.iqm_fixed[0][1];
+		fs_module = &vk_inst.modules.fog_fs;
+		break;
 
 
 
@@ -1023,8 +1088,10 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		{
 		case Vk_Shader_Type::TYPE_FOG_ONLY:
 		case Vk_Shader_Type::TYPE_MD3_FOG_ONLY:
+		case Vk_Shader_Type::TYPE_IQM_FOG_ONLY:
 		case Vk_Shader_Type::TYPE_DOT:
 		case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF:
+		case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_DF:
 		case Vk_Shader_Type::TYPE_MD3_SIGNLE_TEXTURE_DF:
 		case Vk_Shader_Type::TYPE_COLOR_BLACK:
 		case Vk_Shader_Type::TYPE_COLOR_WHITE:
@@ -1156,6 +1223,76 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
 		push_attr(1, 1, vk::Format::eR32G32Sfloat);
 		push_attr(2, 2, vk::Format::eR32G32B32A32Sfloat);
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE:
+		push_bind(0, sizeof(iqmGpuVertex_t));
+		push_bind(1, sizeof(iqmGpuVertex_t));
+		push_bind(2, sizeof(iqmGpuVertex_t));
+		push_bind(3, sizeof(iqmGpuVertex_t));
+		push_bind(4, sizeof(iqmGpuVertex_t));
+		push_bind(5, sizeof(iqmGpuVertex_t));
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
+		push_attr(2, 2, vk::Format::eR32G32Sfloat);
+		push_attr(3, 3, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(4, 4, vk::Format::eR8G8B8A8Uint);
+		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_ENV:
+		push_bind(0, sizeof(iqmGpuVertex_t));
+		push_bind(1, sizeof(iqmGpuVertex_t));
+		push_bind(3, sizeof(iqmGpuVertex_t));
+		push_bind(4, sizeof(iqmGpuVertex_t));
+		push_bind(5, sizeof(iqmGpuVertex_t));
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(1, 1, vk::Format::eR8G8B8A8Unorm);
+		push_attr(3, 3, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(4, 4, vk::Format::eR8G8B8A8Uint);
+		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_DF:
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_IDENTITY:
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_ENT_COLOR:
+		push_bind(0, sizeof(iqmGpuVertex_t));
+		push_bind(2, sizeof(iqmGpuVertex_t));
+		push_bind(4, sizeof(iqmGpuVertex_t));
+		push_bind(5, sizeof(iqmGpuVertex_t));
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(2, 2, vk::Format::eR32G32Sfloat);
+		push_attr(4, 4, vk::Format::eR8G8B8A8Uint);
+		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_IQM_FOG_ONLY:
+		push_bind(0, sizeof(iqmGpuVertex_t));
+		push_bind(3, sizeof(iqmGpuVertex_t));
+		push_bind(4, sizeof(iqmGpuVertex_t));
+		push_bind(5, sizeof(iqmGpuVertex_t));
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(3, 3, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(4, 4, vk::Format::eR8G8B8A8Uint);
+		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
+		break;
+
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_LIGHTING:
+	case Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+		push_bind(0, sizeof(iqmGpuVertex_t));
+		push_bind(2, sizeof(iqmGpuVertex_t));
+		push_bind(3, sizeof(iqmGpuVertex_t));
+		push_bind(4, sizeof(iqmGpuVertex_t));
+		push_bind(5, sizeof(iqmGpuVertex_t));
+		push_attr(0, 0, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(2, 2, vk::Format::eR32G32Sfloat);
+		push_attr(3, 3, vk::Format::eR32G32B32A32Sfloat);
+		push_attr(4, 4, vk::Format::eR8G8B8A8Uint);
+		push_attr(5, 5, vk::Format::eR32G32B32A32Sfloat);
 		break;
 
 
@@ -1758,6 +1895,51 @@ vk::Pipeline vk_gen_pipeline(const uint32_t index)
 	}
 }
 
+static constexpr bool vk_get_iqm_shader_type(const Vk_Shader_Type in, Vk_Shader_Type& out) noexcept
+{
+	switch (in)
+	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+		out = Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
+		out = Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+		out = Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_IDENTITY;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
+		out = Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_IDENTITY_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+		out = Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_FIXED_COLOR;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+		out = Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_FIXED_COLOR_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+		out = Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_ENT_COLOR;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+		out = Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_ENT_COLOR_ENV;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
+		out = Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_LIGHTING;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+		out = Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_LIGHTING_LINEAR;
+		return true;
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF:
+		out = Vk_Shader_Type::TYPE_IQM_SIGNLE_TEXTURE_DF;
+		return true;
+	case Vk_Shader_Type::TYPE_FOG_ONLY:
+		out = Vk_Shader_Type::TYPE_IQM_FOG_ONLY;
+		return true;
+	default:
+		return false;
+	}
+}
+
 static constexpr bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_Type& out) noexcept
 {
 	switch (in)
@@ -1978,7 +2160,19 @@ void vk_bind_pipeline(const uint32_t pipeline)
 	vk::Pipeline vkpipe;
 	uint32_t pipelineToBind = pipeline;
 
-	if (tess.gpuMd3Active)
+	if (tess.gpuIqmActive)
+	{
+		Vk_Pipeline_Def def{};
+		vk_get_pipeline_def(pipeline, def);
+
+		Vk_Shader_Type iqmType{};
+		if (vk_get_iqm_shader_type(def.shader_type, iqmType))
+		{
+			def.shader_type = iqmType;
+			pipelineToBind = vk_find_pipeline_ext(0, def, true);
+		}
+	}
+	else if (tess.gpuMd3Active)
 	{
 		Vk_Pipeline_Def def{};
 		vk_get_pipeline_def(pipeline, def);
@@ -1999,7 +2193,24 @@ void vk_bind_pipeline(const uint32_t pipeline)
 		vk_inst.cmd->last_pipeline = vkpipe;
 	}
 
-	if (tess.gpuMd3Active)
+	if (tess.gpuIqmActive)
+	{
+		alignas(16) const float md3Anim[4] =
+		{
+			1.0f - tess.gpuIqmBacklerp,
+			tess.gpuIqmBacklerp,
+			tr.identityLight,
+			0.0f
+		};
+
+		vk_inst.cmd->command_buffer.pushConstants(
+			vk_inst.pipeline_layout,
+			vk::ShaderStageFlagBits::eVertex,
+			64,
+			sizeof(md3Anim),
+			md3Anim);
+	}
+	else if (tess.gpuMd3Active)
 	{
 		alignas(16) const float md3Anim[4] =
 		{

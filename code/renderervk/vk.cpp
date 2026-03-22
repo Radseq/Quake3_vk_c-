@@ -1391,6 +1391,21 @@ static void vk_create_shader_modules(void)
 
 
 
+	vk_inst.modules.vert.iqm_gen[0][0] = SHADER_MODULE(vert_iqm_tx0_unified_vert_spv);
+	vk_inst.modules.vert.iqm_gen[0][1] = SHADER_MODULE(vert_iqm_tx0_unified_vert_spv);
+	vk_inst.modules.vert.iqm_gen[1][0] = SHADER_MODULE(vert_iqm_tx0_env_unified_vert_spv);
+	vk_inst.modules.vert.iqm_gen[1][1] = SHADER_MODULE(vert_iqm_tx0_env_unified_vert_spv);
+
+	vk_inst.modules.vert.iqm_fixed[0][0] = SHADER_MODULE(vert_iqm_tx0_fixed_unified_vert_spv);
+	vk_inst.modules.vert.iqm_fixed[0][1] = SHADER_MODULE(vert_iqm_tx0_fixed_unified_vert_spv);
+	vk_inst.modules.vert.iqm_fixed[1][0] = SHADER_MODULE(vert_iqm_tx0_fixed_env_unified_vert_spv);
+	vk_inst.modules.vert.iqm_fixed[1][1] = SHADER_MODULE(vert_iqm_tx0_fixed_env_unified_vert_spv);
+
+	vk_inst.modules.vert.iqm_light[0][0] = SHADER_MODULE(vert_iqm_light_unified_vert_spv);
+	vk_inst.modules.vert.iqm_light[0][1] = SHADER_MODULE(vert_iqm_light_unified_vert_spv);
+	vk_inst.modules.vert.iqm_light[1][0] = SHADER_MODULE(vert_iqm_light_unified_vert_spv);
+	vk_inst.modules.vert.iqm_light[1][1] = SHADER_MODULE(vert_iqm_light_unified_vert_spv);
+
 	vk_inst.modules.vert.md3_gen[0][0] = SHADER_MODULE(vert_md3_tx0_unified_vert_spv);
 	vk_inst.modules.vert.md3_gen[0][1] = SHADER_MODULE(vert_md3_tx0_unified_vert_spv);
 	vk_inst.modules.vert.md3_gen[1][0] = SHADER_MODULE(vert_md3_tx0_env_unified_vert_spv);
@@ -3625,6 +3640,17 @@ void vk_bind_index(void)
 	}
 #endif
 
+	if (tess.gpuIqmActive)
+	{
+		const auto& s = *tess.gpuIqmSurface;
+		vk_inst.cmd->command_buffer.bindIndexBuffer(
+			s.indexBuffer.handle,
+			0,
+			vk::IndexType::eUint32);
+		vk_inst.cmd->num_indexes = s.numIndexes;
+		return;
+	}
+
 	if (tess.gpuMd3Active)
 	{
 		const auto& s = *tess.gpuMd3Surface;
@@ -3755,6 +3781,64 @@ static ID_INLINE bool VK_GpuMd3CurrentSecondaryUsesRawVertexColor(const uint32_t
 
 void vk_bind_geometry(const uint32_t flags)
 {
+	if (tess.gpuIqmActive)
+	{
+		if (!tess.gpuIqmSurface)
+		{
+			ri.Error(ERR_DROP, "vk_bind_geometry: gpuIqmActive=1 but gpuIqmSurface=null");
+			return;
+		}
+
+		const auto& s = *tess.gpuIqmSurface;
+
+		bind_base = -1;
+		bind_count = 0;
+
+		shade_bufs[0] = s.vertexBuffer.handle;
+		shade_bufs[1] = (flags & TESS_RGBA0) ? vk_inst.cmd->vertex_buffer : s.vertexBuffer.handle;
+		shade_bufs[2] = s.vertexBuffer.handle;
+		shade_bufs[3] = s.vertexBuffer.handle;
+		shade_bufs[4] = s.vertexBuffer.handle;
+		shade_bufs[5] = s.vertexBuffer.handle;
+
+		vk_inst.cmd->buf_offset[0] = offsetof(iqmGpuVertex_t, position);
+		vk_inst.cmd->buf_offset[1] = offsetof(iqmGpuVertex_t, color);
+		vk_inst.cmd->buf_offset[2] = offsetof(iqmGpuVertex_t, st);
+		vk_inst.cmd->buf_offset[3] = offsetof(iqmGpuVertex_t, normal);
+		vk_inst.cmd->buf_offset[4] = offsetof(iqmGpuVertex_t, jointIndex);
+		vk_inst.cmd->buf_offset[5] = offsetof(iqmGpuVertex_t, weights);
+		vk_bind_index_attr(0);
+
+		if (flags & TESS_RGBA0)
+		{
+			vk_bind_attr(1, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
+		}
+		else
+		{
+			vk_inst.cmd->buf_offset[1] = offsetof(iqmGpuVertex_t, color);
+			vk_bind_index_attr(1);
+		}
+
+		vk_inst.cmd->buf_offset[2] = offsetof(iqmGpuVertex_t, st);
+		vk_bind_index_attr(2);
+
+		vk_inst.cmd->buf_offset[3] = offsetof(iqmGpuVertex_t, normal);
+		vk_bind_index_attr(3);
+
+		vk_inst.cmd->buf_offset[4] = offsetof(iqmGpuVertex_t, jointIndex);
+		vk_bind_index_attr(4);
+
+		vk_inst.cmd->buf_offset[5] = offsetof(iqmGpuVertex_t, weights);
+		vk_bind_index_attr(5);
+
+		vk_inst.cmd->command_buffer.bindVertexBuffers(
+			bind_base,
+			bind_count,
+			shade_bufs,
+			vk_inst.cmd->buf_offset + bind_base);
+		return;
+	}
+
 	if (tess.gpuMd3Active)
 	{
 		if (!tess.gpuMd3Surface)

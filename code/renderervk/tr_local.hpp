@@ -1,4 +1,4 @@
-﻿/*
+/*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
 
@@ -237,6 +237,10 @@ typedef struct vkUniform_s
 	vec4_t colorMode01;
 	vec4_t color1Fixed;
 	vec4_t color2Fixed;
+
+	// GPU IQM skinning palette: 3 vec4 rows per joint (3x4 matrix).
+	// Only the first data->num_poses joints are read by IQM vertex shaders.
+	vec4_t iqmJointMat[IQM_MAX_JOINTS * 3];
 } vkUniform_t;
 
 typedef struct dlight_s
@@ -1039,6 +1043,7 @@ typedef struct srfIQModel_s
 	int first_vertex, num_vertexes;
 	int first_triangle, num_triangles;
 	int first_influence, num_influences;
+	struct iqmGpuSurface_s *gpuSurface;
 } srfIQModel_t;
 
 extern void (*rb_surfaceTable[static_cast<uint32_t>(surfaceType_t::SF_NUM_SURFACE_TYPES)])(void *);
@@ -1159,6 +1164,25 @@ typedef struct gpuBuffer_s
 	vk::DeviceMemory memory;
 	uint32_t size;
 } gpuBuffer_t;
+
+typedef struct iqmGpuVertex_s
+{
+	vec4_t position;
+	byte color[4];
+	vec2_t st;
+	vec4_t normal;
+	byte jointIndex[4];
+	vec4_t weights;
+} iqmGpuVertex_t;
+
+typedef struct iqmGpuSurface_s
+{
+	gpuBuffer_t vertexBuffer;
+	gpuBuffer_t indexBuffer;
+	uint32_t numVerts;
+	uint32_t numIndexes;
+	bool ready;
+} iqmGpuSurface_t;
 
 static_assert(sizeof(md3XyzNormal_t) == 8);
 
@@ -1909,6 +1933,13 @@ typedef struct shaderCommands_s
 	float gpuMd3Backlerp;
 	gpuMd3Layout_t gpuMd3Layout;
 
+	bool gpuIqmActive;
+	const iqmGpuSurface_t* gpuIqmSurface;
+	iqmData_t* gpuIqmData;
+	uint32_t gpuIqmOldFrame;
+	uint32_t gpuIqmNewFrame;
+	float gpuIqmBacklerp;
+
 	vec4_t gpuMd3ViewOriginLocal{};
 	vec4_t gpuMd3EntOrigin{};
 	vec4_t gpuMd3EntAxis1{};
@@ -1917,6 +1948,8 @@ typedef struct shaderCommands_s
 } shaderCommands_t;
 
 extern shaderCommands_t tess;
+
+void R_IQMComputePoseMats(iqmData_t& data, int frame, int oldframe, float backlerp, float* poseMats);
 
 void RB_ShowImages(void);
 

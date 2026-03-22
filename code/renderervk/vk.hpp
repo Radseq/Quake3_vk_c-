@@ -6,20 +6,6 @@
 
 #include "tr_image.hpp"
 
-constexpr int TESS_XYZ = 1;
-constexpr int TESS_RGBA0 = 2;
-constexpr int TESS_RGBA1 = 4;
-constexpr int TESS_RGBA2 = 8;
-constexpr int TESS_ST0 = 16;
-constexpr int TESS_ST1 = 32;
-constexpr int TESS_ST2 = 64;
-constexpr int TESS_NNN = 128;
-constexpr int TESS_VPOS = 256;  // uniform with eyePos
-constexpr int TESS_ENV = 512;   // mark shader stage with environment mapping
-constexpr int TESS_ENT0 = 1024; // uniform with ent.color[0]
-constexpr int TESS_ENT1 = 2048; // uniform with ent.color[1]
-constexpr int TESS_ENT2 = 4096; // uniform with ent.color[2]
-
 //
 // Initialization.
 //

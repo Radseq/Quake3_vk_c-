@@ -32,6 +32,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "utils.hpp"
 #include "string_operations.hpp"
 #include <span>
+#include <vector>
+#include "vk_pipeline.hpp"
+#include "vk.hpp"
+#include "tr_shade.hpp"
 
 #define LL(x) x = LittleLong(x)
 
@@ -40,6 +44,194 @@ static constexpr float identityMatrix[12] = {
 	1, 0, 0, 0,
 	0, 1, 0, 0,
 	0, 0, 1, 0};
+
+
+static bool R_IQMStageHasSafeDynamicColor(const shaderStage_t& stage)
+{
+	const textureBundle_t& bundle = stage.bundle[0];
+
+	switch (bundle.rgbGen)
+	{
+	case colorGen_t::CGEN_IDENTITY:
+	case colorGen_t::CGEN_CONST:
+	case colorGen_t::CGEN_ENTITY:
+	case colorGen_t::CGEN_ONE_MINUS_ENTITY:
+		break;
+	default:
+		return false;
+	}
+
+	switch (bundle.alphaGen)
+	{
+	case alphaGen_t::AGEN_IDENTITY:
+	case alphaGen_t::AGEN_CONST:
+	case alphaGen_t::AGEN_ENTITY:
+	case alphaGen_t::AGEN_ONE_MINUS_ENTITY:
+	case alphaGen_t::AGEN_SKIP:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool R_IQMShaderTypeSupported(const shaderStage_t& stage, const Vk_Shader_Type shaderType)
+{
+	switch (shaderType)
+	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
+		return R_IQMStageHasSafeDynamicColor(stage);
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF:
+	case Vk_Shader_Type::TYPE_FOG_ONLY:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool R_CanUseGpuIqm(const shader_t& shader, const int fogNum)
+{
+	if (!shader.optimalStageIteratorFunc)
+	{
+		return false;
+	}
+
+	for (int stageIndex = 0; stageIndex < shader.numUnfoggedPasses; ++stageIndex)
+	{
+		const shaderStage_t* const stage = shader.stages[stageIndex];
+		if (!stage)
+		{
+			return false;
+		}
+
+		if (stage->numTexBundles <= 0 || stage->numTexBundles > 1)
+		{
+			return false;
+		}
+
+		const textureBundle_t& bundle0 = stage->bundle[0];
+		if (!bundle0.image[0])
+		{
+			return false;
+		}
+
+		Vk_Pipeline_Def def{};
+		vk_get_pipeline_def(stage->vk_pipeline[0], def);
+		if (!R_IQMShaderTypeSupported(*stage, def.shader_type))
+		{
+			return false;
+		}
+	}
+
+	if (fogNum > 0 && shader.fogPass == fogPass_t::FP_NONE)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+static bool R_CreateIQMGpuSurface(iqmGpuSurface_t& out, const srfIQModel_t& surf)
+{
+	if (!surf.data || surf.num_vertexes <= 0 || surf.num_triangles <= 0)
+	{
+		return false;
+	}
+
+	iqmData_t& data = *surf.data;
+	if (!data.positions || !data.normals || !data.texcoords || !data.influences ||
+		!data.influenceBlendIndexes || !data.influenceBlendWeights.b)
+	{
+		return false;
+	}
+
+	std::vector<iqmGpuVertex_t> verts(static_cast<size_t>(surf.num_vertexes));
+	std::vector<uint32_t> indices(static_cast<size_t>(surf.num_triangles) * 3u);
+
+	for (int i = 0; i < surf.num_vertexes; ++i)
+	{
+		const int vtx = surf.first_vertex + i;
+		auto& outVert = verts[static_cast<size_t>(i)];
+
+		outVert.position[0] = data.positions[vtx * 3 + 0];
+		outVert.position[1] = data.positions[vtx * 3 + 1];
+		outVert.position[2] = data.positions[vtx * 3 + 2];
+		outVert.position[3] = 1.0f;
+
+		if (data.colors)
+		{
+			outVert.color[0] = data.colors[vtx * 4 + 0];
+			outVert.color[1] = data.colors[vtx * 4 + 1];
+			outVert.color[2] = data.colors[vtx * 4 + 2];
+			outVert.color[3] = data.colors[vtx * 4 + 3];
+		}
+		else
+		{
+			outVert.color[0] = outVert.color[1] = outVert.color[2] = outVert.color[3] = 255;
+		}
+
+		outVert.st[0] = data.texcoords[vtx * 2 + 0];
+		outVert.st[1] = data.texcoords[vtx * 2 + 1];
+		outVert.normal[0] = data.normals[vtx * 3 + 0];
+		outVert.normal[1] = data.normals[vtx * 3 + 1];
+		outVert.normal[2] = data.normals[vtx * 3 + 2];
+		outVert.normal[3] = 0.0f;
+
+		const int influence = data.influences[vtx];
+		for (int j = 0; j < 4; ++j)
+		{
+			outVert.jointIndex[j] = data.influenceBlendIndexes[influence * 4 + j];
+			if (data.blendWeightsType == IQM_FLOAT)
+			{
+				outVert.weights[j] = data.influenceBlendWeights.f[influence * 4 + j];
+			}
+			else
+			{
+				outVert.weights[j] = static_cast<float>(data.influenceBlendWeights.b[influence * 4 + j]) * (1.0f / 255.0f);
+			}
+		}
+	}
+
+	for (int i = 0; i < surf.num_triangles; ++i)
+	{
+		const int tri = (surf.first_triangle + i) * 3;
+		indices[static_cast<size_t>(i) * 3 + 0] = static_cast<uint32_t>(data.triangles[tri + 0] - surf.first_vertex);
+		indices[static_cast<size_t>(i) * 3 + 1] = static_cast<uint32_t>(data.triangles[tri + 1] - surf.first_vertex);
+		indices[static_cast<size_t>(i) * 3 + 2] = static_cast<uint32_t>(data.triangles[tri + 2] - surf.first_vertex);
+	}
+
+	if (!vk_alloc_static_model_buffer(
+		verts.data(),
+		static_cast<uint32_t>(verts.size() * sizeof(verts[0])),
+		vk::BufferUsageFlagBits::eVertexBuffer,
+		out.vertexBuffer))
+	{
+		return false;
+	}
+
+	if (!vk_alloc_static_model_buffer(
+		indices.data(),
+		static_cast<uint32_t>(indices.size() * sizeof(indices[0])),
+		vk::BufferUsageFlagBits::eIndexBuffer,
+		out.indexBuffer))
+	{
+		return false;
+	}
+
+	out.numVerts = static_cast<uint32_t>(surf.num_vertexes);
+	out.numIndexes = static_cast<uint32_t>(surf.num_triangles * 3);
+	out.ready = true;
+	return true;
+}
 
 static int R_CullIQM(const iqmData_t &data, const trRefEntity_t &ent)
 {
@@ -397,6 +589,11 @@ static void ComputePoseMats(iqmData_t &data, const int frame, const int oldframe
 	}
 }
 
+void R_IQMComputePoseMats(iqmData_t& data, int frame, int oldframe, float backlerp, float* poseMats)
+{
+	ComputePoseMats(data, frame, oldframe, backlerp, poseMats);
+}
+
 static void ComputeJointMats(iqmData_t &data, const int frame, const int oldframe,
 							 const float backlerp, float *mat)
 {
@@ -469,8 +666,64 @@ RB_AddIQMSurfaces
 Compute vertices for this model surface
 =================
 */
+static bool RB_SurfaceIQMGPU(const surfaceType_t& surface)
+{
+	srfIQModel_t& surf = (srfIQModel_t&)surface;
+	iqmData_t* data = surf.data;
+
+	if (!backEnd.currentEntity || !data || !surf.gpuSurface || !surf.gpuSurface->ready)
+	{
+		return false;
+	}
+
+	if (data->num_poses <= 0 || data->num_joints <= 0)
+	{
+		return false;
+	}
+
+	if (data->num_poses > IQM_MAX_JOINTS || data->num_joints > IQM_MAX_JOINTS)
+	{
+		return false;
+	}
+
+	if (!tess.shader || !R_CanUseGpuIqm(*tess.shader, tess.fogNum))
+	{
+		return false;
+	}
+
+	if (surf.num_vertexes <= 0 || surf.num_triangles <= 0)
+	{
+		return false;
+	}
+
+	const int frame = data->num_frames ? backEnd.currentEntity->e.frame % data->num_frames : 0;
+	const int oldframe = data->num_frames ? backEnd.currentEntity->e.oldframe % data->num_frames : 0;
+	const float backlerp = backEnd.currentEntity->e.backlerp;
+
+	if (tess.gpuMd3Active || tess.gpuIqmActive || tess.numIndexes != 0 || tess.numVertexes != 0)
+	{
+		RB_EndSurface();
+		RB_BeginSurface(*tess.shader, tess.fogNum);
+	}
+
+	tess.numIndexes = surf.num_triangles * 3;
+	tess.numVertexes = surf.num_vertexes;
+	tess.gpuIqmActive = true;
+	tess.gpuIqmSurface = surf.gpuSurface;
+	tess.gpuIqmData = data;
+	tess.gpuIqmOldFrame = static_cast<uint32_t>(oldframe);
+	tess.gpuIqmNewFrame = static_cast<uint32_t>(frame);
+	tess.gpuIqmBacklerp = backlerp;
+	return true;
+}
+
 void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 {
+	if (RB_SurfaceIQMGPU(surface))
+	{
+		return;
+	}
+
 	srfIQModel_t &surf = (srfIQModel_t &)surface;
 	iqmData_t *data = surf.data;
 	float poseMats[IQM_MAX_JOINTS * 12];
@@ -507,7 +760,7 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 	}
 	else
 	{
-		color = NULL;
+		color = nullptr;
 	}
 
 	outXYZ = &tess.xyz[tess.numVertexes];
@@ -1393,6 +1646,7 @@ bool R_LoadIQM(model_t &mod, void *buffer, const int filesize, std::string_view 
 			if (surface->shader->defaultShader)
 				surface->shader = tr.defaultShader;
 			surface->data = &iqmData;
+			surface->gpuSurface = nullptr;
 			surface->first_vertex = mesh->first_vertex;
 			surface->num_vertexes = mesh->num_vertexes;
 			surface->first_triangle = mesh->first_triangle;
@@ -1669,6 +1923,22 @@ bool R_LoadIQM(model_t &mod, void *buffer, const int filesize, std::string_view 
 		for (i = 0; i < header->num_vertexes; i++)
 		{
 			AddPointToBounds(&iqmData.positions[i * 3], &iqmData.bounds[0], &iqmData.bounds[3]);
+		}
+	}
+
+	if (header->num_meshes > 0)
+	{
+		auto* gpuSurfaces = static_cast<iqmGpuSurface_t*>(ri.Hunk_Alloc(sizeof(iqmGpuSurface_t) * header->num_meshes, h_low));
+		Com_Memset(gpuSurfaces, 0, sizeof(iqmGpuSurface_t) * header->num_meshes);
+
+		for (i = 0; i < header->num_meshes; ++i)
+		{
+			iqmData.surfaces[i].gpuSurface = &gpuSurfaces[i];
+			if (!R_CreateIQMGpuSurface(gpuSurfaces[i], iqmData.surfaces[i]))
+			{
+				ri.Printf(PRINT_WARNING, "R_LoadIQM: failed to create GPU surface for %s/%s, CPU fallback stays enabled.\n",
+					mod_name.data(), iqmData.surfaces[i].name);
+			}
 		}
 	}
 

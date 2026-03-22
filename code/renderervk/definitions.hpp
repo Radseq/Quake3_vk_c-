@@ -41,6 +41,24 @@ constexpr int MAX_ATTACHMENTS_IN_POOL(8 + VK_NUM_BLOOM_PASSES * 2); // depth + m
 constexpr int NUM_COMMAND_BUFFERS = 2;                              // number of command buffers / render semaphores / framebuffer sets
 constexpr int MAX_VK_PIPELINES = ((1024 + 128) * 2);
 
+
+
+constexpr int TESS_XYZ = 1;
+constexpr int TESS_RGBA0 = 2;
+constexpr int TESS_RGBA1 = 4;
+constexpr int TESS_RGBA2 = 8;
+constexpr int TESS_ST0 = 16;
+constexpr int TESS_ST1 = 32;
+constexpr int TESS_ST2 = 64;
+constexpr int TESS_NNN = 128;
+constexpr int TESS_VPOS = 256;  // uniform with eyePos
+constexpr int TESS_ENV = 512;   // mark shader stage with environment mapping
+constexpr int TESS_ENT0 = 1024; // uniform with ent.color[0]
+constexpr int TESS_ENT1 = 2048; // uniform with ent.color[1]
+constexpr int TESS_ENT2 = 4096; // uniform with ent.color[2]
+
+
+
 typedef unsigned char byte;
 
 constexpr float EPSILON = 1e-6f;
@@ -128,8 +146,18 @@ enum class Vk_Shader_Type : uint8_t
     TYPE_SIGNLE_TEXTURE_ENT_COLOR,
     TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV,
 
-
-
+    TYPE_IQM_SIGNLE_TEXTURE,
+    TYPE_IQM_SIGNLE_TEXTURE_ENV,
+    TYPE_IQM_SIGNLE_TEXTURE_IDENTITY,
+    TYPE_IQM_SIGNLE_TEXTURE_IDENTITY_ENV,
+    TYPE_IQM_SIGNLE_TEXTURE_FIXED_COLOR,
+    TYPE_IQM_SIGNLE_TEXTURE_FIXED_COLOR_ENV,
+    TYPE_IQM_SIGNLE_TEXTURE_ENT_COLOR,
+    TYPE_IQM_SIGNLE_TEXTURE_ENT_COLOR_ENV,
+    TYPE_IQM_SIGNLE_TEXTURE_LIGHTING,
+    TYPE_IQM_SIGNLE_TEXTURE_LIGHTING_LINEAR,
+    TYPE_IQM_SIGNLE_TEXTURE_DF,
+    TYPE_IQM_FOG_ONLY,
 
     TYPE_MD3_SIGNLE_TEXTURE,
     TYPE_MD3_SIGNLE_TEXTURE_ENV,
@@ -471,6 +499,10 @@ struct Vk_Instance
             vk::ShaderModule ident1[2][2][2]{}; // tx[0,1], env0[0,1] fog[0,1]
             vk::ShaderModule fixed[2][2][2]{};  // tx[0,1], env0[0,1] fog[0,1]
             vk::ShaderModule light[2]{};        // fog[0,1]
+
+            vk::ShaderModule iqm_gen[2][2]{};      // env[0,1], fog[0,1]
+            vk::ShaderModule iqm_fixed[2][2]{};    // env[0,1], fog[0,1]
+            vk::ShaderModule iqm_light[2][2]{};    // linear[0,1], fog[0,1]
 
             vk::ShaderModule md3_gen[2][2]{};      // env[0,1], fog[0,1]
             vk::ShaderModule md3_ident1[2][2]{};   // env[0,1], fog[0,1]

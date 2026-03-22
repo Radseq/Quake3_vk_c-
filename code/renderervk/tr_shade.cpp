@@ -153,6 +153,13 @@ void RB_BeginSurface(shader_t& shader, const int fogNum)
 	tess.gpuMd3EntAxis2[2] = 0.0f;
 	tess.gpuMd3EntAxis2[3] = 0.0f;
 
+	tess.gpuIqmActive = false;
+	tess.gpuIqmSurface = nullptr;
+	tess.gpuIqmData = nullptr;
+	tess.gpuIqmOldFrame = 0;
+	tess.gpuIqmNewFrame = 0;
+	tess.gpuIqmBacklerp = 0.0f;
+
 #ifdef USE_LEGACY_DLIGHTS
 	tess.dlightBits = 0; // will be OR'd in by surface functions
 #endif
@@ -972,26 +979,8 @@ void R_ComputeColors(const int b, color4ub_t* dest, const shaderStage_t& pStage)
 	if (tess.numVertexes == 0)
 		return;
 
-	if (tess.gpuMd3Active)
-	{
-		const uint32_t gpuMd3ColorMode = R_GpuMd3SecondaryColorMode(pStage, static_cast<uint32_t>(b));
-		if (gpuMd3ColorMode != 0u)
-			return;
-
-		if (b == 0)
-		{
-			const gpuMd3Layout_t stageLayout = VK_GpuMd3LayoutForStage(pStage);
-			if (stageLayout == gpuMd3Layout_t::GENERIC_ST_NO_COLOR ||
-				stageLayout == gpuMd3Layout_t::GENERIC_ENV_NO_COLOR)
-			{
-				return;
-			}
-		}
-		else if (R_GpuMd3SecondaryColorHandledInShader(pStage, b, pStage.bundle[b]))
-		{
-			return;
-		}
-	}
+	if (tess.gpuMd3Active && b > 0 && R_GpuMd3SecondaryColorHandledInShader(pStage, b, pStage.bundle[b]))
+		return;
 
 	int i;
 
@@ -1910,6 +1899,8 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 	uint32_t pipeline;
 	int fog_stage = 0;
 	bool pushUniform;
+	float iqmPoseMats[IQM_MAX_JOINTS * 12]{};
+	bool haveGpuIqmPoseMats = false;
 
 	vk_bind_index();
 
@@ -1938,6 +1929,16 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 		}
 	}
 
+	if (tess.gpuIqmActive && tess.gpuIqmData)
+	{
+		R_IQMComputePoseMats(*tess.gpuIqmData,
+			static_cast<int>(tess.gpuIqmNewFrame),
+			static_cast<int>(tess.gpuIqmOldFrame),
+			tess.gpuIqmBacklerp,
+			iqmPoseMats);
+		haveGpuIqmPoseMats = true;
+	}
+
 	RB_ResetStageTracking();
 
 	for (stage = 0; stage < MAX_SHADER_STAGES; stage++)
@@ -1956,24 +1957,33 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 		VK_SetIdentityGpuMd3ColorParams(uniform);
 		pushUniform = true;
 
-		if (tess.gpuMd3Active)
+		if (tess.gpuMd3Active || tess.gpuIqmActive)
 		{
 			VK_SetGpuMd3EnvParams(uniform, *pStage);
-			VK_SetGpuMd3ColorParams(uniform, *pStage);
+			if (tess.gpuMd3Active)
+			{
+				VK_SetGpuMd3ColorParams(uniform, *pStage);
+			}
 			VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[0], gpuTcSlot_t::bundle0);
 
-			if (pStage->numTexBundles > 1 &&
+			if (tess.gpuMd3Active && pStage->numTexBundles > 1 &&
 				R_GpuMd3TexCoordsHandledInShader(*pStage, 1, pStage->bundle[1]))
 			{
 				VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[1], gpuTcSlot_t::bundle1);
 			}
 
-			if (pStage->numTexBundles > 2 &&
+			if (tess.gpuMd3Active && pStage->numTexBundles > 2 &&
 				R_GpuMd3TexCoordsHandledInShader(*pStage, 2, pStage->bundle[2]))
 			{
 				VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[2], gpuTcSlot_t::bundle2);
 			}
 			VK_SetGpuMd3DeformParams(uniform, *pStage);
+			pushUniform = true;
+		}
+
+		if (haveGpuIqmPoseMats && tess.gpuIqmData)
+		{
+			Com_Memcpy(uniform.iqmJointMat, iqmPoseMats, static_cast<size_t>(tess.gpuIqmData->num_poses) * 12u * sizeof(float));
 			pushUniform = true;
 		}
 
@@ -1985,7 +1995,10 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 				R_BindAnimatedImage(pStage->bundle[i]);
 				if (tess_flags & (TESS_ST0 << i))
 				{
-					R_ComputeTexCoords(i, pStage->bundle[i]);
+					if (!(tess.gpuIqmActive && i == 0))
+					{
+						R_ComputeTexCoords(i, pStage->bundle[i]);
+					}
 				}
 				if (tess_flags & (TESS_RGBA0 << i))
 				{
