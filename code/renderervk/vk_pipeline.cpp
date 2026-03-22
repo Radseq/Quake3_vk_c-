@@ -1289,6 +1289,8 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		push_bind(5, sizeof(vec2_t));
 		push_bind(6, sizeof(md3XyzNormal_t));
 		push_bind(7, sizeof(md3XyzNormal_t));
+		push_bind(8, sizeof(color4ub_t));
+		push_bind(9, sizeof(color4ub_t));
 		push_attr(0, 0, vk::Format::eR16G16B16A16Sint);
 		push_attr(1, 1, vk::Format::eR16G16B16A16Sint);
 		push_attr(2, 2, vk::Format::eR8G8B8A8Unorm);
@@ -1297,7 +1299,8 @@ vk::Pipeline create_pipeline(const Vk_Pipeline_Def& def, const renderPass_t rend
 		push_attr(5, 5, vk::Format::eR32G32Sfloat);
 		push_attr(6, 6, vk::Format::eR16Uint);
 		push_attr(7, 7, vk::Format::eR16Uint);
-		break;
+		push_attr(8, 8, vk::Format::eR8G8B8A8Unorm);
+		push_attr(9, 9, vk::Format::eR8G8B8A8Unorm);
 		break;
 
 	case Vk_Shader_Type::TYPE_MD3_BLEND2_ADD:

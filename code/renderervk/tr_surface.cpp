@@ -1090,6 +1090,17 @@ static ID_INLINE bool RB_CanGpuMd3UseCpuSafeBundleColor(const textureBundle_t& b
 	}
 }
 
+static ID_INLINE bool RB_CanGpuMd3UseBundleColorInShader(
+	const shaderStage_t& stage,
+	const int bundleIndex,
+	const textureBundle_t& bundle) noexcept
+{
+	if (R_GpuMd3SecondaryColorHandledInShader(stage, bundleIndex, bundle))
+		return true;
+
+	return RB_CanGpuMd3UseCpuSafeBundleColor(bundle);
+}
+
 static bool RB_CanUseGpuMd3BlendStage(
 	const shader_t& shader,
 	const shaderStage_t& stage,
@@ -1105,7 +1116,7 @@ static bool RB_CanUseGpuMd3BlendStage(
 	if (!b0.image[0] || !RB_CanUseGpuMd3SecondaryBundle(stage, 1, b1) || (b2 && !RB_CanUseGpuMd3SecondaryBundle(stage, 2, *b2)))
 		return false;
 
-	if (!RB_CanGpuMd3UseCpuSafeBundleColor(b1) || (b2 && !RB_CanGpuMd3UseCpuSafeBundleColor(*b2)))
+	if (!RB_CanGpuMd3UseBundleColorInShader(stage, 1, b1) || (b2 && !RB_CanGpuMd3UseBundleColorInShader(stage, 2, *b2)))
 		return false;
 
 	const bool gpuTexModsOk = R_CanGpuMd3UseAffineTexMods(b0);
@@ -1216,9 +1227,17 @@ static bool RB_CanUseGpuMd3MultiTextureStage(
 			return false;
 	}
 
-	// Te MD3 multi-passy nadal mają tylko jeden strumień koloru (bundle 0).
-	if ((stage.tessFlags & (TESS_RGBA1 | TESS_RGBA2)) != 0)
+		if ((stage.tessFlags & TESS_RGBA1) != 0 &&
+		!R_GpuMd3SecondaryColorHandledInShader(stage, 1, b1))
+	{
 		return false;
+	}
+
+	if (b2 && (stage.tessFlags & TESS_RGBA2) != 0 &&
+		!R_GpuMd3SecondaryColorHandledInShader(stage, 2, *b2))
+	{
+		return false;
+	}
 
 	if (RB_IsGpuMd3GenericColorShaderType(shaderType))
 	{

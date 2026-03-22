@@ -539,6 +539,23 @@ static ID_INLINE void VK_SetIdentityGpuMd3DeformParams(vkUniform_t& u) noexcept
 	u.deform1[0] = 0.0f; u.deform1[1] = 0.0f; u.deform1[2] = 0.0f; u.deform1[3] = 0.0f;
 }
 
+static ID_INLINE void VK_SetIdentityGpuMd3ColorParams(vkUniform_t& u) noexcept
+{
+	u.colorMode01[0] = 0.0f;
+	u.colorMode01[1] = 0.0f;
+	u.colorMode01[2] = 0.0f;
+	u.colorMode01[3] = 0.0f;
+
+	u.color1Fixed[0] = 1.0f;
+	u.color1Fixed[1] = 1.0f;
+	u.color1Fixed[2] = 1.0f;
+	u.color1Fixed[3] = 1.0f;
+
+	u.color2Fixed[0] = 1.0f;
+	u.color2Fixed[1] = 1.0f;
+	u.color2Fixed[2] = 1.0f;
+	u.color2Fixed[3] = 1.0f;
+}
 
 static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForShaderType(const Vk_Shader_Type shaderType) noexcept
 {
@@ -953,6 +970,9 @@ void VK_SetFogParams(vkUniform_t& uniform, int& fogStage)
 void R_ComputeColors(const int b, color4ub_t* dest, const shaderStage_t& pStage)
 {
 	if (tess.numVertexes == 0)
+		return;
+
+	if (tess.gpuMd3Active && b > 0 && R_GpuMd3SecondaryColorHandledInShader(pStage, b, pStage.bundle[b]))
 		return;
 
 	int i;
@@ -1423,19 +1443,6 @@ static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& sta
 	}
 }
 
-enum : uint32_t
-{
-	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0,
-	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA = 1u << 1,
-	GPU_MD3_COLOR_UNIFORM_SOLID_RGBA = 1u << 2,
-	GPU_MD3_COLOR_VERTEX_RGB = 1u << 3,
-	GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB = 1u << 4,
-	GPU_MD3_COLOR_EXACT_VERTEX_RGB = 1u << 5,
-	GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA = 1u << 6,
-	GPU_MD3_COLOR_UNIFORM_ALPHA = 1u << 7,
-	GPU_MD3_COLOR_VERTEX_ALPHA = 1u << 8,
-	GPU_MD3_COLOR_PORTAL_ALPHA = 1u << 9
-};
 
 static ID_INLINE float VK_GpuMd3Clamp01(const float v) noexcept
 {
@@ -1557,20 +1564,11 @@ static ID_INLINE bool VK_GpuMd3VertexAlphaSupported(uint32_t& mode, const textur
 	}
 }
 
-static ID_INLINE uint32_t VK_GpuMd3ColorMode(const shaderStage_t& stage, const uint32_t bundleIndex) noexcept
+static ID_INLINE uint32_t VK_GpuMd3BuildSecondaryColorMode(const textureBundle_t& bundle) noexcept
 {
-	if (!tess.gpuMd3Active || bundleIndex != 0u)
-		return 0u;
-
-	const gpuMd3Layout_t stageLayout = VK_GpuMd3LayoutForStage(stage);
-	if (stageLayout != gpuMd3Layout_t::GENERIC_ST_COLOR &&
-		stageLayout != gpuMd3Layout_t::GENERIC_ENV_COLOR)
-		return 0u;
-
-	const textureBundle_t& b0 = stage.bundle[0];
 	uint32_t mode = 0u;
 
-	switch (b0.rgbGen)
+	switch (bundle.rgbGen)
 	{
 	case colorGen_t::CGEN_IDENTITY:
 	case colorGen_t::CGEN_IDENTITY_LIGHTING:
@@ -1594,41 +1592,125 @@ static ID_INLINE uint32_t VK_GpuMd3ColorMode(const shaderStage_t& stage, const u
 		mode |= GPU_MD3_COLOR_EXACT_VERTEX_RGB;
 		break;
 
-	case colorGen_t::CGEN_LIGHTING_DIFFUSE:
-		mode |= GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB;
-		break;
-
 	default:
 		return 0u;
 	}
 
-	if (!VK_GpuMd3VertexAlphaSupported(mode, b0))
+	if (!VK_GpuMd3VertexAlphaSupported(mode, bundle))
+		return 0u;
+
+	if ((mode & GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA) != 0u)
 		return 0u;
 
 	return mode;
 }
 
+uint32_t R_GpuMd3SecondaryColorMode(const shaderStage_t& stage, uint32_t bundleIndex) noexcept
+{
+	if (!tess.gpuMd3Active)
+		return 0u;
 
+	if (bundleIndex >= static_cast<uint32_t>(stage.numTexBundles))
+		return 0u;
 
+	if (bundleIndex == 0u)
+	{
+		const gpuMd3Layout_t stageLayout = VK_GpuMd3LayoutForStage(stage);
+		if (stageLayout != gpuMd3Layout_t::GENERIC_ST_COLOR &&
+			stageLayout != gpuMd3Layout_t::GENERIC_ENV_COLOR)
+			return 0u;
+
+		const textureBundle_t& b0 = stage.bundle[0];
+		uint32_t mode = 0u;
+
+		switch (b0.rgbGen)
+		{
+		case colorGen_t::CGEN_IDENTITY:
+		case colorGen_t::CGEN_IDENTITY_LIGHTING:
+		case colorGen_t::CGEN_CONST:
+		case colorGen_t::CGEN_ENTITY:
+		case colorGen_t::CGEN_ONE_MINUS_ENTITY:
+		case colorGen_t::CGEN_WAVEFORM:
+		case colorGen_t::CGEN_FOG:
+			mode |= GPU_MD3_COLOR_UNIFORM_SOLID_RGBA;
+			break;
+
+		case colorGen_t::CGEN_VERTEX:
+			mode |= GPU_MD3_COLOR_VERTEX_RGB;
+			break;
+
+		case colorGen_t::CGEN_ONE_MINUS_VERTEX:
+			mode |= GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB;
+			break;
+
+		case colorGen_t::CGEN_EXACT_VERTEX:
+			mode |= GPU_MD3_COLOR_EXACT_VERTEX_RGB;
+			break;
+
+		case colorGen_t::CGEN_LIGHTING_DIFFUSE:
+			mode |= GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB;
+			break;
+
+		default:
+			return 0u;
+		}
+
+		if (!VK_GpuMd3VertexAlphaSupported(mode, b0))
+			return 0u;
+
+		return mode;
+	}
+
+	return VK_GpuMd3BuildSecondaryColorMode(stage.bundle[bundleIndex]);
+}
+
+bool R_GpuMd3ColorModeUsesRawVertexColor(uint32_t mode) noexcept
+{
+	return (mode &
+		(GPU_MD3_COLOR_VERTEX_RGB |
+		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB |
+		 GPU_MD3_COLOR_EXACT_VERTEX_RGB |
+		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA |
+		 GPU_MD3_COLOR_VERTEX_ALPHA)) != 0u;
+}
+
+bool R_GpuMd3SecondaryColorHandledInShader(const shaderStage_t& stage, int bundleIndex, const textureBundle_t& bundle) noexcept
+{
+	if (!tess.gpuMd3Active)
+		return false;
+
+	if (bundleIndex <= 0 || bundleIndex >= stage.numTexBundles)
+		return false;
+
+	const gpuMd3Layout_t stageLayout = VK_GpuMd3LayoutForStage(stage);
+	if (stageLayout != gpuMd3Layout_t::GENERIC_ST_COLOR &&
+		stageLayout != gpuMd3Layout_t::GENERIC_ENV_COLOR)
+		return false;
+
+	if ((stage.tessFlags & (TESS_ST0 << bundleIndex)) == 0)
+		return false;
+
+	if ((stage.tessFlags & (TESS_RGBA0 << bundleIndex)) == 0)
+		return false;
+
+	if (!bundle.image[0])
+		return false;
+
+	return R_GpuMd3SecondaryColorMode(stage, static_cast<uint32_t>(bundleIndex)) != 0u;
+}
 
 static ID_INLINE bool VK_GpuMd3UsesRawVertexColor(const shaderStage_t& stage, const uint32_t bundleIndex) noexcept
 {
-	return (VK_GpuMd3ColorMode(stage, bundleIndex) &
-		(GPU_MD3_COLOR_VERTEX_RGB |
-			GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB |
-			GPU_MD3_COLOR_EXACT_VERTEX_RGB |
-			GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA |
-			GPU_MD3_COLOR_VERTEX_ALPHA)) != 0u;
+	return R_GpuMd3ColorModeUsesRawVertexColor(R_GpuMd3SecondaryColorMode(stage, bundleIndex));
 }
 
-static ID_INLINE void VK_BuildGpuMd3SolidColor(vec4_t rgba, const shaderStage_t& stage) noexcept
+static ID_INLINE void VK_BuildGpuMd3SolidColorForBundle(vec4_t rgba, const textureBundle_t& b0) noexcept
 {
 	rgba[0] = 1.0f;
 	rgba[1] = 1.0f;
 	rgba[2] = 1.0f;
 	rgba[3] = 1.0f;
 
-	const textureBundle_t& b0 = stage.bundle[0];
 	constexpr float kInv255 = 1.0f / 255.0f;
 
 	switch (b0.rgbGen)
@@ -1706,9 +1788,21 @@ static ID_INLINE void VK_BuildGpuMd3SolidColor(vec4_t rgba, const shaderStage_t&
 	}
 }
 
+static ID_INLINE void VK_BuildGpuMd3SolidColor(vec4_t rgba, const shaderStage_t& stage) noexcept
+{
+	VK_BuildGpuMd3SolidColorForBundle(rgba, stage.bundle[0]);
+}
+
 static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& stage) noexcept
 {
-	const uint32_t colorMode = VK_GpuMd3ColorMode(stage, 0u);
+	const uint32_t colorMode = R_GpuMd3SecondaryColorMode(stage, 0u);
+
+	uniform.colorMode01[0] = static_cast<float>(R_GpuMd3SecondaryColorMode(stage, 1u));
+	uniform.colorMode01[1] = static_cast<float>(R_GpuMd3SecondaryColorMode(stage, 2u));
+	uniform.colorMode01[2] = 0.0f;
+	uniform.colorMode01[3] = 0.0f;
+	Vector4Set(uniform.color1Fixed, 1.0f, 1.0f, 1.0f, 1.0f);
+	Vector4Set(uniform.color2Fixed, 1.0f, 1.0f, 1.0f, 1.0f);
 
 	// Regular generic MD3 shader reads color mode from light.pos.w.
 	// ENV MD3 shader keeps light.pos.w for env FP/screen-map semantics,
@@ -1722,6 +1816,18 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 	}
 	uniform.light.color[3] = 0.0f;
 	uniform.fogEyeT[2] = 0.0f;
+
+	if ((stage.numTexBundles > 1) && (uniform.colorMode01[0] != 0.0f) &&
+		((static_cast<uint32_t>(uniform.colorMode01[0]) & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u))
+	{
+		VK_BuildGpuMd3SolidColorForBundle(uniform.color1Fixed, stage.bundle[1]);
+	}
+
+	if ((stage.numTexBundles > 2) && (uniform.colorMode01[1] != 0.0f) &&
+		((static_cast<uint32_t>(uniform.colorMode01[1]) & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u))
+	{
+		VK_BuildGpuMd3SolidColorForBundle(uniform.color2Fixed, stage.bundle[2]);
+	}
 
 	if (colorMode == 0u)
 		return;
@@ -1825,6 +1931,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 		// nowe: zawsze ustaw bazowe tc parametry
 		VK_SetIdentityTcParams(uniform);
 		VK_SetIdentityGpuMd3DeformParams(uniform);
+		VK_SetIdentityGpuMd3ColorParams(uniform);
 		pushUniform = true;
 
 		if (tess.gpuMd3Active)
@@ -1860,7 +1967,10 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 				}
 				if (tess_flags & (TESS_RGBA0 << i))
 				{
-					const uint32_t gpuMd3ColorMode = VK_GpuMd3ColorMode(*pStage, i);
+					const uint32_t gpuMd3ColorMode =
+						tess.gpuMd3Active
+						? R_GpuMd3SecondaryColorMode(*pStage, static_cast<uint32_t>(i))
+						: 0u;
 
 					if (gpuMd3ColorMode == 0u)
 					{

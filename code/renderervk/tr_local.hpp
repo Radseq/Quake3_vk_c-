@@ -230,6 +230,13 @@ typedef struct vkUniform_s
 	// bulge: deform0.y = bulgeWidth, deform0.z = bulgeHeight, deform0.w = now
 	vec4_t deform0;
 	vec4_t deform1;
+
+	// Secondary GPU color params for MD3 multi-bundle paths.
+	// colorMode01.x = bundle1 color mode, colorMode01.y = bundle2 color mode
+	// color1Fixed / color2Fixed = per-bundle uniform RGBA used by solid-color modes
+	vec4_t colorMode01;
+	vec4_t color1Fixed;
+	vec4_t color2Fixed;
 } vkUniform_t;
 
 typedef struct dlight_s
@@ -550,6 +557,25 @@ typedef struct
 #endif
 
 } shaderStage_t;
+
+uint32_t R_GpuMd3SecondaryColorMode(const shaderStage_t& stage, uint32_t bundleIndex) noexcept;
+bool R_GpuMd3SecondaryColorHandledInShader(const shaderStage_t& stage, int bundleIndex, const textureBundle_t& bundle) noexcept;
+bool R_GpuMd3ColorModeUsesRawVertexColor(uint32_t mode) noexcept;
+
+
+enum : uint32_t
+{
+	GPU_MD3_COLOR_UNIFORM_DIFFUSE_RGB = 1u << 0,
+	GPU_MD3_COLOR_UNIFORM_SPECULAR_ALPHA = 1u << 1,
+	GPU_MD3_COLOR_UNIFORM_SOLID_RGBA = 1u << 2,
+	GPU_MD3_COLOR_VERTEX_RGB = 1u << 3,
+	GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB = 1u << 4,
+	GPU_MD3_COLOR_EXACT_VERTEX_RGB = 1u << 5,
+	GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA = 1u << 6,
+	GPU_MD3_COLOR_UNIFORM_ALPHA = 1u << 7,
+	GPU_MD3_COLOR_VERTEX_ALPHA = 1u << 8,
+	GPU_MD3_COLOR_PORTAL_ALPHA = 1u << 9
+};
 
 struct shaderCommands_s;
 
