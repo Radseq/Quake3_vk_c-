@@ -1364,8 +1364,9 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 		Vk_Pipeline_Def def{};
 		vk_get_pipeline_def(p->vk_pipeline[0], def);
 
-		if (p->depthFragment && p->vk_pipeline_df == 0)
-			return false;
+		// depthFragment can stay on the GPU-MD3 path too. The dedicated DF pass
+		// is rebound later against MD3 vertex streams, so rejecting the surface
+		// here only forces an unnecessary CPU fallback.
 
 		if (!p->bundle[0].image[0])
 			return false;

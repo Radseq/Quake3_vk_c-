@@ -1685,6 +1685,30 @@ bool R_GpuMd3ColorModeUsesRawVertexColor(uint32_t mode) noexcept
 		 GPU_MD3_COLOR_VERTEX_ALPHA)) != 0u;
 }
 
+static bool R_GpuMd3StageReadsPrimaryColorAttr(const shaderStage_t& stage) noexcept
+{
+	Vk_Pipeline_Def def{};
+	vk_get_pipeline_def(stage.vk_pipeline[0], def);
+	const gpuMd3Layout_t layout = VK_GpuMd3LayoutForShaderTypeShared(def.shader_type);
+	return layout == gpuMd3Layout_t::GENERIC_ST_COLOR ||
+		layout == gpuMd3Layout_t::GENERIC_ENV_COLOR;
+}
+
+static bool R_GpuIqmStageReadsPrimaryColorAttr(const shaderStage_t& stage) noexcept
+{
+	Vk_Pipeline_Def def{};
+	vk_get_pipeline_def(stage.vk_pipeline[0], def);
+
+	switch (def.shader_type)
+	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
+		return true;
+	default:
+		return false;
+	}
+}
+
 bool R_GpuMd3SecondaryColorHandledInShader(const shaderStage_t& stage, int bundleIndex, const textureBundle_t& bundle) noexcept
 {
 	if (!tess.gpuMd3Active)
@@ -2002,12 +2026,28 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 				}
 				if (tess_flags & (TESS_RGBA0 << i))
 				{
-					const uint32_t gpuMd3ColorMode =
-						tess.gpuMd3Active
-						? R_GpuMd3SecondaryColorMode(*pStage, static_cast<uint32_t>(i))
-						: 0u;
+					bool needCpuColors = true;
 
-					if (gpuMd3ColorMode == 0u)
+					if (tess.gpuMd3Active)
+					{
+						if (i == 0)
+						{
+							needCpuColors = R_GpuMd3StageReadsPrimaryColorAttr(*pStage);
+						}
+						else
+						{
+							needCpuColors =
+								R_GpuMd3SecondaryColorMode(*pStage, static_cast<uint32_t>(i)) == 0u;
+						}
+					}
+					else if (tess.gpuIqmActive)
+					{
+						// GPU-IQM fixed/ent/lighting/DF/fog variants do not consume a color
+						// attribute stream, so CPU-side color generation would be thrown away.
+						needCpuColors = (i != 0) || R_GpuIqmStageReadsPrimaryColorAttr(*pStage);
+					}
+
+					if (needCpuColors)
 					{
 						R_ComputeColors(i, tess.svars.colors[i], *pStage);
 					}

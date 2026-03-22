@@ -479,7 +479,11 @@ static void vk_flush_staging_buffer(bool final)
 	}
 	else
 	{
-		// submit and block until it finishes, then reset fence/cmd buffer
+		// With a single staging buffer + single staging command buffer we
+		// cannot safely make non-final flushes asynchronous. The callers may
+		// immediately reuse both resources for the next upload batch. Keep the
+		// flush blocking here; otherwise we can record into / overwrite resources
+		// that are still in flight, which leads to device loss.
 		VK_CHECK(vk_inst.queue.submit(submit_info, vk_inst.aux_fence));
 
 		vk::Result res = vk_inst.device.waitForFences(vk_inst.aux_fence, vk::True, 5 * 1000000000ULL);
@@ -490,6 +494,7 @@ static void vk_flush_staging_buffer(bool final)
 
 		VK_CHECK(vk_inst.device.resetFences(vk_inst.aux_fence));
 		VK_CHECK(vk_inst.staging_command_buffer.reset(vk::CommandBufferResetFlags{}));
+		vk_inst.aux_fence_wait = false;
 	}
 }
 #endif // USE_UPLOAD_QUEUE
@@ -497,6 +502,12 @@ static void vk_flush_staging_buffer(bool final)
 static void vk_alloc_staging_buffer(const vk::DeviceSize size)
 {
 	void* data;
+
+#ifdef USE_UPLOAD_QUEUE
+	// The staging buffer may still be referenced by an in-flight upload submit.
+	// Wait here before destroying/reallocating it.
+	vk_wait_staging_buffer();
+#endif
 
 	vk_clean_staging_buffer();
 
