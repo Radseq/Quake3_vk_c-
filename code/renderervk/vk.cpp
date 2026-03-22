@@ -3832,6 +3832,23 @@ void vk_bind_geometry(const uint32_t flags)
 			}
 		};
 
+		auto bindMd3SecondaryColor = [&](const int attrIndex,
+			const uint32_t colorMode,
+			const bool useRawVertexColor,
+			const color4ub_t* const fallbackColors)
+			{
+				shade_bufs[attrIndex] = vk_inst.cmd->vertex_buffer;
+
+				if (colorMode != 0u && useRawVertexColor)
+				{
+					vk_bind_attr(attrIndex, sizeof(color4ub_t), tess.vertexColors[0].rgba);
+				}
+				else
+				{
+					vk_bind_attr(attrIndex, sizeof(color4ub_t), fallbackColors[0].rgba);
+				}
+			};
+
 		// MD3 multi-bundle path: lerped positions/normals and GPU tc/deform stay on the GPU.
 		// Secondary bundle colors are generated in the shader whenever their mode is supported;
 		// only the remaining unsupported cases keep the legacy CPU-prepared color streams.
@@ -3900,54 +3917,15 @@ void vk_bind_geometry(const uint32_t flags)
 			vk_inst.cmd->buf_offset[7] = newNormalOffset;
 			vk_bind_index_attr(7);
 
-			if (colorMode1 != 0u)
-			{
-				if (rawColor1)
-				{
-					vk_bind_attr(8, sizeof(color4ub_t), tess.vertexColors[0].rgba);
-				}
-				else
-				{
-					vk_bind_attr(8, sizeof(color4ub_t), tess.svars.colors[1][0].rgba);
-				}
-			}
-			else
-			{
-				vk_bind_attr(8, sizeof(color4ub_t), tess.svars.colors[1][0].rgba);
-			}
+			bindMd3SecondaryColor(8, colorMode1, rawColor1, tess.svars.colors[1]);
 
 			if (flags & TESS_RGBA2)
 			{
-				if (colorMode2 != 0u)
-				{
-					if (rawColor2)
-					{
-						vk_bind_attr(9, sizeof(color4ub_t), tess.vertexColors[0].rgba);
-					}
-					else
-					{
-						vk_bind_attr(9, sizeof(color4ub_t), tess.svars.colors[2][0].rgba);
-					}
-				}
-				else
-				{
-					vk_bind_attr(9, sizeof(color4ub_t), tess.svars.colors[2][0].rgba);
-				}
-			}
-			else if (colorMode1 != 0u)
-			{
-				if (rawColor1)
-				{
-					vk_bind_attr(9, sizeof(color4ub_t), tess.vertexColors[0].rgba);
-				}
-				else
-				{
-					vk_bind_attr(9, sizeof(color4ub_t), tess.svars.colors[1][0].rgba);
-				}
+				bindMd3SecondaryColor(9, colorMode2, rawColor2, tess.svars.colors[2]);
 			}
 			else
 			{
-				vk_bind_attr(9, sizeof(color4ub_t), tess.svars.colors[1][0].rgba);
+				bindMd3SecondaryColor(9, colorMode1, rawColor1, tess.svars.colors[1]);
 			}
 
 			vk_inst.cmd->command_buffer.bindVertexBuffers(
@@ -4062,11 +4040,9 @@ void vk_bind_geometry(const uint32_t flags)
 			return;
 		}
 
-		// Generic ENV: old/new/color-or-dummy/st/oldNormal/newNormal
+		// Generic ENV: old/new/color/st/oldNormal/newNormal
 		if ((flags & TESS_NNN) && (flags & TESS_RGBA0))
 		{
-			const bool useGeneratedColor = VK_GpuMd3CurrentColorMode() != 0u;
-			const bool useRawVertexColor = VK_GpuMd3UsesRawVertexColor();
 			shade_bufs[0] = s.vertexBuffer.handle;
 			shade_bufs[1] = s.vertexBuffer.handle;
 			shade_bufs[2] = vk_inst.cmd->vertex_buffer;
@@ -4080,23 +4056,7 @@ void vk_bind_geometry(const uint32_t flags)
 			vk_inst.cmd->buf_offset[1] = newFrameOffset;
 			vk_bind_index_attr(1);
 
-			if (useGeneratedColor)
-			{
-				if (useRawVertexColor)
-				{
-					vk_bind_attr(2, sizeof(color4ub_t), tess.vertexColors[0].rgba);
-				}
-				else
-				{
-					// shader policzy kolor z uniformów, ale atrybut 2 musi wskazywać
-					// poprawny i stabilny stream, nie początek bufora MD3
-					vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
-				}
-			}
-			else
-			{
-				vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
-			}
+			bindMd3StageColor();
 
 			vk_inst.cmd->buf_offset[3] = stOffset;
 			vk_bind_index_attr(3);
@@ -4149,12 +4109,9 @@ void vk_bind_geometry(const uint32_t flags)
 			return;
 		}
 
-		// Generic non-ENV: old/new/color-or-dummy/st/oldNormal/newNormal
+		// Generic non-ENV: old/new/color/st/oldNormal/newNormal
 		if (flags & TESS_RGBA0)
 		{
-			const bool useGeneratedColor = VK_GpuMd3CurrentColorMode() != 0u;
-			const bool useRawVertexColor = VK_GpuMd3UsesRawVertexColor();
-
 			shade_bufs[0] = s.vertexBuffer.handle;
 			shade_bufs[1] = s.vertexBuffer.handle;
 			shade_bufs[2] = vk_inst.cmd->vertex_buffer;
@@ -4168,22 +4125,7 @@ void vk_bind_geometry(const uint32_t flags)
 			vk_inst.cmd->buf_offset[1] = newFrameOffset;
 			vk_bind_index_attr(1);
 
-			if (useGeneratedColor)
-			{
-				if (useRawVertexColor)
-				{
-					vk_bind_attr(2, sizeof(color4ub_t), tess.vertexColors[0].rgba);
-				}
-				else
-				{
-					// shader bierze kolor z uniformów, ale binding attr 2 nadal musi być poprawny
-					vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
-				}
-			}
-			else
-			{
-				vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
-			}
+			bindMd3StageColor();
 
 			vk_inst.cmd->buf_offset[3] = stOffset;
 			vk_bind_index_attr(3);
