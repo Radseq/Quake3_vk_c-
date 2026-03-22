@@ -972,8 +972,26 @@ void R_ComputeColors(const int b, color4ub_t* dest, const shaderStage_t& pStage)
 	if (tess.numVertexes == 0)
 		return;
 
-	if (tess.gpuMd3Active && b > 0 && R_GpuMd3SecondaryColorHandledInShader(pStage, b, pStage.bundle[b]))
-		return;
+	if (tess.gpuMd3Active)
+	{
+		const uint32_t gpuMd3ColorMode = R_GpuMd3SecondaryColorMode(pStage, static_cast<uint32_t>(b));
+		if (gpuMd3ColorMode != 0u)
+			return;
+
+		if (b == 0)
+		{
+			const gpuMd3Layout_t stageLayout = VK_GpuMd3LayoutForStage(pStage);
+			if (stageLayout == gpuMd3Layout_t::GENERIC_ST_NO_COLOR ||
+				stageLayout == gpuMd3Layout_t::GENERIC_ENV_NO_COLOR)
+			{
+				return;
+			}
+		}
+		else if (R_GpuMd3SecondaryColorHandledInShader(pStage, b, pStage.bundle[b]))
+		{
+			return;
+		}
+	}
 
 	int i;
 

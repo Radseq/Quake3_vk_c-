@@ -1364,7 +1364,7 @@ static bool RB_CanUseGpuMd3(const shader_t & shader, const int fogNum) noexcept
 		Vk_Pipeline_Def def{};
 		vk_get_pipeline_def(p->vk_pipeline[0], def);
 
-		if (p->depthFragment && def.shader_type != Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF)
+		if (p->depthFragment && p->vk_pipeline_df == 0)
 			return false;
 
 		if (!p->bundle[0].image[0])
