@@ -676,7 +676,7 @@ void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 
 	for (i = 0; i < static_cast<uint32_t>(bmodel.numSurfaces); i++)
 	{
-		R_AddWorldSurface(*(bmodel.firstSurface + i), tr.currentEntity->needDlights);
+		R_AddWorldSurface(*(bmodel.firstSurface + i), HasTrRefEntityFlag(tr.currentEntity->flags, trRefEntityFlags_t::NeedDlights));
 	}
 #endif
 }

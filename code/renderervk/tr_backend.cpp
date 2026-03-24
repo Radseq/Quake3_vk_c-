@@ -284,7 +284,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 				backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
 				tr.currentModel = R_GetModelByHandle(backEnd.currentEntity->e.hModel);
 
-				if (backEnd.currentEntity->intShaderTime)
+				if (HasTrRefEntityFlag(backEnd.currentEntity->flags, trRefEntityFlags_t::IntShaderTime))
 					backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
 				else
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;
@@ -296,7 +296,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 #ifdef USE_PMLIGHT
 				if (!r_dlightMode->integer)
 #endif
-					if (backEnd.currentEntity->needDlights)
+					if (HasTrRefEntityFlag(backEnd.currentEntity->flags, trRefEntityFlags_t::NeedDlights))
 					{
 						R_TransformDlights(backEnd.refdef.num_dlights, backEnd.refdef.dlights, backEnd.ort);
 					}
@@ -461,7 +461,7 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 				backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
 				tr.currentModel = R_GetModelByHandle(backEnd.currentEntity->e.hModel);
 
-				if (backEnd.currentEntity->intShaderTime)
+				if (HasTrRefEntityFlag(backEnd.currentEntity->flags, trRefEntityFlags_t::IntShaderTime))
 					backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
 				else
 					backEnd.refdef.floatTime = originalTime - (double)backEnd.currentEntity->e.shaderTime.f;

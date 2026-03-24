@@ -1727,7 +1727,7 @@ static void R_AddEntitySurfaces(void)
 		tr.currentEntity = &tr.refdef.entities[tr.currentEntityNum];
 		trRefEntity_t &ent = *tr.currentEntity;
 #ifdef USE_LEGACY_DLIGHTS
-		ent.needDlights = 0;
+		SetTrRefEntityFlag(ent.flags, trRefEntityFlags_t::NeedDlights, false);
 #endif
 		// preshift the value we are going to OR into the drawsurf sort
 		tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;

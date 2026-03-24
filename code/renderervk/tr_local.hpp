@@ -262,6 +262,34 @@ typedef struct dlight_s
 #endif
 } dlight_t;
 
+enum class trRefEntityFlags_t : std::uint8_t
+{
+	None = 0,
+	LightingCalculated = 1u << 0,
+	IntShaderTime = 1u << 1,
+#ifdef USE_LEGACY_DLIGHTS
+	NeedDlights = 1u << 2,
+#endif
+};
+
+constexpr ID_INLINE bool HasTrRefEntityFlag(const std::uint8_t flags, const trRefEntityFlags_t mask) noexcept
+{
+	return (flags & static_cast<std::uint8_t>(mask)) != 0;
+}
+
+ID_INLINE void SetTrRefEntityFlag(std::uint8_t& flags, const trRefEntityFlags_t mask, const bool value) noexcept
+{
+	const std::uint8_t maskValue = static_cast<std::uint8_t>(mask);
+	if (value)
+	{
+		flags = static_cast<std::uint8_t>(flags | maskValue);
+	}
+	else
+	{
+		flags = static_cast<std::uint8_t>(flags & ~maskValue);
+	}
+}
+
 // a trRefEntity_t has all the information passed in by
 // the client game, as well as some locally derived info
 typedef struct
@@ -269,23 +297,25 @@ typedef struct
 	// External render entity payload copied from the front-end.
 	refEntity_t e;
 
-	// Renderer-local per-entity state. Keep scalar / flag data tightly packed
-	// and leave vector payload contiguous to reduce padding in the hot entity array.
-	vec3_t lightDir;	 // normalized direction towards light
+	// Small scalar / flag header first so hot entity-array walks do not drag the
+	// vector lighting payload into cache before it is actually needed.
+	std::uint32_t ambientLightInt; // packed RGBA
+	int modelLod;
+	std::uint8_t flags;
+	std::uint8_t reserved0;
+	std::uint8_t reserved1;
+	std::uint8_t reserved2;
+
+	// Renderer-local vector payload.
+	vec3_t lightDir;     // normalized direction towards light
 	vec3_t ambientLight; // color normalized to 0-255
 	vec3_t directedLight;
 #ifdef USE_PMLIGHT
 	vec3_t shadowLightDir; // normalized direction towards light
 #endif
-	float axisLength; // compensate for non-normalized axis
-	std::uint32_t ambientLightInt; // 32 bit rgba packed
-	int modelLod;
-#ifdef USE_LEGACY_DLIGHTS
-	int needDlights; // 1 for bmodels that touch a dlight
-#endif
-	bool lightingCalculated;
-	bool intShaderTime;
 } trRefEntity_t;
+
+static_assert(sizeof(trRefEntityFlags_t) == 1, "trRefEntityFlags_t must stay byte-sized");
 
 typedef struct
 {
@@ -1070,7 +1100,7 @@ constexpr int SIDE_ON = 2;
 typedef struct msurface_s
 {
 	// Immutable hot fields used during traversal / cull / draw-surf emission.
-	// Per-view / per-light mutable markers live in side arrays to keep this record compact.
+	// Per-view / per-light mutable markers live in side arrays in tr_world.cpp.
 	struct shader_s *shader;
 	surfaceType_t *data; // any of srf*_t
 	int fogIndex;
@@ -1870,29 +1900,23 @@ typedef struct stageVars
 
 typedef struct shaderCommands_s
 {
-#pragma pack(push, 16)
-	glIndex_t indexes[SHADER_MAX_INDEXES] QALIGN(16);
-	vec4_t xyz[SHADER_MAX_VERTEXES * 2] QALIGN(16); // 2x needed for shadows
-	vec4_t normal[SHADER_MAX_VERTEXES] QALIGN(16);
-	vec2_t texCoords[2][SHADER_MAX_VERTEXES] QALIGN(16);
-	vec2_t texCoords00[SHADER_MAX_VERTEXES] QALIGN(16);
-	color4ub_t vertexColors[SHADER_MAX_VERTEXES] QALIGN(16);
-#ifdef USE_LEGACY_DLIGHTS
-	int vertexDlightBits[SHADER_MAX_VERTEXES] QALIGN(16);
-#endif
-	stageVars_t svars QALIGN(16);
-
-	color4ub_t constantColor255[SHADER_MAX_VERTEXES] QALIGN(16);
-#pragma pack(pop)
-
+	// Small hot header first: repeatedly touched while batching / iterating / submitting
+	// the current surface. Keep bulky geometry payload behind it.
 #ifdef USE_VBO
 	surfaceType_t surfType;
 	int vboIndex;
 	int vboStage;
-	bool allowVBO;
 #endif
 
 	shader_t *shader;
+	shaderStage_t **xstages;
+#ifdef USE_PMLIGHT
+	const dlight_t *light;
+#endif
+	const md3GpuSurface_t* gpuMd3Surface;
+	const iqmGpuSurface_t* gpuIqmSurface;
+	iqmData_t* gpuIqmData;
+
 	double shaderTime; // -EC- set to double for frameloss fix
 	int fogNum;
 #ifdef USE_LEGACY_DLIGHTS
@@ -1900,12 +1924,15 @@ typedef struct shaderCommands_s
 #endif
 	int numIndexes;
 	int numVertexes;
-
-#ifdef USE_PMLIGHT
-	const dlight_t *light;
-	bool dlightPass;
-	bool dlightUpdateParams;
-#endif
+	int numPasses;
+	int gpuStageIndex;
+	int gpuMd3Lod;
+	uint32_t gpuMd3OldFrame;
+	uint32_t gpuMd3NewFrame;
+	uint32_t gpuIqmOldFrame;
+	uint32_t gpuIqmNewFrame;
+	float gpuMd3Backlerp;
+	float gpuIqmBacklerp;
 
 #ifdef USE_VULKAN
 	Vk_Depth_Range depthRange;
@@ -1919,34 +1946,35 @@ typedef struct shaderCommands_s
 	int needsST2;
 #endif
 
-	int numPasses;
-	shaderStage_t **xstages;
-
-	// Aktualnie renderowany stage dla GPU MD3 multi-pass.
-	// Niezależne od vboStage: to pole służy wyłącznie do stage-derived
-	// decyzji w ścieżce GPU MD3 (kolor/tc/deform/layout), również gdy USE_VBO
-	// nie jest aktywne. Wartość -1 oznacza brak aktywnego generic stage.
-	int gpuStageIndex;
-
-	bool gpuMd3Active;
-	const md3GpuSurface_t* gpuMd3Surface;
-	int gpuMd3Lod;
-	uint32_t gpuMd3OldFrame;
-	uint32_t gpuMd3NewFrame;
-	float gpuMd3Backlerp;
 	gpuMd3Layout_t gpuMd3Layout;
-
+#ifdef USE_VBO
+	bool allowVBO;
+#endif
+#ifdef USE_PMLIGHT
+	bool dlightPass;
+	bool dlightUpdateParams;
+#endif
+	bool gpuMd3Active;
 	bool gpuIqmActive;
-	const iqmGpuSurface_t* gpuIqmSurface;
-	iqmData_t* gpuIqmData;
-	uint32_t gpuIqmOldFrame;
-	uint32_t gpuIqmNewFrame;
-	float gpuIqmBacklerp;
 
 	vec4_t gpuMd3ViewOriginLocal{};
 	vec4_t gpuMd3EntOrigin{};
 	vec4_t gpuMd3EntAxis1{};
 	vec4_t gpuMd3EntAxis2{};
+
+#pragma pack(push, 16)
+	glIndex_t indexes[SHADER_MAX_INDEXES] QALIGN(16);
+	vec4_t xyz[SHADER_MAX_VERTEXES * 2] QALIGN(16); // 2x needed for shadows
+	vec4_t normal[SHADER_MAX_VERTEXES] QALIGN(16);
+	vec2_t texCoords[2][SHADER_MAX_VERTEXES] QALIGN(16);
+	vec2_t texCoords00[SHADER_MAX_VERTEXES] QALIGN(16);
+	color4ub_t vertexColors[SHADER_MAX_VERTEXES] QALIGN(16);
+#ifdef USE_LEGACY_DLIGHTS
+	int vertexDlightBits[SHADER_MAX_VERTEXES] QALIGN(16);
+#endif
+	stageVars_t svars QALIGN(16);
+	color4ub_t constantColor255[SHADER_MAX_VERTEXES] QALIGN(16);
+#pragma pack(pop)
 
 } shaderCommands_t;
 

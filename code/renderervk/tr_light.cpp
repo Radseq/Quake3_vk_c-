@@ -109,7 +109,7 @@ void R_DlightBmodel(bmodel_t &bmodel)
         mask |= 1 << i;
     }
 
-    tr.currentEntity->needDlights = (mask != 0) ? 1 : 0;
+    SetTrRefEntityFlag(tr.currentEntity->flags, trRefEntityFlags_t::NeedDlights, mask != 0);
 
     // set the dlight bits in all the surfaces
     for (auto i = 0; i < bmodel.numSurfaces; i++)
@@ -343,11 +343,11 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
 #endif
 
     // lighting calculations
-    if (ent.lightingCalculated)
+    if (HasTrRefEntityFlag(ent.flags, trRefEntityFlags_t::LightingCalculated))
     {
         return;
     }
-    ent.lightingCalculated = true;
+    SetTrRefEntityFlag(ent.flags, trRefEntityFlags_t::LightingCalculated, true);
 
     //
     // trace a sample point down to find ambient light

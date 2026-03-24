@@ -254,8 +254,11 @@ void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
 	}
 
 	backEndData->entities[r_numentities].e = *ent;
-	backEndData->entities[r_numentities].lightingCalculated = false;
-	backEndData->entities[r_numentities].intShaderTime = intShaderTime;
+	backEndData->entities[r_numentities].flags = 0;
+	backEndData->entities[r_numentities].reserved0 = 0;
+	backEndData->entities[r_numentities].reserved1 = 0;
+	backEndData->entities[r_numentities].reserved2 = 0;
+	SetTrRefEntityFlag(backEndData->entities[r_numentities].flags, trRefEntityFlags_t::IntShaderTime, intShaderTime);
 
 	r_numentities++;
 }
