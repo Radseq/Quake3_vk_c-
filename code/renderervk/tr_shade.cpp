@@ -587,7 +587,7 @@ static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage)
 {
 	VK_SetIdentityGpuMd3DeformParams(u);
 
-	if (!tess.gpuMd3Active || !tess.shader || tess.shader->numDeforms != 1)
+	if ((!tess.gpuMd3Active && !tess.gpuIqmActive) || !tess.shader || tess.shader->numDeforms != 1)
 	{
 		return;
 	}

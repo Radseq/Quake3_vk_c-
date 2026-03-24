@@ -572,7 +572,7 @@ RB_DeformTessGeometry
 */
 void RB_DeformTessGeometry(void)
 {
-	if (tess.gpuMd3Active)
+	if (tess.gpuMd3Active || tess.gpuIqmActive)
 	{
 		return;
 	}

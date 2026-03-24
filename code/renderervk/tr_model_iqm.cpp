@@ -98,6 +98,79 @@ static bool R_IQMShaderTypeSupported(const shaderStage_t& stage, const Vk_Shader
 	}
 }
 
+static ID_INLINE bool R_IQMIsTrueEnvTcGen(const textureBundle_t& bundle) noexcept
+{
+	return bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
+		bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP;
+}
+
+static ID_INLINE bool R_IQMIsAffineTcGen(const textureBundle_t& bundle) noexcept
+{
+	return bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE ||
+		bundle.tcGen == texCoordGen_t::TCGEN_VECTOR;
+}
+
+static bool R_IQMCanUseDeforms(const shader_t& shader) noexcept
+{
+	if (shader.numDeforms == 0)
+		return true;
+
+	if (shader.numDeforms != 1)
+		return false;
+
+	const deformStage_t& ds = shader.deforms[0];
+
+	switch (ds.deformation)
+	{
+	case deform_t::DEFORM_WAVE:
+	case deform_t::DEFORM_MOVE:
+		return ds.deformationWave.func != genFunc_t::GF_NONE;
+
+	case deform_t::DEFORM_BULGE:
+	case deform_t::DEFORM_NORMALS:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+static bool R_IQMStageTcGenSupported(const shaderStage_t& stage, const Vk_Shader_Type shaderType) noexcept
+{
+	const textureBundle_t& bundle = stage.bundle[0];
+	const bool gpuTexModsOk = R_CanGpuMd3UseAffineTexMods(bundle);
+	if (!gpuTexModsOk)
+	{
+		return false;
+	}
+
+	switch (shaderType)
+	{
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_LIGHTING_LINEAR:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_DF:
+	case Vk_Shader_Type::TYPE_FOG_ONLY:
+		return R_IQMIsAffineTcGen(bundle) &&
+			!bundle.gpuTcGenHandledInShader &&
+			(stage.tessFlags & TESS_ENV) == 0;
+
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_IDENTITY_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_FIXED_COLOR_ENV:
+	case Vk_Shader_Type::TYPE_SIGNLE_TEXTURE_ENT_COLOR_ENV:
+		return R_IQMIsTrueEnvTcGen(bundle) &&
+			bundle.gpuTcGenHandledInShader &&
+			(stage.tessFlags & TESS_ENV) != 0;
+
+	default:
+		return false;
+	}
+}
+
 static bool R_CanUseGpuIqm(const shader_t& shader, const int fogNum)
 {
 	if (!shader.optimalStageIteratorFunc)
@@ -130,9 +203,19 @@ static bool R_CanUseGpuIqm(const shader_t& shader, const int fogNum)
 		{
 			return false;
 		}
+
+		if (!R_IQMStageTcGenSupported(*stage, def.shader_type))
+		{
+			return false;
+		}
 	}
 
 	if (fogNum > 0 && shader.fogPass == fogPass_t::FP_NONE)
+	{
+		return false;
+	}
+
+	if (!R_IQMCanUseDeforms(shader))
 	{
 		return false;
 	}

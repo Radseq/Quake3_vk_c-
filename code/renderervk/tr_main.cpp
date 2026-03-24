@@ -1381,50 +1381,71 @@ DRAWSURF SORTING
 R_Radix
 ===============
 */
-static inline void R_Radix(const int byte, const int size, const drawSurf_t *source, drawSurf_t *dest)
+static inline void R_Radix(const int byte, const int size,
+	const uint32_t *sourceSorts, surfaceType_t *const *sourceSurfaces,
+	uint32_t *destSorts, surfaceType_t **destSurfaces)
 {
 	int count[256] = {};
 	int index[256] = {};
-	int i;
-	const unsigned char *sortKey = (const unsigned char *)&source[0].sort + byte;
-	const unsigned char *end = sortKey + (size * sizeof(drawSurf_t));
 
-	// Count occurrences of each byte value
-	for (; sortKey < end; sortKey += sizeof(drawSurf_t))
-		++count[*sortKey];
+	for (int i = 0; i < size; ++i)
+	{
+		const uint32_t sort = sourceSorts[i];
+		++count[(sort >> (byte * 8)) & 0xFFu];
+	}
 
-	// Calculate starting index for each byte value
-	index[0] = 0;
-	for (i = 1; i < 256; ++i)
+	for (int i = 1; i < 256; ++i)
 		index[i] = index[i - 1] + count[i - 1];
 
-	// Move elements to their sorted positions
-	sortKey = (const unsigned char *)&source[0].sort + byte;
-	for (i = 0; i < size; ++i, sortKey += sizeof(drawSurf_t))
-		dest[index[*sortKey]++] = source[i];
+	for (int i = 0; i < size; ++i)
+	{
+		const uint32_t sort = sourceSorts[i];
+		const int bucket = (sort >> (byte * 8)) & 0xFFu;
+		const int outIndex = index[bucket]++;
+		destSorts[outIndex] = sort;
+		destSurfaces[outIndex] = sourceSurfaces[i];
+	}
 }
 
 /*
 ===============
 R_RadixSort
 
-Radix sort with 4 byte size buckets
+Radix sort with 4 byte size buckets.
+Sort keys and payload pointers are processed as two dense streams to avoid
+striding by sizeof(drawSurf_t) during each counting pass.
 ===============
 */
 static void R_RadixSort(drawSurf_t *source, int size)
 {
-	static drawSurf_t scratch[MAX_DRAWSURFS];
+	static uint32_t sortScratchA[MAX_DRAWSURFS];
+	static uint32_t sortScratchB[MAX_DRAWSURFS];
+	static surfaceType_t *surfaceScratchA[MAX_DRAWSURFS];
+	static surfaceType_t *surfaceScratchB[MAX_DRAWSURFS];
+
+	for (int i = 0; i < size; ++i)
+	{
+		sortScratchA[i] = source[i].sort;
+		surfaceScratchA[i] = source[i].surface;
+	}
+
 #ifdef Q3_LITTLE_ENDIAN
-	R_Radix(0, size, source, scratch);
-	R_Radix(1, size, scratch, source);
-	R_Radix(2, size, source, scratch);
-	R_Radix(3, size, scratch, source);
+	R_Radix(0, size, sortScratchA, surfaceScratchA, sortScratchB, surfaceScratchB);
+	R_Radix(1, size, sortScratchB, surfaceScratchB, sortScratchA, surfaceScratchA);
+	R_Radix(2, size, sortScratchA, surfaceScratchA, sortScratchB, surfaceScratchB);
+	R_Radix(3, size, sortScratchB, surfaceScratchB, sortScratchA, surfaceScratchA);
 #else
-	R_Radix(3, size, source, scratch);
-	R_Radix(2, size, scratch, source);
-	R_Radix(1, size, source, scratch);
-	R_Radix(0, size, scratch, source);
+	R_Radix(3, size, sortScratchA, surfaceScratchA, sortScratchB, surfaceScratchB);
+	R_Radix(2, size, sortScratchB, surfaceScratchB, sortScratchA, surfaceScratchA);
+	R_Radix(1, size, sortScratchA, surfaceScratchA, sortScratchB, surfaceScratchB);
+	R_Radix(0, size, sortScratchB, surfaceScratchB, sortScratchA, surfaceScratchA);
 #endif // Q3_LITTLE_ENDIAN
+
+	for (int i = 0; i < size; ++i)
+	{
+		source[i].sort = sortScratchA[i];
+		source[i].surface = surfaceScratchA[i];
+	}
 }
 
 #ifdef USE_PMLIGHT

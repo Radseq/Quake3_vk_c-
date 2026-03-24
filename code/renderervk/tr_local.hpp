@@ -266,22 +266,25 @@ typedef struct dlight_s
 // the client game, as well as some locally derived info
 typedef struct
 {
+	// External render entity payload copied from the front-end.
 	refEntity_t e;
 
-	float axisLength; // compensate for non-normalized axis
-#ifdef USE_LEGACY_DLIGHTS
-	int needDlights; // 1 for bmodels that touch a dlight
-#endif
-	bool lightingCalculated;
+	// Renderer-local per-entity state. Keep scalar / flag data tightly packed
+	// and leave vector payload contiguous to reduce padding in the hot entity array.
 	vec3_t lightDir;	 // normalized direction towards light
 	vec3_t ambientLight; // color normalized to 0-255
-	std::uint32_t ambientLightInt; // 32 bit rgba packed
 	vec3_t directedLight;
 #ifdef USE_PMLIGHT
 	vec3_t shadowLightDir; // normalized direction towards light
 #endif
-	bool intShaderTime;
+	float axisLength; // compensate for non-normalized axis
+	std::uint32_t ambientLightInt; // 32 bit rgba packed
 	int modelLod;
+#ifdef USE_LEGACY_DLIGHTS
+	int needDlights; // 1 for bmodels that touch a dlight
+#endif
+	bool lightingCalculated;
+	bool intShaderTime;
 } trRefEntity_t;
 
 typedef struct
@@ -1066,15 +1069,23 @@ constexpr int SIDE_ON = 2;
 
 typedef struct msurface_s
 {
-	int viewCount; // if == tr.viewCount, already added
+	// Hot fields used during traversal / cull / draw-surf emission first.
 	struct shader_s *shader;
+	surfaceType_t *data; // any of srf*_t
+	int viewCount; // if == tr.viewCount, already added
 	int fogIndex;
 #ifdef USE_PMLIGHT
 	int vcVisible;		 // if == tr.viewCount, is actually VISIBLE in this frame, i.e. passed facecull and has been added to the drawsurf list
 	int lightCount;		 // if == tr.lightCount, already added to the litsurf list for the current light
 #endif					 // USE_PMLIGHT
-	surfaceType_t *data; // any of srf*_t
 } msurface_t;
+
+static_assert(sizeof(drawSurf_t) == 16, "drawSurf_t should stay compact on 64-bit builds");
+#ifdef USE_PMLIGHT
+static_assert(sizeof(msurface_t) <= 32, "msurface_t grew; keep traversal hot-set compact");
+#else
+static_assert(sizeof(msurface_t) <= 24, "msurface_t grew; keep traversal hot-set compact");
+#endif
 
 typedef struct mnode_s
 {
