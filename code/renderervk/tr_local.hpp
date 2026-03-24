@@ -1069,23 +1069,15 @@ constexpr int SIDE_ON = 2;
 
 typedef struct msurface_s
 {
-	// Hot fields used during traversal / cull / draw-surf emission first.
+	// Immutable hot fields used during traversal / cull / draw-surf emission.
+	// Per-view / per-light mutable markers live in side arrays to keep this record compact.
 	struct shader_s *shader;
 	surfaceType_t *data; // any of srf*_t
-	int viewCount; // if == tr.viewCount, already added
 	int fogIndex;
-#ifdef USE_PMLIGHT
-	int vcVisible;		 // if == tr.viewCount, is actually VISIBLE in this frame, i.e. passed facecull and has been added to the drawsurf list
-	int lightCount;		 // if == tr.lightCount, already added to the litsurf list for the current light
-#endif					 // USE_PMLIGHT
 } msurface_t;
 
 static_assert(sizeof(drawSurf_t) == 16, "drawSurf_t should stay compact on 64-bit builds");
-#ifdef USE_PMLIGHT
-static_assert(sizeof(msurface_t) <= 32, "msurface_t grew; keep traversal hot-set compact");
-#else
 static_assert(sizeof(msurface_t) <= 24, "msurface_t grew; keep traversal hot-set compact");
-#endif
 
 typedef struct mnode_s
 {

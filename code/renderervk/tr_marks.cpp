@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_marks.hpp"
 #include "math.hpp"
+#include "tr_world.hpp"
 
 constexpr int MAX_VERTS_ON_POLY = 64;
 
@@ -181,7 +182,7 @@ static void R_BoxSurfaces_r(mnode_t *node, const vec3_t &mins, const vec3_t &max
 		// check if the surface has NOIMPACT or NOMARKS set
 		if ((surf->shader->surfaceFlags & (SURF_NOIMPACT | SURF_NOMARKS)) || (surf->shader->contentFlags & CONTENTS_FOG))
 		{
-			surf->viewCount = tr.viewCount;
+			R_SurfaceViewCount(*surf) = static_cast<std::uint32_t>(tr.viewCount);
 		}
 		// extra check for surfaces to avoid list overflows
 		else if (*(surf->data) == surfaceType_t::SF_FACE)
@@ -190,22 +191,22 @@ static void R_BoxSurfaces_r(mnode_t *node, const vec3_t &mins, const vec3_t &max
 			s = BoxOnPlaneSide_cpp(mins, maxs, ((srfSurfaceFace_t *)surf->data)->plane);
 			if (s == 1 || s == 2)
 			{
-				surf->viewCount = tr.viewCount;
+				R_SurfaceViewCount(*surf) = static_cast<std::uint32_t>(tr.viewCount);
 			}
 			else if (DotProduct(((srfSurfaceFace_t *)surf->data)->plane.normal, dir) > -0.5)
 			{
 				// don't add faces that make sharp angles with the projection direction
-				surf->viewCount = tr.viewCount;
+				R_SurfaceViewCount(*surf) = static_cast<std::uint32_t>(tr.viewCount);
 			}
 		}
 		else if (*(surfaceType_t *)(surf->data) != surfaceType_t::SF_GRID &&
 				 *(surfaceType_t *)(surf->data) != surfaceType_t::SF_TRIANGLES)
-			surf->viewCount = tr.viewCount;
+			R_SurfaceViewCount(*surf) = static_cast<std::uint32_t>(tr.viewCount);
 		// check the viewCount because the surface may have
 		// already been added if it spans multiple leafs
-		if (surf->viewCount != tr.viewCount)
+		if (R_SurfaceViewCount(*surf) != static_cast<std::uint32_t>(tr.viewCount))
 		{
-			surf->viewCount = tr.viewCount;
+			R_SurfaceViewCount(*surf) = static_cast<std::uint32_t>(tr.viewCount);
 			list[*listlength] = (surfaceType_t *)surf->data;
 			(*listlength)++;
 		}
@@ -346,6 +347,8 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 	VectorInverse(normals[numPoints + 1]);
 	dists[numPoints + 1] = DotProduct(normals[numPoints + 1], points[0]) - 20;
 	numPlanes = numPoints + 2;
+
+	R_EnsureSurfaceRuntimeState();
 
 	numsurfaces = 0;
 	R_BoxSurfaces_r(tr.world->nodes, mins, maxs, surfaces, 64, &numsurfaces, projectionDir);

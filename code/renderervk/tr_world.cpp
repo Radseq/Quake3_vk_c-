@@ -25,6 +25,74 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_model.hpp"
 #include "math.hpp"
 
+std::uint32_t *tr_surfaceViewCounts = nullptr;
+#ifdef USE_PMLIGHT
+std::uint32_t *tr_surfaceVisibleCounts = nullptr;
+std::uint32_t *tr_surfaceLightCounts = nullptr;
+#endif
+
+ID_INLINE std::size_t R_SurfaceRuntimeIndex(const msurface_t& surf) noexcept
+{
+	return static_cast<std::size_t>(&surf - tr.world->surfaces);
+}
+
+ID_INLINE std::uint32_t& R_SurfaceViewCount(msurface_t& surf) noexcept
+{
+	return tr_surfaceViewCounts[R_SurfaceRuntimeIndex(surf)];
+}
+
+#ifdef USE_PMLIGHT
+ID_INLINE std::uint32_t& R_SurfaceVisibleCount(msurface_t& surf) noexcept
+{
+	return tr_surfaceVisibleCounts[R_SurfaceRuntimeIndex(surf)];
+}
+
+ID_INLINE std::uint32_t& R_SurfaceLightCount(msurface_t& surf) noexcept
+{
+	return tr_surfaceLightCounts[R_SurfaceRuntimeIndex(surf)];
+}
+#endif
+
+namespace
+{
+	world_t *s_surfaceRuntimeWorld = nullptr;
+}
+
+void R_EnsureSurfaceRuntimeState()
+{
+	if (!tr.world)
+	{
+		return;
+	}
+
+	if (s_surfaceRuntimeWorld == tr.world && tr_surfaceViewCounts)
+	{
+		return;
+	}
+
+	const std::size_t count = static_cast<std::size_t>(tr.world->numsurfaces);
+	if (count == 0)
+	{
+		tr_surfaceViewCounts = nullptr;
+#ifdef USE_PMLIGHT
+		tr_surfaceVisibleCounts = nullptr;
+		tr_surfaceLightCounts = nullptr;
+#endif
+		s_surfaceRuntimeWorld = tr.world;
+		return;
+	}
+
+	tr_surfaceViewCounts = static_cast<std::uint32_t *>(ri.Hunk_Alloc(count * sizeof(std::uint32_t), h_low));
+	Com_Memset(tr_surfaceViewCounts, 0, count * sizeof(std::uint32_t));
+#ifdef USE_PMLIGHT
+	tr_surfaceVisibleCounts = static_cast<std::uint32_t *>(ri.Hunk_Alloc(count * sizeof(std::uint32_t), h_low));
+	tr_surfaceLightCounts = static_cast<std::uint32_t *>(ri.Hunk_Alloc(count * sizeof(std::uint32_t), h_low));
+	Com_Memset(tr_surfaceVisibleCounts, 0, count * sizeof(std::uint32_t));
+	Com_Memset(tr_surfaceLightCounts, 0, count * sizeof(std::uint32_t));
+#endif
+	s_surfaceRuntimeWorld = tr.world;
+}
+
 /*
 =================
 R_CullTriSurf
@@ -385,12 +453,12 @@ R_AddWorldSurface
 */
 static void R_AddWorldSurface(msurface_t &surf, int dlightBits)
 {
-	if (surf.viewCount == tr.viewCount)
+	if (R_SurfaceViewCount(surf) == static_cast<std::uint32_t>(tr.viewCount))
 	{
 		return; // already in this view
 	}
 
-	surf.viewCount = tr.viewCount;
+	R_SurfaceViewCount(surf) = static_cast<std::uint32_t>(tr.viewCount);
 	// FIXME: bmodel fog?
 
 	// try to cull before dlighting or adding
@@ -404,7 +472,7 @@ static void R_AddWorldSurface(msurface_t &surf, int dlightBits)
 	if (r_dlightMode->integer)
 #endif
 	{
-		surf.vcVisible = tr.viewCount;
+		R_SurfaceVisibleCount(surf) = static_cast<std::uint32_t>(tr.viewCount);
 		R_AddDrawSurf(*surf.data, *surf.shader, surf.fogIndex, 0);
 		return;
 	}
@@ -439,7 +507,7 @@ static void R_AddLitSurface(msurface_t &surf, const dlight_t &light)
 	// because that's set to indicate that it's BEEN vis tested at all, to avoid
 	// repeated vis tests, not whether it actually PASSED the vis test or not
 	// only light surfaces that are GENUINELY visible, as opposed to merely in a visible LEAF
-	if (surf.vcVisible != tr.viewCount)
+	if (R_SurfaceVisibleCount(surf) != static_cast<std::uint32_t>(tr.viewCount))
 	{
 		return;
 	}
@@ -449,10 +517,10 @@ static void R_AddLitSurface(msurface_t &surf, const dlight_t &light)
 		return;
 	}
 
-	if (surf.lightCount == tr.lightCount)
+	if (R_SurfaceLightCount(surf) == static_cast<std::uint32_t>(tr.lightCount))
 		return;
 
-	surf.lightCount = tr.lightCount;
+	R_SurfaceLightCount(surf) = static_cast<std::uint32_t>(tr.lightCount);
 
 	if (R_LightCullSurface(*surf.data, light))
 	{
@@ -553,6 +621,8 @@ R_AddBrushModelSurfaces
 */
 void R_AddBrushModelSurfaces(trRefEntity_t &ent)
 {
+	R_EnsureSurfaceRuntimeState();
+
 	int clip;
 	const model_t *pModel;
 	uint32_t i;
@@ -959,6 +1029,8 @@ R_AddWorldSurfaces
 */
 void R_AddWorldSurfaces(void)
 {
+	R_EnsureSurfaceRuntimeState();
+
 	if (!r_drawworld->integer)
 	{
 		return;
