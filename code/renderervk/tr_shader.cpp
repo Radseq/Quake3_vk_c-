@@ -342,6 +342,139 @@ static void ParseWaveForm(const char** text, waveForm_t& wave)
 	wave.frequency = Q_atof_cpp(token);
 }
 
+namespace
+{
+	// valid only until next COM_ParseExt_cpp call
+	static ID_INLINE std::string_view ParseTexModToken(const char** text) noexcept
+	{
+		return COM_ParseExt_cpp(text, false);
+	}
+
+	static ID_INLINE void PrintMissingTcModParms(std::string_view what) noexcept
+	{
+		ri.Printf(
+			PRINT_WARNING,
+			"WARNING: missing %.*s parms in shader '%s'\n",
+			(int)what.size(), what.data(), shader.name);
+	}
+
+	static ID_INLINE bool ParseTexModFloat(
+		const char** text,
+		float& out,
+		std::string_view what) noexcept
+	{
+		const std::string_view t = ParseTexModToken(text);
+		if (t.empty())
+		{
+			PrintMissingTcModParms(what);
+			return false;
+		}
+
+		out = Q_atof_cpp(t);
+		return true;
+	}
+
+	static ID_INLINE bool ParseTexModGen(
+		const char** text,
+		genFunc_t& out,
+		std::string_view what) noexcept
+	{
+		const std::string_view t = ParseTexModToken(text);
+		if (t.empty())
+		{
+			PrintMissingTcModParms(what);
+			return false;
+		}
+
+		out = NameToGenFunc(t);
+		return true;
+	}
+
+	static bool ParseTexModTurb(const char** text, texModInfo_t& tmi) noexcept
+	{
+		if (!ParseTexModFloat(text, tmi.wave.base, "turb")) return false;
+		if (!ParseTexModFloat(text, tmi.wave.amplitude, "turb")) return false;
+		if (!ParseTexModFloat(text, tmi.wave.phase, "turb")) return false;
+		if (!ParseTexModFloat(text, tmi.wave.frequency, "turb")) return false;
+
+		tmi.type = texMod_t::TMOD_TURBULENT;
+		return true;
+	}
+
+	static bool ParseTexModScale(const char** text, texModInfo_t& tmi) noexcept
+	{
+		if (!ParseTexModFloat(text, tmi.scale[0], "scale")) return false;
+		if (!ParseTexModFloat(text, tmi.scale[1], "scale")) return false;
+
+		tmi.type = texMod_t::TMOD_SCALE;
+		return true;
+	}
+
+	static bool ParseTexModScroll(const char** text, texModInfo_t& tmi) noexcept
+	{
+		if (!ParseTexModFloat(text, tmi.scroll[0], "scroll")) return false;
+		if (!ParseTexModFloat(text, tmi.scroll[1], "scroll")) return false;
+
+		tmi.type = texMod_t::TMOD_SCROLL;
+		return true;
+	}
+
+	static bool ParseTexModStretch(const char** text, texModInfo_t& tmi) noexcept
+	{
+		if (!ParseTexModGen(text, tmi.wave.func, "stretch")) return false;
+		if (!ParseTexModFloat(text, tmi.wave.base, "stretch")) return false;
+		if (!ParseTexModFloat(text, tmi.wave.amplitude, "stretch")) return false;
+		if (!ParseTexModFloat(text, tmi.wave.phase, "stretch")) return false;
+		if (!ParseTexModFloat(text, tmi.wave.frequency, "stretch")) return false;
+
+		tmi.type = texMod_t::TMOD_STRETCH;
+		return true;
+	}
+
+	static bool ParseTexModTransform(const char** text, texModInfo_t& tmi) noexcept
+	{
+		if (!ParseTexModFloat(text, tmi.matrix[0][0], "transform")) return false;
+		if (!ParseTexModFloat(text, tmi.matrix[0][1], "transform")) return false;
+		if (!ParseTexModFloat(text, tmi.matrix[1][0], "transform")) return false;
+		if (!ParseTexModFloat(text, tmi.matrix[1][1], "transform")) return false;
+		if (!ParseTexModFloat(text, tmi.translate[0], "transform")) return false;
+		if (!ParseTexModFloat(text, tmi.translate[1], "transform")) return false;
+
+		tmi.type = texMod_t::TMOD_TRANSFORM;
+		return true;
+	}
+
+	static bool ParseTexModRotate(const char** text, texModInfo_t& tmi) noexcept
+	{
+		if (!ParseTexModFloat(text, tmi.rotateSpeed, "rotate")) return false;
+
+		tmi.type = texMod_t::TMOD_ROTATE;
+		return true;
+	}
+
+	static bool ParseTexModEntityTranslate(const char**, texModInfo_t& tmi) noexcept
+	{
+		tmi.type = texMod_t::TMOD_ENTITY_TRANSLATE;
+		return true;
+	}
+
+	struct TexModHandler
+	{
+		std::string_view name;
+		bool (*fn)(const char**, texModInfo_t&) noexcept;
+	};
+
+	constexpr std::array<TexModHandler, 7> kTexModHandlers{ {
+		{ "turb",            &ParseTexModTurb },
+		{ "scale",           &ParseTexModScale },
+		{ "scroll",          &ParseTexModScroll },
+		{ "stretch",         &ParseTexModStretch },
+		{ "transform",       &ParseTexModTransform },
+		{ "rotate",          &ParseTexModRotate },
+		{ "entityTranslate", &ParseTexModEntityTranslate },
+	} };
+}
+
 /*
 ===================
 ParseTexMod
@@ -358,215 +491,615 @@ static void ParseTexMod(const char* _text, shaderStage_t& stage)
 	}
 
 	texModInfo_t& tmi = stage.bundle[0].texMods[stage.bundle[0].numTexMods];
-	stage.bundle[0].numTexMods++;
+	++stage.bundle[0].numTexMods;
 
-	std::string_view token = COM_ParseExt_cpp(text, false);
-
-	//
-	// turb
-	//
-	if (!Q_stricmp_cpp(token, "turb"))
+	const std::string_view token = ParseTexModToken(text);
+	if (token.empty())
 	{
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod turb parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.wave.base = Q_atof_cpp(token);
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod turb in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.wave.amplitude = Q_atof_cpp(token);
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod turb in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.wave.phase = Q_atof_cpp(token);
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod turb in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.wave.frequency = Q_atof_cpp(token);
-
-		tmi.type = texMod_t::TMOD_TURBULENT;
+		ri.Printf(
+			PRINT_WARNING,
+			"WARNING: unknown tcMod '%.*s' in shader '%s'\n",
+			(int)token.size(), token.data(), shader.name);
+		return;
 	}
-	//
-	// scale
-	//
-	else if (!Q_stricmp_cpp(token, "scale"))
-	{
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing scale parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.scale[0] = Q_atof_cpp(token);
 
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
+	for (const auto& h : kTexModHandlers)
+	{
+		if (!Q_stricmp_cpp(token, h.name))
 		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing scale parms in shader '%s'\n", shader.name);
+			h.fn(text, tmi);
 			return;
 		}
-		tmi.scale[1] = Q_atof_cpp(token);
-		tmi.type = texMod_t::TMOD_SCALE;
 	}
-	//
-	// scroll
-	//
-	else if (!Q_stricmp_cpp(token, "scroll"))
+
+	ri.Printf(
+		PRINT_WARNING,
+		"WARNING: unknown tcMod '%.*s' in shader '%s'\n",
+		(int)token.size(), token.data(), shader.name);
+}
+
+
+namespace
+{
+	// IMPORTANT:
+	// returned token view is valid only until next COM_ParseExt_cpp call.
+	static ID_INLINE std::string_view StageParseToken(const char** text, const bool allowLineBreaks) noexcept
 	{
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing scale scroll parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.scroll[0] = Q_atof_cpp(token);
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing scale scroll parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.scroll[1] = Q_atof_cpp(token);
-		tmi.type = texMod_t::TMOD_SCROLL;
+		return COM_ParseExt_cpp(text, allowLineBreaks);
 	}
-	//
-	// stretch
-	//
-	else if (!Q_stricmp_cpp(token, "stretch"))
+
+	static ID_INLINE void StageWarnMissingParam(const std::string_view what) noexcept
 	{
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.wave.func = NameToGenFunc(token);
-
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.wave.base = Q_atof_cpp(token);
-
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.wave.amplitude = Q_atof_cpp(token);
-
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.wave.phase = Q_atof_cpp(token);
-
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing stretch parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.wave.frequency = Q_atof_cpp(token);
-
-		tmi.type = texMod_t::TMOD_STRETCH;
+		ri.Printf(
+			PRINT_WARNING,
+			"WARNING: missing parameter for '%.*s' in shader '%s'\n",
+			(int)what.size(), what.data(), shader.name);
 	}
-	//
-	// transform
-	//
-	else if (!Q_stricmp_cpp(token, "transform"))
+
+	static ID_INLINE void StageWarnUnknownParam(const std::string_view token) noexcept
 	{
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.matrix[0][0] = Q_atof_cpp(token);
-
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.matrix[0][1] = Q_atof_cpp(token);
-
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.matrix[1][0] = Q_atof_cpp(token);
-
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.matrix[1][1] = Q_atof_cpp(token);
-
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.translate[0] = Q_atof_cpp(token);
-
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing transform parms in shader '%s'\n", shader.name);
-			return;
-		}
-		tmi.translate[1] = Q_atof_cpp(token);
-
-		tmi.type = texMod_t::TMOD_TRANSFORM;
+		ri.Printf(
+			PRINT_WARNING,
+			"WARNING: unknown parameter '%.*s' in shader '%s'\n",
+			(int)token.size(), token.data(), shader.name);
 	}
-	//
-	// rotate
-	//
-	else if (!Q_stricmp_cpp(token, "rotate"))
+
+	static ID_INLINE void StageWarnImageNotFound(const std::string_view token) noexcept
 	{
-		token = COM_ParseExt_cpp(text, false);
+		ri.Printf(
+			PRINT_WARNING,
+			"WARNING: R_FindImageFile could not find '%.*s' in shader '%s'\n",
+			(int)token.size(), token.data(), shader.name);
+	}
+
+	static ID_INLINE std::string_view StageReqToken(const char** text, const std::string_view what) noexcept
+	{
+		const std::string_view t = StageParseToken(text, false);
+		if (t.empty())
+		{
+			StageWarnMissingParam(what);
+		}
+		return t;
+	}
+
+	static ID_INLINE imgFlags_t StageBaseImgFlags() noexcept
+	{
+		return (shader.noMipMaps ? imgFlags_t::IMGFLAG_NONE : imgFlags_t::IMGFLAG_MIPMAP) |
+			(shader.noPicMip ? imgFlags_t::IMGFLAG_NONE : imgFlags_t::IMGFLAG_PICMIP) |
+			(shader.noLightScale ? imgFlags_t::IMGFLAG_NOLIGHTSCALE : imgFlags_t::IMGFLAG_NONE);
+	}
+
+	enum class StageDirective : std::uint8_t
+	{
+		Unknown,
+		Map,
+		ClampMap,
+		ScreenMap,
+		AnimMap,
+		VideoMap,
+		AlphaFunc,
+		DepthFunc,
+		Detail,
+		BlendFunc,
+		RgbGen,
+		AlphaGen,
+		TcGen,
+		TcMod,
+		DepthWrite,
+		DepthFragment,
+		Dlight
+	};
+
+	static StageDirective StageDirectiveFromToken(const std::string_view token) noexcept
+	{
+		static constexpr auto lut = std::to_array<std::pair<std::string_view, StageDirective>>({
+			{ "map",           StageDirective::Map },
+			{ "clampmap",      StageDirective::ClampMap },
+			{ "screenMap",     StageDirective::ScreenMap },
+			{ "animMap",       StageDirective::AnimMap },
+			{ "videoMap",      StageDirective::VideoMap },
+			{ "alphaFunc",     StageDirective::AlphaFunc },
+			{ "depthfunc",     StageDirective::DepthFunc },
+			{ "detail",        StageDirective::Detail },
+			{ "blendfunc",     StageDirective::BlendFunc },
+			{ "rgbGen",        StageDirective::RgbGen },
+			{ "alphaGen",      StageDirective::AlphaGen },
+			{ "tcGen",         StageDirective::TcGen },
+			{ "texgen",        StageDirective::TcGen },
+			{ "tcMod",         StageDirective::TcMod },
+			{ "depthwrite",    StageDirective::DepthWrite },
+			{ "depthFragment", StageDirective::DepthFragment },
+			{ "dlight",        StageDirective::Dlight },
+			});
+
+		for (const auto& [name, value] : lut)
+		{
+			if (!Q_stricmp_cpp(token, name))
+			{
+				return value;
+			}
+		}
+
+		return StageDirective::Unknown;
+	}
+
+	static bool ParseStageMapDirective(
+		shaderStage_t& stage,
+		const char** text,
+		const imgFlags_t baseImgFlags) noexcept
+	{
+		const std::string_view token = StageReqToken(text, "map");
+		if (token.empty())
+			return false;
+
+		if (!Q_stricmp_cpp(token, "$whiteimage"))
+		{
+			stage.bundle[0].image[0] = tr.whiteImage;
+			return true;
+		}
+
+		if (!Q_stricmp_cpp(token, "$lightmap"))
+		{
+			stage.bundle[0].lightmap = LIGHTMAP_INDEX_SHADER;
+
+			if (shader.lightmapIndex < 0 || !tr.lightmaps)
+				stage.bundle[0].image[0] = tr.whiteImage;
+			else
+				stage.bundle[0].image[0] = tr.lightmaps[shader.lightmapIndex];
+
+			return true;
+		}
+
+		if (Q_stricmpn_cpp(token, "*lightmap", 9) == 0 && token.size() > 9 && token[9] >= '0' && token[9] <= '9')
+		{
+			const std::string_view subToken = token.substr(9);
+			const int lightmapIndex = atoi_from_view(subToken);
+
+			if (lightmapIndex < 0 || tr.lightmaps == nullptr)
+			{
+				stage.bundle[0].image[0] = tr.whiteImage;
+			}
+			else
+			{
+				stage.bundle[0].lightmap = LIGHTMAP_INDEX_OFFSET + lightmapIndex;
+				stage.bundle[0].image[0] = tr.lightmaps[lightmapIndex % tr.lightmapMod];
+			}
+
+			return true;
+		}
+
+		stage.bundle[0].image[0] = R_FindImageFile(token, baseImgFlags);
+		if (!stage.bundle[0].image[0])
+		{
+			StageWarnImageNotFound(token);
+			return false;
+		}
+
+		return true;
+	}
+
+	static bool ParseStageClampOrScreenMapDirective(
+		shaderStage_t& stage,
+		const char** text,
+		const imgFlags_t baseImgFlags,
+		const bool isScreenMap) noexcept
+	{
+		imgFlags_t extraFlags = imgFlags_t::IMGFLAG_NONE;
+
+		if (isScreenMap)
+		{
+			if (vk_inst.fboActive)
+			{
+				stage.bundle[0].isScreenMap = 1;
+				shader.hasScreenMap = 1;
+			}
+		}
+		else
+		{
+			extraFlags = imgFlags_t::IMGFLAG_CLAMPTOEDGE;
+		}
+
+		const std::string_view what = isScreenMap ? std::string_view("screenMap") : std::string_view("clampMap");
+		const std::string_view token = StageReqToken(text, what);
+		if (token.empty())
+			return false;
+
+		stage.bundle[0].image[0] =
+			R_FindImageFile(token, static_cast<imgFlags_t>(baseImgFlags | extraFlags));
+
+		if (!stage.bundle[0].image[0])
+		{
+			StageWarnImageNotFound(token);
+			return false;
+		}
+
+		return true;
+	}
+
+	static bool ParseStageAnimMapDirective(
+		shaderStage_t& stage,
+		const char** text,
+		const imgFlags_t baseImgFlags) noexcept
+	{
+		const int maxAnimations = s_extendedShader ? MAX_IMAGE_ANIMATIONS : MAX_IMAGE_ANIMATIONS_VQ3;
+		int totalImages = 0;
+
+		std::string_view token = StageReqToken(text, "animMap");
+		if (token.empty())
+			return false;
+
+		stage.bundle[0].imageAnimationSpeed = Q_atof_cpp(token);
+
+		while (true)
+		{
+			token = StageParseToken(text, false);
+			if (token.empty())
+				break;
+
+			const int num = stage.bundle[0].numImageAnimations;
+			if (num < maxAnimations)
+			{
+				stage.bundle[0].image[num] = R_FindImageFile(token, baseImgFlags);
+				if (!stage.bundle[0].image[num])
+				{
+					StageWarnImageNotFound(token);
+					return false;
+				}
+				++stage.bundle[0].numImageAnimations;
+			}
+
+			++totalImages;
+		}
+
+		if (totalImages > maxAnimations)
+		{
+			ri.Printf(
+				PRINT_WARNING,
+				"WARNING: ignoring excess images for 'animMap' (found %d, max is %d) in shader '%s'\n",
+				totalImages, maxAnimations, shader.name);
+		}
+
+		return true;
+	}
+
+	static bool ParseStageVideoMapDirective(shaderStage_t& stage, const char** text) noexcept
+	{
+		const std::string_view token = StageReqToken(text, "videoMap");
+		if (token.empty())
+			return false;
+
+		const int handle = ri.CIN_PlayCinematic(token.data(), 0, 0, 256, 256, (CIN_loop | CIN_silent | CIN_shader));
+		if (handle == -1)
+		{
+			ri.Printf(
+				PRINT_WARNING,
+				"WARNING: could not load '%.*s' for 'videoMap' keyword in shader '%s'\n",
+				(int)token.size(), token.data(), shader.name);
+			return true;
+		}
+
+		if (!tr.scratchImage[handle])
+		{
+			tr.scratchImage[handle] = R_CreateImage(
+				va_cpp("*scratch%i", handle),
+				{},
+				nullptr,
+				256,
+				256,
+				static_cast<imgFlags_t>(imgFlags_t::IMGFLAG_CLAMPTOEDGE | imgFlags_t::IMGFLAG_RGB | imgFlags_t::IMGFLAG_NOSCALE));
+		}
+
+		stage.bundle[0].isVideoMap = true;
+		stage.bundle[0].videoMapHandle = handle;
+		stage.bundle[0].image[0] = tr.scratchImage[handle];
+		return true;
+	}
+
+	static bool ParseStageAlphaFuncDirective(int& atestBits, const char** text) noexcept
+	{
+		const std::string_view token = StageReqToken(text, "alphaFunc");
+		if (token.empty())
+			return false;
+
+		atestBits = NameToAFunc(token);
+		return true;
+	}
+
+	static bool ParseStageDepthFuncDirective(int& depthFuncBits, const char** text) noexcept
+	{
+		const std::string_view token = StageReqToken(text, "depthfunc");
+		if (token.empty())
+			return false;
+
+		static constexpr auto lut = std::to_array<std::pair<std::string_view, int>>({
+			{ "lequal", 0 },
+			{ "equal",  GLS_DEPTHFUNC_EQUAL },
+			});
+
+		for (const auto& [name, value] : lut)
+		{
+			if (!Q_stricmp_cpp(token, name))
+			{
+				depthFuncBits = value;
+				return true;
+			}
+		}
+
+		ri.Printf(
+			PRINT_WARNING,
+			"WARNING: unknown depthfunc '%.*s' in shader '%s'\n",
+			(int)token.size(), token.data(), shader.name);
+		return true;
+	}
+
+	static bool ParseStageBlendFuncDirective(
+		int& blendSrcBits,
+		int& blendDstBits,
+		int& depthMaskBits,
+		const bool depthMaskExplicit,
+		const char** text) noexcept
+	{
+		std::string_view token = StageReqToken(text, "blendFunc");
+		if (token.empty())
+			return true;
+
+		static constexpr auto simpleLut = std::to_array<std::pair<std::string_view, std::pair<int, int>>>({
+			{ "add",    { GLS_SRCBLEND_ONE,        GLS_DSTBLEND_ONE } },
+			{ "filter", { GLS_SRCBLEND_DST_COLOR,  GLS_DSTBLEND_ZERO } },
+			{ "blend",  { GLS_SRCBLEND_SRC_ALPHA,  GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA } },
+			});
+
+		for (const auto& [name, bits] : simpleLut)
+		{
+			if (!Q_stricmp_cpp(token, name))
+			{
+				blendSrcBits = bits.first;
+				blendDstBits = bits.second;
+
+				if (!depthMaskExplicit)
+					depthMaskBits = 0;
+
+				return true;
+			}
+		}
+
+		blendSrcBits = NameToSrcBlendMode(token);
+
+		token = StageReqToken(text, "blendFunc");
 		if (token.empty())
 		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing tcMod rotate parms in shader '%s'\n", shader.name);
-			return;
+			blendDstBits = GLS_DSTBLEND_ONE;
+			if (!depthMaskExplicit)
+				depthMaskBits = 0;
+			return true;
 		}
-		tmi.rotateSpeed = Q_atof_cpp(token);
-		tmi.type = texMod_t::TMOD_ROTATE;
+
+		blendDstBits = NameToDstBlendMode(token);
+
+		if (!depthMaskExplicit)
+			depthMaskBits = 0;
+
+		return true;
 	}
-	//
-	// entityTranslate
-	//
-	else if (!Q_stricmp_cpp(token, "entityTranslate"))
+
+	static bool ParseStageRgbGenDirective(shaderStage_t& stage, const char** text) noexcept
 	{
-		tmi.type = texMod_t::TMOD_ENTITY_TRANSLATE;
+		const std::string_view token = StageReqToken(text, "rgbGen");
+		if (token.empty())
+			return true;
+
+		if (!Q_stricmp_cpp(token, "wave"))
+		{
+			ParseWaveForm(text, stage.bundle[0].rgbWave);
+			stage.bundle[0].rgbGen = colorGen_t::CGEN_WAVEFORM;
+			return true;
+		}
+
+		if (!Q_stricmp_cpp(token, "const"))
+		{
+			vec3_t color{};
+			ParseVector(text, 3, color);
+			stage.bundle[0].constantColor.rgba[0] = 255 * color[0];
+			stage.bundle[0].constantColor.rgba[1] = 255 * color[1];
+			stage.bundle[0].constantColor.rgba[2] = 255 * color[2];
+			stage.bundle[0].rgbGen = colorGen_t::CGEN_CONST;
+			return true;
+		}
+
+		static constexpr auto lut = std::to_array<std::pair<std::string_view, colorGen_t>>({
+			{ "identity",          colorGen_t::CGEN_IDENTITY },
+			{ "identityLighting",  colorGen_t::CGEN_IDENTITY_LIGHTING },
+			{ "entity",            colorGen_t::CGEN_ENTITY },
+			{ "oneMinusEntity",    colorGen_t::CGEN_ONE_MINUS_ENTITY },
+			{ "vertex",            colorGen_t::CGEN_VERTEX },
+			{ "exactVertex",       colorGen_t::CGEN_EXACT_VERTEX },
+			{ "lightingDiffuse",   colorGen_t::CGEN_LIGHTING_DIFFUSE },
+			{ "oneMinusVertex",    colorGen_t::CGEN_ONE_MINUS_VERTEX },
+			});
+
+		for (const auto& [name, value] : lut)
+		{
+			if (!Q_stricmp_cpp(token, name))
+			{
+				stage.bundle[0].rgbGen = value;
+
+				if (value == colorGen_t::CGEN_VERTEX && stage.bundle[0].alphaGen == alphaGen_t::AGEN_IDENTITY)
+				{
+					stage.bundle[0].alphaGen = alphaGen_t::AGEN_VERTEX;
+				}
+
+				return true;
+			}
+		}
+
+		ri.Printf(
+			PRINT_WARNING,
+			"WARNING: unknown rgbGen parameter '%.*s' in shader '%s'\n",
+			(int)token.size(), token.data(), shader.name);
+		return true;
 	}
-	else
+
+	static bool ParseStageAlphaGenDirective(shaderStage_t& stage, const char** text) noexcept
 	{
-		ri.Printf(PRINT_WARNING, "WARNING: unknown tcMod '%s' in shader '%s'\n", token.data(), shader.name);
+		std::string_view token = StageReqToken(text, "alphaGen");
+		if (token.empty())
+			return true;
+
+		if (!Q_stricmp_cpp(token, "wave"))
+		{
+			ParseWaveForm(text, stage.bundle[0].alphaWave);
+			stage.bundle[0].alphaGen = alphaGen_t::AGEN_WAVEFORM;
+			return true;
+		}
+
+		if (!Q_stricmp_cpp(token, "const"))
+		{
+			token = StageReqToken(text, "alphaGen const");
+			if (token.empty())
+			{
+				ri.Printf(PRINT_WARNING, "WARNING: missing parameters for alphaGen const in shader '%s'\n", shader.name);
+				return true;
+			}
+
+			stage.bundle[0].constantColor.rgba[3] = 255 * Q_atof_cpp(token);
+			stage.bundle[0].alphaGen = alphaGen_t::AGEN_CONST;
+			return true;
+		}
+
+		if (!Q_stricmp_cpp(token, "portal"))
+		{
+			stage.bundle[0].alphaGen = alphaGen_t::AGEN_PORTAL;
+
+			token = StageReqToken(text, "alphaGen portal");
+			if (token.empty())
+			{
+				shader.portalRange = 256.0f;
+				ri.Printf(
+					PRINT_WARNING,
+					"WARNING: missing range parameter for alphaGen portal in shader '%s', defaulting to 256\n",
+					shader.name);
+			}
+			else
+			{
+				shader.portalRange = Q_atof_cpp(token);
+				shader.portalRangeR = (shader.portalRange < 0.001f) ? 0.0f : (1.0f / shader.portalRange);
+			}
+
+			return true;
+		}
+
+		static constexpr auto lut = std::to_array<std::pair<std::string_view, alphaGen_t>>({
+			{ "identity",          alphaGen_t::AGEN_IDENTITY },
+			{ "entity",            alphaGen_t::AGEN_ENTITY },
+			{ "oneMinusEntity",    alphaGen_t::AGEN_ONE_MINUS_ENTITY },
+			{ "vertex",            alphaGen_t::AGEN_VERTEX },
+			{ "lightingSpecular",  alphaGen_t::AGEN_LIGHTING_SPECULAR },
+			{ "oneMinusVertex",    alphaGen_t::AGEN_ONE_MINUS_VERTEX },
+			});
+
+		for (const auto& [name, value] : lut)
+		{
+			if (!Q_stricmp_cpp(token, name))
+			{
+				stage.bundle[0].alphaGen = value;
+				return true;
+			}
+		}
+
+		ri.Printf(
+			PRINT_WARNING,
+			"WARNING: unknown alphaGen parameter '%.*s' in shader '%s'\n",
+			(int)token.size(), token.data(), shader.name);
+		return true;
+	}
+
+	static bool ParseStageTcGenDirective(shaderStage_t& stage, const char** text) noexcept
+	{
+		std::string_view token = StageReqToken(text, "tcGen");
+		if (token.empty())
+			return true;
+
+		if (!Q_stricmp_cpp(token, "environment"))
+		{
+			const char* saved = *text;
+			stage.bundle[0].tcGen = texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED;
+
+			const std::string_view maybeFp = StageParseToken(text, false);
+			if (!Q_stricmp_cpp(maybeFp, "firstPerson"))
+			{
+				stage.bundle[0].tcGen = texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP;
+			}
+			else
+			{
+				*text = saved;
+			}
+
+			return true;
+		}
+
+		if (!Q_stricmp_cpp(token, "vector"))
+		{
+			ParseVector(text, 3, stage.bundle[0].tcGenVectors[0]);
+			ParseVector(text, 3, stage.bundle[0].tcGenVectors[1]);
+			stage.bundle[0].tcGen = texCoordGen_t::TCGEN_VECTOR;
+			return true;
+		}
+
+		static constexpr auto lut = std::to_array<std::pair<std::string_view, texCoordGen_t>>({
+			{ "lightmap", texCoordGen_t::TCGEN_LIGHTMAP },
+			{ "texture",  texCoordGen_t::TCGEN_TEXTURE },
+			{ "base",     texCoordGen_t::TCGEN_TEXTURE },
+			});
+
+		for (const auto& [name, value] : lut)
+		{
+			if (!Q_stricmp_cpp(token, name))
+			{
+				stage.bundle[0].tcGen = value;
+				return true;
+			}
+		}
+
+		ri.Printf(
+			PRINT_WARNING,
+			"WARNING: unknown tcGen/texgen parm '%.*s' in shader '%s'\n",
+			(int)token.size(), token.data(), shader.name);
+		return true;
+	}
+
+	static void ParseStageTcModDirective(shaderStage_t& stage, const char** text)
+	{
+		char buffer[1024];
+		char* dst = buffer;
+		*dst = '\0';
+
+		while (true)
+		{
+			const std::string_view token = StageParseToken(text, false);
+			if (token.empty())
+			{
+				break;
+			}
+
+			const std::size_t used = static_cast<std::size_t>(dst - buffer);
+			const std::size_t needed = token.size() + 1;
+
+			if (used + needed >= sizeof(buffer))
+			{
+				ri.Printf(
+					PRINT_WARNING,
+					"WARNING: tcMod line too long in shader '%s'\n",
+					shader.name);
+				break;
+			}
+
+			std::memcpy(dst, token.data(), token.size());
+			dst += token.size();
+			*dst++ = ' ';
+			*dst = '\0';
+		}
+
+		ParseTexMod(buffer, stage);
 	}
 }
 
@@ -577,30 +1110,20 @@ ParseStage
 */
 static bool ParseStage(shaderStage_t& stage, const char** text)
 {
-	auto req = [&](std::string_view what) -> std::string_view {
-		std::string_view t = COM_ParseExt_cpp(text, false);
-		if (t.empty()) {
-			ri.Printf(PRINT_WARNING, "WARNING: missing parameter for '%s' in shader '%s'\n",
-				what.data(), shader.name);
-		}
-		return t;
-		};
+	const imgFlags_t baseImgFlags = StageBaseImgFlags();
 
-	// Precompute base flags once (then OR in per-directive flags like CLAMPTOEDGE)
-	const imgFlags_t baseImgFlags =
-		(shader.noMipMaps ? imgFlags_t::IMGFLAG_NONE : imgFlags_t::IMGFLAG_MIPMAP) |
-		(shader.noPicMip ? imgFlags_t::IMGFLAG_NONE : imgFlags_t::IMGFLAG_PICMIP) |
-		(shader.noLightScale ? imgFlags_t::IMGFLAG_NOLIGHTSCALE : imgFlags_t::IMGFLAG_NONE);
-
-	std::string_view token;
-	int i, depthMaskBits = GLS_DEPTHMASK_TRUE, blendSrcBits = 0, blendDstBits = 0, atestBits = 0, depthFuncBits = 0;
+	int depthMaskBits = GLS_DEPTHMASK_TRUE;
+	int blendSrcBits = 0;
+	int blendDstBits = 0;
+	int atestBits = 0;
+	int depthFuncBits = 0;
 	bool depthMaskExplicit = false;
 
 	stage.active = false;
 
-	while (1)
+	while (true)
 	{
-		token = COM_ParseExt_cpp(text, true);
+		const std::string_view token = StageParseToken(text, true);
 
 		if (token.empty())
 		{
@@ -612,493 +1135,103 @@ static bool ParseStage(shaderStage_t& stage, const char** text)
 		{
 			break;
 		}
-		//
-		// map <name>
-		//
-		else if (!Q_stricmp_cpp(token, "map"))
+
+		switch (StageDirectiveFromToken(token))
 		{
-			token = req("map");
-			if (token.empty())
+		case StageDirective::Map:
+			if (!ParseStageMapDirective(stage, text, baseImgFlags))
 				return false;
+			break;
 
-			if (!Q_stricmp_cpp(token, "$whiteimage"))
-			{
-				stage.bundle[0].image[0] = tr.whiteImage;
-				continue;
-			}
-			else if (!Q_stricmp_cpp(token, "$lightmap"))
-			{
-				stage.bundle[0].lightmap = LIGHTMAP_INDEX_SHADER; // regular lightmap
-				if (shader.lightmapIndex < 0 || !tr.lightmaps)
-				{
-					stage.bundle[0].image[0] = tr.whiteImage;
-				}
-				else
-				{
-					stage.bundle[0].image[0] = tr.lightmaps[shader.lightmapIndex];
-				}
-				continue;
-			}
-			else if (Q_stricmpn_cpp(token, "*lightmap", 9) == 0 && token[9] >= '0' && token[9] <= '9')
-			{
-				std::string_view sub_token = token.substr(9);
-				const int lightmapIndex = atoi_from_view(sub_token);
-				if (lightmapIndex < 0 || tr.lightmaps == NULL)
-				{
-					stage.bundle[0].image[0] = tr.whiteImage;
-				}
-				else
-				{
-					stage.bundle[0].lightmap = LIGHTMAP_INDEX_OFFSET + lightmapIndex; // custom index
-					stage.bundle[0].image[0] = tr.lightmaps[lightmapIndex % tr.lightmapMod];
-				}
-				continue;
-			}
-			else
-			{
-				stage.bundle[0].image[0] = R_FindImageFile(token, baseImgFlags);
+		case StageDirective::ClampMap:
+			if (!ParseStageClampOrScreenMapDirective(stage, text, baseImgFlags, false))
+				return false;
+			break;
 
-				if (!stage.bundle[0].image[0])
-				{
-					ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n",
-						token.data(), shader.name);
+		case StageDirective::ScreenMap:
+			if (s_extendedShader)
+			{
+				if (!ParseStageClampOrScreenMapDirective(stage, text, baseImgFlags, true))
 					return false;
-				}
+				break;
 			}
-		}
-		//
-		// clampmap <name>
-		//
-		else if (!Q_stricmp_cpp(token, "clampmap") || (!Q_stricmp_cpp(token, "screenMap") && s_extendedShader))
-		{
-			imgFlags_t extraFlags = imgFlags_t::IMGFLAG_NONE;
+			StageWarnUnknownParam(token);
+			return false;
 
-			if (!Q_stricmp_cpp(token, "screenMap"))
-			{
-				if (vk_inst.fboActive)
-				{
-					stage.bundle[0].isScreenMap = 1;
-					shader.hasScreenMap = 1;
-				}
-				// no clamp flag for screenMap (original behavior)
-			}
-			else
-			{
-				extraFlags = imgFlags_t::IMGFLAG_CLAMPTOEDGE;
-			}
-
-			token = req(stage.bundle[0].isScreenMap ? "screenMap" : "clampMap");
-			if (token.empty())
+		case StageDirective::AnimMap:
+			if (!ParseStageAnimMapDirective(stage, text, baseImgFlags))
 				return false;
+			break;
 
-			stage.bundle[0].image[0] = R_FindImageFile(token, static_cast<imgFlags_t>(baseImgFlags | extraFlags));
-
-			if (!stage.bundle[0].image[0])
-			{
-				ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n",
-					token.data(), shader.name);
+		case StageDirective::VideoMap:
+			if (!ParseStageVideoMapDirective(stage, text))
 				return false;
-			}
-		}
-		//
-		// animMap <frequency> <image1> .... <imageN>
-		//
-		else if (!Q_stricmp_cpp(token, "animMap"))
-		{
-			int totalImages = 0;
-			int maxAnimations = s_extendedShader ? MAX_IMAGE_ANIMATIONS : MAX_IMAGE_ANIMATIONS_VQ3;
+			break;
 
-			token = req("animMap");
-			if (token.empty())
+		case StageDirective::AlphaFunc:
+			if (!ParseStageAlphaFuncDirective(atestBits, text))
 				return false;
+			break;
 
-			stage.bundle[0].imageAnimationSpeed = Q_atof_cpp(token);
-
-			// parse up to MAX_IMAGE_ANIMATIONS animations
-			while (1)
-			{
-				int num;
-
-				token = COM_ParseExt_cpp(text, false);
-				if (token.empty())
-				{
-					break;
-				}
-				num = stage.bundle[0].numImageAnimations;
-				if (num < maxAnimations)
-				{
-					stage.bundle[0].image[num] = R_FindImageFile(token, baseImgFlags);
-					if (!stage.bundle[0].image[num])
-					{
-						ri.Printf(PRINT_WARNING, "WARNING: R_FindImageFile could not find '%s' in shader '%s'\n",
-							token.data(), shader.name);
-						return false;
-					}
-					stage.bundle[0].numImageAnimations++;
-				}
-				totalImages++;
-			}
-
-			if (totalImages > maxAnimations)
-			{
-				ri.Printf(PRINT_WARNING, "WARNING: ignoring excess images for 'animMap' (found %d, max is %d) in shader '%s'\n",
-					totalImages, maxAnimations, shader.name);
-			}
-		}
-		else if (!Q_stricmp_cpp(token, "videoMap"))
-		{
-			int handle;
-
-			token = req("videoMap");
-			if (token.empty())
+		case StageDirective::DepthFunc:
+			if (!ParseStageDepthFuncDirective(depthFuncBits, text))
 				return false;
+			break;
 
-			handle = ri.CIN_PlayCinematic(token.data(), 0, 0, 256, 256, (CIN_loop | CIN_silent | CIN_shader));
-			if (handle != -1)
-			{
-				if (!tr.scratchImage[handle])
-				{
-					tr.scratchImage[handle] = R_CreateImage(
-						va_cpp("*scratch%i", handle),
-						{},
-						NULL,
-						256,
-						256,
-						static_cast<imgFlags_t>(imgFlags_t::IMGFLAG_CLAMPTOEDGE | imgFlags_t::IMGFLAG_RGB | imgFlags_t::IMGFLAG_NOSCALE));
-				}
-				stage.bundle[0].isVideoMap = true;
-				stage.bundle[0].videoMapHandle = handle;
-				stage.bundle[0].image[0] = tr.scratchImage[handle];
-			}
-			else
-			{
-				ri.Printf(PRINT_WARNING, "WARNING: could not load '%s' for 'videoMap' keyword in shader '%s'\n",
-					token.data(), shader.name);
-			}
-		}
-		//
-		// alphafunc <func>
-		//
-		else if (!Q_stricmp_cpp(token, "alphaFunc"))
-		{
-			token = req("alphaFunc");
-			if (token.empty())
-				return false;
-
-			atestBits = NameToAFunc(token);
-		}
-		//
-		// depthFunc <func>
-		//
-		else if (!Q_stricmp_cpp(token, "depthfunc"))
-		{
-			token = req("depthfunc");
-			if (token.empty())
-				return false;
-
-			if (!Q_stricmp_cpp(token, "lequal"))
-			{
-				depthFuncBits = 0;
-			}
-			else if (!Q_stricmp_cpp(token, "equal"))
-			{
-				depthFuncBits = GLS_DEPTHFUNC_EQUAL;
-			}
-			else
-			{
-				ri.Printf(PRINT_WARNING, "WARNING: unknown depthfunc '%s' in shader '%s'\n",
-					token.data(), shader.name);
-				continue;
-			}
-		}
-		//
-		// detail
-		//
-		else if (!Q_stricmp_cpp(token, "detail"))
-		{
+		case StageDirective::Detail:
 			stage.isDetail = true;
-		}
-		//
-		// blendfunc <srcFactor> <dstFactor>
-		// or blendfunc <add|filter|blend>
-		//
-		else if (!Q_stricmp_cpp(token, "blendfunc"))
-		{
-			token = req("blendFunc");
-			if (token.empty())
-				continue;
+			break;
 
-			// check for "simple" blends first
-			if (!Q_stricmp_cpp(token, "add"))
-			{
-				blendSrcBits = GLS_SRCBLEND_ONE;
-				blendDstBits = GLS_DSTBLEND_ONE;
-			}
-			else if (!Q_stricmp_cpp(token, "filter"))
-			{
-				blendSrcBits = GLS_SRCBLEND_DST_COLOR;
-				blendDstBits = GLS_DSTBLEND_ZERO;
-			}
-			else if (!Q_stricmp_cpp(token, "blend"))
-			{
-				blendSrcBits = GLS_SRCBLEND_SRC_ALPHA;
-				blendDstBits = GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
-			}
-			else
-			{
-				// complex double blends
-				blendSrcBits = NameToSrcBlendMode(token);
+		case StageDirective::BlendFunc:
+			ParseStageBlendFuncDirective(blendSrcBits, blendDstBits, depthMaskBits, depthMaskExplicit, text);
+			break;
 
-				token = req("blendFunc");
-				if (token.empty())
-				{
-					blendDstBits = GLS_DSTBLEND_ONE; // by default
-					continue;
-				}
-				blendDstBits = NameToDstBlendMode(token);
-			}
+		case StageDirective::RgbGen:
+			ParseStageRgbGenDirective(stage, text);
+			break;
 
-			// clear depth mask for blended surfaces
-			if (!depthMaskExplicit)
-			{
-				depthMaskBits = 0;
-			}
-		}
-		//
-		// rgbGen
-		//
-		else if (!Q_stricmp_cpp(token, "rgbGen"))
-		{
-			token = req("rgbGen");
-			if (token.empty())
-				continue;
+		case StageDirective::AlphaGen:
+			ParseStageAlphaGenDirective(stage, text);
+			break;
 
-			if (!Q_stricmp_cpp(token, "wave"))
-			{
-				ParseWaveForm(text, stage.bundle[0].rgbWave);
-				stage.bundle[0].rgbGen = colorGen_t::CGEN_WAVEFORM;
-			}
-			else if (!Q_stricmp_cpp(token, "const"))
-			{
-				vec3_t color{};
-				ParseVector(text, 3, color);
-				stage.bundle[0].constantColor.rgba[0] = 255 * color[0];
-				stage.bundle[0].constantColor.rgba[1] = 255 * color[1];
-				stage.bundle[0].constantColor.rgba[2] = 255 * color[2];
-				stage.bundle[0].rgbGen = colorGen_t::CGEN_CONST;
-			}
-			else if (!Q_stricmp_cpp(token, "identity"))
-			{
-				stage.bundle[0].rgbGen = colorGen_t::CGEN_IDENTITY;
-			}
-			else if (!Q_stricmp_cpp(token, "identityLighting"))
-			{
-				stage.bundle[0].rgbGen = colorGen_t::CGEN_IDENTITY_LIGHTING;
-			}
-			else if (!Q_stricmp_cpp(token, "entity"))
-			{
-				stage.bundle[0].rgbGen = colorGen_t::CGEN_ENTITY;
-			}
-			else if (!Q_stricmp_cpp(token, "oneMinusEntity"))
-			{
-				stage.bundle[0].rgbGen = colorGen_t::CGEN_ONE_MINUS_ENTITY;
-			}
-			else if (!Q_stricmp_cpp(token, "vertex"))
-			{
-				stage.bundle[0].rgbGen = colorGen_t::CGEN_VERTEX;
-				if (stage.bundle[0].alphaGen == alphaGen_t::AGEN_IDENTITY)
-				{
-					stage.bundle[0].alphaGen = alphaGen_t::AGEN_VERTEX;
-				}
-			}
-			else if (!Q_stricmp_cpp(token, "exactVertex"))
-			{
-				stage.bundle[0].rgbGen = colorGen_t::CGEN_EXACT_VERTEX;
-			}
-			else if (!Q_stricmp_cpp(token, "lightingDiffuse"))
-			{
-				stage.bundle[0].rgbGen = colorGen_t::CGEN_LIGHTING_DIFFUSE;
-			}
-			else if (!Q_stricmp_cpp(token, "oneMinusVertex"))
-			{
-				stage.bundle[0].rgbGen = colorGen_t::CGEN_ONE_MINUS_VERTEX;
-			}
-			else
-			{
-				ri.Printf(PRINT_WARNING, "WARNING: unknown rgbGen parameter '%s' in shader '%s'\n",
-					token.data(), shader.name);
-				continue;
-			}
-		}
-		//
-		// alphaGen
-		//
-		else if (!Q_stricmp_cpp(token, "alphaGen"))
-		{
-			token = req("alphaGen");
-			if (token.empty())
-				continue;
+		case StageDirective::TcGen:
+			ParseStageTcGenDirective(stage, text);
+			break;
 
-			if (!Q_stricmp_cpp(token, "wave"))
-			{
-				ParseWaveForm(text, stage.bundle[0].alphaWave);
-				stage.bundle[0].alphaGen = alphaGen_t::AGEN_WAVEFORM;
-			}
-			else if (!Q_stricmp_cpp(token, "const"))
-			{
-				token = req("alphaGen const");
-				if (token.empty())
-				{
-					ri.Printf(PRINT_WARNING, "WARNING: missing parameters for alphaGen const in shader '%s'\n", shader.name);
-					continue;
-				}
-				stage.bundle[0].constantColor.rgba[3] = 255 * Q_atof_cpp(token);
-				stage.bundle[0].alphaGen = alphaGen_t::AGEN_CONST;
-			}
-			else if (!Q_stricmp_cpp(token, "identity"))
-			{
-				stage.bundle[0].alphaGen = alphaGen_t::AGEN_IDENTITY;
-			}
-			else if (!Q_stricmp_cpp(token, "entity"))
-			{
-				stage.bundle[0].alphaGen = alphaGen_t::AGEN_ENTITY;
-			}
-			else if (!Q_stricmp_cpp(token, "oneMinusEntity"))
-			{
-				stage.bundle[0].alphaGen = alphaGen_t::AGEN_ONE_MINUS_ENTITY;
-			}
-			else if (!Q_stricmp_cpp(token, "vertex"))
-			{
-				stage.bundle[0].alphaGen = alphaGen_t::AGEN_VERTEX;
-			}
-			else if (!Q_stricmp_cpp(token, "lightingSpecular"))
-			{
-				stage.bundle[0].alphaGen = alphaGen_t::AGEN_LIGHTING_SPECULAR;
-			}
-			else if (!Q_stricmp_cpp(token, "oneMinusVertex"))
-			{
-				stage.bundle[0].alphaGen = alphaGen_t::AGEN_ONE_MINUS_VERTEX;
-			}
-			else if (!Q_stricmp_cpp(token, "portal"))
-			{
-				stage.bundle[0].alphaGen = alphaGen_t::AGEN_PORTAL;
+		case StageDirective::TcMod:
+			ParseStageTcModDirective(stage, text);
+			break;
 
-				token = req("alphaGen portal");
-				if (token.empty())
-				{
-					shader.portalRange = 256;
-					ri.Printf(PRINT_WARNING, "WARNING: missing range parameter for alphaGen portal in shader '%s', defaulting to 256\n",
-						shader.name);
-				}
-				else
-				{
-					shader.portalRange = Q_atof_cpp(token);
-
-					if (shader.portalRange < 0.001f)
-						shader.portalRangeR = 0.0f;
-					else
-						shader.portalRangeR = 1.0f / shader.portalRange;
-				}
-			}
-			else
-			{
-				ri.Printf(PRINT_WARNING, "WARNING: unknown alphaGen parameter '%s' in shader '%s'\n",
-					token.data(), shader.name);
-				continue;
-			}
-		}
-		//
-		// tcGen <function>
-		//
-		else if (!Q_stricmp_cpp(token, "texgen") || !Q_stricmp_cpp(token, "tcGen"))
-		{
-			token = req("tcGen");
-			if (token.empty())
-				continue;
-
-			if (!Q_stricmp_cpp(token, "environment"))
-			{
-				const char* t = *text;
-				stage.bundle[0].tcGen = texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED;
-				token = COM_ParseExt_cpp(text, false);
-				if (Q_stricmp_cpp(token, "firstPerson") == 0)
-				{
-					stage.bundle[0].tcGen = texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP;
-				}
-				else
-				{
-					*text = t; // rewind
-				}
-			}
-
-			else if (!Q_stricmp_cpp(token, "lightmap"))
-			{
-				stage.bundle[0].tcGen = texCoordGen_t::TCGEN_LIGHTMAP;
-			}
-			else if (!Q_stricmp_cpp(token, "texture") || !Q_stricmp_cpp(token, "base"))
-			{
-				stage.bundle[0].tcGen = texCoordGen_t::TCGEN_TEXTURE;
-			}
-			else if (!Q_stricmp_cpp(token, "vector"))
-			{
-				ParseVector(text, 3, stage.bundle[0].tcGenVectors[0]);
-				ParseVector(text, 3, stage.bundle[0].tcGenVectors[1]);
-				stage.bundle[0].tcGen = texCoordGen_t::TCGEN_VECTOR;
-			}
-			else
-			{
-				ri.Printf(PRINT_WARNING, "WARNING: unknown tcGen/texgen parm '%s' in shader '%s'\n",
-					token.data(), shader.name);
-			}
-		}
-		//
-		// tcMod <type> <...>
-		//
-		else if (!Q_stricmp_cpp(token, "tcMod"))
-		{
-			char buffer[1024] = "";
-
-			while (1)
-			{
-				token = COM_ParseExt_cpp(text, false);
-				if (token.empty())
-					break;
-				Q_strcat(buffer, sizeof(buffer), token.data());
-				Q_strcat(buffer, sizeof(buffer), " ");
-			}
-
-			ParseTexMod(buffer, stage);
-			continue;
-		}
-		//
-		// depthmask
-		//
-		else if (!Q_stricmp_cpp(token, "depthwrite"))
-		{
+		case StageDirective::DepthWrite:
 			depthMaskBits = GLS_DEPTHMASK_TRUE;
 			depthMaskExplicit = true;
-			continue;
-		}
-		else if (!Q_stricmp_cpp(token, "depthFragment") && s_extendedShader)
-		{
-			stage.depthFragment = true;
-			continue;
-		}
-		else if (!Q_stricmp_cpp(token, "dlight") && s_extendedShader)
-		{
-			stage.bundle[0].dlight = 1;
-		}
-		else
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: unknown parameter '%s' in shader '%s'\n",
-				token.data(), shader.name);
+			break;
+
+		case StageDirective::DepthFragment:
+			if (s_extendedShader)
+			{
+				stage.depthFragment = true;
+				break;
+			}
+			StageWarnUnknownParam(token);
+			return false;
+
+		case StageDirective::Dlight:
+			if (s_extendedShader)
+			{
+				stage.bundle[0].dlight = 1;
+				break;
+			}
+			StageWarnUnknownParam(token);
+			return false;
+
+		case StageDirective::Unknown:
+		default:
+			StageWarnUnknownParam(token);
 			return false;
 		}
 	}
 
-	//
-	// if cgen isn't explicitly specified, use either identity or identitylighting
-	//
 	if (stage.bundle[0].rgbGen == colorGen_t::CGEN_BAD)
 	{
 		if (blendSrcBits == 0 ||
@@ -1113,19 +1246,17 @@ static bool ParseStage(shaderStage_t& stage, const char** text)
 		}
 	}
 
-	//
-	// implicitly assume that a GL_ONE GL_ZERO blend mask disables blending
-	//
 	if ((blendSrcBits == GLS_SRCBLEND_ONE) && (blendDstBits == GLS_DSTBLEND_ZERO))
 	{
-		blendDstBits = blendSrcBits = 0;
+		blendDstBits = 0;
+		blendSrcBits = 0;
 		depthMaskBits = GLS_DEPTHMASK_TRUE;
 	}
 
-	// decide which agens we can skip
 	if (stage.bundle[0].alphaGen == alphaGen_t::AGEN_IDENTITY)
 	{
-		if (stage.bundle[0].rgbGen == colorGen_t::CGEN_IDENTITY || stage.bundle[0].rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE)
+		if (stage.bundle[0].rgbGen == colorGen_t::CGEN_IDENTITY ||
+			stage.bundle[0].rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE)
 		{
 			stage.bundle[0].alphaGen = alphaGen_t::AGEN_SKIP;
 		}
@@ -1133,26 +1264,23 @@ static bool ParseStage(shaderStage_t& stage, const char** text)
 
 	if (depthMaskExplicit && shader.sort == static_cast<float>(shaderSort_t::SS_BAD))
 	{
-		// fix decals on q3wcp18 and other maps
-		if (blendSrcBits == GLS_SRCBLEND_SRC_ALPHA && blendDstBits == GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA)
+		if (blendSrcBits == GLS_SRCBLEND_SRC_ALPHA &&
+			blendDstBits == GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA)
 		{
 			if (stage.bundle[0].alphaGen != alphaGen_t::AGEN_SKIP)
 			{
-				// q3wcp18 @ "textures/ctf_unified/floor_decal_blue" : alphaGen_t::AGEN_VERTEX, colorGen_t::CGEN_VERTEX
-				// check for grates on tscabdm3
-				if (atestBits == 0) {
+				if (atestBits == 0)
+				{
 					depthMaskBits &= ~GLS_DEPTHMASK_TRUE;
 				}
 			}
-			else
-			{
-				// skip for q3wcp14 jumppads and similar
-				// q3wcp14 @ "textures/ctf_unified/bounce_blue" : alphaGen_t::AGEN_SKIP, colorGen_t::CGEN_IDENTITY
-			}
-			shader.sort = shader.polygonOffset ? static_cast<float>(shaderSort_t::SS_DECAL)
+
+			shader.sort = shader.polygonOffset
+				? static_cast<float>(shaderSort_t::SS_DECAL)
 				: static_cast<float>(shaderSort_t::SS_OPAQUE) + 0.01f;
 		}
-		else if (blendSrcBits == GLS_SRCBLEND_ZERO && blendDstBits == GLS_DSTBLEND_ONE_MINUS_SRC_COLOR &&
+		else if (blendSrcBits == GLS_SRCBLEND_ZERO &&
+			blendDstBits == GLS_DSTBLEND_ONE_MINUS_SRC_COLOR &&
 			stage.bundle[0].rgbGen == colorGen_t::CGEN_EXACT_VERTEX)
 		{
 			depthMaskBits &= ~GLS_DEPTHMASK_TRUE;
@@ -1160,30 +1288,166 @@ static bool ParseStage(shaderStage_t& stage, const char** text)
 		}
 	}
 
-	//
-	// default texture coordinate generation
-	//
-	for (i = 0; i < NUM_TEXTURE_BUNDLES; i++)
+	for (int i = 0; i < NUM_TEXTURE_BUNDLES; ++i)
 	{
 		if (stage.bundle[i].tcGen == texCoordGen_t::TCGEN_BAD)
 		{
-			if (stage.bundle[i].lightmap != LIGHTMAP_INDEX_NONE)
-				stage.bundle[i].tcGen = texCoordGen_t::TCGEN_LIGHTMAP;
-			else
-				stage.bundle[i].tcGen = texCoordGen_t::TCGEN_TEXTURE;
+			stage.bundle[i].tcGen =
+				(stage.bundle[i].lightmap != LIGHTMAP_INDEX_NONE)
+				? texCoordGen_t::TCGEN_LIGHTMAP
+				: texCoordGen_t::TCGEN_TEXTURE;
 		}
 	}
 
-	//
-	// compute state bits
-	//
-	stage.stateBits = depthMaskBits |
-		blendSrcBits | blendDstBits |
-		atestBits |
-		depthFuncBits;
-
+	stage.stateBits = depthMaskBits | blendSrcBits | blendDstBits | atestBits | depthFuncBits;
 	stage.active = true;
 	return true;
+}
+
+namespace
+{
+	static ID_INLINE void PrintMissingDeformParm() noexcept
+	{
+		ri.Printf(PRINT_WARNING, "WARNING: missing deform parm in shader '%s'\n", shader.name);
+	}
+
+	static ID_INLINE void PrintMissingDeformVertexesParm() noexcept
+	{
+		ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
+	}
+
+	static ID_INLINE void PrintMissingDeformBulgeParm() noexcept
+	{
+		ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes bulge parm in shader '%s'\n", shader.name);
+	}
+
+	// valid only until next COM_ParseExt_cpp call
+	static ID_INLINE std::string_view ParseDeformToken(const char** text) noexcept
+	{
+		return COM_ParseExt_cpp(text, false);
+	}
+
+	static ID_INLINE bool ParseDeformFloat(
+		const char** text,
+		float& out,
+		void (*err)() noexcept = &PrintMissingDeformVertexesParm) noexcept
+	{
+		const std::string_view t = ParseDeformToken(text);
+		if (t.empty())
+		{
+			err();
+			return false;
+		}
+
+		out = Q_atof_cpp(t);
+		return true;
+	}
+
+	static bool ParseDeformProjectionShadow(const char**, deformStage_t& ds) noexcept
+	{
+		ds.deformation = deform_t::DEFORM_PROJECTION_SHADOW;
+		return true;
+	}
+
+	static bool ParseDeformAutosprite(const char**, deformStage_t& ds) noexcept
+	{
+		ds.deformation = deform_t::DEFORM_AUTOSPRITE;
+		return true;
+	}
+
+	static bool ParseDeformAutosprite2(const char**, deformStage_t& ds) noexcept
+	{
+		ds.deformation = deform_t::DEFORM_AUTOSPRITE2;
+		return true;
+	}
+
+	static bool ParseDeformBulge(const char** text, deformStage_t& ds) noexcept
+	{
+		if (!ParseDeformFloat(text, ds.bulgeWidth, &PrintMissingDeformBulgeParm)) return false;
+		if (!ParseDeformFloat(text, ds.bulgeHeight, &PrintMissingDeformBulgeParm)) return false;
+		if (!ParseDeformFloat(text, ds.bulgeSpeed, &PrintMissingDeformBulgeParm)) return false;
+
+		ds.deformation = deform_t::DEFORM_BULGE;
+		return true;
+	}
+
+	static bool ParseDeformWave(const char** text, deformStage_t& ds) noexcept
+	{
+		float f = 0.0f;
+		if (!ParseDeformFloat(text, f)) return false;
+
+		if (f != 0.0f)
+		{
+			ds.deformationSpread = 1.0f / f;
+		}
+		else
+		{
+			ds.deformationSpread = 100.0f;
+			ri.Printf(
+				PRINT_WARNING,
+				"WARNING: illegal div value of 0 in deformVertexes command for shader '%s'\n",
+				shader.name);
+		}
+
+		ParseWaveForm(text, ds.deformationWave);
+		ds.deformation = deform_t::DEFORM_WAVE;
+		return true;
+	}
+
+	static bool ParseDeformNormal(const char** text, deformStage_t& ds) noexcept
+	{
+		if (!ParseDeformFloat(text, ds.deformationWave.amplitude)) return false;
+		if (!ParseDeformFloat(text, ds.deformationWave.frequency)) return false;
+
+		ds.deformation = deform_t::DEFORM_NORMALS;
+		return true;
+	}
+
+	static bool ParseDeformMove(const char** text, deformStage_t& ds) noexcept
+	{
+		for (int i = 0; i < 3; ++i)
+		{
+			if (!ParseDeformFloat(text, ds.moveVector[i])) return false;
+		}
+
+		ParseWaveForm(text, ds.deformationWave);
+		ds.deformation = deform_t::DEFORM_MOVE;
+		return true;
+	}
+
+	struct DeformHandler
+	{
+		std::string_view name;
+		bool (*fn)(const char**, deformStage_t&) noexcept;
+	};
+
+	constexpr std::array<DeformHandler, 7> kDeformHandlers{ {
+		{ "projectionShadow", &ParseDeformProjectionShadow },
+		{ "autosprite",       &ParseDeformAutosprite },
+		{ "autosprite2",      &ParseDeformAutosprite2 },
+		{ "bulge",            &ParseDeformBulge },
+		{ "wave",             &ParseDeformWave },
+		{ "normal",           &ParseDeformNormal },
+		{ "move",             &ParseDeformMove },
+	} };
+
+	static ID_INLINE bool TryParseTextDeform(std::string_view token, deformStage_t& ds) noexcept
+	{
+		if (token.size() == 5 && !Q_stricmpn_cpp(token, "text", 4))
+		{
+			int n = token[4] - '0';
+			if (n < 0 || n > 7)
+			{
+				n = 0;
+			}
+
+			ds.deformation = static_cast<deform_t>(
+				static_cast<int>(deform_t::DEFORM_TEXT0) + n);
+			return true;
+		}
+
+		return false;
+	}
 }
 
 /*
@@ -1202,11 +1466,11 @@ deformVertexes text[0-7]
 */
 static void ParseDeform(const char** text)
 {
-	std::string_view token = COM_ParseExt_cpp(text, false);
+	const std::string_view token = ParseDeformToken(text);
 
 	if (token.empty())
 	{
-		ri.Printf(PRINT_WARNING, "WARNING: missing deform parm in shader '%s'\n", shader.name);
+		PrintMissingDeformParm();
 		return;
 	}
 
@@ -1217,138 +1481,26 @@ static void ParseDeform(const char** text)
 	}
 
 	deformStage_t& ds = shader.deforms[shader.numDeforms];
-	shader.numDeforms++;
+	++shader.numDeforms;
 
-	if (!Q_stricmp_cpp(token, "projectionShadow"))
+	if (TryParseTextDeform(token, ds))
 	{
-		ds.deformation = deform_t::DEFORM_PROJECTION_SHADOW;
 		return;
 	}
 
-	if (!Q_stricmp_cpp(token, "autosprite"))
+	for (const auto& h : kDeformHandlers)
 	{
-		ds.deformation = deform_t::DEFORM_AUTOSPRITE;
-		return;
-	}
-
-	if (!Q_stricmp_cpp(token, "autosprite2"))
-	{
-		ds.deformation = deform_t::DEFORM_AUTOSPRITE2;
-		return;
-	}
-
-	if (!Q_stricmpn_cpp(token, "text", 4))
-	{
-		int n;
-
-		n = token[4] - '0';
-		if (n < 0 || n > 7)
+		if (!Q_stricmp_cpp(token, h.name))
 		{
-			n = 0;
-		}
-		ds.deformation = static_cast<deform_t>(static_cast<int>(deform_t::DEFORM_TEXT0) + n);
-		return;
-	}
-
-	if (!Q_stricmp_cpp(token, "bulge"))
-	{
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes bulge parm in shader '%s'\n", shader.name);
+			h.fn(text, ds);
 			return;
 		}
-		ds.bulgeWidth = Q_atof_cpp(token);
-
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes bulge parm in shader '%s'\n", shader.name);
-			return;
-		}
-		ds.bulgeHeight = Q_atof_cpp(token);
-
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes bulge parm in shader '%s'\n", shader.name);
-			return;
-		}
-		ds.bulgeSpeed = Q_atof_cpp(token);
-
-		ds.deformation = deform_t::DEFORM_BULGE;
-		return;
 	}
 
-	if (!Q_stricmp_cpp(token, "wave"))
-	{
-		float f;
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
-			return;
-		}
-
-		f = Q_atof_cpp(token);
-		if (f != 0.0f)
-		{
-			ds.deformationSpread = 1.0f / f;
-		}
-		else
-		{
-			ds.deformationSpread = 100.0f;
-			ri.Printf(PRINT_WARNING, "WARNING: illegal div value of 0 in deformVertexes command for shader '%s'\n", shader.name);
-		}
-
-		ParseWaveForm(text, ds.deformationWave);
-		ds.deformation = deform_t::DEFORM_WAVE;
-		return;
-	}
-
-	if (!Q_stricmp_cpp(token, "normal"))
-	{
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
-			return;
-		}
-		ds.deformationWave.amplitude = Q_atof_cpp(token);
-
-		token = COM_ParseExt_cpp(text, false);
-		if (token.empty())
-		{
-			ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
-			return;
-		}
-		ds.deformationWave.frequency = Q_atof_cpp(token);
-
-		ds.deformation = deform_t::DEFORM_NORMALS;
-		return;
-	}
-
-	if (!Q_stricmp_cpp(token, "move"))
-	{
-		int i;
-
-		for (i = 0; i < 3; i++)
-		{
-			token = COM_ParseExt_cpp(text, false);
-			if (token.empty())
-			{
-				ri.Printf(PRINT_WARNING, "WARNING: missing deformVertexes parm in shader '%s'\n", shader.name);
-				return;
-			}
-			ds.moveVector[i] = Q_atof_cpp(token);
-		}
-
-		ParseWaveForm(text, ds.deformationWave);
-		ds.deformation = deform_t::DEFORM_MOVE;
-		return;
-	}
-
-	ri.Printf(PRINT_WARNING, "WARNING: unknown deformVertexes subtype '%s' found in shader '%s'\n", token.data(), shader.name);
+	ri.Printf(
+		PRINT_WARNING,
+		"WARNING: unknown deformVertexes subtype '%.*s' found in shader '%s'\n",
+		(int)token.size(), token.data(), shader.name);
 }
 
 /*
