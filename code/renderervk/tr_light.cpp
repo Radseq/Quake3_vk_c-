@@ -134,6 +134,7 @@ void R_DlightBmodel(bmodel_t &bmodel)
 
 static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
 {
+    trRefEntityLocal_t& local = TrRefEntityLocal(ent);
     vec3_t lightOrigin{};
     int pos[3]{};
     int i, j;
@@ -170,8 +171,8 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
         }
     }
 
-    VectorClear(ent.ambientLight);
-    VectorClear(ent.directedLight);
+    VectorClear(local.ambientLight);
+    VectorClear(local.directedLight);
 
     assert(tr.world->lightGridData); // NULL with -nolight maps
 
@@ -219,13 +220,13 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
         }
         totalFactor += factor;
 
-        ent.ambientLight[0] += factor * data[0];
-        ent.ambientLight[1] += factor * data[1];
-        ent.ambientLight[2] += factor * data[2];
+        local.ambientLight[0] += factor * data[0];
+        local.ambientLight[1] += factor * data[1];
+        local.ambientLight[2] += factor * data[2];
 
-        ent.directedLight[0] += factor * data[3];
-        ent.directedLight[1] += factor * data[4];
-        ent.directedLight[2] += factor * data[5];
+        local.directedLight[0] += factor * data[3];
+        local.directedLight[1] += factor * data[4];
+        local.directedLight[2] += factor * data[5];
 
         lat = data[7];
         lng = data[6];
@@ -248,29 +249,31 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
     if (totalFactor > 0 && totalFactor < 0.99)
     {
         totalFactor = 1.0f / totalFactor;
-        VectorScale(ent.ambientLight, totalFactor, ent.ambientLight);
-        VectorScale(ent.directedLight, totalFactor, ent.directedLight);
+        VectorScale(local.ambientLight, totalFactor, local.ambientLight);
+        VectorScale(local.directedLight, totalFactor, local.directedLight);
     }
 
-    VectorScale(ent.ambientLight, r_ambientScale->value, ent.ambientLight);
-    VectorScale(ent.directedLight, r_directedScale->value, ent.directedLight);
+    VectorScale(local.ambientLight, r_ambientScale->value, local.ambientLight);
+    VectorScale(local.directedLight, r_directedScale->value, local.directedLight);
 
-    VectorNormalize2(direction, ent.lightDir);
+    VectorNormalize2(direction, local.lightDir);
 }
 
 int R_LightForPoint(vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir)
 {
     trRefEntity_t ent;
+    trRefEntityLocal_t local{};
 
     if (tr.world->lightGridData == NULL)
         return false;
 
     Com_Memset(&ent, 0, sizeof(ent));
+    ent.local = &local;
     VectorCopy(point, ent.e.origin);
     R_SetupEntityLightingGrid(ent);
-    VectorCopy(ent.ambientLight, ambientLight);
-    VectorCopy(ent.directedLight, directedLight);
-    VectorCopy(ent.lightDir, lightDir);
+    VectorCopy(local.ambientLight, ambientLight);
+    VectorCopy(local.directedLight, directedLight);
+    VectorCopy(local.lightDir, lightDir);
 
     return true;
 }
@@ -311,13 +314,15 @@ static void LogLight(const trRefEntity_t& ent)
 {
     if (!(ent.e.renderfx & RF_FIRST_PERSON)) return;
 
-    int max1 = static_cast<int>(ent.ambientLight[0]);
-    if (ent.ambientLight[1] > max1) max1 = static_cast<int>(ent.ambientLight[1]);
-    if (ent.ambientLight[2] > max1) max1 = static_cast<int>(ent.ambientLight[2]);
+    const trRefEntityLocal_t& local = TrRefEntityLocal(ent);
 
-    int max2 = static_cast<int>(ent.directedLight[0]);
-    if (ent.directedLight[1] > max2) max2 = static_cast<int>(ent.directedLight[1]);
-    if (ent.directedLight[2] > max2) max2 = static_cast<int>(ent.directedLight[2]);
+    int max1 = static_cast<int>(local.ambientLight[0]);
+    if (local.ambientLight[1] > max1) max1 = static_cast<int>(local.ambientLight[1]);
+    if (local.ambientLight[2] > max1) max1 = static_cast<int>(local.ambientLight[2]);
+
+    int max2 = static_cast<int>(local.directedLight[0]);
+    if (local.directedLight[1] > max2) max2 = static_cast<int>(local.directedLight[1]);
+    if (local.directedLight[2] > max2) max2 = static_cast<int>(local.directedLight[2]);
 
     ri.Printf(PRINT_ALL, "amb:%i  dir:%i\n", max1, max2);
 }
@@ -332,6 +337,7 @@ by the Calc_* functions
 */
 void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
 {
+    trRefEntityLocal_t& local = TrRefEntityLocal(ent);
     uint32_t i;
     float power;
     vec3_t dir{};
@@ -371,27 +377,27 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
     }
     else
     {
-        ent.ambientLight[0] = ent.ambientLight[1] =
-            ent.ambientLight[2] = tr.identityLight * 150;
-        ent.directedLight[0] = ent.directedLight[1] =
-            ent.directedLight[2] = tr.identityLight * 150;
-        VectorCopy(tr.sunDirection, ent.lightDir);
+        local.ambientLight[0] = local.ambientLight[1] =
+            local.ambientLight[2] = tr.identityLight * 150;
+        local.directedLight[0] = local.directedLight[1] =
+            local.directedLight[2] = tr.identityLight * 150;
+        VectorCopy(tr.sunDirection, local.lightDir);
     }
 
     // bonus items and view weapons have a fixed minimum add
     if (1 /* ent->e.renderfx & RF_MINLIGHT */)
     {
         // give everything a minimum light add
-        ent.ambientLight[0] += tr.identityLight * 32;
-        ent.ambientLight[1] += tr.identityLight * 32;
-        ent.ambientLight[2] += tr.identityLight * 32;
+        local.ambientLight[0] += tr.identityLight * 32;
+        local.ambientLight[1] += tr.identityLight * 32;
+        local.ambientLight[2] += tr.identityLight * 32;
     }
 
     //
     // modify the light by dynamic lights
     //
-    d = VectorLength(ent.directedLight);
-    VectorScale(ent.lightDir, d, lightDir);
+    d = VectorLength(local.directedLight);
+    VectorScale(local.lightDir, d, lightDir);
 #ifdef USE_PMLIGHT
     if (r_dlightMode->integer == 2)
     {
@@ -432,16 +438,16 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
             }
             d = power / (d * d);
 
-            VectorMA(ent.directedLight, d, dl.color, ent.directedLight);
+            VectorMA(local.directedLight, d, dl.color, local.directedLight);
             VectorMA(lightDir, d, dir, lightDir);
         }
 
     // clamp ambient
     for (i = 0; i < 3; i++)
     {
-        if (ent.ambientLight[i] > tr.identityLightByte)
+        if (local.ambientLight[i] > tr.identityLightByte)
         {
-            ent.ambientLight[i] = tr.identityLightByte;
+            local.ambientLight[i] = tr.identityLightByte;
         }
     }
 
@@ -456,34 +462,34 @@ void R_SetupEntityLighting(const trRefdef_t &refdef, trRefEntity_t &ent)
     //((byte *)&ent.ambientLightInt)[2] = myftol(ent.ambientLight[2]);
     //((byte *)&ent.ambientLightInt)[3] = 0xff;
 
-    static_assert(sizeof(ent.ambientLightInt) == 4);
+    static_assert(sizeof(local.ambientLightInt) == 4);
     static_assert(CHAR_BIT == 8);
 
     const std::array<std::uint8_t, 4> amb = {
-         static_cast<std::uint8_t>(myftol(ent.ambientLight[0])),
-        static_cast<std::uint8_t>(myftol(ent.ambientLight[1])),
-        static_cast<std::uint8_t>(myftol(ent.ambientLight[2])),
+         static_cast<std::uint8_t>(myftol(local.ambientLight[0])),
+        static_cast<std::uint8_t>(myftol(local.ambientLight[1])),
+        static_cast<std::uint8_t>(myftol(local.ambientLight[2])),
         0xFFu
     };
 
-    std::memcpy(&ent.ambientLightInt, amb.data(), amb.size());
+    std::memcpy(&local.ambientLightInt, amb.data(), amb.size());
 
 
     //-10790053
 
     // transform the direction to local space
     VectorNormalize(lightDir);
-    ent.lightDir[0] = DotProduct(lightDir, ent.e.axis[0]);
-    ent.lightDir[1] = DotProduct(lightDir, ent.e.axis[1]);
-    ent.lightDir[2] = DotProduct(lightDir, ent.e.axis[2]);
+    local.lightDir[0] = DotProduct(lightDir, ent.e.axis[0]);
+    local.lightDir[1] = DotProduct(lightDir, ent.e.axis[1]);
+    local.lightDir[2] = DotProduct(lightDir, ent.e.axis[2]);
 
 #ifdef USE_PMLIGHT
     if (r_shadows->integer == 2 && r_dlightMode->integer == 2)
     {
         VectorNormalize(shadowLightDir);
-        ent.shadowLightDir[0] = DotProduct(shadowLightDir, ent.e.axis[0]);
-        ent.shadowLightDir[1] = DotProduct(shadowLightDir, ent.e.axis[1]);
-        ent.shadowLightDir[2] = DotProduct(shadowLightDir, ent.e.axis[2]);
+        local.shadowLightDir[0] = DotProduct(shadowLightDir, ent.e.axis[0]);
+        local.shadowLightDir[1] = DotProduct(shadowLightDir, ent.e.axis[1]);
+        local.shadowLightDir[2] = DotProduct(shadowLightDir, ent.e.axis[2]);
     }
 #endif
 }

@@ -1292,14 +1292,15 @@ void RB_CalcSpecularAlpha(unsigned char *alphas)
 static void RB_CalcDiffuseColor_scalar(unsigned char* colors)
 {
 	const trRefEntity_t* ent = backEnd.currentEntity;
-	const std::uint32_t  ambientLightInt = ent->ambientLightInt;
+	const trRefEntityLocal_t& local = TrRefEntityLocal(*ent);
+	const std::uint32_t ambientLightInt = local.ambientLightInt;
 
 	const int numVertexes = tess.numVertexes;
 
 	vec3_t ambientLight{}, lightDir{}, directedLight{};
-	VectorCopy(ent->ambientLight, ambientLight);
-	VectorCopy(ent->directedLight, directedLight);
-	VectorCopy(ent->lightDir, lightDir);
+	VectorCopy(local.ambientLight, ambientLight);
+	VectorCopy(local.directedLight, directedLight);
+	VectorCopy(local.lightDir, lightDir);
 
 	float* v = tess.xyz[0];
 	float* normal = tess.normal[0];

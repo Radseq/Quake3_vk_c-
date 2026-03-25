@@ -151,13 +151,14 @@ void RB_ShadowTessEnd(void)
 	int numTris;
 	vec3_t lightDir{};
 	uint32_t pipeline[2]{};
+	const trRefEntityLocal_t& local = TrRefEntityLocal(*backEnd.currentEntity);
 
 #ifdef USE_PMLIGHT
 	if (r_dlightMode->integer == 2 && r_shadows->integer == 2)
-		VectorCopy(backEnd.currentEntity->shadowLightDir, lightDir);
+		VectorCopy(local.shadowLightDir, lightDir);
 	else
 #endif
-		VectorCopy(backEnd.currentEntity->lightDir, lightDir);
+		VectorCopy(local.lightDir, lightDir);
 
 	// clamp projection by height
 	if (lightDir[2] > 0.1)
@@ -330,15 +331,16 @@ void RB_ProjectionShadowDeform(void)
 		backEnd.ort.axis[0][2],
 		backEnd.ort.axis[1][2],
 		backEnd.ort.axis[2][2]};
+	const trRefEntityLocal_t& local = TrRefEntityLocal(*backEnd.currentEntity);
 
 	groundDist = backEnd.ort.origin[2] - backEnd.currentEntity->e.shadowPlane;
 
 #ifdef USE_PMLIGHT
 	if (r_dlightMode->integer == 2 && r_shadows->integer == 2)
-		VectorCopy(backEnd.currentEntity->shadowLightDir, lightDir);
+		VectorCopy(local.shadowLightDir, lightDir);
 	else
 #endif
-		VectorCopy(backEnd.currentEntity->lightDir, lightDir);
+		VectorCopy(local.lightDir, lightDir);
 
 	d = DotProduct(lightDir, ground);
 	// don't let the shadows get too long ort go negative

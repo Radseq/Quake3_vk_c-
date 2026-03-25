@@ -53,6 +53,13 @@ R_InitNextFrame
 */
 void R_InitNextFrame(void)
 {
+	tr.worldEntity.local = &tr.worldEntityLocal;
+	tr.worldEntity.flags = 0;
+	Com_Memset(&tr.worldEntityLocal, 0, sizeof(tr.worldEntityLocal));
+
+	backEnd.entity2D.local = &backEnd.entity2DLocal;
+	backEnd.entity2D.flags = 0;
+	Com_Memset(&backEnd.entity2DLocal, 0, sizeof(backEnd.entity2DLocal));
 
 	backEndData->commands.used = 0;
 
@@ -253,12 +260,17 @@ void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
 		ri.Error(ERR_DROP, "RE_AddRefEntityToScene: bad reType %i", ent->reType);
 	}
 
-	backEndData->entities[r_numentities].e = *ent;
-	backEndData->entities[r_numentities].flags = 0;
-	backEndData->entities[r_numentities].reserved0 = 0;
-	backEndData->entities[r_numentities].reserved1 = 0;
-	backEndData->entities[r_numentities].reserved2 = 0;
-	SetTrRefEntityFlag(backEndData->entities[r_numentities].flags, trRefEntityFlags_t::IntShaderTime, intShaderTime);
+	trRefEntity_t& dst = backEndData->entities[r_numentities];
+	trRefEntityLocal_t& local = backEndData->entityLocals[r_numentities];
+
+	dst.e = *ent;
+	dst.local = &local;
+	dst.flags = 0;
+	dst.reserved0 = 0;
+	dst.reserved1 = 0;
+	dst.reserved2 = 0;
+	Com_Memset(&local, 0, sizeof(local));
+	SetTrRefEntityFlag(dst.flags, trRefEntityFlags_t::IntShaderTime, intShaderTime);
 
 	r_numentities++;
 }

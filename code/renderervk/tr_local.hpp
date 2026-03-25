@@ -37,6 +37,7 @@ extern "C"
 }
 
 #include <cstdint>
+#include <type_traits>
 using byte = std::uint8_t;
 
 #include "tr_common.hpp"
@@ -290,32 +291,51 @@ ID_INLINE void SetTrRefEntityFlag(std::uint8_t& flags, const trRefEntityFlags_t 
 	}
 }
 
-// a trRefEntity_t has all the information passed in by
-// the client game, as well as some locally derived info
+// Renderer-local entity state that is not needed during the hot
+// R_AddEntitySurfaces() front-end walk. Keep this out of the primary
+// trRefEntity_t array so scanning entities does not pull lighting / LOD data
+// into cache before it is actually used.
 typedef struct
 {
-	// External render entity payload copied from the front-end.
-	refEntity_t e;
-
-	// Small scalar / flag header first so hot entity-array walks do not drag the
-	// vector lighting payload into cache before it is actually needed.
 	std::uint32_t ambientLightInt; // packed RGBA
 	int modelLod;
-	std::uint8_t flags;
-	std::uint8_t reserved0;
-	std::uint8_t reserved1;
-	std::uint8_t reserved2;
-
-	// Renderer-local vector payload.
 	vec3_t lightDir;     // normalized direction towards light
 	vec3_t ambientLight; // color normalized to 0-255
 	vec3_t directedLight;
 #ifdef USE_PMLIGHT
 	vec3_t shadowLightDir; // normalized direction towards light
 #endif
+} trRefEntityLocal_t;
+
+// a trRefEntity_t has all the information passed in by
+// the client game, as well as a pointer to renderer-local derived state.
+typedef struct
+{
+	// External render entity payload copied from the front-end.
+	refEntity_t e;
+
+	// Pointer to cold / renderer-local state stored out-of-line.
+	trRefEntityLocal_t* local;
+
+	// Small scalar / flag header kept hot with the entity payload.
+	std::uint8_t flags;
+	std::uint8_t reserved0;
+	std::uint8_t reserved1;
+	std::uint8_t reserved2;
 } trRefEntity_t;
 
+ID_INLINE trRefEntityLocal_t& TrRefEntityLocal(trRefEntity_t& ent) noexcept
+{
+	return *ent.local;
+}
+
+ID_INLINE const trRefEntityLocal_t& TrRefEntityLocal(const trRefEntity_t& ent) noexcept
+{
+	return *ent.local;
+}
+
 static_assert(sizeof(trRefEntityFlags_t) == 1, "trRefEntityFlags_t must stay byte-sized");
+static_assert(std::is_trivially_copyable_v<trRefEntityLocal_t>, "trRefEntityLocal_t must stay trivially copyable");
 
 typedef struct
 {
@@ -1417,6 +1437,7 @@ typedef struct
 	color4ub_t color2D;
 	bool doneSurfaces;		// done any 3d surfaces already
 	trRefEntity_t entity2D; // currentEntity will point at this when doing 2D rendering
+	trRefEntityLocal_t entity2DLocal;
 
 	int screenshotMask; // tga | jpg | bmp
 	char screenshotTGA[MAX_OSPATH];
@@ -1509,6 +1530,7 @@ struct trGlobals_t
 
 	trRefEntity_t *currentEntity;
 	trRefEntity_t worldEntity; // point currentEntity at this when rendering world
+	trRefEntityLocal_t worldEntityLocal;
 	int currentEntityNum;
 	int shiftedEntityNum; // currentEntityNum << QSORT_REFENTITYNUM_SHIFT
 	model_t *currentModel;
@@ -2160,6 +2182,7 @@ typedef struct
 #endif
 
 	trRefEntity_t entities[MAX_REFENTITIES];
+	trRefEntityLocal_t entityLocals[MAX_REFENTITIES];
 	srfPoly_t *polys;	   //[MAX_POLYS];
 	polyVert_t *polyVerts; //[MAX_POLYVERTS];
 	renderCommandList_t commands;

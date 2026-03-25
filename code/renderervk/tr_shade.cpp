@@ -1901,18 +1901,19 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 
 	constexpr float kInv255 = 1.0f / 255.0f;
 	const trRefEntity_t& ent = *backEnd.currentEntity;
+	const trRefEntityLocal_t& local = TrRefEntityLocal(ent);
 
-	uniform.light.pos[0] = ent.ambientLight[0] * kInv255;
-	uniform.light.pos[1] = ent.ambientLight[1] * kInv255;
-	uniform.light.pos[2] = ent.ambientLight[2] * kInv255;
+	uniform.light.pos[0] = local.ambientLight[0] * kInv255;
+	uniform.light.pos[1] = local.ambientLight[1] * kInv255;
+	uniform.light.pos[2] = local.ambientLight[2] * kInv255;
 
-	uniform.light.color[0] = ent.directedLight[0] * kInv255;
-	uniform.light.color[1] = ent.directedLight[1] * kInv255;
-	uniform.light.color[2] = ent.directedLight[2] * kInv255;
+	uniform.light.color[0] = local.directedLight[0] * kInv255;
+	uniform.light.color[1] = local.directedLight[1] * kInv255;
+	uniform.light.color[2] = local.directedLight[2] * kInv255;
 
-	uniform.light.vector[0] = ent.lightDir[0];
-	uniform.light.vector[1] = ent.lightDir[1];
-	uniform.light.vector[2] = ent.lightDir[2];
+	uniform.light.vector[0] = local.lightDir[0];
+	uniform.light.vector[1] = local.lightDir[1];
+	uniform.light.vector[2] = local.lightDir[2];
 }
 
 static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fogCollapse)

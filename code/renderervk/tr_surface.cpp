@@ -1536,7 +1536,7 @@ static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
 	VBO_Flush();
 #endif
 
-	const int lod = backEnd.currentEntity->modelLod;
+	const int lod = TrRefEntityLocal(*backEnd.currentEntity).modelLod;
 	const md3GpuSurface_t* gpuSurface = R_FindMD3GpuSurface(*model, surface, lod);
 	if (!gpuSurface || !gpuSurface->ready)
 		return false;
