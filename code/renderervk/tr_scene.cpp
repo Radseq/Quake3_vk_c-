@@ -88,6 +88,7 @@ RE_ClearScene
 */
 void RE_ClearScene(void)
 {
+	print(__func__);
 	r_firstSceneDlight = r_numdlights;
 	r_firstSceneEntity = r_numentities;
 	r_firstScenePoly = r_numpolys;
@@ -132,6 +133,7 @@ RE_AddPolyToScene
 */
 void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts, int numPolys)
 {
+	print(__func__);
 	if (!tr.registered)
 	{
 		return;
@@ -236,6 +238,7 @@ RE_AddRefEntityToScene
 */
 void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
 {
+	print(__func__);
 	if (!tr.registered)
 	{
 		return;
@@ -332,6 +335,7 @@ RE_AddLinearLightToScene
 */
 void RE_AddLinearLightToScene(const vec3_t start, const vec3_t end, float intensity, float r, float g, float b)
 {
+	print(__func__);
 	if (VectorCompare(start, end))
 	{
 		RE_AddDynamicLightToScene(start, intensity, r, g, b, 0);
@@ -388,6 +392,7 @@ RE_AddLightToScene
 */
 void RE_AddLightToScene(const vec3_t org, float intensity, float r, float g, float b)
 {
+	print(__func__);
 	RE_AddDynamicLightToScene(org, intensity, r, g, b, false);
 }
 
@@ -399,6 +404,7 @@ RE_AddAdditiveLightToScene
 */
 void RE_AddAdditiveLightToScene(const vec3_t org, float intensity, float r, float g, float b)
 {
+	print(__func__);
 	RE_AddDynamicLightToScene(org, intensity, r, g, b, true);
 }
 
@@ -418,7 +424,7 @@ to handle mirrors,
 static std::vector<double> adsf{};
 void RE_RenderScene(const refdef_t* fd)
 {
-
+	print(__func__);
 
 	double t_empty = benchmark_ns([&] {});
 	double t_work = benchmark_ns([&] {

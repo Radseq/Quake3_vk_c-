@@ -37,6 +37,99 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <cstddef> // For size_t
 
+class FunctionCallCounter final
+{
+public:
+	struct Entry
+	{
+		std::string_view name{};
+		std::uint32_t count = 0;
+	};
+
+	static constexpr std::size_t MaxEntries = 512;
+
+public:
+	// Rejestruje jedno wykonanie funkcji.
+	// Najlepiej wołać: g_functionCallCounter.Hit(__func__);
+	void Hit(const std::string_view functionName) noexcept
+	{
+		// Szukaj istniejącego wpisu.
+		for (std::size_t i = 0; i < m_size; ++i)
+		{
+			if (m_entries[i].name == functionName)
+			{
+				++m_entries[i].count;
+				return;
+			}
+		}
+
+		// Dodaj nowy wpis, jeśli jest miejsce.
+		if (m_size < m_entries.size())
+		{
+			m_entries[m_size].name = functionName;
+			m_entries[m_size].count = 1;
+			++m_size;
+			return;
+		}
+
+		// Opcjonalnie: jak zabraknie miejsca, możesz to logować.
+		// Lepiej nie spamować co call, więc tylko raz.
+		if (!m_overflowReported)
+		{
+			m_overflowReported = true;
+			ri.Printf(PRINT_ALL, "FunctionCallCounter overflow: increase MaxEntries\n");
+		}
+	}
+
+	// Zeruje wszystkie liczniki.
+	void Reset() noexcept
+	{
+		for (std::size_t i = 0; i < m_size; ++i)
+		{
+			m_entries[i] = {};
+		}
+
+		m_size = 0;
+		m_overflowReported = false;
+	}
+
+	// Wypisuje całą tablicę.
+	void Print() const noexcept
+	{
+		ri.Printf(PRINT_ALL, "========== FunctionCallCounter ==========\n");
+
+		for (std::size_t i = 0; i < m_size; ++i)
+		{
+			const Entry& e = m_entries[i];
+
+			ri.Printf(
+				PRINT_ALL,
+				"%3u | %.*s\n",
+				e.count,
+				static_cast<int>(e.name.size()),
+				e.name.data());
+		}
+
+		ri.Printf(PRINT_ALL, "=========================================\n");
+	}
+
+	[[nodiscard]] std::size_t Size() const noexcept
+	{
+		return m_size;
+	}
+
+private:
+	std::array<Entry, MaxEntries> m_entries{};
+	std::size_t m_size = 0;
+	bool m_overflowReported = false;
+};
+
+static FunctionCallCounter g_functionCallCounter;
+
+void print(const std::string_view functionName) {
+	g_functionCallCounter.Hit(functionName);
+}
+
 glconfig_t glConfig;
 
 bool textureFilterAnisotropic;
@@ -53,146 +146,146 @@ static void GfxInfo(void);
 static void VarInfo(void);
 static void GL_SetDefaultState(void);
 
-cvar_t *r_flareSize;
-cvar_t *r_flareFade;
-cvar_t *r_flareCoeff;
+cvar_t* r_flareSize;
+cvar_t* r_flareFade;
+cvar_t* r_flareCoeff;
 
-cvar_t *r_railWidth;
-cvar_t *r_railCoreWidth;
-cvar_t *r_railSegmentLength;
+cvar_t* r_railWidth;
+cvar_t* r_railCoreWidth;
+cvar_t* r_railSegmentLength;
 
-cvar_t *r_detailTextures;
+cvar_t* r_detailTextures;
 
-cvar_t *r_znear;
-cvar_t *r_zproj;
-cvar_t *r_stereoSeparation;
+cvar_t* r_znear;
+cvar_t* r_zproj;
+cvar_t* r_stereoSeparation;
 
-cvar_t *r_skipBackEnd;
+cvar_t* r_skipBackEnd;
 
 // cvar_t	*r_anaglyphMode;
 
-cvar_t *r_greyscale;
-cvar_t *r_dither;
-cvar_t *r_presentBits;
+cvar_t* r_greyscale;
+cvar_t* r_dither;
+cvar_t* r_presentBits;
 
-static cvar_t *r_ignorehwgamma;
+static cvar_t* r_ignorehwgamma;
 
-cvar_t *r_teleporterFlash;
+cvar_t* r_teleporterFlash;
 
-cvar_t *r_fastsky;
-cvar_t *r_neatsky;
-cvar_t *r_drawSun;
-cvar_t *r_dynamiclight;
-cvar_t *r_mergeLightmaps;
+cvar_t* r_fastsky;
+cvar_t* r_neatsky;
+cvar_t* r_drawSun;
+cvar_t* r_dynamiclight;
+cvar_t* r_mergeLightmaps;
 #ifdef USE_PMLIGHT
-cvar_t *r_dlightMode;
-cvar_t *r_dlightScale;
-cvar_t *r_dlightIntensity;
+cvar_t* r_dlightMode;
+cvar_t* r_dlightScale;
+cvar_t* r_dlightIntensity;
 #endif
-cvar_t *r_dlightSaturation;
+cvar_t* r_dlightSaturation;
 
-cvar_t *r_device;
+cvar_t* r_device;
 #ifdef USE_VBO
-cvar_t *r_vbo;
+cvar_t* r_vbo;
 #endif
-cvar_t *r_fbo;
-cvar_t *r_hdr;
-cvar_t *r_bloom;
-cvar_t *r_bloom_threshold;
-cvar_t *r_bloom_intensity;
-cvar_t *r_bloom_threshold_mode;
-cvar_t *r_bloom_modulate;
-cvar_t *r_renderWidth;
-cvar_t *r_renderHeight;
-cvar_t *r_renderScale;
-cvar_t *r_ext_supersample;
+cvar_t* r_fbo;
+cvar_t* r_hdr;
+cvar_t* r_bloom;
+cvar_t* r_bloom_threshold;
+cvar_t* r_bloom_intensity;
+cvar_t* r_bloom_threshold_mode;
+cvar_t* r_bloom_modulate;
+cvar_t* r_renderWidth;
+cvar_t* r_renderHeight;
+cvar_t* r_renderScale;
+cvar_t* r_ext_supersample;
 
-cvar_t *r_dlightBacks;
+cvar_t* r_dlightBacks;
 
-cvar_t *r_lodbias;
-cvar_t *r_lodscale;
+cvar_t* r_lodbias;
+cvar_t* r_lodscale;
 
-cvar_t *r_norefresh;
-cvar_t *r_drawentities;
-cvar_t *r_drawworld;
-cvar_t *r_speeds;
-cvar_t *r_fullbright;
-cvar_t *r_novis;
-cvar_t *r_nocull;
-cvar_t *r_facePlaneCull;
-cvar_t *r_showcluster;
-cvar_t *r_nocurves;
+cvar_t* r_norefresh;
+cvar_t* r_drawentities;
+cvar_t* r_drawworld;
+cvar_t* r_speeds;
+cvar_t* r_fullbright;
+cvar_t* r_novis;
+cvar_t* r_nocull;
+cvar_t* r_facePlaneCull;
+cvar_t* r_showcluster;
+cvar_t* r_nocurves;
 
-cvar_t *r_allowExtensions;
+cvar_t* r_allowExtensions;
 
-cvar_t *r_ext_compressed_textures;
-cvar_t *r_ext_multitexture;
-cvar_t *r_ext_compiled_vertex_array;
-cvar_t *r_ext_texture_env_add;
-cvar_t *r_ext_texture_filter_anisotropic;
-cvar_t *r_ext_max_anisotropy;
+cvar_t* r_ext_compressed_textures;
+cvar_t* r_ext_multitexture;
+cvar_t* r_ext_compiled_vertex_array;
+cvar_t* r_ext_texture_env_add;
+cvar_t* r_ext_texture_filter_anisotropic;
+cvar_t* r_ext_max_anisotropy;
 
-cvar_t *r_ignoreGLErrors;
+cvar_t* r_ignoreGLErrors;
 
 // cvar_t *r_stencilbits;
-cvar_t *r_texturebits;
-cvar_t *r_ext_multisample;
-cvar_t *r_ext_alpha_to_coverage;
+cvar_t* r_texturebits;
+cvar_t* r_ext_multisample;
+cvar_t* r_ext_alpha_to_coverage;
 
-cvar_t *r_drawBuffer;
-cvar_t *r_lightmap;
-cvar_t *r_vertexLight;
-cvar_t *r_shadows;
-cvar_t *r_flares;
-cvar_t *r_nobind;
-cvar_t *r_singleShader;
-cvar_t *r_roundImagesDown;
-cvar_t *r_colorMipLevels;
-cvar_t *r_picmip;
-cvar_t *r_nomip;
-cvar_t *r_showtris;
-cvar_t *r_showsky;
-cvar_t *r_shownormals;
-cvar_t *r_finish;
-cvar_t *r_clear;
-cvar_t *r_textureMode;
-cvar_t *r_offsetFactor;
-cvar_t *r_offsetUnits;
-cvar_t *r_gamma;
-cvar_t *r_intensity;
-cvar_t *r_lockpvs;
-cvar_t *r_noportals;
-cvar_t *r_portalOnly;
+cvar_t* r_drawBuffer;
+cvar_t* r_lightmap;
+cvar_t* r_vertexLight;
+cvar_t* r_shadows;
+cvar_t* r_flares;
+cvar_t* r_nobind;
+cvar_t* r_singleShader;
+cvar_t* r_roundImagesDown;
+cvar_t* r_colorMipLevels;
+cvar_t* r_picmip;
+cvar_t* r_nomip;
+cvar_t* r_showtris;
+cvar_t* r_showsky;
+cvar_t* r_shownormals;
+cvar_t* r_finish;
+cvar_t* r_clear;
+cvar_t* r_textureMode;
+cvar_t* r_offsetFactor;
+cvar_t* r_offsetUnits;
+cvar_t* r_gamma;
+cvar_t* r_intensity;
+cvar_t* r_lockpvs;
+cvar_t* r_noportals;
+cvar_t* r_portalOnly;
 
-cvar_t *r_subdivisions;
-cvar_t *r_lodCurveError;
+cvar_t* r_subdivisions;
+cvar_t* r_lodCurveError;
 
-cvar_t *r_overBrightBits;
-cvar_t *r_mapOverBrightBits;
-cvar_t *r_mapGreyScale;
+cvar_t* r_overBrightBits;
+cvar_t* r_mapOverBrightBits;
+cvar_t* r_mapGreyScale;
 
-cvar_t *r_debugSurface;
-cvar_t *r_simpleMipMaps;
+cvar_t* r_debugSurface;
+cvar_t* r_simpleMipMaps;
 
-cvar_t *r_showImages;
-cvar_t *r_defaultImage;
+cvar_t* r_showImages;
+cvar_t* r_defaultImage;
 
-cvar_t *r_ambientScale;
-cvar_t *r_directedScale;
-cvar_t *r_debugLight;
-cvar_t *r_debugSort;
-cvar_t *r_printShaders;
-cvar_t *r_saveFontData;
+cvar_t* r_ambientScale;
+cvar_t* r_directedScale;
+cvar_t* r_debugLight;
+cvar_t* r_debugSort;
+cvar_t* r_printShaders;
+cvar_t* r_saveFontData;
 
-cvar_t *r_marksOnTriangleMeshes;
+cvar_t* r_marksOnTriangleMeshes;
 
-cvar_t *r_aviMotionJpegQuality;
-cvar_t *r_screenshotJpegQuality;
+cvar_t* r_aviMotionJpegQuality;
+cvar_t* r_screenshotJpegQuality;
 
 cvar_t* r_gpuAnim;
 
-static cvar_t *r_maxpolys;
-static cvar_t *r_maxpolyverts;
+static cvar_t* r_maxpolys;
+static cvar_t* r_maxpolyverts;
 int max_polys;
 int max_polyverts;
 
@@ -207,7 +300,7 @@ vk::SampleCountFlagBits vkSamples = vk::SampleCountFlagBits::e1;
 
 // for modular renderer
 #ifdef USE_RENDERER_DLOPEN
-void QDECL Com_Error(errorParm_t code, const char *fmt, ...)
+void QDECL Com_Error(errorParm_t code, const char* fmt, ...)
 {
 	char buf[4096];
 	va_list argptr;
@@ -217,7 +310,7 @@ void QDECL Com_Error(errorParm_t code, const char *fmt, ...)
 	ri.Error(code, "%s", buf);
 }
 
-void QDECL Com_Printf(const char *fmt, ...)
+void QDECL Com_Printf(const char* fmt, ...)
 {
 	char buf[MAXPRINTMSG];
 	va_list argptr;
@@ -388,9 +481,9 @@ Stores the length of padding after a line of pixels to address padlen
 Return value must be freed with ri.Hunk_FreeTempMemory()
 ==================
 */
-static byte *RB_ReadPixels(const int width, const int height, size_t *offset, int &padlen)
+static byte* RB_ReadPixels(const int width, const int height, size_t* offset, int& padlen)
 {
-	byte *buffer, *bufstart;
+	byte* buffer, * bufstart;
 	int linelen;
 	int bufAlign;
 	int packAlign = 1;
@@ -401,8 +494,8 @@ static byte *RB_ReadPixels(const int width, const int height, size_t *offset, in
 
 	// Allocate a few more bytes so that we can choose an alignment we like
 	// buffer = ri.Hunk_AllocateTempMemory(padwidth * height + *offset + bufAlign - 1);
-	buffer = reinterpret_cast<byte *>(ri.Hunk_AllocateTempMemory(width * height * 4 + *offset + bufAlign - 1));
-	bufstart = reinterpret_cast<byte *>(PADP((intptr_t)buffer + *offset, bufAlign));
+	buffer = reinterpret_cast<byte*>(ri.Hunk_AllocateTempMemory(width * height * 4 + *offset + bufAlign - 1));
+	bufstart = reinterpret_cast<byte*>(PADP((intptr_t)buffer + *offset, bufAlign));
 
 	vk_read_pixels(bufstart, width, height);
 
@@ -417,12 +510,12 @@ static byte *RB_ReadPixels(const int width, const int height, size_t *offset, in
 RB_TakeScreenshot
 ==================
 */
-void RB_TakeScreenshot(const int x, const int y, const int width, const int height, const char *fileName)
+void RB_TakeScreenshot(const int x, const int y, const int width, const int height, const char* fileName)
 {
 	const int header_size = 18;
-	byte *allbuf, *buffer;
-	byte *srcptr, *destptr;
-	byte *endline, *endmem;
+	byte* allbuf, * buffer;
+	byte* srcptr, * destptr;
+	byte* endline, * endmem;
 	byte temp;
 	int linelen, padlen;
 	size_t offset, memcount;
@@ -478,9 +571,9 @@ void RB_TakeScreenshot(const int x, const int y, const int width, const int heig
 RB_TakeScreenshotJPEG
 ==================
 */
-void RB_TakeScreenshotJPEG(const int x, const int y, const int width, const int height, const char *fileName)
+void RB_TakeScreenshotJPEG(const int x, const int y, const int width, const int height, const char* fileName)
 {
-	byte *buffer;
+	byte* buffer;
 	size_t offset = 0, memcount;
 	int padlen;
 
@@ -494,7 +587,7 @@ void RB_TakeScreenshotJPEG(const int x, const int y, const int width, const int 
 	ri.Hunk_FreeTempMemory(buffer);
 }
 
-static void FillBMPHeader(byte *buffer, const int width, const int height, const int memcount, const int header_size)
+static void FillBMPHeader(byte* buffer, const int width, const int height, const int memcount, const int header_size)
 {
 	int filesize;
 	Com_Memset(buffer, 0, header_size);
@@ -538,13 +631,13 @@ static void FillBMPHeader(byte *buffer, const int width, const int height, const
 RB_TakeScreenshotBMP
 ==================
 */
-void RB_TakeScreenshotBMP(const int x, const int y, const int width, const int height, const char *fileName, const int clipboardOnly)
+void RB_TakeScreenshotBMP(const int x, const int y, const int width, const int height, const char* fileName, const int clipboardOnly)
 {
-	byte *allbuf;
-	byte *buffer; // destination buffer
-	byte *srcptr, *srcline;
-	byte *destptr, *dstline;
-	byte *endmem;
+	byte* allbuf;
+	byte* buffer; // destination buffer
+	byte* srcptr, * srcline;
+	byte* destptr, * dstline;
+	byte* endmem;
 	byte temp[4]{};
 	size_t memcount, offset;
 	const int header_size = 54; // bitmapfileheader(14) + bitmapinfoheader(40)
@@ -630,7 +723,7 @@ void RB_TakeScreenshotBMP(const int x, const int y, const int width, const int h
 R_ScreenshotFilename
 ==================
 */
-static void R_ScreenshotFilename(char *fileName, const char *fileExt)
+static void R_ScreenshotFilename(char* fileName, const char* fileExt)
 {
 	qtime_t t;
 	int count;
@@ -639,14 +732,14 @@ static void R_ScreenshotFilename(char *fileName, const char *fileExt)
 	ri.Com_RealTime(&t);
 
 	Com_sprintf(fileName, MAX_OSPATH, "screenshots/shot-%04d%02d%02d-%02d%02d%02d.%s",
-				1900 + t.tm_year, 1 + t.tm_mon, t.tm_mday,
-				t.tm_hour, t.tm_min, t.tm_sec, fileExt);
+		1900 + t.tm_year, 1 + t.tm_mon, t.tm_mday,
+		t.tm_hour, t.tm_min, t.tm_sec, fileExt);
 
 	while (ri.FS_FileExists(fileName) && ++count < 1000)
 	{
 		Com_sprintf(fileName, MAX_OSPATH, "screenshots/shot-%04d%02d%02d-%02d%02d%02d-%d.%s",
-					1900 + t.tm_year, 1 + t.tm_mon, t.tm_mday,
-					t.tm_hour, t.tm_min, t.tm_sec, count, fileExt);
+			1900 + t.tm_year, 1 + t.tm_mon, t.tm_mday,
+			t.tm_hour, t.tm_min, t.tm_sec, count, fileExt);
 	}
 }
 
@@ -661,9 +754,9 @@ the menu system, sampled down from full screen distorted images
 static void R_LevelShot(void)
 {
 	char checkname[MAX_OSPATH];
-	byte *buffer;
-	byte *source, *allsource;
-	byte *src, *dst;
+	byte* buffer;
+	byte* source, * allsource;
+	byte* src, * dst;
 	size_t offset = 0;
 	int padlen;
 	int x, y;
@@ -676,7 +769,7 @@ static void R_LevelShot(void)
 	allsource = RB_ReadPixels(gls.captureWidth, gls.captureHeight, &offset, padlen);
 	source = allsource + offset;
 
-	buffer = reinterpret_cast<byte *>(ri.Hunk_AllocateTempMemory(128 * 128 * 3 + 18));
+	buffer = reinterpret_cast<byte*>(ri.Hunk_AllocateTempMemory(128 * 128 * 3 + 18));
 	Com_Memset(buffer, 0, 18);
 	buffer[2] = 2; // uncompressed type
 	buffer[12] = 128;
@@ -696,7 +789,7 @@ static void R_LevelShot(void)
 				for (xx = 0; xx < 4; xx++)
 				{
 					src = source + (3 * glConfig.vidWidth + padlen) * (int)((y * 3 + yy) * yScale) +
-						  3 * (int)((x * 4 + xx) * xScale);
+						3 * (int)((x * 4 + xx) * xScale);
 					r += src[0];
 					g += src[1];
 					b += src[2];
@@ -737,7 +830,7 @@ static void R_ScreenShot_f(void)
 	char checkname[MAX_OSPATH];
 	bool silent;
 	int typeMask;
-	const char *ext;
+	const char* ext;
 
 	if (ri.CL_IsMinimized() && !RE_CanMinimize())
 	{
@@ -830,15 +923,15 @@ static void R_ScreenShot_f(void)
 RB_TakeVideoFrameCmd
 ==================
 */
-const void *RB_TakeVideoFrameCmd(const void *data)
+const void* RB_TakeVideoFrameCmd(const void* data)
 {
-	const videoFrameCommand_t *cmd;
-	byte *cBuf;
+	const videoFrameCommand_t* cmd;
+	byte* cBuf;
 	size_t memcount, linelen;
 	int padwidth, avipadwidth, padlen, avipadlen;
 	int packAlign;
 
-	cmd = (const videoFrameCommand_t *)data;
+	cmd = (const videoFrameCommand_t*)data;
 
 	packAlign = 1;
 
@@ -851,7 +944,7 @@ const void *RB_TakeVideoFrameCmd(const void *data)
 	avipadwidth = pad_up_ct<size_t, AVI_LINE_PADDING>(linelen);
 	avipadlen = avipadwidth - linelen;
 
-	cBuf = reinterpret_cast<byte *>(PADP(cmd->captureBuffer, packAlign));
+	cBuf = reinterpret_cast<byte*>(PADP(cmd->captureBuffer, packAlign));
 
 	vk_read_pixels(cBuf, cmd->width, cmd->height);
 
@@ -863,14 +956,14 @@ const void *RB_TakeVideoFrameCmd(const void *data)
 	if (cmd->motionJpeg)
 	{
 		memcount = ri.CL_SaveJPGToBuffer(cmd->encodeBuffer, linelen * cmd->height,
-										 r_aviMotionJpegQuality->integer,
-										 cmd->width, cmd->height, cBuf, padlen);
+			r_aviMotionJpegQuality->integer,
+			cmd->width, cmd->height, cBuf, padlen);
 		ri.CL_WriteAVIVideoFrame(cmd->encodeBuffer, memcount);
 	}
 	else
 	{
-		byte *lineend, *memend;
-		byte *srcptr, *destptr;
+		byte* lineend, * memend;
+		byte* srcptr, * destptr;
 
 		srcptr = cBuf;
 		destptr = cmd->encodeBuffer;
@@ -897,7 +990,7 @@ const void *RB_TakeVideoFrameCmd(const void *data)
 		ri.CL_WriteAVIVideoFrame(cmd->encodeBuffer, avipadwidth * cmd->height);
 	}
 
-	return (const void *)(cmd + 1);
+	return (const void*)(cmd + 1);
 }
 
 //============================================================================
@@ -918,10 +1011,10 @@ R_PrintLongString
 Workaround for ri.Printf's 1024 characters buffer limit.
 ================
 */
-static void R_PrintLongString(const char *string)
+static void R_PrintLongString(const char* string)
 {
 	std::array<char, 1024> buffer;
-	const char *p;
+	const char* p;
 	int size = strlen(string);
 
 	p = string;
@@ -943,7 +1036,7 @@ Prints persistent rendering configuration
 */
 static void GfxInfo(void)
 {
-	std::array<std::string_view, 2> fsstrings{"windowed", "fullscreen"};
+	std::array<std::string_view, 2> fsstrings{ "windowed", "fullscreen" };
 	std::string_view fs;
 	int mode;
 	ri.Printf(PRINT_ALL, "\nVK_VENDOR: %s\n", glConfig.vendor_string);
@@ -970,7 +1063,7 @@ static void GfxInfo(void)
 
 	if (glConfig.isFullscreen)
 	{
-		const char *modefs = ri.Cvar_VariableString("r_modeFullscreen");
+		const char* modefs = ri.Cvar_VariableString("r_modeFullscreen");
 		if (*modefs)
 			mode = atoi(modefs);
 		else
@@ -1009,24 +1102,25 @@ VarInfo
 Prints info that may change every R_Init() call
 ================
 */
-static void VarInfo( void )
+static void VarInfo(void)
 {
-	if ( glConfig.deviceSupportsGamma ) {
-		ri.Printf( PRINT_ALL, "GAMMA: hardware w/ %d overbright bits\n", tr.overbrightBits );
-	} else {
-		ri.Printf( PRINT_ALL, "GAMMA: software w/ %d overbright bits\n", tr.overbrightBits );
+	if (glConfig.deviceSupportsGamma) {
+		ri.Printf(PRINT_ALL, "GAMMA: hardware w/ %d overbright bits\n", tr.overbrightBits);
+	}
+	else {
+		ri.Printf(PRINT_ALL, "GAMMA: software w/ %d overbright bits\n", tr.overbrightBits);
 	}
 
-	ri.Printf( PRINT_ALL, "texturemode: %s\n", r_textureMode->string );
-	ri.Printf( PRINT_ALL, "texture bits: %d\n", r_texturebits->integer ? r_texturebits->integer : 32 );
-	ri.Printf( PRINT_ALL, "picmip: %d%s\n", r_picmip->integer, r_nomip->integer ? ", worldspawn only" : "" );
+	ri.Printf(PRINT_ALL, "texturemode: %s\n", r_textureMode->string);
+	ri.Printf(PRINT_ALL, "texture bits: %d\n", r_texturebits->integer ? r_texturebits->integer : 32);
+	ri.Printf(PRINT_ALL, "picmip: %d%s\n", r_picmip->integer, r_nomip->integer ? ", worldspawn only" : "");
 
-	if ( r_vertexLight->integer ) {
-		ri.Printf( PRINT_ALL, "HACK: using vertex lightmap approximation\n" );
+	if (r_vertexLight->integer) {
+		ri.Printf(PRINT_ALL, "HACK: using vertex lightmap approximation\n");
 	}
 
-	if ( r_finish->integer ) {
-		ri.Printf( PRINT_ALL, "Forcing glFinish\n" );
+	if (r_finish->integer) {
+		ri.Printf(PRINT_ALL, "Forcing glFinish\n");
 	}
 }
 
@@ -1058,6 +1152,7 @@ RE_SyncRender
 */
 static void RE_SyncRender(void)
 {
+	print(__func__);
 	if (vk_inst.device)
 		vk_wait_idle();
 }
@@ -1365,9 +1460,9 @@ static void R_Register(void)
 	r_device = ri.Cvar_Get("r_device", "-1", CVAR_ARCHIVE_ND | CVAR_LATCH);
 	ri.Cvar_CheckRange(r_device, "-2", NULL, CV_INTEGER);
 	ri.Cvar_SetDescription(r_device, "Select physical device to render:\n"
-									 " 0+ - use explicit device index\n"
-									 " -1 - first discrete GPU\n"
-									 " -2 - first integrated GPU");
+		" 0+ - use explicit device index\n"
+		" -1 - first discrete GPU\n"
+		" -2 - first integrated GPU");
 	r_device->modified = false;
 
 	r_fbo = ri.Cvar_Get("r_fbo", "0", CVAR_ARCHIVE_ND | CVAR_LATCH);
@@ -1386,9 +1481,9 @@ static void R_Register(void)
 	ri.Cvar_CheckRange(r_ext_supersample, "0", "1", CV_INTEGER);
 	ri.Cvar_SetDescription(r_ext_supersample, "Super-sample anti-aliasing, requires \\r_fbo 1.");
 #if 0
-	r_ext_alpha_to_coverage = ri.Cvar_Get( "r_ext_alpha_to_coverage", "0", CVAR_ARCHIVE_ND | CVAR_LATCH );
-	ri.Cvar_CheckRange( r_ext_alpha_to_coverage, "0", "1", CV_INTEGER );
-	ri.Cvar_SetDescription( r_ext_alpha_to_coverage, "Enables alpha-to-coverage multisampling, requires \\r_fbo 1." );
+	r_ext_alpha_to_coverage = ri.Cvar_Get("r_ext_alpha_to_coverage", "0", CVAR_ARCHIVE_ND | CVAR_LATCH);
+	ri.Cvar_CheckRange(r_ext_alpha_to_coverage, "0", "1", CV_INTEGER);
+	ri.Cvar_SetDescription(r_ext_alpha_to_coverage, "Enables alpha-to-coverage multisampling, requires \\r_fbo 1.");
 #endif
 
 	r_renderWidth = ri.Cvar_Get("r_renderWidth", "800", CVAR_ARCHIVE_ND | CVAR_LATCH);
@@ -1401,11 +1496,11 @@ static void R_Register(void)
 	r_renderScale = ri.Cvar_Get("r_renderScale", "0", CVAR_ARCHIVE_ND | CVAR_LATCH);
 	ri.Cvar_CheckRange(r_renderScale, "0", "4", CV_INTEGER);
 	ri.Cvar_SetDescription(r_renderScale, "Scaling mode to be used with custom render resolution:\n"
-										  " 0 - disabled\n"
-										  " 1 - nearest filtering, stretch to full size\n"
-										  " 2 - nearest filtering, preserve aspect ratio (black bars on sides)\n"
-										  " 3 - linear filtering, stretch to full size\n"
-										  " 4 - linear filtering, preserve aspect ratio (black bars on sides)\n");
+		" 0 - disabled\n"
+		" 1 - nearest filtering, stretch to full size\n"
+		" 2 - nearest filtering, preserve aspect ratio (black bars on sides)\n"
+		" 3 - linear filtering, stretch to full size\n"
+		" 4 - linear filtering, preserve aspect ratio (black bars on sides)\n");
 }
 
 
@@ -1476,7 +1571,7 @@ R_Init
 void R_Init(void)
 {
 	int i;
-	byte *ptr;
+	byte* ptr;
 
 	ri.Printf(PRINT_ALL, "----- R_Init -----\n");
 
@@ -1505,7 +1600,7 @@ void R_Init(void)
 	//
 	for (i = 0; i < FUNCTABLE_SIZE; i++)
 	{
-		tr.sinTable[i] = sin( deg2rad( i * 360.0f / FUNCTABLE_SIZE ) + 0.0001f );
+		tr.sinTable[i] = sin(deg2rad(i * 360.0f / FUNCTABLE_SIZE) + 0.0001f);
 	}
 
 	R_InitFogTable();
@@ -1517,10 +1612,10 @@ void R_Init(void)
 	max_polys = r_maxpolys->integer;
 	max_polyverts = r_maxpolyverts->integer;
 
-	ptr = reinterpret_cast<byte *>(ri.Hunk_Alloc(sizeof(*backEndData) + sizeof(srfPoly_t) * max_polys + sizeof(polyVert_t) * max_polyverts, h_low));
-	backEndData = (backEndData_t *)ptr;
-	backEndData->polys = (srfPoly_t *)((char *)ptr + sizeof(*backEndData));
-	backEndData->polyVerts = (polyVert_t *)((char *)ptr + sizeof(*backEndData) + sizeof(srfPoly_t) * max_polys);
+	ptr = reinterpret_cast<byte*>(ri.Hunk_Alloc(sizeof(*backEndData) + sizeof(srfPoly_t) * max_polys + sizeof(polyVert_t) * max_polyverts, h_low));
+	backEndData = (backEndData_t*)ptr;
+	backEndData->polys = (srfPoly_t*)((char*)ptr + sizeof(*backEndData));
+	backEndData->polyVerts = (polyVert_t*)((char*)ptr + sizeof(*backEndData) + sizeof(srfPoly_t) * max_polys);
 
 	R_InitNextFrame();
 
@@ -1550,6 +1645,8 @@ RE_Shutdown
 */
 static void RE_Shutdown(refShutdownCode_t code)
 {
+	g_functionCallCounter.Print();
+
 	ri.Printf(PRINT_ALL, "RE_Shutdown( %i )\n", code);
 
 	ri.Cmd_RemoveCommand("modellist");
@@ -1565,7 +1662,7 @@ static void RE_Shutdown(refShutdownCode_t code)
 
 	//if ( tr.registered ) {
 		//R_IssuePendingRenderCommands();
-		R_DeleteTextures();
+	R_DeleteTextures();
 	//}
 
 
@@ -1607,6 +1704,7 @@ Touch all images to make sure they are resident
 */
 static void RE_EndRegistration(void)
 {
+	print(__func__);
 	vk_wait_idle();
 	// command buffer is not in recording state at this stage
 	// so we can't issue RB_ShowImages() there
@@ -1616,10 +1714,10 @@ extern "C"
 {
 
 #ifdef USE_RENDERER_DLOPEN
-	Q_EXPORT refexport_t *QDECL GetRefAPI(int apiVersion, refimport_t *rimp)
+	Q_EXPORT refexport_t* QDECL GetRefAPI(int apiVersion, refimport_t* rimp)
 	{
 #else
-	refexport_t *GetRefAPI(int apiVersion, refimport_t *rimp)
+	refexport_t* GetRefAPI(int apiVersion, refimport_t * rimp)
 	{
 #endif
 		static refexport_t re;
@@ -1631,7 +1729,7 @@ extern "C"
 		if (apiVersion != REF_API_VERSION)
 		{
 			ri.Printf(PRINT_ALL, "Mismatched REF_API_VERSION: expected %i, got %i\n",
-					  REF_API_VERSION, apiVersion);
+				REF_API_VERSION, apiVersion);
 			return NULL;
 		}
 

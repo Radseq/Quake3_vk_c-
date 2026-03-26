@@ -179,6 +179,7 @@ void R_GammaCorrect(byte* buffer, const int bufSize)
 
 void R_SetColorMappings()
 {
+	print(__func__);
 	if (!tr.inited)
 	{
 		// it may be called from window handling functions where gamma flags is now yet known/set
@@ -1611,6 +1612,7 @@ static const char* CommaParse(const char** data_p)
 
 qhandle_t RE_RegisterSkin(const char* name)
 {
+	print(__func__);
 	skinSurface_t parseSurfaces[MAX_SKIN_SURFACES]{};
 	qhandle_t hSkin;
 	skin_t* skin;

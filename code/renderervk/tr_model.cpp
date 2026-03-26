@@ -353,6 +353,7 @@ asked for again.
 */
 qhandle_t RE_RegisterModel(const char* name)
 {
+	print(__func__);
 	model_t* mod;
 	qhandle_t hModel;
 	bool orgNameFailed = false;
@@ -1089,7 +1090,8 @@ static bool R_LoadMDR(model_t& mod, void* buffer, const int filesize, std::strin
 */
 void RE_BeginRegistration(glconfig_t* glconfigOut)
 {
-
+	print(__func__);
+	
 	R_Init();
 
 	*glconfigOut = glConfig;
@@ -1236,6 +1238,7 @@ R_LerpTag
 int R_LerpTag(orientation_t* tag, qhandle_t handle, int startFrame, int endFrame,
 	float frac, const char* tagName)
 {
+	print(__func__);
 	md3Tag_t* start, * end;
 	md3Tag_t start_space, end_space;
 	int i;
@@ -1299,6 +1302,7 @@ R_ModelBounds
 */
 void R_ModelBounds(qhandle_t handle, vec3_t mins, vec3_t maxs)
 {
+	print(__func__);
 	model_t& model = *R_GetModelByHandle(handle);
 
 	if (model.type == modtype_t::MOD_BRUSH)

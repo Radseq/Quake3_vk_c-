@@ -216,6 +216,7 @@ Passing NULL will set the color to white
 */
 void RE_SetColor(const float *rgba)
 {
+	print(__func__);
 	setColorCommand_t *cmd;
 
 	if (!tr.registered)
@@ -247,6 +248,7 @@ RE_StretchPic
 void RE_StretchPic(float x, float y, float w, float h,
 				   float s1, float t1, float s2, float t2, qhandle_t hShader)
 {
+	print(__func__);
 	stretchPicCommand_t *cmd;
 
 	if (!tr.registered)
@@ -280,6 +282,7 @@ for each RE_EndFrame
 */
 void RE_BeginFrame(stereoFrame_t stereoFrame)
 {
+	print(__func__);
 	drawBufferCommand_t *cmd;
 
 	if (!tr.registered)
@@ -347,6 +350,7 @@ RE_TakeVideoFrame
 void RE_TakeVideoFrame(int width, int height,
 					   byte *captureBuffer, byte *encodeBuffer, bool motionJpeg)
 {
+	print(__func__);
 	if (!tr.registered)
 	{
 		return;
@@ -367,11 +371,13 @@ void RE_TakeVideoFrame(int width, int height,
 
 void RE_ThrottleBackend()
 {
+	print(__func__);
 	backEnd.throttle = true;
 }
 
 void RE_FinishBloom()
 {
+	print(__func__);
 	finishBloomCommand_t *cmd;
 
 	if (!tr.registered)
@@ -390,6 +396,7 @@ void RE_FinishBloom()
 
 bool RE_CanMinimize()
 {
+	print(__func__);
 	if (vk_inst.fboActive || vk_inst.offscreenRender)
 		return true;
 	return false;
@@ -397,11 +404,13 @@ bool RE_CanMinimize()
 
 const glconfig_t *RE_GetConfig()
 {
+	print(__func__);
 	return &glConfig;
 }
 
 void RE_VertexLighting(bool allowed)
 {
+	print(__func__);
 	tr.vertexLightingAllowed = allowed;
 }
 
@@ -414,7 +423,7 @@ Returns the number of msec spent in the back end
 */
 void RE_EndFrame(int *frontEndMsec, int *backEndMsec)
 {
-
+	print(__func__);
 	swapBuffersCommand_t *cmd;
 
 	if (!tr.registered)

@@ -261,6 +261,7 @@ static void R_SetupEntityLightingGrid(trRefEntity_t &ent)
 
 int R_LightForPoint(vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir)
 {
+    print(__func__);
     trRefEntity_t ent;
     trRefEntityLocal_t local{};
 

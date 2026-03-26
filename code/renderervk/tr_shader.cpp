@@ -91,6 +91,7 @@ constexpr collapse_t collapse[] = {
 
 void RE_RemapShader(const char* shaderName, const char* newShaderName, const char* timeOffset)
 {
+	print(__func__);
 	std::array<char, MAX_QPATH> strippedName;
 	int hash;
 	shader_t* sh, * sh2;
@@ -4518,6 +4519,7 @@ way to ask for different implicit lighting modes (vertex, lightmap, etc)
 */
 qhandle_t RE_RegisterShader(const char* name)
 {
+	print(__func__);
 	if (!name)
 	{
 		ri.Printf(PRINT_ALL, "NULL shader\n");
@@ -4554,6 +4556,7 @@ For menu graphics that should never be picmiped
 */
 qhandle_t RE_RegisterShaderNoMip(const char* name)
 {
+	print(__func__);
 	shader_t* sh;
 
 	if (strlen(name) >= MAX_QPATH)

@@ -486,6 +486,7 @@ space in big maps...
 */
 void RE_SetWorldVisData(const byte *vis)
 {
+	print(__func__);
 	tr.externalVisData = vis;
 }
 
@@ -2485,6 +2486,7 @@ RE_GetEntityToken
 */
 bool RE_GetEntityToken(char *buffer, int size)
 {
+	print(__func__);
 	const char *s;
 
 	s = COM_Parse(&s_worldData.entityParsePoint);
@@ -2509,6 +2511,7 @@ Called directly from cgame
 */
 void RE_LoadWorldMap(const char *name)
 {
+	print(__func__);
 	std::size_t i;
 	int32_t size;
 	dheader_t *header;

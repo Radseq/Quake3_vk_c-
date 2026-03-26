@@ -558,6 +558,7 @@ Used for cinematics.
 */
 void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data, int client, bool dirty)
 {
+	print(__func__);
 	if (!tr.registered)
 	{
 		return;
@@ -599,6 +600,7 @@ void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data, i
 
 void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client, bool dirty)
 {
+	print(__func__);
 	image_t *image;
 
 	if (!tr.scratchImage[client])

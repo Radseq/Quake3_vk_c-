@@ -113,6 +113,8 @@ static inline void vkCheckFunctionCall(const vk::Result res, const char* funcNam
 
 #endif
 
+extern void print(const std::string_view functionName);
+
 constexpr int MAX_DRAWSURFS = 0x20000;
 constexpr int MAX_LITSURFS = (MAX_DRAWSURFS);
 constexpr int MAX_FLARES = 256;

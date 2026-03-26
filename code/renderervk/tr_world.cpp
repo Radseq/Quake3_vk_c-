@@ -916,6 +916,7 @@ R_inPVS
 */
 bool R_inPVS(const vec3_t p1, const vec3_t p2)
 {
+	print(__func__);
 	const mnode_t *leaf;
 	const byte *vis;
 
