@@ -12,4 +12,8 @@ int R_IQMLerpTag(orientation_t &tag, iqmData_t &data,
 void RB_IQMSurfaceAnim(const surfaceType_t &surface);
 bool R_LoadIQM(model_t &mod, void *buffer, int filesize, std::string_view mod_name);
 
+int R_IQMLerpTagCached(model_t& model, orientation_t& tag, iqmData_t& data,
+	int startFrame, int endFrame,
+	float frac, const char* tagName);
+
 #endif // TR_MODEL_IQM_HPP

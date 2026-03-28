@@ -103,6 +103,7 @@ static void R_IssueRenderCommands(void)
 
 	// clear it out, in case this is a sync and not a buffer flip
 	cmdList.used = 0;
+	R_ResetCommandListState(cmdList);
 
 	if (backEnd.screenshotMask == 0)
 	{
@@ -139,6 +140,7 @@ static void *R_GetCommandBufferReserved(int bytes, const int reservedBytes)
 {
 	renderCommandList_t &cmdList = backEndData->commands;
 	bytes = pad_up_ct<int, alignof(void*)>(bytes);
+	cmdList.lastStretchPicBatchOffset = -1;
 
 	// always leave room for the end of list command
 	if (cmdList.used + bytes + sizeof(int) + reservedBytes > MAX_RENDER_COMMANDS)
@@ -207,6 +209,21 @@ void R_AddDrawSurfCmd(drawSurf_t &drawSurfs, int numDrawSurfs)
 
 constexpr vec4_t colorWhite_cpp = {1, 1, 1, 1};
 
+static ID_INLINE bool R_ColorsEqual4(const float* a, const float* b) noexcept
+{
+	return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3];
+}
+
+ID_INLINE void R_ResetCommandListState(renderCommandList_t& cmdList) noexcept
+{
+	cmdList.lastStretchPicBatchOffset = -1;
+	cmdList.colorValid = false;
+	cmdList.currentColor[0] = 1.0f;
+	cmdList.currentColor[1] = 1.0f;
+	cmdList.currentColor[2] = 1.0f;
+	cmdList.currentColor[3] = 1.0f;
+}
+
 /*
 =============
 RE_SetColor
@@ -214,30 +231,41 @@ RE_SetColor
 Passing NULL will set the color to white
 =============
 */
-void RE_SetColor(const float *rgba)
+void RE_SetColor(const float* rgba)
 {
-	print(__func__);
-	setColorCommand_t *cmd;
+	setColorCommand_t* cmd;
 
 	if (!tr.registered)
 	{
 		return;
 	}
-	cmd = static_cast<setColorCommand_t *>(R_GetCommandBuffer(sizeof(*cmd)));
-	if (!cmd)
-	{
-		return;
-	}
-	cmd->commandId = renderCommand_t::RC_SET_COLOR;
 	if (!rgba)
 	{
 		rgba = colorWhite_cpp;
 	}
 
+	renderCommandList_t& cmdList = backEndData->commands;
+	if (cmdList.colorValid && R_ColorsEqual4(cmdList.currentColor, rgba))
+	{
+		return;
+	}
+
+	cmd = static_cast<setColorCommand_t*>(R_GetCommandBuffer(sizeof(*cmd)));
+	if (!cmd)
+	{
+		return;
+	}
+	cmd->commandId = renderCommand_t::RC_SET_COLOR;
 	cmd->color[0] = rgba[0];
 	cmd->color[1] = rgba[1];
 	cmd->color[2] = rgba[2];
 	cmd->color[3] = rgba[3];
+
+	cmdList.colorValid = true;
+	cmdList.currentColor[0] = rgba[0];
+	cmdList.currentColor[1] = rgba[1];
+	cmdList.currentColor[2] = rgba[2];
+	cmdList.currentColor[3] = rgba[3];
 }
 
 /*
@@ -246,30 +274,62 @@ RE_StretchPic
 =============
 */
 void RE_StretchPic(float x, float y, float w, float h,
-				   float s1, float t1, float s2, float t2, qhandle_t hShader)
+	float s1, float t1, float s2, float t2, qhandle_t hShader)
 {
-	print(__func__);
-	stretchPicCommand_t *cmd;
-
 	if (!tr.registered)
 	{
 		return;
 	}
-	cmd = reinterpret_cast<stretchPicCommand_t *>(R_GetCommandBuffer(sizeof(*cmd)));
+
+	renderCommandList_t& cmdList = backEndData->commands;
+	shader_t* const shader = R_GetShaderByHandle(hShader);
+	const float* const color = cmdList.colorValid ? cmdList.currentColor : colorWhite_cpp;
+
+	if (cmdList.lastStretchPicBatchOffset >= 0)
+	{
+		auto* batch = reinterpret_cast<stretchPicBatchCommand_t*>(cmdList.cmds + cmdList.lastStretchPicBatchOffset);
+		if (batch->commandId == renderCommand_t::RC_STRETCH_PIC_BATCH &&
+			batch->shader == shader &&
+			R_ColorsEqual4(batch->color, color) &&
+			batch->count < STRETCH_PIC_BATCH_MAX)
+		{
+			stretchPicItem_t& item = batch->items[batch->count++];
+			item.x = x;
+			item.y = y;
+			item.w = w;
+			item.h = h;
+			item.s1 = s1;
+			item.t1 = t1;
+			item.s2 = s2;
+			item.t2 = t2;
+			return;
+		}
+	}
+
+	stretchPicBatchCommand_t* cmd = reinterpret_cast<stretchPicBatchCommand_t*>(R_GetCommandBuffer(sizeof(*cmd)));
 	if (!cmd)
 	{
 		return;
 	}
-	cmd->commandId = renderCommand_t::RC_STRETCH_PIC;
-	cmd->shader = R_GetShaderByHandle(hShader);
-	cmd->x = x;
-	cmd->y = y;
-	cmd->w = w;
-	cmd->h = h;
-	cmd->s1 = s1;
-	cmd->t1 = t1;
-	cmd->s2 = s2;
-	cmd->t2 = t2;
+
+	cmd->commandId = renderCommand_t::RC_STRETCH_PIC_BATCH;
+	cmd->shader = shader;
+	cmd->color[0] = color[0];
+	cmd->color[1] = color[1];
+	cmd->color[2] = color[2];
+	cmd->color[3] = color[3];
+	cmd->count = 1;
+	cmd->reserved = 0;
+	cmd->items[0].x = x;
+	cmd->items[0].y = y;
+	cmd->items[0].w = w;
+	cmd->items[0].h = h;
+	cmd->items[0].s1 = s1;
+	cmd->items[0].t1 = t1;
+	cmd->items[0].s2 = s2;
+	cmd->items[0].t2 = t2;
+
+	cmdList.lastStretchPicBatchOffset = static_cast<int>(reinterpret_cast<byte*>(cmd) - cmdList.cmds);
 }
 
 /*

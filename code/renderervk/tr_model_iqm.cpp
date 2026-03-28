@@ -36,6 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk_pipeline.hpp"
 #include "vk.hpp"
 #include "tr_shade.hpp"
+#include "tr_model.hpp"
 
 #define LL(x) x = LittleLong(x)
 
@@ -702,13 +703,87 @@ static void ComputeJointMats(iqmData_t &data, const int frame, const int oldfram
 	}
 }
 
-int R_IQMLerpTag(orientation_t &tag, iqmData_t &data,
-				 const int startFrame, const int endFrame,
-				 const float frac, const char *tagName)
+static int R_IQMLerpTagFromJoint(orientation_t& tag, iqmData_t& data,
+	const int startFrame, const int endFrame,
+	const float frac, const int joint)
+{
+	float jointMats[IQM_MAX_JOINTS * 12];
+	ComputeJointMats(data, startFrame, endFrame, frac, jointMats);
+
+	tag.axis[0][0] = jointMats[12 * joint + 0];
+	tag.axis[1][0] = jointMats[12 * joint + 1];
+	tag.axis[2][0] = jointMats[12 * joint + 2];
+	tag.origin[0] = jointMats[12 * joint + 3];
+	tag.axis[0][1] = jointMats[12 * joint + 4];
+	tag.axis[1][1] = jointMats[12 * joint + 5];
+	tag.axis[2][1] = jointMats[12 * joint + 6];
+	tag.origin[1] = jointMats[12 * joint + 7];
+	tag.axis[0][2] = jointMats[12 * joint + 8];
+	tag.axis[1][2] = jointMats[12 * joint + 9];
+	tag.axis[2][2] = jointMats[12 * joint + 10];
+	tag.origin[2] = jointMats[12 * joint + 11];
+	return true;
+}
+
+static int R_FindIQMJointCached(model_t& model, iqmData_t& data, const std::string_view tagName)
+{
+	const std::uint32_t hash = R_TagCacheHash(tagName);
+	if (model.tagCacheHash == hash)
+	{
+		const int cachedIndex = static_cast<int>(model.tagCacheIndex);
+		if (cachedIndex < data.num_joints)
+		{
+			const char* cachedName = data.jointNames + model.tagCacheAux;
+			if (std::string_view(cachedName) == tagName)
+			{
+				return cachedIndex;
+			}
+		}
+	}
+
+	char* names = data.jointNames;
+	std::uint32_t offset = 0u;
+	for (int joint = 0; joint < data.num_joints; ++joint)
+	{
+		const std::string_view jointName{ names };
+		if (jointName == tagName)
+		{
+			model.tagCacheHash = hash;
+			model.tagCacheIndex = static_cast<std::uint16_t>(joint);
+			model.tagCacheAux = offset;
+			return joint;
+		}
+
+		const std::size_t step = std::strlen(names) + 1u;
+		names += step;
+		offset += static_cast<std::uint32_t>(step);
+	}
+
+	return -1;
+}
+
+int R_IQMLerpTagCached(model_t& model, orientation_t& tag, iqmData_t& data,
+	int startFrame, int endFrame,
+	float frac, const char* tagName)
+{
+	const int joint = R_FindIQMJointCached(model, data, std::string_view{ tagName });
+	if (joint < 0)
+	{
+		AxisClear(tag.axis);
+		VectorClear(tag.origin);
+		return false;
+	}
+
+	return R_IQMLerpTagFromJoint(tag, data, startFrame, endFrame, frac, joint);
+}
+
+int R_IQMLerpTag(orientation_t& tag, iqmData_t& data,
+	const int startFrame, const int endFrame,
+	const float frac, const char* tagName)
 {
 	float jointMats[IQM_MAX_JOINTS * 12];
 	int joint;
-	char *names = data.jointNames;
+	char* names = data.jointNames;
 
 	// get joint number by reading the joint names
 	for (joint = 0; joint < data.num_joints; joint++)

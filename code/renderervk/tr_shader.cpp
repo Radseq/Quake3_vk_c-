@@ -2760,6 +2760,12 @@ static void FixRenderCommandList(const int newShader)
 				curCmd = (const void*)(sp_cmd + 1);
 				break;
 			}
+			case renderCommand_t::RC_STRETCH_PIC_BATCH:
+			{
+				const stretchPicBatchCommand_t* spb_cmd = (const stretchPicBatchCommand_t*)curCmd;
+				curCmd = (const void*)(spb_cmd + 1);
+				break;
+			}
 			case renderCommand_t::RC_DRAW_SURFS:
 			{
 				int i;

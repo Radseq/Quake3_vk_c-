@@ -62,6 +62,7 @@ void R_InitNextFrame(void)
 	Com_Memset(&backEnd.entity2DLocal, 0, sizeof(backEnd.entity2DLocal));
 
 	backEndData->commands.used = 0;
+	R_ResetCommandListState(backEndData->commands);
 
 	r_firstSceneDrawSurf = 0;
 #ifdef USE_PMLIGHT
@@ -272,7 +273,7 @@ void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
 	dst.reserved0 = 0;
 	dst.reserved1 = 0;
 	dst.reserved2 = 0;
-	Com_Memset(&local, 0, sizeof(local));
+	local = {};
 	SetTrRefEntityFlag(dst.flags, trRefEntityFlags_t::IntShaderTime, intShaderTime);
 
 	r_numentities++;

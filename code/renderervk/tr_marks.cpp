@@ -144,34 +144,36 @@ static void R_ChopPolyBehindPlane(int numInPoints, vec3_t inPoints[MAX_VERTS_ON_
 	}
 }
 
-static void R_BoxSurfaces_r(mnode_t *node, const vec3_t &mins, const vec3_t &maxs, surfaceType_t **list, const int listsize, int *listlength, const vec3_t &dir)
+static void R_BoxSurfaces_r(mnode_t* node, const vec3_t& mins, const vec3_t& maxs, surfaceType_t** list, const int listsize, int* listlength, const vec3_t& dir)
 {
 
 	int s, c;
-	msurface_t *surf, **mark;
+	msurface_t* surf, ** mark;
 
 	// do the tail recursion in a loop
 	while (static_cast<uint32_t>(node->contents) == CONTENTS_NODE)
 	{
-		s = BoxOnPlaneSide_cpp(mins, maxs, *node->plane);
+		const mnodeDecision_t& decision = R_NodeDecision(*tr.world, *node);
+		s = BoxOnPlaneSide_cpp(mins, maxs, *decision.plane);
 		if (s == 1)
 		{
-			node = node->children[0];
+			node = decision.children[0];
 		}
 		else if (s == 2)
 		{
-			node = node->children[1];
+			node = decision.children[1];
 		}
 		else
 		{
-			R_BoxSurfaces_r(node->children[0], mins, maxs, list, listsize, listlength, dir);
-			node = node->children[1];
+			R_BoxSurfaces_r(decision.children[0], mins, maxs, list, listsize, listlength, dir);
+			node = decision.children[1];
 		}
 	}
 
 	// add the individual surfaces
-	mark = node->firstmarksurface;
-	c = node->nummarksurfaces;
+	const mleafSurfaces_t& leaf = R_LeafSurfaces(*tr.world, *node);
+	mark = leaf.firstmarksurface;
+	c = leaf.nummarksurfaces;
 	while (c--)
 	{
 		//
@@ -188,26 +190,26 @@ static void R_BoxSurfaces_r(mnode_t *node, const vec3_t &mins, const vec3_t &max
 		else if (*(surf->data) == surfaceType_t::SF_FACE)
 		{
 			// the face plane should go through the box
-			s = BoxOnPlaneSide_cpp(mins, maxs, ((srfSurfaceFace_t *)surf->data)->plane);
+			s = BoxOnPlaneSide_cpp(mins, maxs, ((srfSurfaceFace_t*)surf->data)->plane);
 			if (s == 1 || s == 2)
 			{
 				R_SurfaceViewCount(*surf) = static_cast<std::uint32_t>(tr.viewCount);
 			}
-			else if (DotProduct(((srfSurfaceFace_t *)surf->data)->plane.normal, dir) > -0.5)
+			else if (DotProduct(((srfSurfaceFace_t*)surf->data)->plane.normal, dir) > -0.5)
 			{
 				// don't add faces that make sharp angles with the projection direction
 				R_SurfaceViewCount(*surf) = static_cast<std::uint32_t>(tr.viewCount);
 			}
 		}
-		else if (*(surfaceType_t *)(surf->data) != surfaceType_t::SF_GRID &&
-				 *(surfaceType_t *)(surf->data) != surfaceType_t::SF_TRIANGLES)
+		else if (*(surfaceType_t*)(surf->data) != surfaceType_t::SF_GRID &&
+			*(surfaceType_t*)(surf->data) != surfaceType_t::SF_TRIANGLES)
 			R_SurfaceViewCount(*surf) = static_cast<std::uint32_t>(tr.viewCount);
 		// check the viewCount because the surface may have
 		// already been added if it spans multiple leafs
 		if (R_SurfaceViewCount(*surf) != static_cast<std::uint32_t>(tr.viewCount))
 		{
 			R_SurfaceViewCount(*surf) = static_cast<std::uint32_t>(tr.viewCount);
-			list[*listlength] = (surfaceType_t *)surf->data;
+			list[*listlength] = (surfaceType_t*)surf->data;
 			(*listlength)++;
 		}
 		mark++;

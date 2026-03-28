@@ -1956,13 +1956,14 @@ static void R_LoadSubmodels(const lump_t *l)
 R_SetParent
 =================
 */
-static void R_SetParent(mnode_t *node, mnode_t *parent)
+static void R_SetParent(mnode_t* node, mnode_t* parent)
 {
 	node->parent = parent;
 	if (static_cast<uint32_t>(node->contents) != CONTENTS_NODE)
 		return;
-	R_SetParent(node->children[0], node);
-	R_SetParent(node->children[1], node);
+	const mnodeDecision_t& decision = R_NodeDecision(s_worldData, *node);
+	R_SetParent(decision.children[0], node);
+	R_SetParent(decision.children[1], node);
 }
 
 /*
@@ -1970,15 +1971,15 @@ static void R_SetParent(mnode_t *node, mnode_t *parent)
 R_LoadNodesAndLeafs
 =================
 */
-static void R_LoadNodesAndLeafs(const lump_t *nodeLump, const lump_t *leafLump)
+static void R_LoadNodesAndLeafs(const lump_t* nodeLump, const lump_t* leafLump)
 {
 	int i, j, p;
-	const dnode_t *in;
-	dleaf_t *inLeaf;
-	mnode_t *out;
+	const dnode_t* in;
+	dleaf_t* inLeaf;
+	mnode_t* out;
 	int numNodes, numLeafs;
 
-	in = reinterpret_cast<dnode_t *>((fileBase + nodeLump->fileofs));
+	in = reinterpret_cast<dnode_t*>((fileBase + nodeLump->fileofs));
 	if (nodeLump->filelen % sizeof(dnode_t) ||
 		leafLump->filelen % sizeof(dleaf_t))
 	{
@@ -1987,11 +1988,17 @@ static void R_LoadNodesAndLeafs(const lump_t *nodeLump, const lump_t *leafLump)
 	numNodes = nodeLump->filelen / sizeof(dnode_t);
 	numLeafs = leafLump->filelen / sizeof(dleaf_t);
 
-	out = reinterpret_cast<mnode_t *>(ri.Hunk_Alloc((numNodes + numLeafs) * sizeof(*out), h_low));
+	out = reinterpret_cast<mnode_t*>(ri.Hunk_Alloc((numNodes + numLeafs) * sizeof(*out), h_low));
+	mnodeDecision_t* decisionNodes = reinterpret_cast<mnodeDecision_t*>(ri.Hunk_Alloc(numNodes * sizeof(*decisionNodes), h_low));
+	mleafSurfaces_t* leafSurfaces = reinterpret_cast<mleafSurfaces_t*>(ri.Hunk_Alloc(numLeafs * sizeof(*leafSurfaces), h_low));
 
 	s_worldData.nodes = out;
+	s_worldData.leafNodes = out + numNodes;
+	s_worldData.decisionNodes = decisionNodes;
+	s_worldData.leafSurfaces = leafSurfaces;
 	s_worldData.numnodes = numNodes + numLeafs;
 	s_worldData.numDecisionNodes = numNodes;
+	s_worldData.numLeafNodes = numLeafs;
 
 	// load nodes
 	for (i = 0; i < numNodes; i++, in++, out++)
@@ -2002,23 +2009,24 @@ static void R_LoadNodesAndLeafs(const lump_t *nodeLump, const lump_t *leafLump)
 			out->maxs[j] = LittleLong(in->maxs[j]);
 		}
 
-		p = LittleLong(in->planeNum);
-		out->plane = s_worldData.planes + p;
-
 		out->contents = CONTENTS_NODE; // differentiate from leafs
+		out->payloadIndex = i;
+
+		p = LittleLong(in->planeNum);
+		decisionNodes[i].plane = s_worldData.planes + p;
 
 		for (j = 0; j < 2; j++)
 		{
 			p = LittleLong(in->children[j]);
 			if (p >= 0)
-				out->children[j] = s_worldData.nodes + p;
+				decisionNodes[i].children[j] = s_worldData.nodes + p;
 			else
-				out->children[j] = s_worldData.nodes + numNodes + (-1 - p);
+				decisionNodes[i].children[j] = s_worldData.nodes + numNodes + (-1 - p);
 		}
 	}
 
 	// load leafs
-	inLeaf = reinterpret_cast<dleaf_t *>((fileBase + leafLump->fileofs));
+	inLeaf = reinterpret_cast<dleaf_t*>((fileBase + leafLump->fileofs));
 	for (i = 0; i < numLeafs; i++, inLeaf++, out++)
 	{
 		for (j = 0; j < 3; j++)
@@ -2027,22 +2035,26 @@ static void R_LoadNodesAndLeafs(const lump_t *nodeLump, const lump_t *leafLump)
 			out->maxs[j] = LittleLong(inLeaf->maxs[j]);
 		}
 
-		out->cluster = LittleLong(inLeaf->cluster);
-		out->area = LittleLong(inLeaf->area);
+		out->contents = 0;
+		out->payloadIndex = i;
 
-		if (out->cluster >= s_worldData.numClusters)
+		leafSurfaces[i].cluster = LittleLong(inLeaf->cluster);
+		leafSurfaces[i].area = LittleLong(inLeaf->area);
+
+		if (leafSurfaces[i].cluster >= s_worldData.numClusters)
 		{
-			s_worldData.numClusters = out->cluster + 1;
+			s_worldData.numClusters = leafSurfaces[i].cluster + 1;
 		}
 
-		out->firstmarksurface = s_worldData.marksurfaces +
-								LittleLong(inLeaf->firstLeafSurface);
-		out->nummarksurfaces = LittleLong(inLeaf->numLeafSurfaces);
+		leafSurfaces[i].firstmarksurface = s_worldData.marksurfaces +
+			LittleLong(inLeaf->firstLeafSurface);
+		leafSurfaces[i].nummarksurfaces = LittleLong(inLeaf->numLeafSurfaces);
 	}
 
 	// chain descendants
 	R_SetParent(s_worldData.nodes, NULL);
 }
+
 
 //=============================================================================
 

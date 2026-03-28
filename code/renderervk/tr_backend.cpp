@@ -686,6 +686,49 @@ static const void *RB_StretchPic(const void *data)
 	return (const void *)(cmd + 1);
 }
 
+static const void* RB_StretchPicBatch(const void* data)
+{
+	const auto* cmd = static_cast<const stretchPicBatchCommand_t*>(data);
+	shader_t* const shader = cmd->shader;
+
+	backEnd.color2D.rgba[0] = static_cast<byte>(cmd->color[0] * 255.0f);
+	backEnd.color2D.rgba[1] = static_cast<byte>(cmd->color[1] * 255.0f);
+	backEnd.color2D.rgba[2] = static_cast<byte>(cmd->color[2] * 255.0f);
+	backEnd.color2D.rgba[3] = static_cast<byte>(cmd->color[3] * 255.0f);
+
+	if (shader != tess.shader)
+	{
+		if (tess.numIndexes)
+		{
+			RB_EndSurface();
+		}
+		backEnd.currentEntity = &backEnd.entity2D;
+		RB_BeginSurface(*shader, 0);
+	}
+
+#ifdef USE_VBO
+	VBO_UnBind();
+#endif
+
+	if (!backEnd.projection2D)
+	{
+		RB_SetGL2D();
+	}
+
+	if (r_bloom->integer)
+	{
+		vk_bloom();
+	}
+
+	for (std::uint16_t i = 0; i < cmd->count; ++i)
+	{
+		const stretchPicItem_t& item = cmd->items[i];
+		RB_AddQuadStamp2(item.x, item.y, item.w, item.h, item.s1, item.t1, item.s2, item.t2, backEnd.color2D);
+	}
+
+	return static_cast<const void*>(cmd + 1);
+}
+
 #ifdef USE_PMLIGHT
 static void RB_LightingPass(void)
 {
@@ -1177,6 +1220,9 @@ void RB_ExecuteRenderCommands(const void *data)
 			break;
 		case renderCommand_t::RC_STRETCH_PIC:
 			data = RB_StretchPic(data);
+			break;
+		case renderCommand_t::RC_STRETCH_PIC_BATCH:
+			data = RB_StretchPicBatch(data);
 			break;
 		case renderCommand_t::RC_DRAW_SURFS:
 			data = RB_DrawSurfs(data);

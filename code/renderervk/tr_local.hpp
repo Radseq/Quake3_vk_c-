@@ -1133,23 +1133,29 @@ static_assert(sizeof(msurface_t) <= 24, "msurface_t grew; keep traversal hot-set
 
 typedef struct mnode_s
 {
-	// common with leaf and node
-	int contents;	   // -1 for nodes, to differentiate from leafs
+	// common hot traversal state shared by decision nodes and leaves.
+	int contents;	   // CONTENTS_NODE for decision nodes, leaf contents otherwise
 	int visframe;	   // node needs to be traversed if current
 	vec3_t mins, maxs; // for bounding box culling
-	struct mnode_s *parent;
+	struct mnode_s* parent;
+	int payloadIndex;   // index into world.decisionNodes or world.leafSurfaces
+} mnode_t;
 
-	// node specific
-	cplane_t *plane;
-	struct mnode_s *children[2];
+typedef struct
+{
+	cplane_t* plane;
+	mnode_t* children[2];
+} mnodeDecision_t;
 
-	// leaf specific
+typedef struct
+{
 	int cluster;
 	int area;
-
-	msurface_t **firstmarksurface;
+	msurface_t** firstmarksurface;
 	int nummarksurfaces;
-} mnode_t;
+} mleafSurfaces_t;
+
+static_assert(sizeof(mnode_t) <= 48, "mnode_t grew; keep traversal hot-set compact");
 
 typedef struct
 {
@@ -1166,41 +1172,65 @@ typedef struct
 	int dataSize;
 
 	int numShaders;
-	dshader_t *shaders;
+	dshader_t* shaders;
 
-	bmodel_t *bmodels;
+	bmodel_t* bmodels;
 
 	int numplanes;
-	cplane_t *planes;
+	cplane_t* planes;
 
 	int numnodes; // includes leafs
 	int numDecisionNodes;
-	mnode_t *nodes;
+	int numLeafNodes;
+	mnode_t* nodes;
+	mnode_t* leafNodes;
+	mnodeDecision_t* decisionNodes;
+	mleafSurfaces_t* leafSurfaces;
 
 	int numsurfaces;
-	msurface_t *surfaces;
+	msurface_t* surfaces;
 
 	int nummarksurfaces;
-	msurface_t **marksurfaces;
+	msurface_t** marksurfaces;
 
 	int numfogs;
-	fog_t *fogs;
+	fog_t* fogs;
 
 	vec3_t lightGridOrigin;
 	vec3_t lightGridSize;
 	vec3_t lightGridInverseSize;
 	int lightGridBounds[3];
-	byte *lightGridData;
+	byte* lightGridData;
 
 	int numClusters;
 	int clusterBytes;
-	const byte *vis; // may be passed in by CM_LoadMap to save space
+	const byte* vis; // may be passed in by CM_LoadMap to save space
 
-	byte *novis; // clusterBytes of 0xff
+	byte* novis; // clusterBytes of 0xff
 
-	char *entityString;
-	const char *entityParsePoint;
+	char* entityString;
+	const char* entityParsePoint;
 } world_t;
+
+ID_INLINE const mnodeDecision_t& R_NodeDecision(const world_t& world, const mnode_t& node) noexcept
+{
+	return world.decisionNodes[node.payloadIndex];
+}
+
+ID_INLINE mnodeDecision_t& R_NodeDecision(world_t& world, mnode_t& node) noexcept
+{
+	return world.decisionNodes[node.payloadIndex];
+}
+
+ID_INLINE const mleafSurfaces_t& R_LeafSurfaces(const world_t& world, const mnode_t& node) noexcept
+{
+	return world.leafSurfaces[node.payloadIndex];
+}
+
+ID_INLINE mleafSurfaces_t& R_LeafSurfaces(world_t& world, mnode_t& node) noexcept
+{
+	return world.leafSurfaces[node.payloadIndex];
+}
 
 //======================================================================
 
@@ -1283,6 +1313,15 @@ typedef struct model_s
 	void* modelData;				// only if type == (modtype_t::MOD_MDR | modtype_t::MOD_IQM)
 
 	int numLods;
+
+	// Single-entry hot cache for repeated attachment/tag lookups.
+	// R_LerpTag is called very frequently and almost always revisits the same
+	// model/tag pair across consecutive frames. Keep just one compact cache line
+	// per model instead of rescanning tag/joint names every call.
+	std::uint32_t tagCacheHash;
+	std::uint32_t tagCacheAux;
+	std::uint16_t tagCacheIndex;
+	std::uint16_t tagCacheReserved;
 
 	md3GpuLod_t md3Gpu[MD3_MAX_LODS];
 } model_t;
@@ -1466,6 +1505,7 @@ enum class renderCommand_t : int8_t
 	RC_END_OF_LIST,
 	RC_SET_COLOR,
 	RC_STRETCH_PIC,
+	RC_STRETCH_PIC_BATCH,
 	RC_DRAW_SURFS,
 	RC_DRAW_BUFFER,
 	RC_SWAP_BUFFERS,
@@ -2092,17 +2132,32 @@ RENDERER BACK END COMMAND QUEUE
 
 constexpr int MAX_RENDER_COMMANDS = 0x80000;
 
+constexpr int STRETCH_PIC_BATCH_MAX = 16;
+
 typedef struct
 {
 	byte cmds[MAX_RENDER_COMMANDS];
 	int used;
+	int lastStretchPicBatchOffset;
+	bool colorValid;
+	float currentColor[4];
 } renderCommandList_t;
+
+extern ID_INLINE void R_ResetCommandListState(renderCommandList_t& cmdList) noexcept;
 
 typedef struct
 {
 	renderCommand_t commandId;
 	float color[4];
 } setColorCommand_t;
+
+typedef struct
+{
+	float x, y;
+	float w, h;
+	float s1, t1;
+	float s2, t2;
+} stretchPicItem_t;
 
 typedef struct
 {
@@ -2138,6 +2193,16 @@ typedef struct
 	float s1, t1;
 	float s2, t2;
 } stretchPicCommand_t;
+
+typedef struct
+{
+	renderCommand_t commandId;
+	shader_t* shader;
+	float color[4];
+	std::uint16_t count;
+	std::uint16_t reserved;
+	stretchPicItem_t items[STRETCH_PIC_BATCH_MAX];
+} stretchPicBatchCommand_t;
 
 typedef struct drawSurfsCommand_s
 {

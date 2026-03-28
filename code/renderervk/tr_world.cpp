@@ -531,10 +531,10 @@ static void R_AddLitSurface(msurface_t &surf, const dlight_t &light)
 	R_AddLitSurf(*surf.data, *surf.shader, surf.fogIndex);
 }
 
-static void R_RecursiveLightNode(const mnode_t *node)
+static void R_RecursiveLightNode(const mnode_t* node)
 {
-	msurface_t **mark;
-	msurface_t *surf;
+	msurface_t** mark;
+	msurface_t* surf;
 	float d;
 	int c;
 	do
@@ -546,9 +546,11 @@ static void R_RecursiveLightNode(const mnode_t *node)
 		if (static_cast<uint32_t>(node->contents) != CONTENTS_NODE)
 			break;
 
-		bool children[2]{false, false};
+		bool children[2]{ false, false };
+		const mnodeDecision_t& decision = R_NodeDecision(*tr.world, *node);
+		const cplane_t& plane = *decision.plane;
 
-		d = DotProduct(tr.light->origin, node->plane->normal) - node->plane->dist;
+		d = DotProduct(tr.light->origin, plane.normal) - plane.dist;
 		if (d > -tr.light->radius)
 		{
 			children[0] = true;
@@ -560,7 +562,7 @@ static void R_RecursiveLightNode(const mnode_t *node)
 
 		if (tr.light->linear)
 		{
-			d = DotProduct(tr.light->origin2, node->plane->normal) - node->plane->dist;
+			d = DotProduct(tr.light->origin2, plane.normal) - plane.dist;
 			if (d > -tr.light->radius)
 			{
 				children[0] = true;
@@ -573,16 +575,16 @@ static void R_RecursiveLightNode(const mnode_t *node)
 
 		if (children[0] && children[1])
 		{
-			R_RecursiveLightNode(node->children[0]);
-			node = node->children[1];
+			R_RecursiveLightNode(decision.children[0]);
+			node = decision.children[1];
 		}
 		else if (children[0])
 		{
-			node = node->children[0];
+			node = decision.children[0];
 		}
 		else if (children[1])
 		{
-			node = node->children[1];
+			node = decision.children[1];
 		}
 		else
 		{
@@ -594,8 +596,9 @@ static void R_RecursiveLightNode(const mnode_t *node)
 	tr.pc.c_lit_leafs++;
 
 	// add the individual surfaces
-	c = node->nummarksurfaces;
-	mark = node->firstmarksurface;
+	const mleafSurfaces_t& leaf = R_LeafSurfaces(*tr.world, *node);
+	c = leaf.nummarksurfaces;
+	mark = leaf.firstmarksurface;
 	while (c--)
 	{
 		// the surface may have already been added if it spans multiple leafs
@@ -769,6 +772,8 @@ static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, un
 			break;
 		}
 
+		const mnodeDecision_t& decision = R_NodeDecision(*tr.world, *node);
+
 		// node is just a decision point, so go down both sides
 		// since we don't care about sort orders, just go positive to negative
 
@@ -786,8 +791,8 @@ static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, un
 				{
 					if (dlightBits & (1 << i))
 					{
-						const dlight_t &dl = tr.refdef.dlights[i];
-						float dist = DotProduct(dl.origin, node->plane->normal) - node->plane->dist;
+						const dlight_t& dl = tr.refdef.dlights[i];
+						float dist = DotProduct(dl.origin, decision.plane->normal) - decision.plane->dist;
 
 						if (dist > -dl.radius)
 						{
@@ -803,10 +808,10 @@ static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, un
 #endif // USE_LEGACY_DLIGHTS
 
 		// recurse down the children, front side first
-		R_RecursiveWorldNode(node->children[0], planeBits, newDlights[0]);
+		R_RecursiveWorldNode(decision.children[0], planeBits, newDlights[0]);
 
 		// tail recurse
-		node = node->children[1];
+		node = decision.children[1];
 #ifdef USE_LEGACY_DLIGHTS
 		dlightBits = newDlights[1];
 #endif
@@ -844,33 +849,35 @@ static void R_RecursiveWorldNode(const mnode_t *node, unsigned int planeBits, un
 		}
 
 		// add the individual surfaces
-		msurface_t **mark = node->firstmarksurface;
+		const mleafSurfaces_t& leaf = R_LeafSurfaces(*tr.world, *node);
+		msurface_t** mark = leaf.firstmarksurface;
 
-		for (int i = 0; i < node->nummarksurfaces; ++i)
+		for (int i = 0; i < leaf.nummarksurfaces; ++i)
 		{
 			// the surface may have already been added if it
 			// spans multiple leafs
-			msurface_t *surf = mark[i];
+			msurface_t* surf = mark[i];
 			R_AddWorldSurface(*surf, dlightBits);
 		}
 	}
 }
+
 
 /*
 ===============
 R_PointInLeaf
 ===============
 */
-static mnode_t *R_PointInLeaf(const vec3_t p)
+static mnode_t* R_PointInLeaf(const vec3_t p)
 {
 	if (!tr.world)
 	{
 		ri.Error(ERR_DROP, "R_PointInLeaf: bad model");
 	}
 
-	mnode_t *node;
+	mnode_t* node;
 	float d;
-	const cplane_t *plane;
+	const cplane_t* plane;
 
 	node = tr.world->nodes;
 	while (1)
@@ -879,15 +886,16 @@ static mnode_t *R_PointInLeaf(const vec3_t p)
 		{
 			break;
 		}
-		plane = node->plane;
+		const mnodeDecision_t& decision = R_NodeDecision(*tr.world, *node);
+		plane = decision.plane;
 		d = DotProduct(p, plane->normal) - plane->dist;
 		if (d > 0)
 		{
-			node = node->children[0];
+			node = decision.children[0];
 		}
 		else
 		{
-			node = node->children[1];
+			node = decision.children[1];
 		}
 	}
 
@@ -917,14 +925,16 @@ R_inPVS
 bool R_inPVS(const vec3_t p1, const vec3_t p2)
 {
 	print(__func__);
-	const mnode_t *leaf;
-	const byte *vis;
+	const mnode_t* leaf;
+	const byte* vis;
 
 	leaf = R_PointInLeaf(p1);
-	vis = ri.CM_ClusterPVS(leaf->cluster);
+	const int cluster1 = R_LeafSurfaces(*tr.world, *leaf).cluster;
+	vis = ri.CM_ClusterPVS(cluster1);
 	leaf = R_PointInLeaf(p2);
+	const int cluster2 = R_LeafSurfaces(*tr.world, *leaf).cluster;
 
-	if (!(vis[leaf->cluster >> 3] & (1 << (leaf->cluster & 7))))
+	if (!(vis[cluster2 >> 3] & (1 << (cluster2 & 7))))
 	{
 		return false;
 	}
@@ -948,14 +958,15 @@ static void R_MarkLeaves(void)
 		return;
 	}
 
-	const byte *vis;
-	mnode_t *leaf, *parent;
+	const byte* vis;
+	mnode_t* leaf, * parent;
 	int i;
 	int cluster;
 
 	// current viewcluster
 	leaf = R_PointInLeaf(tr.viewParms.pvsOrigin);
-	cluster = leaf->cluster;
+	const mleafSurfaces_t& viewLeaf = R_LeafSurfaces(*tr.world, *leaf);
+	cluster = viewLeaf.cluster;
 
 	// if the cluster is the same and the area visibility matrix
 	// hasn't changed, we don't need to mark everything again
@@ -971,7 +982,7 @@ static void R_MarkLeaves(void)
 		r_showcluster->modified = false;
 		if (r_showcluster->integer)
 		{
-			ri.Printf(PRINT_ALL, "cluster:%i  area:%i\n", cluster, leaf->area);
+			ri.Printf(PRINT_ALL, "cluster:%i  area:%i\n", cluster, viewLeaf.area);
 		}
 	}
 
@@ -992,9 +1003,11 @@ static void R_MarkLeaves(void)
 
 	vis = R_ClusterPVS(tr.viewCluster);
 
-	for (i = 0, leaf = tr.world->nodes; i < tr.world->numnodes; i++, leaf++)
+	leaf = tr.world->leafNodes;
+	for (i = 0; i < tr.world->numLeafNodes; i++, leaf++)
 	{
-		cluster = leaf->cluster;
+		const mleafSurfaces_t& leafData = tr.world->leafSurfaces[i];
+		cluster = leafData.cluster;
 		if (cluster < 0 || cluster >= tr.world->numClusters)
 		{
 			continue;
@@ -1007,7 +1020,7 @@ static void R_MarkLeaves(void)
 		}
 
 		// check for door connection
-		if ((tr.refdef.areamask[leaf->area >> 3] & (1 << (leaf->area & 7))))
+		if ((tr.refdef.areamask[leafData.area >> 3] & (1 << (leafData.area & 7))))
 		{
 			continue; // not visible
 		}

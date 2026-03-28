@@ -14,4 +14,6 @@ int R_LerpTag(orientation_t *tag, qhandle_t handle, int startFrame, int endFrame
               float frac, const char *tagName);
 void RE_BeginRegistration(glconfig_t *glconfigOut);
 
+ID_INLINE std::uint32_t R_TagCacheHash(const std::string_view tagName) noexcept;
+
 #endif // TR_MODEL_HPP

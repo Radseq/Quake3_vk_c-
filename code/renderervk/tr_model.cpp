@@ -1165,69 +1165,147 @@ void R_Modellist_f(void)
 R_GetTag
 ================
 */
-static md3Tag_t* R_GetTag(md3Header_t* mod, int frame, std::string_view tagName)
+ID_INLINE std::uint32_t R_TagCacheHash(const std::string_view tagName) noexcept
 {
-	md3Tag_t* tag;
-	int i;
+	std::uint32_t hash = 2166136261u;
+	for (const unsigned char c : tagName)
+	{
+		hash ^= c;
+		hash *= 16777619u;
+	}
+	return hash != 0u ? hash : 1u;
+}
 
+static ID_INLINE md3Tag_t* R_GetTagByIndex(md3Header_t* mod, int frame, const int tagIndex) noexcept
+{
 	if (frame >= mod->numFrames)
 	{
-		// it is possible to have a bad frame while changing models, so don't error
 		frame = mod->numFrames - 1;
 	}
 
-	tag = (md3Tag_t*)((byte*)mod + mod->ofsTags) + frame * mod->numTags;
-	for (i = 0; i < mod->numTags; i++, tag++)
+	return (md3Tag_t*)((byte*)mod + mod->ofsTags) + frame * mod->numTags + tagIndex;
+}
+
+static int R_FindTagIndex(md3Header_t* mod, const std::string_view tagName)
+{
+	md3Tag_t* tag = (md3Tag_t*)((byte*)mod + mod->ofsTags);
+	for (int i = 0; i < mod->numTags; ++i, ++tag)
 	{
-		if (!std::string_view(tag->name).compare(tagName))
+		if (std::string_view(tag->name) == tagName)
 		{
-			return tag; // found it
+			return i;
 		}
 	}
 
-	return NULL;
+	return -1;
+}
+
+static md3Tag_t* R_GetTag(md3Header_t* mod, int frame, std::string_view tagName)
+{
+	const int tagIndex = R_FindTagIndex(mod, tagName);
+	return tagIndex >= 0 ? R_GetTagByIndex(mod, frame, tagIndex) : NULL;
+}
+
+static md3Tag_t* R_GetTagCached(model_t& model, md3Header_t* mod, int frame, const std::string_view tagName)
+{
+	const std::uint32_t hash = R_TagCacheHash(tagName);
+	if (model.tagCacheHash == hash)
+	{
+		const int cachedIndex = static_cast<int>(model.tagCacheIndex);
+		if (cachedIndex < mod->numTags)
+		{
+			md3Tag_t* cachedTag = (md3Tag_t*)((byte*)mod + mod->ofsTags) + cachedIndex;
+			if (std::string_view(cachedTag->name) == tagName)
+			{
+				return R_GetTagByIndex(mod, frame, cachedIndex);
+			}
+		}
+	}
+
+	const int tagIndex = R_FindTagIndex(mod, tagName);
+	if (tagIndex < 0)
+	{
+		return NULL;
+	}
+
+	model.tagCacheHash = hash;
+	model.tagCacheIndex = static_cast<std::uint16_t>(tagIndex);
+	model.tagCacheAux = 0u;
+	return R_GetTagByIndex(mod, frame, tagIndex);
+}
+
+static ID_INLINE md3Tag_t* R_GetAnimTagByIndex(mdrHeader_t* mod, int framenum, const int tagIndex, md3Tag_t& dest) noexcept
+{
+	if (framenum >= mod->numFrames)
+	{
+		framenum = mod->numFrames - 1;
+	}
+
+	const int frameSize = (intptr_t)(&((mdrFrame_t*)0)->bones[mod->numBones]);
+	mdrFrame_t* frame = (mdrFrame_t*)((byte*)mod + mod->ofsFrames + framenum * frameSize);
+	mdrTag_t* tag = (mdrTag_t*)((byte*)mod + mod->ofsTags) + tagIndex;
+
+	Q_strncpyz(dest.name, tag->name, sizeof(dest.name));
+	for (int j = 0; j < 3; ++j)
+	{
+		for (int k = 0; k < 3; ++k)
+		{
+			dest.axis[j][k] = frame->bones[tag->boneIndex].matrix[k][j];
+		}
+	}
+
+	dest.origin[0] = frame->bones[tag->boneIndex].matrix[0][3];
+	dest.origin[1] = frame->bones[tag->boneIndex].matrix[1][3];
+	dest.origin[2] = frame->bones[tag->boneIndex].matrix[2][3];
+	return &dest;
+}
+
+static int R_FindAnimTagIndex(mdrHeader_t* mod, const std::string_view tagName)
+{
+	mdrTag_t* tag = (mdrTag_t*)((byte*)mod + mod->ofsTags);
+	for (int i = 0; i < mod->numTags; ++i, ++tag)
+	{
+		if (std::string_view(tag->name) == tagName)
+		{
+			return i;
+		}
+	}
+
+	return -1;
 }
 
 static md3Tag_t* R_GetAnimTag(mdrHeader_t* mod, int framenum, std::string_view tagName, md3Tag_t& dest)
 {
-	int i, j, k;
-	int frameSize;
-	mdrFrame_t* frame;
-	mdrTag_t* tag;
+	const int tagIndex = R_FindAnimTagIndex(mod, tagName);
+	return tagIndex >= 0 ? R_GetAnimTagByIndex(mod, framenum, tagIndex, dest) : NULL;
+}
 
-	if (framenum >= mod->numFrames)
+static md3Tag_t* R_GetAnimTagCached(model_t& model, mdrHeader_t* mod, int framenum, const std::string_view tagName, md3Tag_t& dest)
+{
+	const std::uint32_t hash = R_TagCacheHash(tagName);
+	if (model.tagCacheHash == hash)
 	{
-		// it is possible to have a bad frame while changing models, so don't error
-		framenum = mod->numFrames - 1;
-	}
-
-	tag = (mdrTag_t*)((byte*)mod + mod->ofsTags);
-	for (i = 0; i < mod->numTags; i++, tag++)
-	{
-		if (!std::string_view(tag->name).compare(tagName))
+		const int cachedIndex = static_cast<int>(model.tagCacheIndex);
+		if (cachedIndex < mod->numTags)
 		{
-			Q_strncpyz(dest.name, tag->name, sizeof(dest.name));
-
-			// uncompressed model...
-			//
-			frameSize = (intptr_t)(&((mdrFrame_t*)0)->bones[mod->numBones]);
-			frame = (mdrFrame_t*)((byte*)mod + mod->ofsFrames + framenum * frameSize);
-
-			for (j = 0; j < 3; j++)
+			mdrTag_t* cachedTag = (mdrTag_t*)((byte*)mod + mod->ofsTags) + cachedIndex;
+			if (std::string_view(cachedTag->name) == tagName)
 			{
-				for (k = 0; k < 3; k++)
-					dest.axis[j][k] = frame->bones[tag->boneIndex].matrix[k][j];
+				return R_GetAnimTagByIndex(mod, framenum, cachedIndex, dest);
 			}
-
-			dest.origin[0] = frame->bones[tag->boneIndex].matrix[0][3];
-			dest.origin[1] = frame->bones[tag->boneIndex].matrix[1][3];
-			dest.origin[2] = frame->bones[tag->boneIndex].matrix[2][3];
-
-			return &dest;
 		}
 	}
 
-	return NULL;
+	const int tagIndex = R_FindAnimTagIndex(mod, tagName);
+	if (tagIndex < 0)
+	{
+		return NULL;
+	}
+
+	model.tagCacheHash = hash;
+	model.tagCacheIndex = static_cast<std::uint16_t>(tagIndex);
+	model.tagCacheAux = 0u;
+	return R_GetAnimTagByIndex(mod, framenum, tagIndex, dest);
 }
 
 /*
@@ -1252,12 +1330,12 @@ int R_LerpTag(orientation_t* tag, qhandle_t handle, int startFrame, int endFrame
 	{
 		if (model->type == modtype_t::MOD_MDR)
 		{
-			start = R_GetAnimTag((mdrHeader_t*)model->modelData, startFrame, tagNameCpp, start_space);
-			end = R_GetAnimTag((mdrHeader_t*)model->modelData, endFrame, tagNameCpp, end_space);
+			start = R_GetAnimTagCached(*model, (mdrHeader_t*)model->modelData, startFrame, tagNameCpp, start_space);
+			end = R_GetAnimTagCached(*model, (mdrHeader_t*)model->modelData, endFrame, tagNameCpp, end_space);
 		}
 		else if (model->type == modtype_t::MOD_IQM)
 		{
-			return R_IQMLerpTag(*tag, reinterpret_cast<iqmData_t&>(model->modelData),
+			return R_IQMLerpTagCached(*model, *tag, reinterpret_cast<iqmData_t&>(model->modelData),
 				startFrame, endFrame,
 				frac, tagName);
 		}
@@ -1268,8 +1346,8 @@ int R_LerpTag(orientation_t* tag, qhandle_t handle, int startFrame, int endFrame
 	}
 	else
 	{
-		start = R_GetTag(model->md3[0], startFrame, tagNameCpp);
-		end = R_GetTag(model->md3[0], endFrame, tagNameCpp);
+		start = R_GetTagCached(*model, model->md3[0], startFrame, tagNameCpp);
+		end = R_GetTagCached(*model, model->md3[0], endFrame, tagNameCpp);
 	}
 
 	if (!start || !end)

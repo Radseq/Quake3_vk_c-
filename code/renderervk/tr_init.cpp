@@ -127,6 +127,7 @@ private:
 static FunctionCallCounter g_functionCallCounter;
 
 void print(const std::string_view functionName) {
+	return;
 	g_functionCallCounter.Hit(functionName);
 }
 
