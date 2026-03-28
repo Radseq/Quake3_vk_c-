@@ -256,7 +256,7 @@ static bool isStaticShader(shader_t &shader)
 	return true;
 }
 
-static void VBO_AddGeometry(vbo_t &vbo, vbo_item_t &vi, shaderCommands_t &input)
+static void VBO_AddGeometry(vbo_t& vbo, vbo_item_t& vi, shaderCommands_t& input)
 {
 	uint32_t size, offs;
 	uint32_t offs_st[NUM_TEXTURE_BUNDLES]{};
@@ -271,21 +271,21 @@ static void VBO_AddGeometry(vbo_t &vbo, vbo_item_t &vi, shaderCommands_t &input)
 
 		// allocate indexes
 		input.shader->iboOffset = vbo.vbo_offset;
-		vbo.vbo_offset += input.shader->numIndexes * sizeof(input.indexes[0]);
+		vbo.vbo_offset += input.shader->numIndexes * sizeof(input.geo->indexes[0]);
 
 		// allocate xyz + normals + svars
 		input.shader->vboOffset = vbo.vbo_offset;
-		vbo.vbo_offset += input.shader->numVertexes * (sizeof(input.xyz[0]) + sizeof(input.normal[0]) + input.shader->svarsSize);
+		vbo.vbo_offset += input.shader->numVertexes * (sizeof(input.geo->xyz[0]) + sizeof(input.geo->normal[0]) + input.shader->svarsSize);
 
 		// go to normals offset
-		input.shader->normalOffset = input.shader->vboOffset + input.shader->numVertexes * sizeof(input.xyz[0]);
+		input.shader->normalOffset = input.shader->vboOffset + input.shader->numVertexes * sizeof(input.geo->xyz[0]);
 
 		// go to first color offset
-		offs = input.shader->normalOffset + input.shader->numVertexes * sizeof(input.normal[0]);
+		offs = input.shader->normalOffset + input.shader->numVertexes * sizeof(input.geo->normal[0]);
 
 		for (i = 0; i < MAX_VBO_STAGES; i++)
 		{
-			shaderStage_t *pStage = input.xstages[i];
+			shaderStage_t* pStage = input.xstages[i];
 			if (!pStage)
 				break;
 
@@ -360,7 +360,7 @@ static void VBO_AddGeometry(vbo_t &vbo, vbo_item_t &vi, shaderCommands_t &input)
 
 	// shift indexes relative to current shader
 	for (i = 0; i < input.numIndexes; i++)
-		input.indexes[i] += input.shader->curVertexes;
+		input.geo->indexes[i] += input.shader->curVertexes;
 
 	if (vi.index_offset == -1) // one-time initialization
 	{
@@ -369,90 +369,90 @@ static void VBO_AddGeometry(vbo_t &vbo, vbo_item_t &vi, shaderCommands_t &input)
 		vi.soft_offset = vbo.ibo_offset;
 	}
 
-	offs = input.shader->iboOffset + input.shader->curIndexes * sizeof(input.indexes[0]);
-	size = input.numIndexes * sizeof(input.indexes[0]);
+	offs = input.shader->iboOffset + input.shader->curIndexes * sizeof(input.geo->indexes[0]);
+	size = input.numIndexes * sizeof(input.geo->indexes[0]);
 	if (offs + size > static_cast<uint32_t>(vbo.vbo_size))
 	{
 		ri.Error(ERR_DROP, "Index0 overflow");
 	}
-	memcpy(vbo.vbo_buffer + offs, input.indexes, size);
+	memcpy(vbo.vbo_buffer + offs, input.geo->indexes, size);
 
 	// fill soft buffer too
 	if (vbo.ibo_offset + size > static_cast<uint32_t>(vbo.ibo_size))
 	{
 		ri.Error(ERR_DROP, "Index1 overflow");
 	}
-	memcpy(vbo.ibo_buffer + vbo.ibo_offset, input.indexes, size);
+	memcpy(vbo.ibo_buffer + vbo.ibo_offset, input.geo->indexes, size);
 	vbo.ibo_offset += size;
 	// Com_Printf( "i offs=%i size=%i\n", offs, size );
 
 	// vertexes
-	offs = input.shader->vboOffset + input.shader->curVertexes * sizeof(input.xyz[0]);
-	size = input.numVertexes * sizeof(input.xyz[0]);
+	offs = input.shader->vboOffset + input.shader->curVertexes * sizeof(input.geo->xyz[0]);
+	size = input.numVertexes * sizeof(input.geo->xyz[0]);
 	if (offs + size > static_cast<uint32_t>(vbo.vbo_size))
 	{
 		ri.Error(ERR_DROP, "Vertex overflow");
 	}
 	// Com_Printf( "v offs=%i size=%i\n", offs, size );
-	memcpy(vbo.vbo_buffer + offs, input.xyz, size);
+	memcpy(vbo.vbo_buffer + offs, input.geo->xyz, size);
 
 	// normals
-	offs = input.shader->normalOffset + input.shader->curVertexes * sizeof(input.normal[0]);
-	size = input.numVertexes * sizeof(input.normal[0]);
+	offs = input.shader->normalOffset + input.shader->curVertexes * sizeof(input.geo->normal[0]);
+	size = input.numVertexes * sizeof(input.geo->normal[0]);
 	if (offs + size > static_cast<uint32_t>(vbo.vbo_size))
 	{
 		ri.Error(ERR_DROP, "Normals overflow");
 	}
 	// Com_Printf( "v offs=%i size=%i\n", offs, size );
-	memcpy(vbo.vbo_buffer + offs, input.normal, size);
+	memcpy(vbo.vbo_buffer + offs, input.geo->normal, size);
 
 	vi.num_indexes += input.numIndexes;
 	vi.num_vertexes += input.numVertexes;
 }
 
-static void VBO_AddStageColors(vbo_t &vbo, const int stage, const shaderCommands_t &input, const int bundle)
+static void VBO_AddStageColors(vbo_t& vbo, const int stage, const shaderCommands_t& input, const int bundle)
 {
 	const int offs = input.xstages[stage]->rgb_offset[bundle] + input.shader->curVertexes * sizeof(color4ub_t);
 	const int size = input.numVertexes * sizeof(color4ub_t);
 
-	memcpy(vbo.vbo_buffer + offs, input.svars.colors[bundle], size);
+	memcpy(vbo.vbo_buffer + offs, input.geo->svars.colors[bundle], size);
 }
 
-static void VBO_AddStageTxCoords(vbo_t &vbo, const int stage, const shaderCommands_t &input, const int bundle)
+static void VBO_AddStageTxCoords(vbo_t& vbo, const int stage, const shaderCommands_t& input, const int bundle)
 {
 	const int offs = input.xstages[stage]->tex_offset[bundle] + input.shader->curVertexes * sizeof(vec2_t);
 	const int size = input.numVertexes * sizeof(vec2_t);
 
-	memcpy(vbo.vbo_buffer + offs, input.svars.texcoordPtr[bundle], size);
+	memcpy(vbo.vbo_buffer + offs, input.geo->svars.texcoordPtr[bundle], size);
 }
 
-void VBO_PushData(const int itemIndex, shaderCommands_t &input)
+void VBO_PushData(const int itemIndex, shaderCommands_t& input)
 {
-	vbo_t &vbo = world_vbo;
-	vbo_item_t *vi = vbo.items + itemIndex;
+	vbo_t& vbo = world_vbo;
+	vbo_item_t* vi = vbo.items + itemIndex;
 	int i;
 
 	VBO_AddGeometry(vbo, *vi, input);
 
 	for (i = 0; i < MAX_VBO_STAGES; i++)
 	{
-		const shaderStage_t *pStage = input.xstages[i];
+		const shaderStage_t* pStage = input.xstages[i];
 		if (!pStage)
 			break;
 
 		if (pStage->tessFlags & TESS_RGBA0)
 		{
-			R_ComputeColors(0, tess.svars.colors[0], *pStage);
+			R_ComputeColors(0, tessGeo.svars.colors[0], *pStage);
 			VBO_AddStageColors(vbo, i, input, 0);
 		}
 		if (pStage->tessFlags & TESS_RGBA1)
 		{
-			R_ComputeColors(1, tess.svars.colors[1], *pStage);
+			R_ComputeColors(1, tessGeo.svars.colors[1], *pStage);
 			VBO_AddStageColors(vbo, i, input, 1);
 		}
 		if (pStage->tessFlags & TESS_RGBA2)
 		{
-			R_ComputeColors(2, tess.svars.colors[2], *pStage);
+			R_ComputeColors(2, tessGeo.svars.colors[2], *pStage);
 			VBO_AddStageColors(vbo, i, input, 2);
 		}
 
@@ -527,32 +527,32 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 	// initial scan to count surfaces/indexes/vertexes for memory allocation
 	for (i = 0; i < surfCount; i++)
 	{
-		msurface_t &sf = surf;
-		face = (srfSurfaceFace_t *)sf.data;
+		msurface_t& sf = surf;
+		face = (srfSurfaceFace_t*)sf.data;
 		if (face->surfaceType == surfaceType_t::SF_FACE && isStaticShader(*sf.shader))
 		{
 			face->vboItemIndex = ++numStaticSurfaces;
 			numStaticVertexes += face->numPoints;
 			numStaticIndexes += face->numIndices;
 
-			vbo_size += face->numPoints * (sf.shader->svarsSize + sizeof(tess.xyz[0]) + sizeof(tess.normal[0]));
+			vbo_size += face->numPoints * (sf.shader->svarsSize + sizeof(tessGeo.xyz[0]) + sizeof(tessGeo.normal[0]));
 			sf.shader->numVertexes += face->numPoints;
 			sf.shader->numIndexes += face->numIndices;
 			continue;
 		}
-		tris = (srfTriangles_t *)sf.data;
+		tris = (srfTriangles_t*)sf.data;
 		if (tris->surfaceType == surfaceType_t::SF_TRIANGLES && isStaticShader(*sf.shader))
 		{
 			tris->vboItemIndex = ++numStaticSurfaces;
 			numStaticVertexes += tris->numVerts;
 			numStaticIndexes += tris->numIndexes;
 
-			vbo_size += tris->numVerts * (sf.shader->svarsSize + sizeof(tess.xyz[0]) + sizeof(tess.normal[0]));
+			vbo_size += tris->numVerts * (sf.shader->svarsSize + sizeof(tessGeo.xyz[0]) + sizeof(tessGeo.normal[0]));
 			sf.shader->numVertexes += tris->numVerts;
 			sf.shader->numIndexes += tris->numIndexes;
 			continue;
 		}
-		grid = (srfGridMesh_t *)sf.data;
+		grid = (srfGridMesh_t*)sf.data;
 		if (grid->surfaceType == surfaceType_t::SF_GRID && isStaticShader(*sf.shader))
 		{
 			grid->vboItemIndex = ++numStaticSurfaces;
@@ -560,7 +560,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 			numStaticVertexes += grid->vboExpectVertices;
 			numStaticIndexes += grid->vboExpectIndices;
 
-			vbo_size += grid->vboExpectVertices * (sf.shader->svarsSize + sizeof(tess.xyz[0]) + sizeof(tess.normal[0]));
+			vbo_size += grid->vboExpectVertices * (sf.shader->svarsSize + sizeof(tessGeo.xyz[0]) + sizeof(tessGeo.normal[0]));
 			sf.shader->numVertexes += grid->vboExpectVertices;
 			sf.shader->numIndexes += grid->vboExpectIndices;
 			continue;
@@ -575,7 +575,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 
 	vbo_size = pad_up_ct<int, 32>(vbo_size);
 
-	ibo_size = numStaticIndexes * sizeof(tess.indexes[0]);
+	ibo_size = numStaticIndexes * sizeof(tessGeo.indexes[0]);
 	ibo_size = pad_up_ct<int, 32>(ibo_size);
 
 	// 0 item is unused

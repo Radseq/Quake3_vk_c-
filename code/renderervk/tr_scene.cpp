@@ -132,7 +132,7 @@ RE_AddPolyToScene
 
 =====================
 */
-void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts, int numPolys)
+void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t* verts, int numPolys)
 {
 	print(__func__);
 	if (!tr.registered)
@@ -142,18 +142,19 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 
 	int i, j;
 	int fogIndex;
-	
+
 	vec3_t bounds[2]{};
 
 #if 0
-	if ( !hShader ) {
-		ri.Printf( PRINT_WARNING, "WARNING: RE_AddPolyToScene: NULL poly shader\n");
+	if (!hShader) {
+		ri.Printf(PRINT_WARNING, "WARNING: RE_AddPolyToScene: NULL poly shader\n");
 		return;
 	}
 #endif
 	for (j = 0; j < numPolys; j++)
 	{
-		if (r_numpolyverts + numVerts > max_polyverts || r_numpolys >= max_polys)
+		const int arenaVertCount = (numVerts > SRF_POLY_INLINE_VERTS) ? numVerts : 0;
+		if (r_numpolyverts + arenaVertCount > max_polyverts || r_numpolys >= max_polys)
 		{
 			/*
 			NOTE TTimo this was initially a PRINT_WARNING
@@ -169,11 +170,13 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 		poly.surfaceType = surfaceType_t::SF_POLY;
 		poly.hShader = hShader;
 		poly.numVerts = numVerts;
-		poly.verts = &backEndData->polyVerts[r_numpolyverts];
+		poly.firstVert = r_numpolyverts;
+		poly.usesInlineVerts = (numVerts <= SRF_POLY_INLINE_VERTS);
 
-		Com_Memcpy(poly.verts, &verts[numVerts * j], numVerts * sizeof(*verts));
+		polyVert_t* const polyVertsDst = R_GetPolyVertBase(poly, backEndData->polyVerts);
+		Com_Memcpy(polyVertsDst, &verts[numVerts * j], numVerts * sizeof(*verts));
 #if 0
-		if ( glConfig.hardwareType == GLHW_RAGEPRO ) {
+		if (glConfig.hardwareType == GLHW_RAGEPRO) {
 			poly->verts->modulate[0] = 255;
 			poly->verts->modulate[1] = 255;
 			poly->verts->modulate[2] = 255;
@@ -182,7 +185,7 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 #endif
 		// done.
 		r_numpolys++;
-		r_numpolyverts += numVerts;
+		r_numpolyverts += arenaVertCount;
 
 		// if no world is loaded
 		if (tr.world == NULL)
@@ -197,18 +200,19 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t *verts,
 		else
 		{
 			// find which fog volume the poly is in
-			VectorCopy(poly.verts[0].xyz, bounds[0]);
-			VectorCopy(poly.verts[0].xyz, bounds[1]);
+			const polyVert_t* const polyVerts = R_GetPolyVertBase(poly, backEndData->polyVerts);
+			VectorCopy(polyVerts[0].xyz, bounds[0]);
+			VectorCopy(polyVerts[0].xyz, bounds[1]);
 			for (i = 1; i < poly.numVerts; i++)
 			{
-				AddPointToBounds(poly.verts[i].xyz, bounds[0], bounds[1]);
+				AddPointToBounds(polyVerts[i].xyz, bounds[0], bounds[1]);
 			}
 			for (fogIndex = 1; fogIndex < tr.world->numfogs; fogIndex++)
 			{
 				const fog_t& fog = tr.world->fogs[fogIndex];
-				if (bounds[1][0] >= fog.bounds[0][0] && bounds[1][1] >= 
+				if (bounds[1][0] >= fog.bounds[0][0] && bounds[1][1] >=
 					fog.bounds[0][1] && bounds[1][2] >= fog.bounds[0][2] &&
-					bounds[0][0] <= fog.bounds[1][0] && bounds[0][1] <= fog.bounds[1][1] && 
+					bounds[0][0] <= fog.bounds[1][0] && bounds[0][1] <= fog.bounds[1][1] &&
 					bounds[0][2] <= fog.bounds[1][2])
 				{
 					break;
@@ -273,7 +277,7 @@ void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
 	dst.reserved0 = 0;
 	dst.reserved1 = 0;
 	dst.reserved2 = 0;
-	local = {};
+	//local = {};
 	SetTrRefEntityFlag(dst.flags, trRefEntityFlags_t::IntShaderTime, intShaderTime);
 
 	r_numentities++;
@@ -319,7 +323,8 @@ static void RE_AddDynamicLightToScene(const vec3_t org, float intensity, float r
 		b = LERP(luminance, b, r_dlightSaturation->value);
 	}
 
-	dlight_t &dl = backEndData->dlights[r_numdlights++];
+	dlight_t& dl = backEndData->dlights[r_numdlights++];
+
 	VectorCopy(org, dl.origin);
 	dl.radius = intensity;
 	dl.color[0] = r;
@@ -374,7 +379,8 @@ void RE_AddLinearLightToScene(const vec3_t start, const vec3_t end, float intens
 		b = LERP(luminance, b, r_dlightSaturation->value);
 	}
 
-	dlight_t &dl = backEndData->dlights[r_numdlights++];
+	dlight_t& dl = backEndData->dlights[r_numdlights++];
+
 	VectorCopy(start, dl.origin);
 	VectorCopy(end, dl.origin2);
 	dl.radius = intensity;
@@ -411,6 +417,20 @@ void RE_AddAdditiveLightToScene(const vec3_t org, float intensity, float r, floa
 
 void *R_GetCommandBuffer(int bytes);
 
+ID_INLINE int R_AllocDrawSurfSnapshot(const trRefdef_t& refdef, const viewParms_t& viewParms) noexcept
+{
+	if (backEndData->drawSurfSnapshotCount >= MAX_DRAW_SURF_COMMAND_SNAPSHOTS)
+	{
+		return -1;
+	}
+
+	const int index = backEndData->drawSurfSnapshotCount++;
+	backEndData->drawSurfSnapshots[index].refdef = refdef;
+	backEndData->drawSurfSnapshots[index].viewParms = viewParms;
+	return index;
+}
+
+
 /*
 @@@@@@@@@@@@@@@@@@@@@
 RE_RenderScene
@@ -422,7 +442,8 @@ Rendering a scene may require multiple views to be rendered
 to handle mirrors,
 @@@@@@@@@@@@@@@@@@@@@
 */
-static std::vector<double> adsf{};
+static double adsf_sum = 0.0;
+static uint32_t adsf_count = 0;
 void RE_RenderScene(const refdef_t* fd)
 {
 	print(__func__);
@@ -556,7 +577,11 @@ void RE_RenderScene(const refdef_t* fd)
 		VectorCopy(fd->vieworg, parms.pvsOrigin);
 
 		lastRenderCommand = tr.lastRenderCommand;
-		tr.drawSurfCmd = NULL;
+		backEndData->drawSurfSnapshotCount = 0;
+		for (int resetIndex = 0; resetIndex < MAX_DRAW_SURF_COMMANDS; ++resetIndex)
+		{
+			tr.drawSurfCmds[resetIndex] = NULL;
+		}
 		tr.numDrawSurfCmds = 0;
 
 		R_RenderView(parms);
@@ -566,29 +591,39 @@ void RE_RenderScene(const refdef_t* fd)
 			if (lastRenderCommand == renderCommand_t::RC_DRAW_BUFFER)
 			{
 				// duplicate all views, including portals
-				drawSurfsCommand_t* cmd, * src = nullptr;
+				drawSurfsCommand_t* cmd = nullptr;
+				drawSurfsCommand_t* src = nullptr;
 				int i;
 
 				for (i = 0; i < tr.numDrawSurfCmds; i++)
 				{
+					src = tr.drawSurfCmds[i];
 					cmd = reinterpret_cast<drawSurfsCommand_t*>(R_GetCommandBuffer(sizeof(*cmd)));
-					if (cmd)
+					if (!cmd || !src)
 					{
-						src = tr.drawSurfCmd + i;
-						*cmd = *src;
+						break;
 					}
-					else
+
+					*cmd = *src;
+					const drawSurfCmdSnapshot_t& srcSnapshot = backEndData->drawSurfSnapshots[src->snapshotIndex];
+					cmd->snapshotIndex = R_AllocDrawSurfSnapshot(srcSnapshot.refdef, srcSnapshot.viewParms);
+					if (cmd->snapshotIndex < 0)
 					{
 						break;
 					}
 				}
 
-				if (src)
+				if (tr.numDrawSurfCmds > 0)
 				{
-					// first drawsurface
-					tr.drawSurfCmd[0].refdef.needScreenMap = true;
-					// last drawsurface
-					src->refdef.switchRenderPass = true;
+					drawSurfsCommand_t* first = tr.drawSurfCmds[0];
+					if (first)
+					{
+						backEndData->drawSurfSnapshots[first->snapshotIndex].refdef.needScreenMap = true;
+					}
+					if (src)
+					{
+						backEndData->drawSurfSnapshots[src->snapshotIndex].refdef.switchRenderPass = true;
+					}
 				}
 			}
 
@@ -609,14 +644,14 @@ void RE_RenderScene(const refdef_t* fd)
 
 
 		});
-	adsf.emplace_back(t_work - t_empty);
 
-	if (adsf.size() % 10000 == 0) {
-		const float suma = std::accumulate(adsf.begin(), adsf.end(), 0.0f);
-		auto g = suma / static_cast<float>(adsf.size());
+	adsf_sum += (t_work - t_empty);
+	++adsf_count;
 
-		ri.Printf(PRINT_ALL, "%.3f \n", g);
-		adsf.reserve(10000);
-		adsf.clear();
+	if (adsf_count == 10000u) {
+		const double g = adsf_sum / static_cast<double>(adsf_count);
+		ri.Printf(PRINT_ALL, "%.3f \n", static_cast<float>(g));
+		adsf_sum = 0.0;
+		adsf_count = 0;
 	}
 }

@@ -367,9 +367,9 @@ static void RB_TestFlare(flare_t *f)
 				 backEnd.viewParms.viewportY, backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight, 0, 1);
 	vk_update_mvp(m);
 
-	tess.xyz[0][0] = f->windowX;
-	tess.xyz[0][1] = f->windowY;
-	tess.xyz[0][2] = -f->drawZ;
+	tessGeo.xyz[0][0] = f->windowX;
+	tessGeo.xyz[0][1] = f->windowY;
+	tessGeo.xyz[0][2] = -f->drawZ;
 	tess.numVertexes = 1;
 
 #ifdef USE_VBO
@@ -477,7 +477,7 @@ static void RB_RenderFlare(flare_t &f)
 	if (tr.world && f.fogNum > 0 && f.fogNum < tr.world->numfogs)
 	{
 		tess.numVertexes = 1;
-		VectorCopy(f.origin, tess.xyz[0]);
+		VectorCopy(f.origin, tessGeo.xyz[0]);
 		tess.fogNum = f.fogNum;
 
 		RB_CalcModulateColorsByFog(fogFactors);

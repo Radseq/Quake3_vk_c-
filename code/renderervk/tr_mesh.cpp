@@ -299,10 +299,13 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	int lod;
 	int fogNum;
 	bool personalModel;
+	bool lightingReady = false;
+
 #ifdef USE_PMLIGHT
-	dlight_t *dl;
-	dlight_t *dlights[ARRAY_LEN(backEndData->dlights)]{};
-	int numDlights;
+	dlight_t* dl;
+	dlight_t* dlights[ARRAY_LEN(backEndData->dlights)]{};
+	int numDlights = 0;
+	bool dlightsReady = false;
 #endif
 
 	// don't add third_person objects if not in a portal
@@ -348,28 +351,6 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	}
 
 	//
-	// set up lighting now that we know we aren't culled
-	//
-	if (!personalModel || r_shadows->integer > 1)
-	{
-		R_SetupEntityLighting(tr.refdef, ent);
-	}
-
-#ifdef USE_PMLIGHT
-	numDlights = 0;
-	if (r_dlightMode->integer >= 2 && (!personalModel || tr.viewParms.portalView != portalView_t::PV_NONE))
-	{
-		R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, tr.ort);
-		for (uint32_t n = 0; n < tr.viewParms.num_dlights; n++)
-		{
-			dl = &tr.viewParms.dlights[n];
-			if (!R_LightCullBounds(*dl, bounds[0], bounds[1]))
-				dlights[numDlights++] = dl;
-		}
-	}
-#endif
-
-	//
 	// see if we are in a fog volume
 	//
 	fogNum = R_ComputeFogNum(header, ent);
@@ -387,22 +368,12 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 		}
 		else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
 		{
-			const skin_t *skin;
-			int j;
+			const skin_t* skin;
 
 			skin = R_GetSkinByHandle(ent.e.customSkin);
 
 			// match the surface name to something in the skin file
-			shader = tr.defaultShader;
-			for (j = 0; j < skin->numSurfaces; j++)
-			{
-				// the names have both been lowercased
-				if (!strcmp(skin->surfaces[j].name, surface->name))
-				{
-					shader = skin->surfaces[j].shader;
-					break;
-				}
-			}
+			shader = R_FindSkinSurfaceShaderFast(*skin, surface->name);
 			if (shader == tr.defaultShader)
 			{
 				ri.Printf(PRINT_DEVELOPER, "WARNING: no shader for surface %s in skin %s\n", surface->name, skin->name);
@@ -418,24 +389,72 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 		}
 		else
 		{
-			md3Shader = (md3Shader_t *)((byte *)surface + surface->ofsShaders);
+			md3Shader = (md3Shader_t*)((byte*)surface + surface->ofsShaders);
 			md3Shader += ent.e.skinNum % surface->numShaders;
 			shader = tr.shaders[md3Shader->shaderIndex];
 		}
 
+		const bool opaqueShader =
+			shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE);
+
+		const bool needsStencilShadowLighting =
+			!personalModel &&
+			r_shadows->integer == 2 &&
+			fogNum == 0 &&
+			!(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) &&
+			opaqueShader;
+
+		const bool needsProjectionShadowLighting =
+			r_shadows->integer == 3 &&
+			fogNum == 0 &&
+			(ent.e.renderfx & RF_SHADOW_PLANE) &&
+			opaqueShader;
+
+		const bool needsMainShaderLighting =
+			!personalModel && R_ShaderNeedsEntityLighting(*shader);
+
+		if (!lightingReady &&
+			(needsMainShaderLighting ||
+				needsStencilShadowLighting ||
+				needsProjectionShadowLighting))
+		{
+			R_SetupEntityLighting(tr.refdef, ent);
+			lightingReady = true;
+		}
+
+#ifdef USE_PMLIGHT
+		if (!dlightsReady &&
+			r_dlightMode->integer >= 2 &&
+			(!personalModel || tr.viewParms.portalView != portalView_t::PV_NONE) &&
+			shader->lightingStage >= 0)
+		{
+			R_TransformDlights(tr.viewParms.num_dlights, tr.viewParms.dlights, tr.ort);
+
+			for (uint32_t n = 0; n < tr.viewParms.num_dlights; ++n)
+			{
+				dl = &tr.viewParms.dlights[n];
+				if (!R_LightCullBounds(*dl, bounds[0], bounds[1]))
+				{
+					dlights[numDlights++] = dl;
+				}
+			}
+
+			dlightsReady = true;
+		}
+#endif
+
 		// we will add shadows even if the main object isn't visible in the view
 
 		// stencil shadows can't do personal models unless I polyhedron clip
-		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 
-			&& !(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
+		if (needsStencilShadowLighting)
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.shadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
-		if (r_shadows->integer == 3 && fogNum == 0 && (ent.e.renderfx & RF_SHADOW_PLANE) && shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
+		if (needsProjectionShadowLighting)
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.projectionShadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *tr.projectionShadowShader, 0, 0);
 		}
 
 		// don't add third_person objects if not viewing through a portal

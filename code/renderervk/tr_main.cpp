@@ -819,11 +819,14 @@ static void R_PlaneForSurface(const surfaceType_t *surfType, cplane_t &plane)
 		plane.dist = plane4[3];
 		return;
 	case surfaceType_t::SF_POLY:
-		poly = (srfPoly_t *)surfType;
-		PlaneFromPoints(plane4, poly->verts[0].xyz, poly->verts[1].xyz, poly->verts[2].xyz);
+	{
+		poly = (srfPoly_t*)surfType;
+		const polyVert_t* const polyVerts = R_GetPolyVertBase(*poly, backEndData->polyVerts);
+		PlaneFromPoints(plane4, polyVerts[0].xyz, polyVerts[1].xyz, polyVerts[2].xyz);
 		VectorCopy(plane4, plane.normal);
 		plane.dist = plane4[3];
 		return;
+	}
 	default:
 		plane = {};
 		plane.normal[0] = 1;
@@ -1038,12 +1041,12 @@ static bool IsMirror(const drawSurf_t &drawSurf, const int entityNum)
 **
 ** Determines if a surface is completely offscreen.
 */
-static bool SurfIsOffscreen(const drawSurf_t &drawSurf, bool &isMirror)
+static bool SurfIsOffscreen(const drawSurf_t& drawSurf, bool& isMirror)
 {
 	float shortest = 100000000;
 	int entityNum;
 	int numTriangles;
-	shader_t *shader;
+	shader_t* shader;
 	int fogNum;
 	int dlighted;
 	vec4_t clip, eye;
@@ -1069,7 +1072,7 @@ static bool SurfIsOffscreen(const drawSurf_t &drawSurf, bool &isMirror)
 		int j;
 		unsigned int pointFlags = 0;
 
-		R_TransformModelToClip(tess.xyz[i], tr.ort.modelMatrix, tr.viewParms.projectionMatrix, eye, clip);
+		R_TransformModelToClip(tessGeo.xyz[i], tr.ort.modelMatrix, tr.viewParms.projectionMatrix, eye, clip);
 
 		for (j = 0; j < 3; j++)
 		{
@@ -1104,7 +1107,7 @@ static bool SurfIsOffscreen(const drawSurf_t &drawSurf, bool &isMirror)
 		vec3_t normal{};
 		float len;
 
-		VectorSubtract(tess.xyz[tess.indexes[i]], tr.viewParms.ort.origin, normal);
+		VectorSubtract(tessGeo.xyz[tessGeo.indexes[i]], tr.viewParms.ort.origin, normal);
 
 		len = VectorLengthSquared(normal); // lose the sqrt
 		if (len < shortest)
@@ -1112,7 +1115,7 @@ static bool SurfIsOffscreen(const drawSurf_t &drawSurf, bool &isMirror)
 			shortest = len;
 		}
 
-		if (DotProduct(normal, tess.normal[tess.indexes[i]]) >= 0)
+		if (DotProduct(normal, tessGeo.normal[tessGeo.indexes[i]]) >= 0)
 		{
 			numTriangles--;
 		}
@@ -1144,10 +1147,10 @@ static bool SurfIsOffscreen(const drawSurf_t &drawSurf, bool &isMirror)
 R_GetModelViewBounds
 ================
 */
-static void R_GetModelViewBounds(std::array<int, 2> &mins, std::array<int, 2> &maxs)
+static void R_GetModelViewBounds(std::array<int, 2>& mins, std::array<int, 2>& maxs)
 {
-	float minn[2]{1.0, 1.0};
-	float maxn[2]{-1.0, -1.0};
+	float minn[2]{ 1.0, 1.0 };
+	float maxn[2]{ -1.0, -1.0 };
 	float norm[2]{};
 	float mvp[16];
 	vec4_t clip;
@@ -1158,14 +1161,14 @@ static void R_GetModelViewBounds(std::array<int, 2> &mins, std::array<int, 2> &m
 
 	for (i = 0; i < tess.numVertexes; i++)
 	{
-		R_TransformModelToClipMVP(tess.xyz[i], mvp, clip);
+		R_TransformModelToClipMVP(tessGeo.xyz[i], mvp, clip);
 		if (clip[3] <= 0.0)
 		{
 			float dist[4]{
-				DotProduct(tess.xyz[i], tr.viewParms.frustum[0].normal) - tr.viewParms.frustum[0].dist, // right
-				DotProduct(tess.xyz[i], tr.viewParms.frustum[1].normal) - tr.viewParms.frustum[1].dist, // left
-				DotProduct(tess.xyz[i], tr.viewParms.frustum[2].normal) - tr.viewParms.frustum[2].dist, // bottom
-				DotProduct(tess.xyz[i], tr.viewParms.frustum[3].normal) - tr.viewParms.frustum[3].dist	// top
+				DotProduct(tessGeo.xyz[i], tr.viewParms.frustum[0].normal) - tr.viewParms.frustum[0].dist, // right
+				DotProduct(tessGeo.xyz[i], tr.viewParms.frustum[1].normal) - tr.viewParms.frustum[1].dist, // left
+				DotProduct(tessGeo.xyz[i], tr.viewParms.frustum[2].normal) - tr.viewParms.frustum[2].dist, // bottom
+				DotProduct(tessGeo.xyz[i], tr.viewParms.frustum[3].normal) - tr.viewParms.frustum[3].dist	// top
 			};
 
 			if (dist[0] <= 0 && dist[1] <= 0)
@@ -1713,36 +1716,30 @@ R_AddEntitySurfaces
 */
 static void R_AddEntitySurfaces(void)
 {
-	shader_t *shader;
+	shader_t* shader;
 
 	if (!r_drawentities->integer)
 	{
 		return;
 	}
 
-	for (tr.currentEntityNum = 0;
-		 tr.currentEntityNum < tr.refdef.num_entities;
-		 tr.currentEntityNum++)
-	{
-		tr.currentEntity = &tr.refdef.entities[tr.currentEntityNum];
-		trRefEntity_t &ent = *tr.currentEntity;
-#ifdef USE_LEGACY_DLIGHTS
-		SetTrRefEntityFlag(ent.flags, trRefEntityFlags_t::NeedDlights, false);
-#endif
-		// preshift the value we are going to OR into the drawsurf sort
-		tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
+	std::array<std::uint16_t, MAX_REFENTITIES> generatedEntityIndices{};
+	std::array<std::uint16_t, MAX_REFENTITIES> modelEntityIndices{};
+	int numGeneratedEntities = 0;
+	int numModelEntities = 0;
 
-		//
+	for (int entityIndex = 0; entityIndex < tr.refdef.num_entities; ++entityIndex)
+	{
+		const trRefEntity_t& ent = tr.refdef.entities[entityIndex];
+
 		// the weapon model must be handled special --
 		// we don't want the hacked first person weapon position showing in
 		// mirrors, because the true body position will already be drawn
-		//
 		if ((ent.e.renderfx & RF_FIRST_PERSON) && (tr.viewParms.portalView != portalView_t::PV_NONE))
 		{
 			continue;
 		}
 
-		// simple generated models, like sprites and beams, are not culled
 		switch (ent.e.reType)
 		{
 		case RT_PORTALSURFACE:
@@ -1752,57 +1749,85 @@ static void R_AddEntitySurfaces(void)
 		case RT_LIGHTNING:
 		case RT_RAIL_CORE:
 		case RT_RAIL_RINGS:
-			// self blood sprites, talk balloons, etc should not be drawn in the primary
-			// view.  We can't just do this check for all entities, because md3
-			// entities may still want to cast shadows from them
-			if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE))
-			{
-				continue;
-			}
-			shader = R_GetShaderByHandle(ent.e.customShader);
-			R_AddDrawSurf(entitySurface, *shader, R_SpriteFogNum(ent), 0);
+			generatedEntityIndices[numGeneratedEntities++] = static_cast<std::uint16_t>(entityIndex);
 			break;
-
 		case RT_MODEL:
-			// we must set up parts of tr.ort for model culling
-			R_RotateForEntity(ent, tr.viewParms, tr.ort);
-
-			tr.currentModel = R_GetModelByHandle(ent.e.hModel);
-			if (!tr.currentModel)
-			{
-				R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
-			}
-			else
-			{
-				switch (tr.currentModel->type)
-				{
-				case modtype_t::MOD_MESH:
-					R_AddMD3Surfaces(ent);
-					break;
-				case modtype_t::MOD_MDR:
-					R_MDRAddAnimSurfaces(ent);
-					break;
-				case modtype_t::MOD_IQM:
-					R_AddIQMSurfaces(ent);
-					break;
-				case modtype_t::MOD_BRUSH:
-					R_AddBrushModelSurfaces(ent);
-					break;
-				case modtype_t::MOD_BAD: // null model axis
-					if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE))
-					{
-						break;
-					}
-					R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
-					break;
-				default:
-					ri.Error(ERR_DROP, "R_AddEntitySurfaces: Bad modeltype");
-					break;
-				}
-			}
+			modelEntityIndices[numModelEntities++] = static_cast<std::uint16_t>(entityIndex);
 			break;
 		default:
+			tr.currentEntityNum = entityIndex;
+			tr.currentEntity = &tr.refdef.entities[entityIndex];
 			ri.Error(ERR_DROP, "R_AddEntitySurfaces: Bad reType");
+			break;
+		}
+	}
+
+	for (int i = 0; i < numGeneratedEntities; ++i)
+	{
+		tr.currentEntityNum = generatedEntityIndices[i];
+		tr.currentEntity = &tr.refdef.entities[tr.currentEntityNum];
+		trRefEntity_t& ent = *tr.currentEntity;
+#ifdef USE_LEGACY_DLIGHTS
+		SetTrRefEntityFlag(ent.flags, trRefEntityFlags_t::NeedDlights, false);
+#endif
+		tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
+
+		// self blood sprites, talk balloons, etc should not be drawn in the primary
+		// view. We can't just do this check for all entities, because md3
+		// entities may still want to cast shadows from them.
+		if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE))
+		{
+			continue;
+		}
+
+		shader = R_GetShaderByHandle(ent.e.customShader);
+		R_AddDrawSurf(entitySurface, *shader, R_SpriteFogNum(ent), 0);
+	}
+
+	for (int i = 0; i < numModelEntities; ++i)
+	{
+		tr.currentEntityNum = modelEntityIndices[i];
+		tr.currentEntity = &tr.refdef.entities[tr.currentEntityNum];
+		trRefEntity_t& ent = *tr.currentEntity;
+#ifdef USE_LEGACY_DLIGHTS
+		SetTrRefEntityFlag(ent.flags, trRefEntityFlags_t::NeedDlights, false);
+#endif
+		tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
+
+		// we must set up parts of tr.ort for model culling
+		R_RotateForEntity(ent, tr.viewParms, tr.ort);
+
+		tr.currentModel = R_GetModelByHandle(ent.e.hModel);
+		if (!tr.currentModel)
+		{
+			R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
+			continue;
+		}
+
+		switch (tr.currentModel->type)
+		{
+		case modtype_t::MOD_MESH:
+			R_AddMD3Surfaces(ent);
+			break;
+		case modtype_t::MOD_MDR:
+			R_MDRAddAnimSurfaces(ent);
+			break;
+		case modtype_t::MOD_IQM:
+			R_AddIQMSurfaces(ent);
+			break;
+		case modtype_t::MOD_BRUSH:
+			R_AddBrushModelSurfaces(ent);
+			break;
+		case modtype_t::MOD_BAD: // null model axis
+			if ((ent.e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == portalView_t::PV_NONE))
+			{
+				break;
+			}
+			R_AddDrawSurf(entitySurface, *tr.defaultShader, 0, 0);
+			break;
+		default:
+			ri.Error(ERR_DROP, "R_AddEntitySurfaces: Bad modeltype");
+			break;
 		}
 	}
 }

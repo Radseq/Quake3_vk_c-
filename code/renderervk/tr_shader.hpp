@@ -42,4 +42,6 @@ extern "C"
 void R_ShaderList_f(void);
 void R_InitShaders(void);
 
+bool R_ShaderNeedsEntityLighting(const shader_t& shader) noexcept;
+
 #endif // TR_SHADER_HPP

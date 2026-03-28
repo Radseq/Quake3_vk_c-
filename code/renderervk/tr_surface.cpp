@@ -131,56 +131,56 @@ void RB_AddQuadStampExt(const vec3_t& origin, const vec3_t& left, const vec3_t& 
 	ndx = tess.numVertexes;
 
 	// triangle indexes for a simple quad
-	tess.indexes[tess.numIndexes + 0] = ndx + 0;
-	tess.indexes[tess.numIndexes + 1] = ndx + 1;
-	tess.indexes[tess.numIndexes + 2] = ndx + 3;
+	tessGeo.indexes[tess.numIndexes + 0] = ndx + 0;
+	tessGeo.indexes[tess.numIndexes + 1] = ndx + 1;
+	tessGeo.indexes[tess.numIndexes + 2] = ndx + 3;
 
-	tess.indexes[tess.numIndexes + 3] = ndx + 3;
-	tess.indexes[tess.numIndexes + 4] = ndx + 1;
-	tess.indexes[tess.numIndexes + 5] = ndx + 2;
+	tessGeo.indexes[tess.numIndexes + 3] = ndx + 3;
+	tessGeo.indexes[tess.numIndexes + 4] = ndx + 1;
+	tessGeo.indexes[tess.numIndexes + 5] = ndx + 2;
 
-	tess.xyz[ndx][0] = origin[0] + left[0] + up[0];
-	tess.xyz[ndx][1] = origin[1] + left[1] + up[1];
-	tess.xyz[ndx][2] = origin[2] + left[2] + up[2];
+	tessGeo.xyz[ndx][0] = origin[0] + left[0] + up[0];
+	tessGeo.xyz[ndx][1] = origin[1] + left[1] + up[1];
+	tessGeo.xyz[ndx][2] = origin[2] + left[2] + up[2];
 
-	tess.xyz[ndx + 1][0] = origin[0] - left[0] + up[0];
-	tess.xyz[ndx + 1][1] = origin[1] - left[1] + up[1];
-	tess.xyz[ndx + 1][2] = origin[2] - left[2] + up[2];
+	tessGeo.xyz[ndx + 1][0] = origin[0] - left[0] + up[0];
+	tessGeo.xyz[ndx + 1][1] = origin[1] - left[1] + up[1];
+	tessGeo.xyz[ndx + 1][2] = origin[2] - left[2] + up[2];
 
-	tess.xyz[ndx + 2][0] = origin[0] - left[0] - up[0];
-	tess.xyz[ndx + 2][1] = origin[1] - left[1] - up[1];
-	tess.xyz[ndx + 2][2] = origin[2] - left[2] - up[2];
+	tessGeo.xyz[ndx + 2][0] = origin[0] - left[0] - up[0];
+	tessGeo.xyz[ndx + 2][1] = origin[1] - left[1] - up[1];
+	tessGeo.xyz[ndx + 2][2] = origin[2] - left[2] - up[2];
 
-	tess.xyz[ndx + 3][0] = origin[0] + left[0] - up[0];
-	tess.xyz[ndx + 3][1] = origin[1] + left[1] - up[1];
-	tess.xyz[ndx + 3][2] = origin[2] + left[2] - up[2];
+	tessGeo.xyz[ndx + 3][0] = origin[0] + left[0] - up[0];
+	tessGeo.xyz[ndx + 3][1] = origin[1] + left[1] - up[1];
+	tessGeo.xyz[ndx + 3][2] = origin[2] + left[2] - up[2];
 
 	// constant normal all the way around
 	VectorSubtract(vec3_origin, backEnd.viewParms.ort.axis[0], normal);
 
-	tess.normal[ndx][0] = tess.normal[ndx + 1][0] = tess.normal[ndx + 2][0] = tess.normal[ndx + 3][0] = normal[0];
-	tess.normal[ndx][1] = tess.normal[ndx + 1][1] = tess.normal[ndx + 2][1] = tess.normal[ndx + 3][1] = normal[1];
-	tess.normal[ndx][2] = tess.normal[ndx + 1][2] = tess.normal[ndx + 2][2] = tess.normal[ndx + 3][2] = normal[2];
+	tessGeo.normal[ndx][0] = tessGeo.normal[ndx + 1][0] = tessGeo.normal[ndx + 2][0] = tessGeo.normal[ndx + 3][0] = normal[0];
+	tessGeo.normal[ndx][1] = tessGeo.normal[ndx + 1][1] = tessGeo.normal[ndx + 2][1] = tessGeo.normal[ndx + 3][1] = normal[1];
+	tessGeo.normal[ndx][2] = tessGeo.normal[ndx + 1][2] = tessGeo.normal[ndx + 2][2] = tessGeo.normal[ndx + 3][2] = normal[2];
 
 	// standard square texture coordinates
-	tess.texCoords[0][ndx + 0][0] = tess.texCoords[1][ndx + 0][0] = s1;
-	tess.texCoords[0][ndx + 0][1] = tess.texCoords[1][ndx + 0][1] = t1;
+	tessGeo.texCoords[0][ndx + 0][0] = tessGeo.texCoords[1][ndx + 0][0] = s1;
+	tessGeo.texCoords[0][ndx + 0][1] = tessGeo.texCoords[1][ndx + 0][1] = t1;
 
-	tess.texCoords[0][ndx + 1][0] = tess.texCoords[1][ndx + 1][0] = s2;
-	tess.texCoords[0][ndx + 1][1] = tess.texCoords[1][ndx + 1][1] = t1;
+	tessGeo.texCoords[0][ndx + 1][0] = tessGeo.texCoords[1][ndx + 1][0] = s2;
+	tessGeo.texCoords[0][ndx + 1][1] = tessGeo.texCoords[1][ndx + 1][1] = t1;
 
-	tess.texCoords[0][ndx + 2][0] = tess.texCoords[1][ndx + 2][0] = s2;
-	tess.texCoords[0][ndx + 2][1] = tess.texCoords[1][ndx + 2][1] = t2;
+	tessGeo.texCoords[0][ndx + 2][0] = tessGeo.texCoords[1][ndx + 2][0] = s2;
+	tessGeo.texCoords[0][ndx + 2][1] = tessGeo.texCoords[1][ndx + 2][1] = t2;
 
-	tess.texCoords[0][ndx + 3][0] = tess.texCoords[1][ndx + 3][0] = s1;
-	tess.texCoords[0][ndx + 3][1] = tess.texCoords[1][ndx + 3][1] = t2;
+	tessGeo.texCoords[0][ndx + 3][0] = tessGeo.texCoords[1][ndx + 3][0] = s1;
+	tessGeo.texCoords[0][ndx + 3][1] = tessGeo.texCoords[1][ndx + 3][1] = t2;
 
 	// constant color all the way around
 	// should this be identity and let the shader specify from entity?
-	tess.vertexColors[ndx + 0] =
-		tess.vertexColors[ndx + 1] =
-		tess.vertexColors[ndx + 2] =
-		tess.vertexColors[ndx + 3] = color;
+	tessGeo.vertexColors[ndx + 0] =
+		tessGeo.vertexColors[ndx + 1] =
+		tessGeo.vertexColors[ndx + 2] =
+		tessGeo.vertexColors[ndx + 3] = color;
 
 	tess.numVertexes += 4;
 	tess.numIndexes += 6;
@@ -207,43 +207,44 @@ void RB_AddQuadStamp2(float x, float y, float w, float h, float s1, float t1, fl
 	tess.numVertexes += 4;
 	tess.numIndexes += 6;
 
-	tess.indexes[numIndexes + 0] = numVerts + 3;
-	tess.indexes[numIndexes + 1] = numVerts + 0;
-	tess.indexes[numIndexes + 2] = numVerts + 2;
-	tess.indexes[numIndexes + 3] = numVerts + 2;
-	tess.indexes[numIndexes + 4] = numVerts + 0;
-	tess.indexes[numIndexes + 5] = numVerts + 1;
+	tessGeo.indexes[numIndexes + 0] = numVerts + 3;
+	tessGeo.indexes[numIndexes + 1] = numVerts + 0;
+	tessGeo.indexes[numIndexes + 2] = numVerts + 2;
+	tessGeo.indexes[numIndexes + 3] = numVerts + 2;
+	tessGeo.indexes[numIndexes + 4] = numVerts + 0;
+	tessGeo.indexes[numIndexes + 5] = numVerts + 1;
 
-	tess.vertexColors[numVerts + 0] =
-		tess.vertexColors[numVerts + 1] =
-		tess.vertexColors[numVerts + 2] =
-		tess.vertexColors[numVerts + 3] = color;
+	tessGeo.vertexColors[numVerts + 0] =
+		tessGeo.vertexColors[numVerts + 1] =
+		tessGeo.vertexColors[numVerts + 2] =
+		tessGeo.vertexColors[numVerts + 3] = color;
 
-	tess.xyz[numVerts + 0][0] = x;
-	tess.xyz[numVerts + 0][1] = y;
-	tess.xyz[numVerts + 0][2] = 0;
+	tessGeo.xyz[numVerts + 0][0] = x;
+	tessGeo.xyz[numVerts + 0][1] = y;
+	tessGeo.xyz[numVerts + 0][2] = 0;
 
-	tess.xyz[numVerts + 1][0] = x + w;
-	tess.xyz[numVerts + 1][1] = y;
-	tess.xyz[numVerts + 1][2] = 0;
+	tessGeo.xyz[numVerts + 1][0] = x + w;
+	tessGeo.xyz[numVerts + 1][1] = y;
+	tessGeo.xyz[numVerts + 1][2] = 0;
 
-	tess.xyz[numVerts + 2][0] = x + w;
-	tess.xyz[numVerts + 2][1] = y + h;
-	tess.xyz[numVerts + 2][2] = 0;
+	tessGeo.xyz[numVerts + 2][0] = x + w;
+	tessGeo.xyz[numVerts + 2][1] = y + h;
+	tessGeo.xyz[numVerts + 2][2] = 0;
 
-	tess.xyz[numVerts + 3][0] = x;
-	tess.xyz[numVerts + 3][1] = y + h;
-	tess.xyz[numVerts + 3][2] = 0;
+	tessGeo.xyz[numVerts + 3][0] = x;
+	tessGeo.xyz[numVerts + 3][1] = y + h;
+	tessGeo.xyz[numVerts + 3][2] = 0;
 
-	tess.texCoords[0][numVerts + 0][0] = s1;
-	tess.texCoords[0][numVerts + 0][1] = t1;
-	tess.texCoords[0][numVerts + 1][0] = s2;
-	tess.texCoords[0][numVerts + 1][1] = t1;
-	tess.texCoords[0][numVerts + 2][0] = s2;
-	tess.texCoords[0][numVerts + 2][1] = t2;
-	tess.texCoords[0][numVerts + 3][0] = s1;
-	tess.texCoords[0][numVerts + 3][1] = t2;
+	tessGeo.texCoords[0][numVerts + 0][0] = s1;
+	tessGeo.texCoords[0][numVerts + 0][1] = t1;
+	tessGeo.texCoords[0][numVerts + 1][0] = s2;
+	tessGeo.texCoords[0][numVerts + 1][1] = t1;
+	tessGeo.texCoords[0][numVerts + 2][0] = s2;
+	tessGeo.texCoords[0][numVerts + 2][1] = t2;
+	tessGeo.texCoords[0][numVerts + 3][0] = s1;
+	tessGeo.texCoords[0][numVerts + 3][1] = t2;
 }
+
 
 /*
 ==============
@@ -314,14 +315,16 @@ static void RB_SurfacePolychain(const srfPoly_t* p)
 	tess.surfType = surfaceType_t::SF_POLY;
 #endif
 
+	const polyVert_t* const polyVerts = R_GetPolyVertBase(*p, backEndData->polyVerts);
+
 	// fan triangles into the tess array
 	numv = tess.numVertexes;
 	for (i = 0; i < p->numVerts; i++)
 	{
-		VectorCopy(p->verts[i].xyz, tess.xyz[numv]);
-		tess.texCoords[0][numv][0] = p->verts[i].st[0];
-		tess.texCoords[0][numv][1] = p->verts[i].st[1];
-		tess.vertexColors[numv] = p->verts[i].modulate;
+		VectorCopy(polyVerts[i].xyz, tessGeo.xyz[numv]);
+		tessGeo.texCoords[0][numv][0] = polyVerts[i].st[0];
+		tessGeo.texCoords[0][numv][1] = polyVerts[i].st[1];
+		tessGeo.vertexColors[numv] = polyVerts[i].modulate;
 
 		numv++;
 	}
@@ -329,14 +332,15 @@ static void RB_SurfacePolychain(const srfPoly_t* p)
 	// generate fan indexes into the tess array
 	for (i = 0; i < p->numVerts - 2; i++)
 	{
-		tess.indexes[tess.numIndexes + 0] = tess.numVertexes;
-		tess.indexes[tess.numIndexes + 1] = tess.numVertexes + i + 1;
-		tess.indexes[tess.numIndexes + 2] = tess.numVertexes + i + 2;
+		tessGeo.indexes[tess.numIndexes + 0] = tess.numVertexes;
+		tessGeo.indexes[tess.numIndexes + 1] = tess.numVertexes + i + 1;
+		tessGeo.indexes[tess.numIndexes + 2] = tess.numVertexes + i + 2;
 		tess.numIndexes += 3;
 	}
 
 	tess.numVertexes = numv;
 }
+
 
 /*
 =============
@@ -395,18 +399,18 @@ static void RB_SurfaceTriangles(const srfTriangles_t* srf)
 
 	for (i = 0; i < srf->numIndexes; i += 3)
 	{
-		tess.indexes[tess.numIndexes + i + 0] = tess.numVertexes + srf->indexes[i + 0];
-		tess.indexes[tess.numIndexes + i + 1] = tess.numVertexes + srf->indexes[i + 1];
-		tess.indexes[tess.numIndexes + i + 2] = tess.numVertexes + srf->indexes[i + 2];
+		tessGeo.indexes[tess.numIndexes + i + 0] = tess.numVertexes + srf->indexes[i + 0];
+		tessGeo.indexes[tess.numIndexes + i + 1] = tess.numVertexes + srf->indexes[i + 1];
+		tessGeo.indexes[tess.numIndexes + i + 2] = tess.numVertexes + srf->indexes[i + 2];
 	}
 	tess.numIndexes += srf->numIndexes;
 
 	dv = srf->verts;
-	xyz = tess.xyz[tess.numVertexes];
-	normal = tess.normal[tess.numVertexes];
-	texCoords0 = tess.texCoords[0][tess.numVertexes];
-	texCoords1 = tess.texCoords[1][tess.numVertexes];
-	color = &tess.vertexColors[tess.numVertexes].u32;
+	xyz = tessGeo.xyz[tess.numVertexes];
+	normal = tessGeo.normal[tess.numVertexes];
+	texCoords0 = tessGeo.texCoords[0][tess.numVertexes];
+	texCoords1 = tessGeo.texCoords[1][tess.numVertexes];
+	color = &tessGeo.vertexColors[tess.numVertexes].u32;
 
 	for (i = 0; i < srf->numVerts; i++, dv++, xyz += 4, normal += 4, texCoords0 += 2, color++)
 	{
@@ -440,198 +444,198 @@ static void RB_SurfaceTriangles(const srfTriangles_t* srf)
 #ifdef USE_LEGACY_DLIGHTS
 	for (i = 0; i < srf->numVerts; i++)
 	{
-		tess.vertexDlightBits[tess.numVertexes + i] = dlightBits;
+		tessGeo.vertexDlightBits[tess.numVertexes + i] = dlightBits;
 	}
 #endif
 	tess.numVertexes += srf->numVerts;
-}
+	}
 
 /*
 ==============
 RB_SurfaceBeam
 ==============
 */
-static void RB_SurfaceBeam(void)
-{
-	RB_ResetGpuMd3State();
-
-	constexpr int NUM_BEAM_SEGS = 6;
-	int i;
-	vec3_t perpvec;
-	vec3_t direction{}, normalized_direction{};
-	vec3_t points[NUM_BEAM_SEGS + 1][2]{};
-
-	const refEntity_t& e = backEnd.currentEntity->e;
-
-	vec3_t oldorigin{
-		e.oldorigin[0],
-		e.oldorigin[1],
-		e.oldorigin[2] };
-
-	vec3_t origin{
-		e.origin[0],
-		e.origin[1],
-		e.origin[2] };
-
-	normalized_direction[0] = direction[0] = oldorigin[0] - origin[0];
-	normalized_direction[1] = direction[1] = oldorigin[1] - origin[1];
-	normalized_direction[2] = direction[2] = oldorigin[2] - origin[2];
-
-	if (VectorNormalize(normalized_direction) == 0)
-		return;
-
-	PerpendicularVector(perpvec, normalized_direction);
-
-	VectorScale(perpvec, 4, perpvec);
-
-	for (i = 0; i <= NUM_BEAM_SEGS; i++)
+	static void RB_SurfaceBeam(void)
 	{
-		RotatePointAroundVector_cpp(points[i][0], normalized_direction, perpvec, (360.0 / NUM_BEAM_SEGS) * i);
-		VectorAdd(points[i][0], direction, points[i][1]);
-	}
+		RB_ResetGpuMd3State();
 
-	tess.numIndexes = 0;
-	tess.numVertexes = 0;
+		constexpr int NUM_BEAM_SEGS = 6;
+		int i;
+		vec3_t perpvec;
+		vec3_t direction{}, normalized_direction{};
+		vec3_t points[NUM_BEAM_SEGS + 1][2]{};
 
-	Bind(tr.whiteImage);
+		const refEntity_t& e = backEnd.currentEntity->e;
 
-	for (i = 0; i < (NUM_BEAM_SEGS + 1) * 2; i++)
-	{
-		Vector4Set(tess.svars.colors[0][i].rgba, 255, 0, 0, 255);
-	}
+		vec3_t oldorigin{
+			e.oldorigin[0],
+			e.oldorigin[1],
+			e.oldorigin[2] };
 
-	for (i = 0; i <= NUM_BEAM_SEGS; i++)
-	{
-		VectorCopy(points[i][0], tess.xyz[i * 2 + 0]);
-		VectorCopy(points[i][1], tess.xyz[i * 2 + 1]);
-	}
-	tess.numVertexes = (NUM_BEAM_SEGS + 1) * 2;
+		vec3_t origin{
+			e.origin[0],
+			e.origin[1],
+			e.origin[2] };
 
-	vk_bind_pipeline(vk_inst.surface_beam_pipeline);
-	vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
-	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, false);
+		normalized_direction[0] = direction[0] = oldorigin[0] - origin[0];
+		normalized_direction[1] = direction[1] = oldorigin[1] - origin[1];
+		normalized_direction[2] = direction[2] = oldorigin[2] - origin[2];
 
-	tess.numIndexes = 0;
-	tess.numVertexes = 0;
-}
+		if (VectorNormalize(normalized_direction) == 0)
+			return;
 
-//================================================================================
+		PerpendicularVector(perpvec, normalized_direction);
 
-static void DoRailCore(const vec3_t & start, const vec3_t & end, const vec3_t & up, float len, float spanWidth)
-{
-	float spanWidth2;
-	int vbase;
-	float t = len / 256.0f;
+		VectorScale(perpvec, 4, perpvec);
 
-	RB_CHECKOVERFLOW(4, 6);
-
-	vbase = tess.numVertexes;
-
-	spanWidth2 = -spanWidth;
-
-	// FIXME: use quad stamp?
-	VectorMA(start, spanWidth, up, tess.xyz[tess.numVertexes]);
-	tess.texCoords[0][tess.numVertexes][0] = 0;
-	tess.texCoords[0][tess.numVertexes][1] = 0;
-	tess.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shader.rgba[0] * 0.25;
-	tess.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shader.rgba[1] * 0.25;
-	tess.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shader.rgba[2] * 0.25;
-	tess.numVertexes++;
-
-	VectorMA(start, spanWidth2, up, tess.xyz[tess.numVertexes]);
-	tess.texCoords[0][tess.numVertexes][0] = 0;
-	tess.texCoords[0][tess.numVertexes][1] = 1;
-	tess.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shader.rgba[0];
-	tess.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shader.rgba[1];
-	tess.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shader.rgba[2];
-	tess.numVertexes++;
-
-	VectorMA(end, spanWidth, up, tess.xyz[tess.numVertexes]);
-
-	tess.texCoords[0][tess.numVertexes][0] = t;
-	tess.texCoords[0][tess.numVertexes][1] = 0;
-	tess.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shader.rgba[0];
-	tess.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shader.rgba[1];
-	tess.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shader.rgba[2];
-	tess.numVertexes++;
-
-	VectorMA(end, spanWidth2, up, tess.xyz[tess.numVertexes]);
-	tess.texCoords[0][tess.numVertexes][0] = t;
-	tess.texCoords[0][tess.numVertexes][1] = 1;
-	tess.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shader.rgba[0];
-	tess.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shader.rgba[1];
-	tess.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shader.rgba[2];
-	tess.numVertexes++;
-
-	tess.indexes[tess.numIndexes++] = vbase;
-	tess.indexes[tess.numIndexes++] = vbase + 1;
-	tess.indexes[tess.numIndexes++] = vbase + 2;
-
-	tess.indexes[tess.numIndexes++] = vbase + 2;
-	tess.indexes[tess.numIndexes++] = vbase + 1;
-	tess.indexes[tess.numIndexes++] = vbase + 3;
-}
-
-static void DoRailDiscs(int numSegs, const vec3_t & start, const vec3_t & dir, const vec3_t & right, const vec3_t & up)
-{
-	if (numSegs > 1)
-		numSegs--;
-	if (!numSegs)
-		return;
-
-	int i;
-	vec3_t pos[4]{};
-	int spanWidth = r_railWidth->integer;
-	float c, s;
-	float scale;
-
-	scale = 0.25;
-
-	for (i = 0; i < 4; i++)
-	{
-		c = cos(DEG_TO_RAD_LUT[45 + (i * 90)]);
-		s = sin(DEG_TO_RAD_LUT[45 + (i * 90)]);
-		vec3_t v{
-			(right[0] * c + up[0] * s) * scale * spanWidth,
-			(right[1] * c + up[1] * s) * scale * spanWidth,
-			(right[2] * c + up[2] * s) * scale * spanWidth };
-
-		VectorAdd(start, v, pos[i]);
-
-		if (numSegs > 1)
+		for (i = 0; i <= NUM_BEAM_SEGS; i++)
 		{
-			// offset by 1 segment if we're doing a long distance shot
-			VectorAdd(pos[i], dir, pos[i]);
+			RotatePointAroundVector_cpp(points[i][0], normalized_direction, perpvec, (360.0 / NUM_BEAM_SEGS) * i);
+			VectorAdd(points[i][0], direction, points[i][1]);
 		}
+
+		tess.numIndexes = 0;
+		tess.numVertexes = 0;
+
+		Bind(tr.whiteImage);
+
+		for (i = 0; i < (NUM_BEAM_SEGS + 1) * 2; i++)
+		{
+			Vector4Set(tessGeo.svars.colors[0][i].rgba, 255, 0, 0, 255);
+		}
+
+		for (i = 0; i <= NUM_BEAM_SEGS; i++)
+		{
+			VectorCopy(points[i][0], tessGeo.xyz[i * 2 + 0]);
+			VectorCopy(points[i][1], tessGeo.xyz[i * 2 + 1]);
+		}
+		tess.numVertexes = (NUM_BEAM_SEGS + 1) * 2;
+
+		vk_bind_pipeline(vk_inst.surface_beam_pipeline);
+		vk_bind_geometry(TESS_XYZ | TESS_RGBA0);
+		vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, false);
+
+		tess.numIndexes = 0;
+		tess.numVertexes = 0;
 	}
 
-	for (i = 0; i < numSegs; i++)
+	//================================================================================
+
+	static void DoRailCore(const vec3_t& start, const vec3_t& end, const vec3_t& up, float len, float spanWidth)
 	{
-		int j;
+		float spanWidth2;
+		int vbase;
+		float t = len / 256.0f;
 
 		RB_CHECKOVERFLOW(4, 6);
 
-		for (j = 0; j < 4; j++)
-		{
-			VectorCopy(pos[j], tess.xyz[tess.numVertexes]);
-			tess.texCoords[0][tess.numVertexes][0] = (j < 2);
-			tess.texCoords[0][tess.numVertexes][1] = (j && j != 3);
-			tess.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shader.rgba[0];
-			tess.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shader.rgba[1];
-			tess.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shader.rgba[2];
-			tess.numVertexes++;
+		vbase = tess.numVertexes;
 
-			VectorAdd(pos[j], dir, pos[j]);
+		spanWidth2 = -spanWidth;
+
+		// FIXME: use quad stamp?
+		VectorMA(start, spanWidth, up, tessGeo.xyz[tess.numVertexes]);
+		tessGeo.texCoords[0][tess.numVertexes][0] = 0;
+		tessGeo.texCoords[0][tess.numVertexes][1] = 0;
+		tessGeo.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shader.rgba[0] * 0.25;
+		tessGeo.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shader.rgba[1] * 0.25;
+		tessGeo.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shader.rgba[2] * 0.25;
+		tess.numVertexes++;
+
+		VectorMA(start, spanWidth2, up, tessGeo.xyz[tess.numVertexes]);
+		tessGeo.texCoords[0][tess.numVertexes][0] = 0;
+		tessGeo.texCoords[0][tess.numVertexes][1] = 1;
+		tessGeo.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shader.rgba[0];
+		tessGeo.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shader.rgba[1];
+		tessGeo.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shader.rgba[2];
+		tess.numVertexes++;
+
+		VectorMA(end, spanWidth, up, tessGeo.xyz[tess.numVertexes]);
+
+		tessGeo.texCoords[0][tess.numVertexes][0] = t;
+		tessGeo.texCoords[0][tess.numVertexes][1] = 0;
+		tessGeo.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shader.rgba[0];
+		tessGeo.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shader.rgba[1];
+		tessGeo.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shader.rgba[2];
+		tess.numVertexes++;
+
+		VectorMA(end, spanWidth2, up, tessGeo.xyz[tess.numVertexes]);
+		tessGeo.texCoords[0][tess.numVertexes][0] = t;
+		tessGeo.texCoords[0][tess.numVertexes][1] = 1;
+		tessGeo.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shader.rgba[0];
+		tessGeo.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shader.rgba[1];
+		tessGeo.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shader.rgba[2];
+		tess.numVertexes++;
+
+		tessGeo.indexes[tess.numIndexes++] = vbase;
+		tessGeo.indexes[tess.numIndexes++] = vbase + 1;
+		tessGeo.indexes[tess.numIndexes++] = vbase + 2;
+
+		tessGeo.indexes[tess.numIndexes++] = vbase + 2;
+		tessGeo.indexes[tess.numIndexes++] = vbase + 1;
+		tessGeo.indexes[tess.numIndexes++] = vbase + 3;
+	}
+
+	static void DoRailDiscs(int numSegs, const vec3_t& start, const vec3_t& dir, const vec3_t& right, const vec3_t& up)
+	{
+		if (numSegs > 1)
+			numSegs--;
+		if (!numSegs)
+			return;
+
+		int i;
+		vec3_t pos[4]{};
+		int spanWidth = r_railWidth->integer;
+		float c, s;
+		float scale;
+
+		scale = 0.25;
+
+		for (i = 0; i < 4; i++)
+		{
+			c = cos(DEG_TO_RAD_LUT[45 + (i * 90)]);
+			s = sin(DEG_TO_RAD_LUT[45 + (i * 90)]);
+			vec3_t v{
+				(right[0] * c + up[0] * s) * scale * spanWidth,
+				(right[1] * c + up[1] * s) * scale * spanWidth,
+				(right[2] * c + up[2] * s) * scale * spanWidth };
+
+			VectorAdd(start, v, pos[i]);
+
+			if (numSegs > 1)
+			{
+				// offset by 1 segment if we're doing a long distance shot
+				VectorAdd(pos[i], dir, pos[i]);
+			}
 		}
 
-		tess.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 0;
-		tess.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 1;
-		tess.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 3;
-		tess.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 3;
-		tess.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 1;
-		tess.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 2;
+		for (i = 0; i < numSegs; i++)
+		{
+			int j;
+
+			RB_CHECKOVERFLOW(4, 6);
+
+			for (j = 0; j < 4; j++)
+			{
+				VectorCopy(pos[j], tessGeo.xyz[tess.numVertexes]);
+				tessGeo.texCoords[0][tess.numVertexes][0] = (j < 2);
+				tessGeo.texCoords[0][tess.numVertexes][1] = (j && j != 3);
+				tessGeo.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shader.rgba[0];
+				tessGeo.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shader.rgba[1];
+				tessGeo.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shader.rgba[2];
+				tess.numVertexes++;
+
+				VectorAdd(pos[j], dir, pos[j]);
+			}
+
+			tessGeo.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 0;
+			tessGeo.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 1;
+			tessGeo.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 3;
+			tessGeo.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 3;
+			tessGeo.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 1;
+			tessGeo.indexes[tess.numIndexes++] = tess.numVertexes - 4 + 2;
+		}
 	}
-}
 
 /*
 ** RB_SurfaceRailRinges
@@ -760,8 +764,8 @@ static void LerpMeshVertexes_scalar(md3Surface_t * surf, float backlerp)
 	unsigned lat, lng;
 	int numVerts;
 
-	outXyz = tess.xyz[tess.numVertexes];
-	outNormal = tess.normal[tess.numVertexes];
+	outXyz = tessGeo.xyz[tess.numVertexes];
+	outNormal = tessGeo.normal[tess.numVertexes];
 
 	newXyz = (short*)((byte*)surf + surf->ofsXyzNormals) + (backEnd.currentEntity->e.frame * surf->numVerts * 4);
 	newNormals = newXyz + 3;
@@ -846,7 +850,7 @@ static void LerpMeshVertexes_scalar(md3Surface_t * surf, float backlerp)
 
 			//			VectorNormalize (outNormal);
 		}
-		VectorArrayNormalize((vec4_t*)tess.normal[tess.numVertexes], numVerts);
+		VectorArrayNormalize((vec4_t*)tessGeo.normal[tess.numVertexes], numVerts);
 	}
 }
 
@@ -1336,7 +1340,7 @@ static ID_INLINE bool RB_GpuMd3NeedsCpuDerivedGeometry(const shaderStage_t& stag
 	// Jeżeli lightingDiffuse ma alphaGen, którego obecny shader MD3 nie umie
 	// policzyć zgodnie z CPU (np. portal w nieobsługiwanym wariancie albo
 	// waveform/noise), to kolor/alpha nadal muszą powstać na CPU z
-	// tess.xyz / tess.normal.
+	// tessGeo.xyz / tessGeo.normal.
 	return b0.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE &&
 		!RB_GpuMd3CanDoDiffuseColorInShader(stage);
 }
@@ -1610,7 +1614,7 @@ static bool RB_SurfaceMeshGPU(md3Surface_t* surface)
 RB_SurfaceMesh
 =============
 */
-static void RB_SurfaceMesh(md3Surface_t * surface)
+static void RB_SurfaceMesh(md3Surface_t* surface)
 {
 	if (RB_SurfaceMeshGPU(surface))
 	{
@@ -1652,7 +1656,7 @@ static void RB_SurfaceMesh(md3Surface_t * surface)
 	Doug = tess.numVertexes;
 	for (j = 0; j < indexes; j++)
 	{
-		tess.indexes[Bob + j] = Doug + triangles[j];
+		tessGeo.indexes[Bob + j] = Doug + triangles[j];
 	}
 	tess.numIndexes += indexes;
 
@@ -1661,8 +1665,8 @@ static void RB_SurfaceMesh(md3Surface_t * surface)
 	numVerts = surface->numVerts;
 	for (j = 0; j < numVerts; j++)
 	{
-		tess.texCoords[0][Doug + j][0] = texCoords[j * 2 + 0];
-		tess.texCoords[0][Doug + j][1] = texCoords[j * 2 + 1];
+		tessGeo.texCoords[0][Doug + j][0] = texCoords[j * 2 + 0];
+		tessGeo.texCoords[0][Doug + j][1] = texCoords[j * 2 + 1];
 		// FIXME: fill in lightmapST for completeness?
 	}
 
@@ -1674,7 +1678,7 @@ static void RB_SurfaceMesh(md3Surface_t * surface)
 RB_SurfaceFace`
 ==============
 */
-static void RB_SurfaceFace(const srfSurfaceFace_t * surf)
+static void RB_SurfaceFace(const srfSurfaceFace_t* surf)
 {
 	int i;
 	unsigned* indices;
@@ -1729,7 +1733,7 @@ static void RB_SurfaceFace(const srfSurfaceFace_t * surf)
 	indices = (unsigned*)(((char*)surf) + surf->ofsIndices);
 
 	Bob = tess.numVertexes;
-	tessIndexes = tess.indexes + tess.numIndexes;
+	tessIndexes = tessGeo.indexes + tess.numIndexes;
 	for (i = surf->numIndices - 1; i >= 0; i--)
 	{
 		tessIndexes[i] = indices[i] + Bob;
@@ -1746,38 +1750,38 @@ static void RB_SurfaceFace(const srfSurfaceFace_t * surf)
 		if (surf->normals)
 		{
 			// per-vertex normals for non-coplanar faces
-			memcpy(&tess.normal[tess.numVertexes], surf->normals, numPoints * sizeof(vec4_t));
+			memcpy(&tessGeo.normal[tess.numVertexes], surf->normals, numPoints * sizeof(vec4_t));
 		}
 		else
 		{
 			normal = surf->plane.normal;
 			for (i = 0, ndx = tess.numVertexes; i < numPoints; i++, ndx++)
 			{
-				VectorCopy(normal, tess.normal[ndx]);
+				VectorCopy(normal, tessGeo.normal[ndx]);
 			}
 		}
 	}
 
 	for (i = 0, v = surf->points[0], ndx = tess.numVertexes; i < numPoints; i++, v += VERTEXSIZE, ndx++)
 	{
-		VectorCopy(v, tess.xyz[ndx]);
-		tess.texCoords[0][ndx][0] = v[3];
-		tess.texCoords[0][ndx][1] = v[4];
+		VectorCopy(v, tessGeo.xyz[ndx]);
+		tessGeo.texCoords[0][ndx][0] = v[3];
+		tessGeo.texCoords[0][ndx][1] = v[4];
 #ifdef USE_TESS_NEEDS_ST2
 		if (tess.needsST2)
 #endif
 		{
-			tess.texCoords[1][ndx][0] = v[5];
-			tess.texCoords[1][ndx][1] = v[6];
+			tessGeo.texCoords[1][ndx][0] = v[5];
+			tessGeo.texCoords[1][ndx][1] = v[6];
 		}
-		*(unsigned int*)&tess.vertexColors[ndx] = *(unsigned int*)&v[7];
+		*(unsigned int*)&tessGeo.vertexColors[ndx] = *(unsigned int*)&v[7];
 #ifdef USE_LEGACY_DLIGHTS
-		tess.vertexDlightBits[ndx] = dlightBits;
+		tessGeo.vertexDlightBits[ndx] = dlightBits;
 #endif
 	}
 
 	tess.numVertexes += surf->numPoints;
-}
+	}
 
 static float LodErrorForVolume(const vec3_t & local, const float radius)
 {
@@ -2041,13 +2045,13 @@ static void RB_SurfaceGrid(srfGridMesh_t * cv)
 
 		numVertexes = tess.numVertexes;
 
-		xyz = tess.xyz[numVertexes];
-		normal = tess.normal[numVertexes];
-		texCoords0 = tess.texCoords[0][numVertexes];
-		texCoords1 = tess.texCoords[1][numVertexes];
-		color = &tess.vertexColors[numVertexes].u32;
+		xyz = tessGeo.xyz[numVertexes];
+		normal = tessGeo.normal[numVertexes];
+		texCoords0 = tessGeo.texCoords[0][numVertexes];
+		texCoords1 = tessGeo.texCoords[1][numVertexes];
+		color = &tessGeo.vertexColors[numVertexes].u32;
 #ifdef USE_LEGACY_DLIGHTS
-		vDlightBits = &tess.vertexDlightBits[numVertexes];
+		vDlightBits = &tessGeo.vertexDlightBits[numVertexes];
 #endif
 		for (i = 0; i < rows; i++)
 		{
@@ -2107,13 +2111,13 @@ static void RB_SurfaceGrid(srfGridMesh_t * cv)
 					v3 = v2 + lodWidth;
 					v4 = v3 + 1;
 
-					tess.indexes[numIndexes] = v2;
-					tess.indexes[numIndexes + 1] = v3;
-					tess.indexes[numIndexes + 2] = v1;
+					tessGeo.indexes[numIndexes] = v2;
+					tessGeo.indexes[numIndexes + 1] = v3;
+					tessGeo.indexes[numIndexes + 2] = v1;
 
-					tess.indexes[numIndexes + 3] = v1;
-					tess.indexes[numIndexes + 4] = v3;
-					tess.indexes[numIndexes + 5] = v4;
+					tessGeo.indexes[numIndexes + 3] = v1;
+					tessGeo.indexes[numIndexes + 4] = v3;
+					tessGeo.indexes[numIndexes + 5] = v4;
 					numIndexes += 6;
 				}
 			}
@@ -2150,21 +2154,21 @@ static void RB_SurfaceAxis(void)
 	RB_EndSurface();
 
 	Bind(tr.whiteImage);
-	Com_Memset(tess.xyz, 0, 6 * sizeof(tess.xyz[0]));
-	tess.xyz[1][0] = 16.0;
-	tess.xyz[3][1] = 16.0;
-	tess.xyz[5][2] = 16.0;
+	Com_Memset(tessGeo.xyz, 0, 6 * sizeof(tessGeo.xyz[0]));
+	tessGeo.xyz[1][0] = 16.0;
+	tessGeo.xyz[3][1] = 16.0;
+	tessGeo.xyz[5][2] = 16.0;
 
-	Com_Memset(tess.svars.colors[0], 0, 6 * sizeof(color4ub_t));
+	Com_Memset(tessGeo.svars.colors[0], 0, 6 * sizeof(color4ub_t));
 	for (i = 0; i < 6; i++)
-		tess.svars.colors[0][i].rgba[3] = 255;
+		tessGeo.svars.colors[0][i].rgba[3] = 255;
 
-	tess.svars.colors[0][0].rgba[0] = 255;
-	tess.svars.colors[0][1].rgba[0] = 255;
-	tess.svars.colors[0][2].rgba[1] = 255;
-	tess.svars.colors[0][3].rgba[1] = 255;
-	tess.svars.colors[0][4].rgba[2] = 255;
-	tess.svars.colors[0][5].rgba[2] = 255;
+	tessGeo.svars.colors[0][0].rgba[0] = 255;
+	tessGeo.svars.colors[0][1].rgba[0] = 255;
+	tessGeo.svars.colors[0][2].rgba[1] = 255;
+	tessGeo.svars.colors[0][3].rgba[1] = 255;
+	tessGeo.svars.colors[0][4].rgba[2] = 255;
+	tessGeo.svars.colors[0][5].rgba[2] = 255;
 
 	tess.numVertexes = 6;
 

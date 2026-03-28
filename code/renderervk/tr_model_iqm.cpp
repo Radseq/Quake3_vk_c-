@@ -413,18 +413,19 @@ R_AddIQMSurfaces
 Add all surfaces of this model
 =================
 */
-void R_AddIQMSurfaces(trRefEntity_t &ent)
+void R_AddIQMSurfaces(trRefEntity_t& ent)
 {
-	iqmData_t *data;
-	srfIQModel_t *surface;
+	iqmData_t* data;
+	srfIQModel_t* surface;
 	int i, j;
 	bool personalModel;
 	int cull;
 	int fogNum;
-	shader_t *shader;
-	const skin_t *skin;
+	shader_t* shader;
+	const skin_t* skin;
+	bool lightingReady = false;
 
-	data = static_cast<iqmData_t *>(tr.currentModel->modelData);
+	data = static_cast<iqmData_t*>(tr.currentModel->modelData);
 	surface = data->surfaces;
 
 	// don't add third_person objects if not in a portal
@@ -445,8 +446,8 @@ void R_AddIQMSurfaces(trRefEntity_t &ent)
 	if ((ent.e.frame >= data->num_frames) || (ent.e.frame < 0) || (ent.e.oldframe >= data->num_frames) || (ent.e.oldframe < 0))
 	{
 		ri.Printf(PRINT_DEVELOPER, "R_AddIQMSurfaces: no such frame %d to %d for '%s'\n",
-				  ent.e.oldframe, ent.e.frame,
-				  tr.currentModel->name.data());
+			ent.e.oldframe, ent.e.frame,
+			tr.currentModel->name.data());
 		ent.e.frame = 0;
 		ent.e.oldframe = 0;
 	}
@@ -462,14 +463,6 @@ void R_AddIQMSurfaces(trRefEntity_t &ent)
 	}
 
 	//
-	// set up lighting now that we know we aren't culled
-	//
-	if (!personalModel || r_shadows->integer > 1)
-	{
-		R_SetupEntityLighting(tr.refdef, ent);
-	}
-
-	//
 	// see if we are in a fog volume
 	//
 	fogNum = R_ComputeIQMFogNum(*data, ent);
@@ -481,39 +474,58 @@ void R_AddIQMSurfaces(trRefEntity_t &ent)
 		else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
 		{
 			skin = R_GetSkinByHandle(ent.e.customSkin);
-			shader = tr.defaultShader;
-
-			for (j = 0; j < skin->numSurfaces; j++)
-			{
-				if (!strcmp(skin->surfaces[j].name, surface->name))
-				{
-					shader = skin->surfaces[j].shader;
-					break;
-				}
-			}
+			shader = R_FindSkinSurfaceShaderFast(*skin, surface->name);
 		}
 		else
 		{
 			shader = surface->shader;
 		}
 
+		const bool opaqueShader =
+			shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE);
+
+		const bool needsStencilShadowLighting =
+			!personalModel &&
+			r_shadows->integer == 2 &&
+			fogNum == 0 &&
+			!(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) &&
+			opaqueShader;
+
+		const bool needsProjectionShadowLighting =
+			r_shadows->integer == 3 &&
+			fogNum == 0 &&
+			(ent.e.renderfx & RF_SHADOW_PLANE) &&
+			opaqueShader;
+
+		const bool needsMainShaderLighting =
+			!personalModel && R_ShaderNeedsEntityLighting(*shader);
+
+		if (!lightingReady &&
+			(needsMainShaderLighting ||
+				needsStencilShadowLighting ||
+				needsProjectionShadowLighting))
+		{
+			R_SetupEntityLighting(tr.refdef, ent);
+			lightingReady = true;
+		}
+
 		// we will add shadows even if the main object isn't visible in the view
 
 		// stencil shadows can't do personal models unless I polyhedron clip
-		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 && !(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
+		if (needsStencilShadowLighting)
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.shadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
-		if (r_shadows->integer == 3 && fogNum == 0 && (ent.e.renderfx & RF_SHADOW_PLANE) && shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
+		if (needsProjectionShadowLighting)
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.projectionShadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *tr.projectionShadowShader, 0, 0);
 		}
 
 		if (!personalModel)
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *shader, fogNum, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *shader, fogNum, 0);
 			tr.needScreenMap |= shader->hasScreenMap;
 		}
 
@@ -875,35 +887,35 @@ static bool RB_SurfaceIQMGPU(const surfaceType_t& surface)
 	return true;
 }
 
-void RB_IQMSurfaceAnim(const surfaceType_t &surface)
+void RB_IQMSurfaceAnim(const surfaceType_t& surface)
 {
 	if (RB_SurfaceIQMGPU(surface))
 	{
 		return;
 	}
 
-	srfIQModel_t &surf = (srfIQModel_t &)surface;
-	iqmData_t *data = surf.data;
+	srfIQModel_t& surf = (srfIQModel_t&)surface;
+	iqmData_t* data = surf.data;
 	float poseMats[IQM_MAX_JOINTS * 12];
 	float influenceVtxMat[SHADER_MAX_VERTEXES * 12]{};
 	float influenceNrmMat[SHADER_MAX_VERTEXES * 9]{};
 	int i;
 
-	float *xyz;
-	float *normal;
-	float *texCoords;
-	byte *color;
-	vec4_t *outXYZ;
-	vec4_t *outNormal;
-	float *outTexCoord;
-	color4ub_t *outColor;
+	float* xyz;
+	float* normal;
+	float* texCoords;
+	byte* color;
+	vec4_t* outXYZ;
+	vec4_t* outNormal;
+	float* outTexCoord;
+	color4ub_t* outColor;
 
 	int frame = data->num_frames ? backEnd.currentEntity->e.frame % data->num_frames : 0;
 	int oldframe = data->num_frames ? backEnd.currentEntity->e.oldframe % data->num_frames : 0;
 	float backlerp = backEnd.currentEntity->e.backlerp;
 
-	int *tri;
-	glIndex_t *ptr;
+	int* tri;
+	glIndex_t* ptr;
 	glIndex_t base;
 
 	RB_CHECKOVERFLOW(surf.num_vertexes, surf.num_triangles * 3);
@@ -921,10 +933,10 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 		color = nullptr;
 	}
 
-	outXYZ = &tess.xyz[tess.numVertexes];
-	outNormal = &tess.normal[tess.numVertexes];
-	outTexCoord = &tess.texCoords[0][tess.numVertexes][0];
-	outColor = &tess.vertexColors[tess.numVertexes];
+	outXYZ = &tessGeo.xyz[tess.numVertexes];
+	outNormal = &tessGeo.normal[tess.numVertexes];
+	outTexCoord = &tessGeo.texCoords[0][tess.numVertexes][0];
+	outColor = &tessGeo.vertexColors[tess.numVertexes];
 
 	if (data->num_poses > 0)
 	{
@@ -935,8 +947,8 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 		for (i = 0; i < surf.num_influences; i++)
 		{
 			int influence = surf.first_influence + i;
-			float *vtxMat = &influenceVtxMat[12 * i];
-			float *nrmMat = &influenceNrmMat[9 * i];
+			float* vtxMat = &influenceVtxMat[12 * i];
+			float* nrmMat = &influenceNrmMat[9 * i];
 			int j;
 			float blendWeights[4]{};
 
@@ -1025,12 +1037,12 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 
 		// transform vertexes and fill other data
 		for (i = 0; i < surf.num_vertexes;
-			 i++, xyz += 3, normal += 3, texCoords += 2,
+			i++, xyz += 3, normal += 3, texCoords += 2,
 			outXYZ++, outNormal++, outTexCoord += 2)
 		{
 			int influence = data->influences[surf.first_vertex + i] - surf.first_influence;
-			float *vtxMat = &influenceVtxMat[12 * influence];
-			float *nrmMat = &influenceNrmMat[9 * influence];
+			float* vtxMat = &influenceVtxMat[12 * influence];
+			float* nrmMat = &influenceNrmMat[9 * influence];
 
 			outTexCoord[0] = texCoords[0];
 			outTexCoord[1] = texCoords[1];
@@ -1069,7 +1081,7 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 	{
 		// copy vertexes and fill other data
 		for (i = 0; i < surf.num_vertexes;
-			 i++, xyz += 3, normal += 3, texCoords += 2,
+			i++, xyz += 3, normal += 3, texCoords += 2,
 			outXYZ++, outNormal++, outTexCoord += 2)
 		{
 			outTexCoord[0] = texCoords[0];
@@ -1095,7 +1107,7 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 	}
 
 	tri = data->triangles + 3 * surf.first_triangle;
-	ptr = &tess.indexes[tess.numIndexes];
+	ptr = &tessGeo.indexes[tess.numIndexes];
 	base = tess.numVertexes;
 
 	for (i = 0; i < surf.num_triangles; i++)

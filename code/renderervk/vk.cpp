@@ -3608,7 +3608,7 @@ static void vk_bind_attr(const int index, const unsigned int item_size, const vo
 uint32_t vk_tess_index(const uint32_t numIndexes, const void* src)
 {
 	const uint32_t offset = vk_inst.cmd->vertex_buffer_offset;
-	const uint32_t size = numIndexes * sizeof(tess.indexes[0]);
+	const uint32_t size = numIndexes * sizeof(tessGeo.indexes[0]);
 
 	if (offset + size > vk_inst.geometry_buffer_size)
 	{
@@ -3673,7 +3673,7 @@ void vk_bind_index(void)
 		return;
 	}
 
-	vk_bind_index_ext(tess.numIndexes, tess.indexes);
+	vk_bind_index_ext(tess.numIndexes, tessGeo.indexes);
 }
 
 void vk_bind_index_ext(const int numIndexes, const uint32_t* indexes)
@@ -3822,7 +3822,7 @@ void vk_bind_geometry(const uint32_t flags)
 
 		if (flags & TESS_RGBA0)
 		{
-			vk_bind_attr(1, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
+			vk_bind_attr(1, sizeof(color4ub_t), tessGeo.svars.colors[0][0].rgba);
 		}
 		else
 		{
@@ -3912,18 +3912,16 @@ void vk_bind_geometry(const uint32_t flags)
 			{
 				if (useRawVertexColor)
 				{
-					vk_bind_attr(2, sizeof(color4ub_t), tess.vertexColors[0].rgba);
+					vk_bind_attr(2, sizeof(color4ub_t), tessGeo.vertexColors[0].rgba);
 				}
 				else
 				{
-					// shader liczy kolor z uniformów, ale podstawiamy poprawny,
-					// deterministyczny stream zamiast czytać śmieci z md3 vertex buffer
-					vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
+					vk_bind_attr(2, sizeof(color4ub_t), tessGeo.constantColor255[0].rgba);
 				}
 			}
 			else
 			{
-				vk_bind_attr(2, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
+				vk_bind_attr(2, sizeof(color4ub_t), tessGeo.svars.colors[0][0].rgba);
 			}
 		};
 
@@ -3936,7 +3934,7 @@ void vk_bind_geometry(const uint32_t flags)
 
 				if (colorMode != 0u && useRawVertexColor)
 				{
-					vk_bind_attr(attrIndex, sizeof(color4ub_t), tess.vertexColors[0].rgba);
+					vk_bind_attr(attrIndex, sizeof(color4ub_t), tessGeo.vertexColors[0].rgba);
 				}
 				else
 				{
@@ -3985,7 +3983,7 @@ void vk_bind_geometry(const uint32_t flags)
 			}
 			else
 			{
-				vk_bind_attr(4, sizeof(vec2_t), tess.svars.texcoords[1][0]);
+				vk_bind_attr(4, sizeof(vec2_t), tessGeo.svars.texcoords[1][0]);
 			}
 
 			if (flags & TESS_ST2)
@@ -3997,7 +3995,7 @@ void vk_bind_geometry(const uint32_t flags)
 				}
 				else
 				{
-					vk_bind_attr(5, sizeof(vec2_t), tess.svars.texcoords[2][0]);
+					vk_bind_attr(5, sizeof(vec2_t), tessGeo.svars.texcoords[2][0]);
 				}
 			}
 			else
@@ -4012,15 +4010,15 @@ void vk_bind_geometry(const uint32_t flags)
 			vk_inst.cmd->buf_offset[7] = newNormalOffset;
 			vk_bind_index_attr(7);
 
-			bindMd3SecondaryColor(8, colorMode1, rawColor1, tess.svars.colors[1]);
+			bindMd3SecondaryColor(8, colorMode1, rawColor1, tessGeo.svars.colors[1]);
 
 			if (flags & TESS_RGBA2)
 			{
-				bindMd3SecondaryColor(9, colorMode2, rawColor2, tess.svars.colors[2]);
+				bindMd3SecondaryColor(9, colorMode2, rawColor2, tessGeo.svars.colors[2]);
 			}
 			else
 			{
-				bindMd3SecondaryColor(9, colorMode1, rawColor1, tess.svars.colors[1]);
+				bindMd3SecondaryColor(9, colorMode1, rawColor1, tessGeo.svars.colors[1]);
 			}
 
 			vk_inst.cmd->command_buffer.bindVertexBuffers(
@@ -4065,7 +4063,7 @@ void vk_bind_geometry(const uint32_t flags)
 			}
 			else
 			{
-				vk_bind_attr(4, sizeof(vec2_t), tess.svars.texcoords[1][0]);
+				vk_bind_attr(4, sizeof(vec2_t), tessGeo.svars.texcoords[1][0]);
 			}
 
 			if (flags & TESS_ST2)
@@ -4077,7 +4075,7 @@ void vk_bind_geometry(const uint32_t flags)
 				}
 				else
 				{
-					vk_bind_attr(5, sizeof(vec2_t), tess.svars.texcoords[2][0]);
+					vk_bind_attr(5, sizeof(vec2_t), tessGeo.svars.texcoords[2][0]);
 				}
 			}
 			else
@@ -4357,17 +4355,17 @@ void vk_bind_geometry(const uint32_t flags)
 
 		if (flags & TESS_XYZ)
 		{
-			vk_bind_attr(0, sizeof(tess.xyz[0]), &tess.xyz[0]);
+			vk_bind_attr(0, sizeof(tessGeo.xyz[0]), &tessGeo.xyz[0]);
 		}
 
 		if (flags & TESS_RGBA0)
 		{
-			vk_bind_attr(1, sizeof(color4ub_t), tess.svars.colors[0][0].rgba);
+			vk_bind_attr(1, sizeof(color4ub_t), tessGeo.svars.colors[0][0].rgba);
 		}
 
 		if (flags & TESS_ST0)
 		{
-			if (!tess.svars.texcoordPtr[0])
+			if (!tessGeo.svars.texcoordPtr[0])
 			{
 				ri.Error(ERR_DROP, "vk_bind_geometry: texcoordPtr[0] is null (shader=%s, gpuMd3Active=%d, gpuStageIndex=%d)",
 					tess.shader ? tess.shader->name : "<null>",
@@ -4376,32 +4374,32 @@ void vk_bind_geometry(const uint32_t flags)
 				return;
 			}
 
-			vk_bind_attr(2, sizeof(vec2_t), tess.svars.texcoordPtr[0]);
+			vk_bind_attr(2, sizeof(vec2_t), tessGeo.svars.texcoordPtr[0]);
 		}
 
 		if (flags & TESS_ST1)
 		{
-			vk_bind_attr(3, sizeof(vec2_t), tess.svars.texcoordPtr[1]);
+			vk_bind_attr(3, sizeof(vec2_t), tessGeo.svars.texcoordPtr[1]);
 		}
 
 		if (flags & TESS_ST2)
 		{
-			vk_bind_attr(4, sizeof(vec2_t), tess.svars.texcoordPtr[2]);
+			vk_bind_attr(4, sizeof(vec2_t), tessGeo.svars.texcoordPtr[2]);
 		}
 
 		if (flags & TESS_NNN)
 		{
-			vk_bind_attr(5, sizeof(tess.normal[0]), tess.normal);
+			vk_bind_attr(5, sizeof(tessGeo.normal[0]), tessGeo.normal);
 		}
 
 		if (flags & TESS_RGBA1)
 		{
-			vk_bind_attr(6, sizeof(color4ub_t), tess.svars.colors[1][0].rgba);
+			vk_bind_attr(6, sizeof(color4ub_t), tessGeo.svars.colors[1][0].rgba);
 		}
 
 		if (flags & TESS_RGBA2)
 		{
-			vk_bind_attr(7, sizeof(color4ub_t), tess.svars.colors[2][0].rgba);
+			vk_bind_attr(7, sizeof(color4ub_t), tessGeo.svars.colors[2][0].rgba);
 		}
 
 		vk_inst.cmd->command_buffer.bindVertexBuffers(bind_base, bind_count, shade_bufs, vk_inst.cmd->buf_offset + bind_base);
@@ -4430,9 +4428,9 @@ void vk_bind_lighting(const int stage, const int bundle)
 	{
 		shade_bufs[0] = shade_bufs[1] = shade_bufs[2] = vk_inst.cmd->vertex_buffer;
 
-		vk_bind_attr(0, sizeof(tess.xyz[0]), &tess.xyz[0]);
-		vk_bind_attr(1, sizeof(vec2_t), tess.svars.texcoordPtr[bundle]);
-		vk_bind_attr(2, sizeof(tess.normal[0]), tess.normal);
+		vk_bind_attr(0, sizeof(tessGeo.xyz[0]), &tessGeo.xyz[0]);
+		vk_bind_attr(1, sizeof(vec2_t), tessGeo.svars.texcoordPtr[bundle]);
+		vk_bind_attr(2, sizeof(tessGeo.normal[0]), tessGeo.normal);
 
 		vk_inst.cmd->command_buffer.bindVertexBuffers(bind_base, bind_count, shade_bufs, vk_inst.cmd->buf_offset + bind_base);
 	}
@@ -4526,7 +4524,7 @@ static bool vk_find_screenmap_drawsurfs(void)
 			break;
 		case renderCommand_t::RC_DRAW_SURFS:
 			ds_cmd = (const drawSurfsCommand_t*)curCmd;
-			return ds_cmd->refdef.needScreenMap;
+			return backEndData->drawSurfSnapshots[ds_cmd->snapshotIndex].refdef.needScreenMap;
 		default:
 			return false;
 		}

@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "string_operations.hpp"
 
 shaderCommands_t tess;
+shaderCommandsGeometry_t tessGeo;
 
 static vkUniform_t uniform;
 
@@ -833,24 +834,24 @@ void R_ComputeTexCoords(const int b, const textureBundle_t& bundle)
 	int tm;
 	vec2_t* src;
 	vec2_t* dst;
-	src = dst = tess.svars.texcoords[b];
+	src = dst = tessGeo.svars.texcoords[b];
 
 	switch (bundle.tcGen)
 	{
 	case texCoordGen_t::TCGEN_IDENTITY:
-		src = tess.texCoords00;
+		src = tessGeo.texCoords00;
 		break;
 	case texCoordGen_t::TCGEN_TEXTURE:
-		src = tess.texCoords[0];
+		src = tessGeo.texCoords[0];
 		break;
 	case texCoordGen_t::TCGEN_LIGHTMAP:
-		src = tess.texCoords[1];
+		src = tessGeo.texCoords[1];
 		break;
 	case texCoordGen_t::TCGEN_VECTOR:
 		for (i = 0; i < tess.numVertexes; i++)
 		{
-			dst[i][0] = DotProduct(tess.xyz[i], bundle.tcGenVectors[0]);
-			dst[i][1] = DotProduct(tess.xyz[i], bundle.tcGenVectors[1]);
+			dst[i][0] = DotProduct(tessGeo.xyz[i], bundle.tcGenVectors[0]);
+			dst[i][1] = DotProduct(tessGeo.xyz[i], bundle.tcGenVectors[1]);
 		}
 		break;
 	case texCoordGen_t::TCGEN_FOG:
@@ -943,7 +944,7 @@ void R_ComputeTexCoords(const int b, const textureBundle_t& bundle)
 		}
 	}
 
-	tess.svars.texcoordPtr[b] = src;
+	tessGeo.svars.texcoordPtr[b] = src;
 }
 
 void VK_SetFogParams(vkUniform_t& uniform, int& fogStage)
@@ -1000,7 +1001,7 @@ void R_ComputeColors(const int b, color4ub_t* dest, const shaderStage_t& pStage)
 		RB_CalcDiffuseColor((unsigned char*)dest);
 		break;
 	case colorGen_t::CGEN_EXACT_VERTEX:
-		Com_Memcpy(dest, tess.vertexColors, tess.numVertexes * sizeof(tess.vertexColors[0]));
+		Com_Memcpy(dest, tessGeo.vertexColors, tess.numVertexes * sizeof(tessGeo.vertexColors[0]));
 		break;
 	case colorGen_t::CGEN_CONST:
 		for (i = 0; i < tess.numVertexes; i++)
@@ -1011,16 +1012,16 @@ void R_ComputeColors(const int b, color4ub_t* dest, const shaderStage_t& pStage)
 	case colorGen_t::CGEN_VERTEX:
 		if (tr.identityLight == 1)
 		{
-			Com_Memcpy(dest, tess.vertexColors, tess.numVertexes * sizeof(tess.vertexColors[0]));
+			Com_Memcpy(dest, tessGeo.vertexColors, tess.numVertexes * sizeof(tessGeo.vertexColors[0]));
 		}
 		else
 		{
 			for (i = 0; i < tess.numVertexes; i++)
 			{
-				dest[i].rgba[0] = tess.vertexColors[i].rgba[0] * tr.identityLight;
-				dest[i].rgba[1] = tess.vertexColors[i].rgba[1] * tr.identityLight;
-				dest[i].rgba[2] = tess.vertexColors[i].rgba[2] * tr.identityLight;
-				dest[i].rgba[3] = tess.vertexColors[i].rgba[3];
+				dest[i].rgba[0] = tessGeo.vertexColors[i].rgba[0] * tr.identityLight;
+				dest[i].rgba[1] = tessGeo.vertexColors[i].rgba[1] * tr.identityLight;
+				dest[i].rgba[2] = tessGeo.vertexColors[i].rgba[2] * tr.identityLight;
+				dest[i].rgba[3] = tessGeo.vertexColors[i].rgba[3];
 			}
 		}
 		break;
@@ -1029,18 +1030,18 @@ void R_ComputeColors(const int b, color4ub_t* dest, const shaderStage_t& pStage)
 		{
 			for (i = 0; i < tess.numVertexes; i++)
 			{
-				dest[i].rgba[0] = 255 - tess.vertexColors[i].rgba[0];
-				dest[i].rgba[1] = 255 - tess.vertexColors[i].rgba[1];
-				dest[i].rgba[2] = 255 - tess.vertexColors[i].rgba[2];
+				dest[i].rgba[0] = 255 - tessGeo.vertexColors[i].rgba[0];
+				dest[i].rgba[1] = 255 - tessGeo.vertexColors[i].rgba[1];
+				dest[i].rgba[2] = 255 - tessGeo.vertexColors[i].rgba[2];
 			}
 		}
 		else
 		{
 			for (i = 0; i < tess.numVertexes; i++)
 			{
-				dest[i].rgba[0] = (255 - tess.vertexColors[i].rgba[0]) * tr.identityLight;
-				dest[i].rgba[1] = (255 - tess.vertexColors[i].rgba[1]) * tr.identityLight;
-				dest[i].rgba[2] = (255 - tess.vertexColors[i].rgba[2]) * tr.identityLight;
+				dest[i].rgba[0] = (255 - tessGeo.vertexColors[i].rgba[0]) * tr.identityLight;
+				dest[i].rgba[1] = (255 - tessGeo.vertexColors[i].rgba[1]) * tr.identityLight;
+				dest[i].rgba[2] = (255 - tessGeo.vertexColors[i].rgba[2]) * tr.identityLight;
 			}
 		}
 		break;
@@ -1103,13 +1104,13 @@ void R_ComputeColors(const int b, color4ub_t* dest, const shaderStage_t& pStage)
 	case alphaGen_t::AGEN_VERTEX:
 		for (i = 0; i < tess.numVertexes; i++)
 		{
-			dest[i].rgba[3] = tess.vertexColors[i].rgba[3];
+			dest[i].rgba[3] = tessGeo.vertexColors[i].rgba[3];
 		}
 		break;
 	case alphaGen_t::AGEN_ONE_MINUS_VERTEX:
 		for (i = 0; i < tess.numVertexes; i++)
 		{
-			dest[i].rgba[3] = 255 - tess.vertexColors[i].rgba[3];
+			dest[i].rgba[3] = 255 - tessGeo.vertexColors[i].rgba[3];
 		}
 		break;
 	case alphaGen_t::AGEN_PORTAL:
@@ -1120,7 +1121,7 @@ void R_ComputeColors(const int b, color4ub_t* dest, const shaderStage_t& pStage)
 			float len;
 			vec3_t v{};
 
-			VectorSubtract(tess.xyz[i], backEnd.viewParms.ort.origin, v);
+			VectorSubtract(tessGeo.xyz[i], backEnd.viewParms.ort.origin, v);
 			len = VectorLength(v) * tess.shader->portalRangeR;
 
 			if (len > 1)
@@ -2031,14 +2032,23 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 
 					if (tess.gpuMd3Active)
 					{
+						const uint32_t colorMode =
+							R_GpuMd3SecondaryColorMode(*pStage, static_cast<uint32_t>(i));
+
 						if (i == 0)
 						{
-							needCpuColors = R_GpuMd3StageReadsPrimaryColorAttr(*pStage);
+							// CPU colors tylko gdy:
+							// 1) shader naprawdę nie ma GPU color mode
+							// 2) albo GPU mode wymaga surowego vertex color streamu
+							needCpuColors =
+								(colorMode == 0u) ||
+								R_GpuMd3ColorModeUsesRawVertexColor(colorMode);
 						}
 						else
 						{
 							needCpuColors =
-								R_GpuMd3SecondaryColorMode(*pStage, static_cast<uint32_t>(i)) == 0u;
+								(colorMode == 0u) ||
+								R_GpuMd3ColorModeUsesRawVertexColor(colorMode);
 						}
 					}
 					else if (tess.gpuIqmActive)
@@ -2050,7 +2060,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 
 					if (needCpuColors)
 					{
-						R_ComputeColors(i, tess.svars.colors[i], *pStage);
+						R_ComputeColors(i, tessGeo.svars.colors[i], *pStage);
 					}
 				}
 				if (tess_flags & (TESS_ENT0 << i) && backEnd.currentEntity)
@@ -2239,9 +2249,9 @@ static bool ProjectDlightTexture(void)
 			continue;
 		}
 
-		texCoords = (float*)&tess.svars.texcoords[0][0];
-		tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
-		colors = tess.svars.colors[0][0].rgba;
+		texCoords = (float*)&tessGeo.svars.texcoords[0][0];
+		tessGeo.svars.texcoordPtr[0] = tessGeo.svars.texcoords[0];
+		colors = tessGeo.svars.colors[0][0].rgba;
 		VectorCopy(dl.transformed, origin);
 		radius = dl.radius;
 		scale = 1.0f / radius;
@@ -2251,7 +2261,7 @@ static bool ProjectDlightTexture(void)
 			int clip = 0;
 			vec3_t dist{};
 
-			VectorSubtract(origin, tess.xyz[i], dist);
+			VectorSubtract(origin, tessGeo.xyz[i], dist);
 
 			backEnd.pc.c_dlightVertexes++;
 
@@ -2259,10 +2269,10 @@ static bool ProjectDlightTexture(void)
 			texCoords[1] = 0.5f + dist[1] * scale;
 
 			if (!r_dlightBacks->integer &&
-				// dist . tess.normal[i]
-				(dist[0] * tess.normal[i][0] +
-					dist[1] * tess.normal[i][1] +
-					dist[2] * tess.normal[i][2]) < 0.0f)
+				// dist . tessGeo.normal[i]
+				(dist[0] * tessGeo.normal[i][0] +
+					dist[1] * tessGeo.normal[i][1] +
+					dist[2] * tessGeo.normal[i][2]) < 0.0f)
 			{
 				clip = 63;
 			}
@@ -2323,9 +2333,9 @@ static bool ProjectDlightTexture(void)
 		{
 			glIndex_t a, b, c;
 
-			a = tess.indexes[i];
-			b = tess.indexes[i + 1];
-			c = tess.indexes[i + 2];
+			a = tessGeo.indexes[i];
+			b = tessGeo.indexes[i + 1];
+			c = tessGeo.indexes[i + 2];
 			if (clipBits[a] & clipBits[b] & clipBits[c])
 			{
 				continue; // not lighted
@@ -2391,11 +2401,11 @@ static void RB_FogPass(bool rebindIndex)
 
 	for (i = 0; i < tess.numVertexes; i++)
 	{
-		tess.svars.colors[0][i] = fog->colorInt;
+		tessGeo.svars.colors[0][i] = fog->colorInt;
 	}
 
-	RB_CalcFogTexCoords((float*)tess.svars.texcoords[0]);
-	tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
+	RB_CalcFogTexCoords((float*)tessGeo.svars.texcoords[0]);
+	tessGeo.svars.texcoordPtr[0] = tessGeo.svars.texcoords[0];
 	GL_Bind(tr.fogImage);
 
 	vk_bind_pipeline(pipeline);
@@ -2524,13 +2534,13 @@ static void DrawNormals(const shaderCommands_t& input)
 	tess.numIndexes = 0;
 	for (i = 0; i < tess.numVertexes; i++)
 	{
-		VectorMA(tess.xyz[i], 2.0, tess.normal[i], tess.xyz[i + tess.numVertexes]);
-		tess.indexes[tess.numIndexes + 0] = i;
-		tess.indexes[tess.numIndexes + 1] = i + tess.numVertexes;
+		VectorMA(tessGeo.xyz[i], 2.0, tessGeo.normal[i], tessGeo.xyz[i + tess.numVertexes]);
+		tessGeo.indexes[tess.numIndexes + 0] = i;
+		tessGeo.indexes[tess.numIndexes + 1] = i + tess.numVertexes;
 		tess.numIndexes += 2;
 	}
 	tess.numVertexes *= 2;
-	Com_Memset(tess.svars.colors[0][0].rgba, tr.identityLightByte, tess.numVertexes * sizeof(color4ub_t));
+	Com_Memset(tessGeo.svars.colors[0][0].rgba, tr.identityLightByte, tess.numVertexes * sizeof(color4ub_t));
 
 	vk_bind_pipeline(vk_inst.normals_debug_pipeline);
 	vk_bind_index();

@@ -208,6 +208,7 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 	int fogNum = 0;
 	int cull;
 	bool personalModel;
+	bool lightingReady = false;
 
 	mdrHeader_t &header = (mdrHeader_t &)tr.currentModel->modelData;
 
@@ -258,11 +259,6 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 		lod = (mdrLOD_t *)((byte *)lod + lod->ofsEnd);
 	}
 
-	// set up lighting
-	if (!personalModel || r_shadows->integer > 1)
-	{
-		R_SetupEntityLighting(tr.refdef, ent);
-	}
 
 	// fogNum?
 	fogNum = R_MDRComputeFogNum(header, ent);
@@ -276,34 +272,53 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 		else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
 		{
 			skin = R_GetSkinByHandle(ent.e.customSkin);
-			shader = tr.defaultShader;
-
-			for (j = 0; j < skin->numSurfaces; j++)
-			{
-				if (!strcmp(skin->surfaces[j].name, surface->name))
-				{
-					shader = skin->surfaces[j].shader;
-					break;
-				}
-			}
+			shader = R_FindSkinSurfaceShaderFast(*skin, surface->name);
 		}
 		else if (surface->shaderIndex > 0)
 			shader = R_GetShaderByHandle(surface->shaderIndex);
 		else
 			shader = tr.defaultShader;
 
+		const bool opaqueShader =
+			shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE);
+
+		const bool needsStencilShadowLighting =
+			!personalModel &&
+			r_shadows->integer == 2 &&
+			fogNum == 0 &&
+			!(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) &&
+			opaqueShader;
+
+		const bool needsProjectionShadowLighting =
+			r_shadows->integer == 3 &&
+			fogNum == 0 &&
+			(ent.e.renderfx & RF_SHADOW_PLANE) &&
+			opaqueShader;
+
+		const bool needsMainShaderLighting =
+			!personalModel && R_ShaderNeedsEntityLighting(*shader);
+
+		if (!lightingReady &&
+			(needsMainShaderLighting ||
+				needsStencilShadowLighting ||
+				needsProjectionShadowLighting))
+		{
+			R_SetupEntityLighting(tr.refdef, ent);
+			lightingReady = true;
+		}
+
 		// we will add shadows even if the main object isn't visible in the view
 
 		// stencil shadows can't do personal models unless I polyhedron clip
-		if (!personalModel && r_shadows->integer == 2 && fogNum == 0 && !(ent.e.renderfx & (RF_NOSHADOW | RF_DEPTHHACK)) && shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
+		if (needsStencilShadowLighting)
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.shadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *tr.shadowShader, 0, 0);
 		}
 
 		// projection shadows work fine with personal models
-		if (r_shadows->integer == 3 && fogNum == 0 && (ent.e.renderfx & RF_SHADOW_PLANE) && shader->sort == static_cast<float>(shaderSort_t::SS_OPAQUE))
+		if (needsProjectionShadowLighting)
 		{
-			R_AddDrawSurf(reinterpret_cast<surfaceType_t &>(*surface), *tr.projectionShadowShader, 0, 0);
+			R_AddDrawSurf(reinterpret_cast<surfaceType_t&>(*surface), *tr.projectionShadowShader, 0, 0);
 		}
 
 		if (!personalModel)
@@ -377,7 +392,7 @@ void RB_MDRSurfaceAnim(mdrSurface_t &surface)
 	// Set up all triangles.
 	for (j = 0; j < indexes; j++)
 	{
-		tess.indexes[baseIndex + j] = baseVertex + triangles[j];
+		tessGeo.indexes[baseIndex + j] = baseVertex + triangles[j];
 	}
 	tess.numIndexes += indexes;
 
@@ -429,21 +444,21 @@ void RB_MDRSurfaceAnim(mdrSurface_t &surface)
 			}
 		}
 
-		tess.xyz[baseVertex + j][0] = tempVert[0];
-		tess.xyz[baseVertex + j][1] = tempVert[1];
-		tess.xyz[baseVertex + j][2] = tempVert[2];
+		tessGeo.xyz[baseVertex + j][0] = tempVert[0];
+		tessGeo.xyz[baseVertex + j][1] = tempVert[1];
+		tessGeo.xyz[baseVertex + j][2] = tempVert[2];
 
 #ifdef USE_TESS_NEEDS_NORMAL
 		if (tess.needsNormal)
 #endif
 		{
-			tess.normal[baseVertex + j][0] = tempNormal[0];
-			tess.normal[baseVertex + j][1] = tempNormal[1];
-			tess.normal[baseVertex + j][2] = tempNormal[2];
+			tessGeo.normal[baseVertex + j][0] = tempNormal[0];
+			tessGeo.normal[baseVertex + j][1] = tempNormal[1];
+			tessGeo.normal[baseVertex + j][2] = tempNormal[2];
 		}
 
-		tess.texCoords[0][baseVertex + j][0] = v->texCoords[0];
-		tess.texCoords[0][baseVertex + j][1] = v->texCoords[1];
+		tessGeo.texCoords[0][baseVertex + j][0] = v->texCoords[0];
+		tessGeo.texCoords[0][baseVertex + j][1] = v->texCoords[1];
 
 		v = (mdrVertex_t *)&v->weights[v->numWeights];
 	}

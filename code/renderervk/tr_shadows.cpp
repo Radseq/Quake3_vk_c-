@@ -102,17 +102,17 @@ static void R_CalcShadowEdges(void)
 			// triangle, it is a sil edge
 			if (sil_edge)
 			{
-				if (tess.numIndexes > static_cast<int>(arrayLen(tess.indexes)) - 6)
+				if (tess.numIndexes > static_cast<int>(arrayLen(tessGeo.indexes)) - 6)
 				{
 					i = tess.numVertexes;
 					break;
 				}
-				tess.indexes[tess.numIndexes + 0] = i;
-				tess.indexes[tess.numIndexes + 1] = i2;
-				tess.indexes[tess.numIndexes + 2] = i + tess.numVertexes;
-				tess.indexes[tess.numIndexes + 3] = i2;
-				tess.indexes[tess.numIndexes + 4] = i2 + tess.numVertexes;
-				tess.indexes[tess.numIndexes + 5] = i + tess.numVertexes;
+				tessGeo.indexes[tess.numIndexes + 0] = i;
+				tessGeo.indexes[tess.numIndexes + 1] = i2;
+				tessGeo.indexes[tess.numIndexes + 2] = i + tess.numVertexes;
+				tessGeo.indexes[tess.numIndexes + 3] = i2;
+				tessGeo.indexes[tess.numIndexes + 4] = i2 + tess.numVertexes;
+				tessGeo.indexes[tess.numIndexes + 5] = i + tess.numVertexes;
 				tess.numIndexes += 6;
 			}
 		}
@@ -120,7 +120,7 @@ static void R_CalcShadowEdges(void)
 
 	tess.numVertexes *= 2;
 
-	color4ub_t *colors = &tess.svars.colors[0][0]; // we need at least 2x SHADER_MAX_VERTEXES there
+	color4ub_t* colors = &tessGeo.svars.colors[0][0]; // we need at least 2x SHADER_MAX_VERTEXES there
 
 	for (i = 0; i < tess.numVertexes; i++)
 	{
@@ -170,7 +170,7 @@ void RB_ShadowTessEnd(void)
 	// project vertexes away from light direction
 	for (i = 0; i < tess.numVertexes; i++)
 	{
-		VectorMA(tess.xyz[i], -512, lightDir, tess.xyz[i + tess.numVertexes]);
+		VectorMA(tessGeo.xyz[i], -512, lightDir, tessGeo.xyz[i + tess.numVertexes]);
 	}
 
 	// decide which triangles face the light
@@ -181,16 +181,16 @@ void RB_ShadowTessEnd(void)
 	{
 		int i1, i2, i3;
 		vec3_t d1{}, d2{}, normal;
-		float *v1, *v2, *v3;
+		float* v1, * v2, * v3;
 		float d;
 
-		i1 = tess.indexes[i * 3 + 0];
-		i2 = tess.indexes[i * 3 + 1];
-		i3 = tess.indexes[i * 3 + 2];
+		i1 = tessGeo.indexes[i * 3 + 0];
+		i2 = tessGeo.indexes[i * 3 + 1];
+		i3 = tessGeo.indexes[i * 3 + 2];
 
-		v1 = tess.xyz[i1];
-		v2 = tess.xyz[i2];
-		v3 = tess.xyz[i3];
+		v1 = tessGeo.xyz[i1];
+		v2 = tessGeo.xyz[i2];
+		v3 = tessGeo.xyz[i3];
 
 		VectorSubtract(v2, v1, d1);
 		VectorSubtract(v3, v1, d2);
@@ -282,8 +282,8 @@ void RB_ShadowFinish(void)
 
 	for (i = 0; i < 4; i++)
 	{
-		VectorCopy(verts[i], tess.xyz[i]);
-		Vector4Set(tess.svars.colors[0][i].rgba, 153, 153, 153, 255);
+		VectorCopy(verts[i], tessGeo.xyz[i]);
+		Vector4Set(tessGeo.svars.colors[0][i].rgba, 153, 153, 153, 255);
 	}
 
 	tess.numVertexes = 4;
@@ -325,7 +325,7 @@ void RB_ProjectionShadowDeform(void)
 	float d;
 	vec3_t lightDir{};
 
-	xyz = (float *)tess.xyz;
+	xyz = (float *)tessGeo.xyz;
 
 	vec3_t ground{
 		backEnd.ort.axis[0][2],

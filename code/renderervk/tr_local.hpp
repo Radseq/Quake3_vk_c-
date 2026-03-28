@@ -172,6 +172,10 @@ constexpr int SHADERNUM_BITS = 14;
 constexpr int MAX_SHADERS = (1 << SHADERNUM_BITS);
 constexpr int SHADERNUM_MASK = (MAX_SHADERS - 1);
 
+constexpr int MAX_RENDER_COMMANDS = 0x80000;
+constexpr int MAX_DRAW_SURF_COMMANDS = 256;
+constexpr int MAX_DRAW_SURF_COMMAND_SNAPSHOTS = MAX_DRAW_SURF_COMMANDS * 2;
+
 // this structure must be in sync with shader uniforms!
 typedef struct vkUniform_s
 {
@@ -248,22 +252,29 @@ typedef struct vkUniform_s
 
 typedef struct dlight_s
 {
+	// Hot point-light payload used by the vast majority of cull / lighting paths.
 	vec3_t origin;
-	vec3_t origin2;
-	vec3_t dir; // origin2 - origin
-
-	vec3_t color; // range from 0.0 to 1.0, should be color normalized
 	float radius;
 
-	vec3_t transformed;	 // origin in local coordinate system
-	vec3_t transformed2; // origin2 in local coordinate system
-	int additive;		 // texture detail is lost tho when the lightmap is dark
+	vec3_t transformed; // origin in local coordinate system
+	std::uint8_t additive; // texture detail is lost tho when the lightmap is dark
 	bool linear;
+	std::uint16_t reserved16{};
+
+	vec3_t color; // range from 0.0 to 1.0, should be color normalized
+	float reserved32{};
+
+	// Cold / linear-light payload. Kept at the tail so point-light walks
+	// do not pull it into the first cache line.
+	vec3_t origin2;
+	vec3_t transformed2; // origin2 in local coordinate system
 #ifdef USE_PMLIGHT
-	struct litSurf_s *head;
-	struct litSurf_s *tail;
+	struct litSurf_s* head;
+	struct litSurf_s* tail;
 #endif
 } dlight_t;
+
+static_assert(std::is_trivially_copyable_v<dlight_t>, "dlight_t must stay trivially copyable");
 
 enum class trRefEntityFlags_t : std::uint8_t
 {
@@ -434,8 +445,8 @@ enum class colorGen_t : uint8_t
 	CGEN_IDENTITY,			// always (1,1,1,1)
 	CGEN_ENTITY,			// grabbed from entity's modulate field
 	CGEN_ONE_MINUS_ENTITY,	// grabbed from 1 - entity.modulate
-	CGEN_EXACT_VERTEX,		// tess.vertexColors
-	CGEN_VERTEX,			// tess.vertexColors * tr.identityLight
+	CGEN_EXACT_VERTEX,		// tessGeo.vertexColors
+	CGEN_VERTEX,			// tessGeo.vertexColors * tr.identityLight
 	CGEN_ONE_MINUS_VERTEX,
 	CGEN_WAVEFORM, // programmatically generated
 	CGEN_LIGHTING_DIFFUSE,
@@ -827,14 +838,15 @@ constexpr int MAX_SKIN_SURFACES = 256;
 typedef struct
 {
 	char name[MAX_QPATH];
-	shader_t *shader;
+	shader_t* shader;
+	std::uint32_t nameHash;
 } skinSurface_t;
 
 typedef struct skin_s
 {
 	char name[MAX_QPATH]; // game path, including extension
 	int numSurfaces;
-	skinSurface_t *surfaces; // dynamically allocated array of surfaces
+	skinSurface_t* surfaces; // dynamically allocated array of surfaces sorted by nameHash for fast lookup
 } skin_t;
 
 typedef struct
@@ -942,13 +954,20 @@ constexpr int MAX_GRID_SIZE = 65;  // max dimensions of a grid mesh in memory
 
 // when cgame directly specifies a polygon, it becomes a srfPoly_t
 // as soon as it is called
+constexpr int SRF_POLY_INLINE_VERTS = 4;
+
 typedef struct srfPoly_s
 {
 	surfaceType_t surfaceType;
 	qhandle_t hShader;
 	int fogIndex;
 	int numVerts;
-	polyVert_t *verts;
+	int firstVert;
+	bool usesInlineVerts;
+	uint8_t reserved0{};
+	uint8_t reserved1{};
+	uint8_t reserved2{};
+	polyVert_t inlineVerts[SRF_POLY_INLINE_VERTS];
 } srfPoly_t;
 
 typedef struct srfFlare_s
@@ -1629,8 +1648,9 @@ struct trGlobals_t
 	bool mapLoading;
 
 	int needScreenMap;
+
 #ifdef USE_VULKAN
-	drawSurfsCommand_t *drawSurfCmd;
+	drawSurfsCommand_t* drawSurfCmds[MAX_DRAW_SURF_COMMANDS]{};
 	int numDrawSurfCmds;
 	renderCommand_t lastRenderCommand;
 	int numFogs; // read before parsing shaders
@@ -1962,10 +1982,27 @@ typedef struct stageVars
 	vec2_t *texcoordPtr[NUM_TEXTURE_BUNDLES];
 } stageVars_t;
 
+
+typedef struct shaderCommandsGeometry_s
+{
+#pragma pack(push, 16)
+	glIndex_t indexes[SHADER_MAX_INDEXES] QALIGN(16);
+	vec4_t xyz[SHADER_MAX_VERTEXES * 2] QALIGN(16); // 2x needed for shadows
+	vec4_t normal[SHADER_MAX_VERTEXES] QALIGN(16);
+	vec2_t texCoords[2][SHADER_MAX_VERTEXES] QALIGN(16);
+	vec2_t texCoords00[SHADER_MAX_VERTEXES] QALIGN(16);
+	color4ub_t vertexColors[SHADER_MAX_VERTEXES] QALIGN(16);
+#ifdef USE_LEGACY_DLIGHTS
+	int vertexDlightBits[SHADER_MAX_VERTEXES] QALIGN(16);
+#endif
+	stageVars_t svars QALIGN(16);
+	color4ub_t constantColor255[SHADER_MAX_VERTEXES] QALIGN(16);
+#pragma pack(pop)
+} shaderCommandsGeometry_t;
+
 typedef struct shaderCommands_s
 {
-	// Small hot header first: repeatedly touched while batching / iterating / submitting
-	// the current surface. Keep bulky geometry payload behind it.
+	// Hot per-surface header only. Bulky geometry payload lives out-of-line in geo.
 #ifdef USE_VBO
 	surfaceType_t surfType;
 	int vboIndex;
@@ -2025,24 +2062,11 @@ typedef struct shaderCommands_s
 	vec4_t gpuMd3EntOrigin{};
 	vec4_t gpuMd3EntAxis1{};
 	vec4_t gpuMd3EntAxis2{};
-
-#pragma pack(push, 16)
-	glIndex_t indexes[SHADER_MAX_INDEXES] QALIGN(16);
-	vec4_t xyz[SHADER_MAX_VERTEXES * 2] QALIGN(16); // 2x needed for shadows
-	vec4_t normal[SHADER_MAX_VERTEXES] QALIGN(16);
-	vec2_t texCoords[2][SHADER_MAX_VERTEXES] QALIGN(16);
-	vec2_t texCoords00[SHADER_MAX_VERTEXES] QALIGN(16);
-	color4ub_t vertexColors[SHADER_MAX_VERTEXES] QALIGN(16);
-#ifdef USE_LEGACY_DLIGHTS
-	int vertexDlightBits[SHADER_MAX_VERTEXES] QALIGN(16);
-#endif
-	stageVars_t svars QALIGN(16);
-	color4ub_t constantColor255[SHADER_MAX_VERTEXES] QALIGN(16);
-#pragma pack(pop)
-
+	shaderCommandsGeometry_t* geo;
 } shaderCommands_t;
 
 extern shaderCommands_t tess;
+extern shaderCommandsGeometry_t tessGeo;
 
 void R_IQMComputePoseMats(iqmData_t& data, int frame, int oldframe, float backlerp, float* poseMats);
 
@@ -2130,8 +2154,6 @@ RENDERER BACK END COMMAND QUEUE
 =============================================================
 */
 
-constexpr int MAX_RENDER_COMMANDS = 0x80000;
-
 constexpr int STRETCH_PIC_BATCH_MAX = 16;
 
 typedef struct
@@ -2204,13 +2226,18 @@ typedef struct
 	stretchPicItem_t items[STRETCH_PIC_BATCH_MAX];
 } stretchPicBatchCommand_t;
 
+typedef struct
+{
+	trRefdef_t refdef;
+	viewParms_t viewParms;
+} drawSurfCmdSnapshot_t;
+
 typedef struct drawSurfsCommand_s
 {
 	renderCommand_t commandId;
-	trRefdef_t refdef;
-	viewParms_t viewParms;
-	drawSurf_t *drawSurfs;
+	drawSurf_t* drawSurfs;
 	int numDrawSurfs;
+	int snapshotIndex;
 } drawSurfsCommand_t;
 
 typedef struct
@@ -2250,8 +2277,10 @@ typedef struct
 
 	trRefEntity_t entities[MAX_REFENTITIES];
 	trRefEntityLocal_t entityLocals[MAX_REFENTITIES];
-	srfPoly_t *polys;	   //[MAX_POLYS];
-	polyVert_t *polyVerts; //[MAX_POLYVERTS];
+	drawSurfCmdSnapshot_t drawSurfSnapshots[MAX_DRAW_SURF_COMMAND_SNAPSHOTS];
+	int drawSurfSnapshotCount;
+	srfPoly_t* polys;	    //[MAX_POLYS];
+	polyVert_t* polyVerts; //[MAX_POLYVERTS];
 	renderCommandList_t commands;
 } backEndData_t;
 
@@ -2259,6 +2288,17 @@ extern int max_polys;
 extern int max_polyverts;
 
 extern backEndData_t *backEndData;
+
+
+static ID_INLINE polyVert_t* R_GetPolyVertBase(srfPoly_t& poly, polyVert_t* polyVertsBase) noexcept
+{
+	return poly.usesInlineVerts ? poly.inlineVerts : polyVertsBase + poly.firstVert;
+}
+
+static ID_INLINE const polyVert_t* R_GetPolyVertBase(const srfPoly_t& poly, const polyVert_t* polyVertsBase) noexcept
+{
+	return poly.usesInlineVerts ? poly.inlineVerts : polyVertsBase + poly.firstVert;
+}
 
 void RB_TakeScreenshot(const int x, const int y, const int width, const int height, const char *fileName);
 void RB_TakeScreenshotJPEG(const int x, const int y, const int width, const int height, const char *fileName);

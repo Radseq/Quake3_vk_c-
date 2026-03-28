@@ -183,28 +183,31 @@ void *R_GetCommandBuffer(int bytes)
 R_AddDrawSurfCmd
 =============
 */
-void R_AddDrawSurfCmd(drawSurf_t &drawSurfs, int numDrawSurfs)
+void R_AddDrawSurfCmd(drawSurf_t& drawSurfs, int numDrawSurfs)
 {
-	drawSurfsCommand_t *cmd;
+	drawSurfsCommand_t* cmd;
 
-	cmd = static_cast<drawSurfsCommand_t *>(R_GetCommandBuffer(sizeof(*cmd)));
+	if (tr.numDrawSurfCmds >= MAX_DRAW_SURF_COMMANDS)
+	{
+		return;
+	}
+
+	cmd = static_cast<drawSurfsCommand_t*>(R_GetCommandBuffer(sizeof(*cmd)));
 	if (!cmd)
 	{
 		return;
 	}
-	cmd->commandId = renderCommand_t::RC_DRAW_SURFS;
 
+	cmd->commandId = renderCommand_t::RC_DRAW_SURFS;
 	cmd->drawSurfs = &drawSurfs;
 	cmd->numDrawSurfs = numDrawSurfs;
-
-	cmd->refdef = tr.refdef;
-	cmd->viewParms = tr.viewParms;
-
-	tr.numDrawSurfCmds++;
-	if (tr.drawSurfCmd == NULL)
+	cmd->snapshotIndex = R_AllocDrawSurfSnapshot(tr.refdef, tr.viewParms);
+	if (cmd->snapshotIndex < 0)
 	{
-		tr.drawSurfCmd = cmd;
+		return;
 	}
+
+	tr.drawSurfCmds[tr.numDrawSurfCmds++] = cmd;
 }
 
 constexpr vec4_t colorWhite_cpp = {1, 1, 1, 1};

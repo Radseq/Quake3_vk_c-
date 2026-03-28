@@ -14,4 +14,6 @@ void RE_AddAdditiveLightToScene(const vec3_t org, float intensity, float r, floa
 
 void RE_RenderScene(const refdef_t *fd);
 
+ID_INLINE int R_AllocDrawSurfSnapshot(const trRefdef_t& refdef, const viewParms_t& viewParms) noexcept;
+
 #endif // TR_SCENE_HPP

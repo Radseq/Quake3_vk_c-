@@ -19,7 +19,8 @@ ID_INLINE std::uint32_t& R_SurfaceVisibleCount(msurface_t& surf) noexcept;
 ID_INLINE std::uint32_t& R_SurfaceLightCount(msurface_t& surf) noexcept;
 #endif
 
-
 void R_EnsureSurfaceRuntimeState();
+
+void R_ResetSurfaceRuntimeState() noexcept;
 
 #endif // TR_WORLD_HPP

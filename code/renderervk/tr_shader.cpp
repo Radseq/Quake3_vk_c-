@@ -1717,6 +1717,29 @@ static void ParseSurfaceParm(const char** text)
 	}
 }
 
+bool R_ShaderNeedsEntityLighting(const shader_t& shader) noexcept
+{
+	for (int stageIndex = 0; stageIndex < shader.numUnfoggedPasses; ++stageIndex)
+	{
+		const shaderStage_t* const st = shader.stages[stageIndex];
+		if (!st || !st->active)
+			continue;
+
+		for (int bundleIndex = 0; bundleIndex < NUM_TEXTURE_BUNDLES; ++bundleIndex)
+		{
+			const textureBundle_t& b = st->bundle[bundleIndex];
+
+			if (b.rgbGen == colorGen_t::CGEN_LIGHTING_DIFFUSE ||
+				b.alphaGen == alphaGen_t::AGEN_LIGHTING_SPECULAR)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 enum class resultType : int8_t
 {
 	res_invalid = -1,

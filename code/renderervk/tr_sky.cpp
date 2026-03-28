@@ -280,9 +280,9 @@ static void RB_ClipSkyPolygons(const shaderCommands_t &input)
 	{
 		for (j = 0; j < 3; j++)
 		{
-			VectorSubtract(input.xyz[input.indexes[i + j]],
-						   backEnd.viewParms.ort.origin,
-						   p[j]);
+			VectorSubtract(input.geo->xyz[input.geo->indexes[i + j]],
+				backEnd.viewParms.ort.origin,
+				p[j]);
 		}
 		ClipSkyPolygon(3, p[0], 0);
 	}
@@ -444,16 +444,16 @@ static void FillSkySide(const int mins[2], const int maxs[2], float skyTexCoords
 			const int idx = tess.numVertexes;
 
 			// Inline VectorAdd for performance
-			const float *skyPt = s_skyPoints[t][s];
-			const float *camPt = backEnd.viewParms.ort.origin;
+			const float* skyPt = s_skyPoints[t][s];
+			const float* camPt = backEnd.viewParms.ort.origin;
 
-			float *dst = tess.xyz[idx];
+			float* dst = tessGeo.xyz[idx];
 			dst[0] = skyPt[0] + camPt[0];
 			dst[1] = skyPt[1] + camPt[1];
 			dst[2] = skyPt[2] + camPt[2];
 
 			// Copy texture coordinates
-			float *tex = tess.texCoords[0][idx];
+			float* tex = tessGeo.texCoords[0][idx];
 			tex[0] = skyTexCoords[t][s][0];
 			tex[1] = skyTexCoords[t][s][1];
 
@@ -472,7 +472,7 @@ static void FillSkySide(const int mins[2], const int maxs[2], float skyTexCoords
 			const int i2 = vertexStart + s + 1 + t * rowSize;
 			const int i3 = vertexStart + s + 1 + (t + 1) * rowSize;
 
-			auto &idx = tess.indexes;
+			auto &idx = tessGeo.indexes;
 			int &ni = tess.numIndexes;
 
 			idx[ni++] = i0;
@@ -496,7 +496,7 @@ static void DrawSkySide(image_t *image, const int mins[2], const int maxs[2])
 	if (tess.numIndexes)
 	{
 		Bind(image);
-		tess.svars.texcoordPtr[0] = tess.texCoords[0];
+		tessGeo.svars.texcoordPtr[0] = tessGeo.texCoords[0];
 
 		vk_bind_pipeline(vk_inst.skybox_pipeline);
 		vk_bind_index();

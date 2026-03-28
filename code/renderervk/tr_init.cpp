@@ -1580,16 +1580,18 @@ void R_Init(void)
 	Com_Memset(&tr, 0, sizeof(tr));
 	Com_Memset(&backEnd, 0, sizeof(backEnd));
 	Com_Memset(&tess, 0, sizeof(tess));
+	Com_Memset(&tessGeo, 0, sizeof(tessGeo));
+	tess.geo = &tessGeo;
 	Com_Memset(&glState, 0, sizeof(glState));
 
 	if (sizeof(glconfig_t) != 11324)
 		ri.Error(ERR_FATAL, "Mod ABI incompatible: sizeof(glconfig_t) == %u != 11324", (unsigned int)sizeof(glconfig_t));
 
-	if ((intptr_t)tess.xyz & 15)
+	if ((intptr_t)tessGeo.xyz & 15)
 	{
-		ri.Printf(PRINT_WARNING, "tess.xyz not 16 byte aligned\n");
+		ri.Printf(PRINT_WARNING, "tessGeo.xyz not 16 byte aligned\n");
 	}
-	Com_Memset(tess.constantColor255, 255, sizeof(tess.constantColor255));
+	Com_Memset(tessGeo.constantColor255, 255, sizeof(tessGeo.constantColor255));
 
 	tr.squareTable = kSquare;
 	tr.sawToothTable = kSaw;
@@ -1689,6 +1691,8 @@ static void RE_Shutdown(refShutdownCode_t code)
 			Com_Memset(&glConfig, 0, sizeof(glConfig));
 		}
 	}
+
+		R_ResetSurfaceRuntimeState();
 
 	ri.FreeAll();
 

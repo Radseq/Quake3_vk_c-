@@ -771,7 +771,7 @@ static void transform_to_eye_space(const vec3_t v, vec3_t &v_eye)
 RB_DebugPolygon
 ================
 */
-static void RB_DebugPolygon(const int color, const int numPoints, float *points)
+static void RB_DebugPolygon(const int color, const int numPoints, float* points)
 {
 	if (numPoints < 3)
 	{
@@ -808,21 +808,21 @@ static void RB_DebugPolygon(const int color, const int numPoints, float *points)
 	// Solid shade.
 	for (i = 0; i < numPoints; i++)
 	{
-		VectorCopy(&points[3 * i], tess.xyz[i]);
+		VectorCopy(&points[3 * i], tessGeo.xyz[i]);
 
-		tess.svars.colors[0][i].rgba[0] = (color & 1) ? 255 : 0;
-		tess.svars.colors[0][i].rgba[1] = (color & 2) ? 255 : 0;
-		tess.svars.colors[0][i].rgba[2] = (color & 4) ? 255 : 0;
-		tess.svars.colors[0][i].rgba[3] = 255;
+		tessGeo.svars.colors[0][i].rgba[0] = (color & 1) ? 255 : 0;
+		tessGeo.svars.colors[0][i].rgba[1] = (color & 2) ? 255 : 0;
+		tessGeo.svars.colors[0][i].rgba[2] = (color & 4) ? 255 : 0;
+		tessGeo.svars.colors[0][i].rgba[3] = 255;
 	}
 	tess.numVertexes = numPoints;
 
 	tess.numIndexes = 0;
 	for (i = 1; i < numPoints - 1; i++)
 	{
-		tess.indexes[tess.numIndexes + 0] = 0;
-		tess.indexes[tess.numIndexes + 1] = i;
-		tess.indexes[tess.numIndexes + 2] = i + 1;
+		tessGeo.indexes[tess.numIndexes + 0] = 0;
+		tessGeo.indexes[tess.numIndexes + 1] = i;
+		tessGeo.indexes[tess.numIndexes + 2] = i + 1;
 		tess.numIndexes += 3;
 	}
 
@@ -832,12 +832,12 @@ static void RB_DebugPolygon(const int color, const int numPoints, float *points)
 	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, true);
 
 	// Outline.
-	Com_Memset(tess.svars.colors[0], tr.identityLightByte, numPoints * 2 * sizeof(color4ub_t));
+	Com_Memset(tessGeo.svars.colors[0], tr.identityLightByte, numPoints * 2 * sizeof(color4ub_t));
 
 	for (i = 0; i < numPoints; i++)
 	{
-		VectorCopy(&points[3 * i], tess.xyz[2 * i]);
-		VectorCopy(&points[3 * ((i + 1) % numPoints)], tess.xyz[2 * i + 1]);
+		VectorCopy(&points[3 * i], tessGeo.xyz[2 * i]);
+		VectorCopy(&points[3 * ((i + 1) % numPoints)], tessGeo.xyz[2 * i + 1]);
 	}
 	tess.numVertexes = numPoints * 2;
 	tess.numIndexes = 0;
@@ -879,10 +879,11 @@ static const void *RB_DrawSurfs(const void *data)
 	// finish any 2D drawing if needed
 	RB_EndSurface();
 
-	cmd = (const drawSurfsCommand_t *)data;
+	cmd = (const drawSurfsCommand_t*)data;
+	const drawSurfCmdSnapshot_t& snapshot = backEndData->drawSurfSnapshots[cmd->snapshotIndex];
 
-	backEnd.refdef = cmd->refdef;
-	backEnd.viewParms = cmd->viewParms;
+	backEnd.refdef = snapshot.refdef;
+	backEnd.viewParms = snapshot.viewParms;
 
 #ifdef USE_VBO
 	VBO_UnBind();
@@ -919,7 +920,7 @@ static const void *RB_DrawSurfs(const void *data)
 	// draw main system development information (surface outlines, etc)
 	RB_DebugGraphics();
 
-	if (cmd->refdef.switchRenderPass)
+	if (snapshot.refdef.switchRenderPass)
 	{
 		vk_end_render_pass();
 		vk_begin_main_render_pass();
@@ -983,44 +984,44 @@ void RB_ShowImages(void)
 	// draw full-screen quad
 	tess.numVertexes = 4;
 
-	tess.svars.colors[0][0].u32 = ~0U; // 255-255-255-255
-	tess.svars.colors[0][1].u32 = ~0U;
-	tess.svars.colors[0][2].u32 = ~0U;
-	tess.svars.colors[0][3].u32 = ~0U;
+	tessGeo.svars.colors[0][0].u32 = ~0U; // 255-255-255-255
+	tessGeo.svars.colors[0][1].u32 = ~0U;
+	tessGeo.svars.colors[0][2].u32 = ~0U;
+	tessGeo.svars.colors[0][3].u32 = ~0U;
 
-	tess.svars.texcoords[0][0][0] = 0.0f;
-	tess.svars.texcoords[0][0][1] = 0.0f;
+	tessGeo.svars.texcoords[0][0][0] = 0.0f;
+	tessGeo.svars.texcoords[0][0][1] = 0.0f;
 
-	tess.svars.texcoords[0][1][0] = 1.0f;
-	tess.svars.texcoords[0][1][1] = 0.0f;
+	tessGeo.svars.texcoords[0][1][0] = 1.0f;
+	tessGeo.svars.texcoords[0][1][1] = 0.0f;
 
-	tess.svars.texcoords[0][2][0] = 0.0f;
-	tess.svars.texcoords[0][2][1] = 1.0f;
+	tessGeo.svars.texcoords[0][2][0] = 0.0f;
+	tessGeo.svars.texcoords[0][2][1] = 1.0f;
 
-	tess.svars.texcoords[0][3][0] = 1.0f;
-	tess.svars.texcoords[0][3][1] = 1.0f;
+	tessGeo.svars.texcoords[0][3][0] = 1.0f;
+	tessGeo.svars.texcoords[0][3][1] = 1.0f;
 
-	tess.svars.texcoordPtr[0] = tess.svars.texcoords[0];
+	tessGeo.svars.texcoordPtr[0] = tessGeo.svars.texcoords[0];
 
-	tess.xyz[0][0] = 0.0f;
-	tess.xyz[0][1] = 0.0f;
+	tessGeo.xyz[0][0] = 0.0f;
+	tessGeo.xyz[0][1] = 0.0f;
 
-	tess.xyz[1][0] = (float)glConfig.vidWidth;
-	tess.xyz[1][1] = 0.0f;
+	tessGeo.xyz[1][0] = (float)glConfig.vidWidth;
+	tessGeo.xyz[1][1] = 0.0f;
 
-	tess.xyz[2][0] = 0.0f;
-	tess.xyz[2][1] = (float)glConfig.vidHeight;
+	tessGeo.xyz[2][0] = 0.0f;
+	tessGeo.xyz[2][1] = (float)glConfig.vidHeight;
 
-	tess.xyz[3][0] = (float)glConfig.vidWidth;
-	tess.xyz[3][1] = (float)glConfig.vidHeight;
+	tessGeo.xyz[3][0] = (float)glConfig.vidWidth;
+	tessGeo.xyz[3][1] = (float)glConfig.vidHeight;
 
-	vk_bind_pipeline( vk_inst.images_debug_pipeline2 );
-	vk_bind_geometry( TESS_XYZ | TESS_RGBA0 | TESS_ST0 );
-	vk_draw_geometry( Vk_Depth_Range::DEPTH_RANGE_NORMAL, false );
+	vk_bind_pipeline(vk_inst.images_debug_pipeline2);
+	vk_bind_geometry(TESS_XYZ | TESS_RGBA0 | TESS_ST0);
+	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, false);
 
 	for (i = 0; i < tr.numImages; i++)
 	{
-		image_t *image = tr.images[i];
+		image_t* image = tr.images[i];
 
 		float w = glConfig.vidWidth / 20;
 		float h = glConfig.vidHeight / 15;
@@ -1034,19 +1035,19 @@ void RB_ShowImages(void)
 			h *= image->uploadHeight / 512.0f;
 		}
 
-		tess.xyz[0][0] = x;
-		tess.xyz[0][1] = y;
+		tessGeo.xyz[0][0] = x;
+		tessGeo.xyz[0][1] = y;
 
-		tess.xyz[1][0] = x + w;
-		tess.xyz[1][1] = y;
+		tessGeo.xyz[1][0] = x + w;
+		tessGeo.xyz[1][1] = y;
 
-		tess.xyz[2][0] = x;
-		tess.xyz[2][1] = y + h;
+		tessGeo.xyz[2][0] = x;
+		tessGeo.xyz[2][1] = y + h;
 
-		tess.xyz[3][0] = x + w;
-		tess.xyz[3][1] = y + h;
+		tessGeo.xyz[3][0] = x + w;
+		tessGeo.xyz[3][1] = y + h;
 
-		Bind( image );
+		Bind(image);
 
 		vk_bind_pipeline(vk_inst.images_debug_pipeline);
 		vk_bind_geometry(TESS_XYZ);

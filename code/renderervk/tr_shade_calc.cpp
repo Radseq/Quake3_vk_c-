@@ -120,14 +120,14 @@ DEFORMATIONS
 RB_CalcDeformVertexes
 ========================
 */
-static void RB_CalcDeformVertexes(deformStage_t &ds)
+static void RB_CalcDeformVertexes(deformStage_t& ds)
 {
 	int i;
 	vec3_t offset{};
 	float scale;
-	float *xyz = (float *)tess.xyz;
-	float *normal = (float *)tess.normal;
-	const float *table;
+	float* xyz = (float*)tessGeo.xyz;
+	float* normal = (float*)tessGeo.normal;
+	const float* table;
 
 	if (ds.deformationWave.frequency == 0)
 	{
@@ -154,9 +154,9 @@ static void RB_CalcDeformVertexes(deformStage_t &ds)
 			float off = (xyz[0] + xyz[1] + xyz[2]) * ds.deformationSpread;
 
 			scale = WAVEVALUE(table, ds.deformationWave.base,
-							  ds.deformationWave.amplitude,
-							  ds.deformationWave.phase + off,
-							  ds.deformationWave.frequency);
+				ds.deformationWave.amplitude,
+				ds.deformationWave.phase + off,
+				ds.deformationWave.frequency);
 
 			VectorScale(normal, scale, offset);
 
@@ -174,28 +174,28 @@ RB_CalcDeformNormals
 Wiggle the normals for wavy environment mapping
 =========================
 */
-static void RB_CalcDeformNormals(deformStage_t &ds)
+static void RB_CalcDeformNormals(deformStage_t& ds)
 {
 	int i;
 	float scale;
-	float *xyz = (float *)tess.xyz;
-	float *normal = (float *)tess.normal;
+	float* xyz = (float*)tessGeo.xyz;
+	float* normal = (float*)tessGeo.normal;
 
 	for (i = 0; i < tess.numVertexes; i++, xyz += 4, normal += 4)
 	{
 		scale = 0.98f;
 		scale = R_NoiseGet4f(xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
-							 tess.shaderTime * ds.deformationWave.frequency);
+			tess.shaderTime * ds.deformationWave.frequency);
 		normal[0] += ds.deformationWave.amplitude * scale;
 
 		scale = 0.98f;
 		scale = R_NoiseGet4f(100 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
-							 tess.shaderTime * ds.deformationWave.frequency);
+			tess.shaderTime * ds.deformationWave.frequency);
 		normal[1] += ds.deformationWave.amplitude * scale;
 
 		scale = 0.98f;
 		scale = R_NoiseGet4f(200 + xyz[0] * scale, xyz[1] * scale, xyz[2] * scale,
-							 tess.shaderTime * ds.deformationWave.frequency);
+			tess.shaderTime * ds.deformationWave.frequency);
 		normal[2] += ds.deformationWave.amplitude * scale;
 
 		VectorNormalizeFast(normal);
@@ -207,12 +207,12 @@ static void RB_CalcDeformNormals(deformStage_t &ds)
 RB_CalcBulgeVertexes
 ========================
 */
-static void RB_CalcBulgeVertexes(deformStage_t &ds)
+static void RB_CalcBulgeVertexes(deformStage_t& ds)
 {
 	int i;
-	const float *st = (const float *)tess.texCoords[0][0];
-	float *xyz = (float *)tess.xyz;
-	float *normal = (float *)tess.normal;
+	const float* st = (const float*)tessGeo.texCoords[0][0];
+	float* xyz = (float*)tessGeo.xyz;
+	float* normal = (float*)tessGeo.normal;
 	double now;
 
 	now = backEnd.refdef.floatTime * ds.bulgeSpeed;
@@ -260,7 +260,7 @@ static void RB_CalcMoveVertexes(deformStage_t &ds)
 
 	VectorScale(ds.moveVector, scale, offset);
 
-	xyz = (float *)tess.xyz;
+	xyz = (float *)tessGeo.xyz;
 	for (i = 0; i < tess.numVertexes; i++, xyz += 4)
 	{
 		VectorAdd(xyz, offset, xyz);
@@ -277,27 +277,27 @@ Change a polygon into a bunch of text polygons
 static void DeformText(std::string_view text)
 {
 	int i;
-	vec3_t origin{}, width, height{0, 0, -1};
+	vec3_t origin{}, width, height{ 0, 0, -1 };
 	int len;
 	int ch;
 	color4ub_t color{};
 	vec3_t mid{};
 
-	CrossProduct(tess.normal[0], height, width);
+	CrossProduct(tessGeo.normal[0], height, width);
 
 	// find the midpoint of the box
 	float bottom = 999999;
 	float top = -999999;
 	for (i = 0; i < 4; i++)
 	{
-		VectorAdd(tess.xyz[i], mid, mid);
-		if (tess.xyz[i][2] < bottom)
+		VectorAdd(tessGeo.xyz[i], mid, mid);
+		if (tessGeo.xyz[i][2] < bottom)
 		{
-			bottom = tess.xyz[i][2];
+			bottom = tessGeo.xyz[i][2];
 		}
-		if (tess.xyz[i][2] > top)
+		if (tessGeo.xyz[i][2] > top)
 		{
-			top = tess.xyz[i][2];
+			top = tessGeo.xyz[i][2];
 		}
 	}
 	VectorScale(mid, 0.25f, origin);
@@ -400,7 +400,7 @@ static void AutospriteDeform(void)
 	for (i = 0; i < oldVerts; i += 4)
 	{
 		// find the midpoint
-		xyz = tess.xyz[i];
+		xyz = tessGeo.xyz[i];
 
 		vec3_t mid = {
 			{0.25f * (xyz[0] + xyz[4] + xyz[8] + xyz[12])},
@@ -434,7 +434,7 @@ static void AutospriteDeform(void)
 			VectorScale(up, axisLength, up);
 		}
 
-		RB_AddQuadStamp(mid, left, up, tess.vertexColors[i]);
+		RB_AddQuadStamp(mid, left, up, tessGeo.vertexColors[i]);
 	}
 }
 
@@ -486,7 +486,7 @@ static void Autosprite2Deform(void)
 		float *v1, *v2;
 
 		// find the midpoint
-		xyz = tess.xyz[i];
+		xyz = tessGeo.xyz[i];
 
 		for (j = 0; j < 6; j++)
 		{
@@ -544,7 +544,7 @@ static void Autosprite2Deform(void)
 			// is used to determine direction of projection
 			for (k = 0; k < 5; k++)
 			{
-				if (tess.indexes[indexes + k] == i + edgeVerts[nums[j]][0] && tess.indexes[indexes + k + 1] == i + edgeVerts[nums[j]][1])
+				if (tessGeo.indexes[indexes + k] == i + edgeVerts[nums[j]][0] && tessGeo.indexes[indexes + k + 1] == i + edgeVerts[nums[j]][1])
 				{
 					break;
 				}
@@ -904,7 +904,7 @@ void RB_CalcFogTexCoords(float *st)
 	fogDistanceVector[3] += 1.0 / 512;
 
 	// calculate density for each point
-	for (i = 0, v = tess.xyz[0]; i < tess.numVertexes; i++, v += 4)
+	for (i = 0, v = tessGeo.xyz[0]; i < tess.numVertexes; i++, v += 4)
 	{
 		// calculate the length in fog
 		s = DotProduct(v, fogDistanceVector) + fogDistanceVector[3];
@@ -1013,8 +1013,8 @@ static void RB_CalcEnvironmentTexCoordsFPscr(float *st)
 	vec3_t viewer{};
 	float d;
 
-	v = tess.xyz[0];
-	normal = tess.normal[0];
+	v = tessGeo.xyz[0];
+	normal = tessGeo.normal[0];
 
 	for (i = 0; i < tess.numVertexes; i++, v += 4, normal += 4, st += 2)
 	{
@@ -1058,8 +1058,8 @@ void RB_CalcEnvironmentTexCoordsFP(float *st, int screenMap)
 		return;
 	}
 
-	v = tess.xyz[0];
-	normal = tess.normal[0];
+	v = tessGeo.xyz[0];
+	normal = tessGeo.normal[0];
 
 	for (i = 0; i < tess.numVertexes; i++, v += 4, normal += 4, st += 2)
 	{
@@ -1097,8 +1097,8 @@ void RB_CalcEnvironmentTexCoords(float *st)
 	vec3_t viewer{}, reflected{};
 	float d;
 
-	v = tess.xyz[0];
-	normal = tess.normal[0];
+	v = tessGeo.xyz[0];
+	normal = tessGeo.normal[0];
 
 	for (i = 0; i < tess.numVertexes; i++, v += 4, normal += 4, st += 2)
 	{
@@ -1119,7 +1119,7 @@ void RB_CalcEnvironmentTexCoords(float *st)
 /*
 ** RB_CalcTurbulentTexCoords
 */
-void RB_CalcTurbulentTexCoords(const waveForm_t &wf, float *src, float *dst)
+void RB_CalcTurbulentTexCoords(const waveForm_t& wf, float* src, float* dst)
 {
 	int i;
 	double now; // -EC- set to double
@@ -1128,8 +1128,8 @@ void RB_CalcTurbulentTexCoords(const waveForm_t &wf, float *src, float *dst)
 
 	for (i = 0; i < tess.numVertexes; i++, dst += 2, src += 2)
 	{
-		dst[0] = src[0] + tr.sinTable[((int64_t)(((tess.xyz[i][0] + tess.xyz[i][2]) * 1.0 / 128 * 0.125 + now) * FUNCTABLE_SIZE)) & (FUNCTABLE_MASK)] * wf.amplitude;
-		dst[1] = src[1] + tr.sinTable[((int64_t)((tess.xyz[i][1] * 1.0 / 128 * 0.125 + now) * FUNCTABLE_SIZE)) & (FUNCTABLE_MASK)] * wf.amplitude;
+		dst[0] = src[0] + tr.sinTable[((int64_t)(((tessGeo.xyz[i][0] + tessGeo.xyz[i][2]) * 1.0 / 128 * 0.125 + now) * FUNCTABLE_SIZE)) & (FUNCTABLE_MASK)] * wf.amplitude;
+		dst[1] = src[1] + tr.sinTable[((int64_t)((tessGeo.xyz[i][1] * 1.0 / 128 * 0.125 + now) * FUNCTABLE_SIZE)) & (FUNCTABLE_MASK)] * wf.amplitude;
 	}
 }
 
@@ -1235,8 +1235,8 @@ void RB_CalcSpecularAlpha(unsigned char *alphas)
 	vec3_t lightDir{};
 	int numVertexes;
 
-	v = tess.xyz[0];
-	normal = tess.normal[0];
+	v = tessGeo.xyz[0];
+	normal = tessGeo.normal[0];
 
 	alphas += 3;
 
@@ -1302,8 +1302,8 @@ static void RB_CalcDiffuseColor_scalar(unsigned char* colors)
 	VectorCopy(local.directedLight, directedLight);
 	VectorCopy(local.lightDir, lightDir);
 
-	float* v = tess.xyz[0];
-	float* normal = tess.normal[0];
+	float* v = tessGeo.xyz[0];
+	float* normal = tessGeo.normal[0];
 
 	for (int i = 0; i < numVertexes; ++i, v += 4, normal += 4)
 	{

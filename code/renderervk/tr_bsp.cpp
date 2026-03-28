@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "math.hpp"
 #include "utils.hpp"
 #include "string_operations.hpp"
+#include "tr_world.hpp"
 
 static world_t s_worldData;
 static byte *fileBase;
@@ -584,7 +585,7 @@ static void GenerateNormals(srfSurfaceFace_t *face)
 	indices = ((int *)((byte *)face + face->ofsIndices));
 
 	// store as vec4_t so we can simply use memcpy() during tesselation
-	face->normals = static_cast<float *>(ri.Hunk_Alloc(face->numPoints * sizeof(tess.normal[0]), h_low));
+	face->normals = static_cast<float*>(ri.Hunk_Alloc(face->numPoints * sizeof(tessGeo.normal[0]), h_low));
 
 	for (i = 0; i < face->numIndices; i += 3)
 	{
@@ -2565,6 +2566,8 @@ void RE_LoadWorldMap(const char *name)
 	// clear tr.world so if the level fails to load, the next
 	// try will not look at the partially loaded version
 	tr.world = NULL;
+
+	R_ResetSurfaceRuntimeState();
 
 	Com_Memset(&s_worldData, 0, sizeof(s_worldData));
 

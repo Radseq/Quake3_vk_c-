@@ -164,6 +164,67 @@ void R_SkinList_f()
 	ri.Printf(PRINT_ALL, "------------------\n");
 }
 
+static ID_INLINE std::uint32_t R_SkinSurfaceNameHash(const std::string_view name) noexcept
+{
+	std::uint32_t hash = 2166136261u;
+	for (const unsigned char uc : name)
+	{
+		if (uc == 0)
+		{
+			break;
+		}
+
+		unsigned char c = uc;
+		if (c == static_cast<unsigned char>('\\'))
+		{
+			c = static_cast<unsigned char>('/');
+		}
+		else if (c >= static_cast<unsigned char>('A') && c <= static_cast<unsigned char>('Z'))
+		{
+			c = static_cast<unsigned char>(c - 'A' + 'a');
+		}
+
+		hash ^= static_cast<std::uint32_t>(c);
+		hash *= 16777619u;
+	}
+	return hash;
+}
+
+shader_t* R_FindSkinSurfaceShaderFast(const skin_t& skin, const char* surfaceName) noexcept
+{
+	if (skin.numSurfaces <= 0 || skin.surfaces == nullptr || surfaceName == nullptr || surfaceName[0] == '\0')
+	{
+		return tr.defaultShader;
+	}
+
+	const std::uint32_t targetHash = R_SkinSurfaceNameHash(surfaceName);
+	int lo = 0;
+	int hi = skin.numSurfaces;
+
+	while (lo < hi)
+	{
+		const int mid = (lo + hi) >> 1;
+		if (skin.surfaces[mid].nameHash < targetHash)
+		{
+			lo = mid + 1;
+		}
+		else
+		{
+			hi = mid;
+		}
+	}
+
+	for (int i = lo; i < skin.numSurfaces && skin.surfaces[i].nameHash == targetHash; ++i)
+	{
+		if (Q_stricmp_cpp(skin.surfaces[i].name, surfaceName) == 0)
+		{
+			return skin.surfaces[i].shader;
+		}
+	}
+
+	return tr.defaultShader;
+}
+
 void R_GammaCorrect(byte* buffer, const int bufSize)
 {
 	if (vk_inst.capture.image)
@@ -1670,7 +1731,9 @@ qhandle_t RE_RegisterSkin(const char* name)
 	{
 		skin->numSurfaces = 1;
 		skin->surfaces = reinterpret_cast<skinSurface_t*>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
+		skin->surfaces[0].name[0] = '\0';
 		skin->surfaces[0].shader = R_FindShader(name, LIGHTMAP_NONE, true);
+		skin->surfaces[0].nameHash = 0;
 		return hSkin;
 	}
 
@@ -1715,6 +1778,7 @@ qhandle_t RE_RegisterSkin(const char* name)
 			surf = &parseSurfaces[skin->numSurfaces];
 			Q_strncpyz(surf->name, surfName, sizeof(surf->name));
 			surf->shader = R_FindShader(token, LIGHTMAP_NONE, true);
+			surf->nameHash = R_SkinSurfaceNameHash(surf->name);
 			skin->numSurfaces++;
 		}
 
@@ -1738,6 +1802,15 @@ qhandle_t RE_RegisterSkin(const char* name)
 	// copy surfaces to skin
 	skin->surfaces = reinterpret_cast<skinSurface_t*>(ri.Hunk_Alloc(skin->numSurfaces * sizeof(skinSurface_t), h_low));
 	memcpy(skin->surfaces, parseSurfaces, skin->numSurfaces * sizeof(skinSurface_t));
+	std::sort(skin->surfaces, skin->surfaces + skin->numSurfaces,
+		[](const skinSurface_t& lhs, const skinSurface_t& rhs) noexcept
+		{
+			if (lhs.nameHash != rhs.nameHash)
+			{
+				return lhs.nameHash < rhs.nameHash;
+			}
+			return Q_stricmp_cpp(lhs.name, rhs.name) < 0;
+		});
 
 	return hSkin;
 }
@@ -1753,5 +1826,7 @@ void R_InitSkins(void)
 	Q_strncpyz(skin->name, "<default skin>", sizeof(skin->name));
 	skin->numSurfaces = 1;
 	skin->surfaces = reinterpret_cast<skinSurface_t*>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
+	skin->surfaces[0].name[0] = '\0';
 	skin->surfaces[0].shader = tr.defaultShader;
+	skin->surfaces[0].nameHash = 0;
 }

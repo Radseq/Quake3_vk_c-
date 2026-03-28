@@ -53,4 +53,6 @@ void R_DeleteTextures(void);
 void R_InitSkins(void);
 qhandle_t RE_RegisterSkin(const char *name);
 
+shader_t* R_FindSkinSurfaceShaderFast(const skin_t& skin, const char* surfaceName) noexcept;
+
 #endif // TR_IMAGE_HPP
