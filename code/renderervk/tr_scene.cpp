@@ -173,8 +173,43 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t* verts,
 		poly.firstVert = r_numpolyverts;
 		poly.usesInlineVerts = (numVerts <= SRF_POLY_INLINE_VERTS);
 
+		const polyVert_t* const srcVerts = &verts[numVerts * j];
 		polyVert_t* const polyVertsDst = R_GetPolyVertBase(poly, backEndData->polyVerts);
-		Com_Memcpy(polyVertsDst, &verts[numVerts * j], numVerts * sizeof(*verts));
+
+		if (tr.world == NULL || tr.world->numfogs == 1)
+		{
+			Com_Memcpy(polyVertsDst, srcVerts, numVerts * sizeof(*srcVerts));
+			fogIndex = 0;
+		}
+		else
+		{
+			VectorCopy(srcVerts[0].xyz, bounds[0]);
+			VectorCopy(srcVerts[0].xyz, bounds[1]);
+
+			for (i = 0; i < numVerts; ++i)
+			{
+				polyVertsDst[i] = srcVerts[i];
+				if (i != 0)
+				{
+					AddPointToBounds(srcVerts[i].xyz, bounds[0], bounds[1]);
+				}
+			}
+
+			for (fogIndex = 1; fogIndex < tr.world->numfogs; ++fogIndex)
+			{
+				const fog_t& fog = tr.world->fogs[fogIndex];
+				if (bounds[1][0] >= fog.bounds[0][0] && bounds[1][1] >= fog.bounds[0][1] &&
+					bounds[1][2] >= fog.bounds[0][2] && bounds[0][0] <= fog.bounds[1][0] &&
+					bounds[0][1] <= fog.bounds[1][1] && bounds[0][2] <= fog.bounds[1][2])
+				{
+					break;
+				}
+			}
+			if (fogIndex == tr.world->numfogs)
+			{
+				fogIndex = 0;
+			}
+		}
 #if 0
 		if (glConfig.hardwareType == GLHW_RAGEPRO) {
 			poly->verts->modulate[0] = 255;
@@ -186,43 +221,6 @@ void RE_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t* verts,
 		// done.
 		r_numpolys++;
 		r_numpolyverts += arenaVertCount;
-
-		// if no world is loaded
-		if (tr.world == NULL)
-		{
-			fogIndex = 0;
-		}
-		// see if it is in a fog volume
-		else if (tr.world->numfogs == 1)
-		{
-			fogIndex = 0;
-		}
-		else
-		{
-			// find which fog volume the poly is in
-			const polyVert_t* const polyVerts = R_GetPolyVertBase(poly, backEndData->polyVerts);
-			VectorCopy(polyVerts[0].xyz, bounds[0]);
-			VectorCopy(polyVerts[0].xyz, bounds[1]);
-			for (i = 1; i < poly.numVerts; i++)
-			{
-				AddPointToBounds(polyVerts[i].xyz, bounds[0], bounds[1]);
-			}
-			for (fogIndex = 1; fogIndex < tr.world->numfogs; fogIndex++)
-			{
-				const fog_t& fog = tr.world->fogs[fogIndex];
-				if (bounds[1][0] >= fog.bounds[0][0] && bounds[1][1] >=
-					fog.bounds[0][1] && bounds[1][2] >= fog.bounds[0][2] &&
-					bounds[0][0] <= fog.bounds[1][0] && bounds[0][1] <= fog.bounds[1][1] &&
-					bounds[0][2] <= fog.bounds[1][2])
-				{
-					break;
-				}
-			}
-			if (fogIndex == tr.world->numfogs)
-			{
-				fogIndex = 0;
-			}
-		}
 		poly.fogIndex = fogIndex;
 	}
 }
@@ -253,6 +251,7 @@ void RE_AddRefEntityToScene(const refEntity_t* ent, bool intShaderTime)
 		ri.Printf(PRINT_DEVELOPER, "RE_AddRefEntityToScene: Dropping refEntity, reached MAX_REFENTITIES\n");
 		return;
 	}
+#ifdef USE_VK_VALIDATION
 	if (isnan_fp(&ent->origin[0]) || isnan_fp(&ent->origin[1]) || isnan_fp(&ent->origin[2]))
 	{
 		static bool first_time = true;
@@ -263,6 +262,7 @@ void RE_AddRefEntityToScene(const refEntity_t* ent, bool intShaderTime)
 		}
 		return;
 	}
+#endif
 	if ((unsigned)ent->reType >= RT_MAX_REF_ENTITY_TYPE)
 	{
 		ri.Error(ERR_DROP, "RE_AddRefEntityToScene: bad reType %i", ent->reType);
@@ -578,7 +578,8 @@ void RE_RenderScene(const refdef_t* fd)
 
 		lastRenderCommand = tr.lastRenderCommand;
 		backEndData->drawSurfSnapshotCount = 0;
-		for (int resetIndex = 0; resetIndex < MAX_DRAW_SURF_COMMANDS; ++resetIndex)
+		const int prevNumDrawSurfCmds = tr.numDrawSurfCmds;
+		for (int resetIndex = 0; resetIndex < prevNumDrawSurfCmds; ++resetIndex)
 		{
 			tr.drawSurfCmds[resetIndex] = NULL;
 		}

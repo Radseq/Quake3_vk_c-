@@ -1357,6 +1357,24 @@ int R_LerpTag(orientation_t* tag, qhandle_t handle, int startFrame, int endFrame
 		return false;
 	}
 
+	if (start == end || startFrame == endFrame || frac <= 0.0f)
+	{
+		VectorCopy(start->origin, tag->origin);
+		VectorCopy(start->axis[0], tag->axis[0]);
+		VectorCopy(start->axis[1], tag->axis[1]);
+		VectorCopy(start->axis[2], tag->axis[2]);
+		return true;
+	}
+
+	if (frac >= 1.0f)
+	{
+		VectorCopy(end->origin, tag->origin);
+		VectorCopy(end->axis[0], tag->axis[0]);
+		VectorCopy(end->axis[1], tag->axis[1]);
+		VectorCopy(end->axis[2], tag->axis[2]);
+		return true;
+	}
+
 	frontLerp = frac;
 	backLerp = 1.0f - frac;
 

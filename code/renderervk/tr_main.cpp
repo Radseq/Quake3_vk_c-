@@ -1723,8 +1723,8 @@ static void R_AddEntitySurfaces(void)
 		return;
 	}
 
-	std::array<std::uint16_t, MAX_REFENTITIES> generatedEntityIndices{};
-	std::array<std::uint16_t, MAX_REFENTITIES> modelEntityIndices{};
+	alignas(64) std::array<std::uint16_t, MAX_REFENTITIES> generatedEntityIndices;
+	alignas(64) std::array<std::uint16_t, MAX_REFENTITIES> modelEntityIndices;
 	int numGeneratedEntities = 0;
 	int numModelEntities = 0;
 
