@@ -251,8 +251,6 @@ Passing NULL will set the color to white
 */
 void RE_SetColor(const float* rgba)
 {
-	setColorCommand_t* cmd;
-
 	if (!tr.registered)
 	{
 		return;
@@ -269,14 +267,9 @@ void RE_SetColor(const float* rgba)
 		return;
 	}
 
-	cmd = static_cast<setColorCommand_t*>(R_GetCommandBuffer(sizeof(*cmd)));
-	if (!cmd)
-	{
-		return;
-	}
-	cmd->commandId = renderCommand_t::RC_SET_COLOR;
-	cmd->packedColor = packedColor;
-
+	// 2D batch commands already carry their packed color, so front-end color changes
+	// do not need to consume command-buffer space unless a future path explicitly relies
+	// on deferred RC_SET_COLOR again.
 	cmdList.colorValid = true;
 	cmdList.currentPackedColor = packedColor;
 }

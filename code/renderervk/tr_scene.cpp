@@ -40,6 +40,11 @@ static int r_firstSceneDlight;
 static int r_numentities;
 static int r_firstSceneEntity;
 
+static int r_numGeneratedEntities;
+static int r_firstSceneGeneratedEntity;
+static int r_numModelEntities;
+static int r_firstSceneModelEntity;
+
 static int r_numpolys;
 static int r_firstScenePoly;
 
@@ -74,6 +79,10 @@ void R_InitNextFrame(void)
 
 	r_numentities = 0;
 	r_firstSceneEntity = 0;
+	r_numGeneratedEntities = 0;
+	r_firstSceneGeneratedEntity = 0;
+	r_numModelEntities = 0;
+	r_firstSceneModelEntity = 0;
 
 	r_numpolys = 0;
 	r_firstScenePoly = 0;
@@ -92,6 +101,8 @@ void RE_ClearScene(void)
 	print(__func__);
 	r_firstSceneDlight = r_numdlights;
 	r_firstSceneEntity = r_numentities;
+	r_firstSceneGeneratedEntity = r_numGeneratedEntities;
+	r_firstSceneModelEntity = r_numModelEntities;
 	r_firstScenePoly = r_numpolys;
 }
 
@@ -268,6 +279,7 @@ void RE_AddRefEntityToScene(const refEntity_t* ent, bool intShaderTime)
 		ri.Error(ERR_DROP, "RE_AddRefEntityToScene: bad reType %i", ent->reType);
 	}
 
+	const std::uint16_t sceneEntityIndex = static_cast<std::uint16_t>(r_numentities - r_firstSceneEntity);
 	trRefEntity_t& dst = backEndData->entities[r_numentities];
 	trRefEntityLocal_t& local = backEndData->entityLocals[r_numentities];
 
@@ -279,6 +291,25 @@ void RE_AddRefEntityToScene(const refEntity_t* ent, bool intShaderTime)
 	dst.reserved2 = 0;
 	//local = {};
 	SetTrRefEntityFlag(dst.flags, trRefEntityFlags_t::IntShaderTime, intShaderTime);
+
+	switch (ent->reType)
+	{
+	case RT_PORTALSURFACE:
+		break;
+	case RT_SPRITE:
+	case RT_BEAM:
+	case RT_LIGHTNING:
+	case RT_RAIL_CORE:
+	case RT_RAIL_RINGS:
+		backEndData->generatedEntityIndices[r_numGeneratedEntities++] = sceneEntityIndex;
+		break;
+	case RT_MODEL:
+		backEndData->modelEntityIndices[r_numModelEntities++] = sceneEntityIndex;
+		break;
+	default:
+		ri.Error(ERR_DROP, "RE_AddRefEntityToScene: unsupported reType %i", ent->reType);
+		break;
+	}
 
 	r_numentities++;
 }
@@ -517,6 +548,10 @@ void RE_RenderScene(const refdef_t* fd)
 
 		tr.refdef.num_entities = r_numentities - r_firstSceneEntity;
 		tr.refdef.entities = &backEndData->entities[r_firstSceneEntity];
+		tr.refdef.numGeneratedEntities = r_numGeneratedEntities - r_firstSceneGeneratedEntity;
+		tr.refdef.generatedEntityIndices = &backEndData->generatedEntityIndices[r_firstSceneGeneratedEntity];
+		tr.refdef.numModelEntities = r_numModelEntities - r_firstSceneModelEntity;
+		tr.refdef.modelEntityIndices = &backEndData->modelEntityIndices[r_firstSceneModelEntity];
 
 		tr.refdef.num_dlights = r_numdlights - r_firstSceneDlight;
 		tr.refdef.dlights = &backEndData->dlights[r_firstSceneDlight];
@@ -638,21 +673,25 @@ void RE_RenderScene(const refdef_t* fd)
 #endif
 
 		r_firstSceneEntity = r_numentities;
+		r_firstSceneGeneratedEntity = r_numGeneratedEntities;
+		r_firstSceneModelEntity = r_numModelEntities;
 		r_firstSceneDlight = r_numdlights;
 		r_firstScenePoly = r_numpolys;
 
 		tr.frontEndMsec += ri.Milliseconds() - startTime;
 
 
+		
+
 		});
 
-	adsf_sum += (t_work - t_empty);
-	++adsf_count;
+		adsf_sum += (t_work - t_empty);
+		++adsf_count;
 
-	if (adsf_count == 10000u) {
-		const double g = adsf_sum / static_cast<double>(adsf_count);
-		ri.Printf(PRINT_ALL, "%.3f \n", static_cast<float>(g));
-		adsf_sum = 0.0;
-		adsf_count = 0;
-	}
+		if (adsf_count == 10000u) {
+			const double g = adsf_sum / static_cast<double>(adsf_count);
+			ri.Printf(PRINT_ALL, "%.3f \n", static_cast<float>(g));
+			adsf_sum = 0.0;
+			adsf_count = 0;
+		}
 }

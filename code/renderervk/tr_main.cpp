@@ -1723,48 +1723,9 @@ static void R_AddEntitySurfaces(void)
 		return;
 	}
 
-	alignas(64) std::array<std::uint16_t, MAX_REFENTITIES> generatedEntityIndices;
-	alignas(64) std::array<std::uint16_t, MAX_REFENTITIES> modelEntityIndices;
-	int numGeneratedEntities = 0;
-	int numModelEntities = 0;
-
-	for (int entityIndex = 0; entityIndex < tr.refdef.num_entities; ++entityIndex)
+	for (int i = 0; i < tr.refdef.numGeneratedEntities; ++i)
 	{
-		const trRefEntity_t& ent = tr.refdef.entities[entityIndex];
-
-		// the weapon model must be handled special --
-		// we don't want the hacked first person weapon position showing in
-		// mirrors, because the true body position will already be drawn
-		if ((ent.e.renderfx & RF_FIRST_PERSON) && (tr.viewParms.portalView != portalView_t::PV_NONE))
-		{
-			continue;
-		}
-
-		switch (ent.e.reType)
-		{
-		case RT_PORTALSURFACE:
-			break; // don't draw anything
-		case RT_SPRITE:
-		case RT_BEAM:
-		case RT_LIGHTNING:
-		case RT_RAIL_CORE:
-		case RT_RAIL_RINGS:
-			generatedEntityIndices[numGeneratedEntities++] = static_cast<std::uint16_t>(entityIndex);
-			break;
-		case RT_MODEL:
-			modelEntityIndices[numModelEntities++] = static_cast<std::uint16_t>(entityIndex);
-			break;
-		default:
-			tr.currentEntityNum = entityIndex;
-			tr.currentEntity = &tr.refdef.entities[entityIndex];
-			ri.Error(ERR_DROP, "R_AddEntitySurfaces: Bad reType");
-			break;
-		}
-	}
-
-	for (int i = 0; i < numGeneratedEntities; ++i)
-	{
-		tr.currentEntityNum = generatedEntityIndices[i];
+		tr.currentEntityNum = tr.refdef.generatedEntityIndices[i];
 		tr.currentEntity = &tr.refdef.entities[tr.currentEntityNum];
 		trRefEntity_t& ent = *tr.currentEntity;
 #ifdef USE_LEGACY_DLIGHTS
@@ -1784,15 +1745,23 @@ static void R_AddEntitySurfaces(void)
 		R_AddDrawSurf(entitySurface, *shader, R_SpriteFogNum(ent), 0);
 	}
 
-	for (int i = 0; i < numModelEntities; ++i)
+	for (int i = 0; i < tr.refdef.numModelEntities; ++i)
 	{
-		tr.currentEntityNum = modelEntityIndices[i];
+		tr.currentEntityNum = tr.refdef.modelEntityIndices[i];
 		tr.currentEntity = &tr.refdef.entities[tr.currentEntityNum];
 		trRefEntity_t& ent = *tr.currentEntity;
 #ifdef USE_LEGACY_DLIGHTS
 		SetTrRefEntityFlag(ent.flags, trRefEntityFlags_t::NeedDlights, false);
 #endif
 		tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
+
+		// the weapon model must be handled special --
+		// we don't want the hacked first person weapon position showing in
+		// mirrors, because the true body position will already be drawn
+		if ((ent.e.renderfx & RF_FIRST_PERSON) && (tr.viewParms.portalView != portalView_t::PV_NONE))
+		{
+			continue;
+		}
 
 		// we must set up parts of tr.ort for model culling
 		R_RotateForEntity(ent, tr.viewParms, tr.ort);

@@ -778,19 +778,23 @@ typedef struct
 	char text[MAX_RENDER_STRINGS][MAX_RENDER_STRING_LENGTH];
 
 	int num_entities;
-	trRefEntity_t *entities;
+	trRefEntity_t* entities;
+	int numGeneratedEntities;
+	std::uint16_t* generatedEntityIndices;
+	int numModelEntities;
+	std::uint16_t* modelEntityIndices;
 
 	unsigned int num_dlights;
-	struct dlight_s *dlights;
+	struct dlight_s* dlights;
 
 	int numPolys;
-	struct srfPoly_s *polys;
+	struct srfPoly_s* polys;
 
 	int numDrawSurfs;
-	struct drawSurf_s *drawSurfs;
+	struct drawSurf_s* drawSurfs;
 #ifdef USE_PMLIGHT
 	int numLitSurfs;
-	struct litSurf_s *litSurfs;
+	struct litSurf_s* litSurfs;
 #endif
 #ifdef USE_VULKAN
 	bool switchRenderPass;
@@ -2277,6 +2281,8 @@ typedef struct
 
 	trRefEntity_t entities[MAX_REFENTITIES];
 	trRefEntityLocal_t entityLocals[MAX_REFENTITIES];
+	alignas(64) std::uint16_t generatedEntityIndices[MAX_REFENTITIES];
+	alignas(64) std::uint16_t modelEntityIndices[MAX_REFENTITIES];
 	drawSurfCmdSnapshot_t drawSurfSnapshots[MAX_DRAW_SURF_COMMAND_SNAPSHOTS];
 	int drawSurfSnapshotCount;
 	srfPoly_t* polys;	    //[MAX_POLYS];
