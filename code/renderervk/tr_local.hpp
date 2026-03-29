@@ -2162,7 +2162,7 @@ typedef struct
 	int used;
 	int lastStretchPicBatchOffset;
 	bool colorValid;
-	float currentColor[4];
+	std::uint32_t currentPackedColor;
 } renderCommandList_t;
 
 extern ID_INLINE void R_ResetCommandListState(renderCommandList_t& cmdList) noexcept;
@@ -2170,7 +2170,7 @@ extern ID_INLINE void R_ResetCommandListState(renderCommandList_t& cmdList) noex
 typedef struct
 {
 	renderCommand_t commandId;
-	float color[4];
+	std::uint32_t packedColor;
 } setColorCommand_t;
 
 typedef struct
@@ -2220,7 +2220,7 @@ typedef struct
 {
 	renderCommand_t commandId;
 	shader_t* shader;
-	float color[4];
+	std::uint32_t packedColor;
 	std::uint16_t count;
 	std::uint16_t reserved;
 	stretchPicItem_t items[STRETCH_PIC_BATCH_MAX];

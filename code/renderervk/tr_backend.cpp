@@ -627,22 +627,28 @@ void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client
 	}
 }
 
+static ID_INLINE void R_UnpackColorRGBA8(const std::uint32_t packedColor, color4ub_t& outColor) noexcept
+{
+	outColor.rgba[0] = static_cast<byte>(packedColor & 0xFFu);
+	outColor.rgba[1] = static_cast<byte>((packedColor >> 8) & 0xFFu);
+	outColor.rgba[2] = static_cast<byte>((packedColor >> 16) & 0xFFu);
+	outColor.rgba[3] = static_cast<byte>((packedColor >> 24) & 0xFFu);
+}
+
 /*
 =============
 RB_SetColor
 =============
 */
-static const void *RB_SetColor(const void *data)
+static const void* RB_SetColor(const void* data)
 {
-	const setColorCommand_t *cmd = (const setColorCommand_t *)data;
+	const setColorCommand_t* cmd = (const setColorCommand_t*)data;
 
-	backEnd.color2D.rgba[0] = cmd->color[0] * 255;
-	backEnd.color2D.rgba[1] = cmd->color[1] * 255;
-	backEnd.color2D.rgba[2] = cmd->color[2] * 255;
-	backEnd.color2D.rgba[3] = cmd->color[3] * 255;
+	R_UnpackColorRGBA8(cmd->packedColor, backEnd.color2D);
 
-	return (const void *)(cmd + 1);
+	return (const void*)(cmd + 1);
 }
+
 
 /*
 =============
@@ -691,10 +697,7 @@ static const void* RB_StretchPicBatch(const void* data)
 	const auto* cmd = static_cast<const stretchPicBatchCommand_t*>(data);
 	shader_t* const shader = cmd->shader;
 
-	backEnd.color2D.rgba[0] = static_cast<byte>(cmd->color[0] * 255.0f);
-	backEnd.color2D.rgba[1] = static_cast<byte>(cmd->color[1] * 255.0f);
-	backEnd.color2D.rgba[2] = static_cast<byte>(cmd->color[2] * 255.0f);
-	backEnd.color2D.rgba[3] = static_cast<byte>(cmd->color[3] * 255.0f);
+	R_UnpackColorRGBA8(cmd->packedColor, backEnd.color2D);
 
 	if (shader != tess.shader)
 	{

@@ -210,21 +210,36 @@ void R_AddDrawSurfCmd(drawSurf_t& drawSurfs, int numDrawSurfs)
 	tr.drawSurfCmds[tr.numDrawSurfCmds++] = cmd;
 }
 
-constexpr vec4_t colorWhite_cpp = {1, 1, 1, 1};
+constexpr vec4_t colorWhite_cpp = { 1, 1, 1, 1 };
+constexpr std::uint32_t colorWhitePacked_cpp = 0xFFFFFFFFu;
 
-static ID_INLINE bool R_ColorsEqual4(const float* a, const float* b) noexcept
+static ID_INLINE byte R_ColorByteFromFloat01(const float value) noexcept
 {
-	return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3];
+	const float scaled = value * 255.0f;
+	if (scaled <= 0.0f)
+	{
+		return 0;
+	}
+	if (scaled >= 255.0f)
+	{
+		return 255;
+	}
+	return static_cast<byte>(scaled);
+}
+
+static ID_INLINE std::uint32_t R_PackColorRGBA8(const float* rgba) noexcept
+{
+	return static_cast<std::uint32_t>(R_ColorByteFromFloat01(rgba[0])) |
+		(static_cast<std::uint32_t>(R_ColorByteFromFloat01(rgba[1])) << 8) |
+		(static_cast<std::uint32_t>(R_ColorByteFromFloat01(rgba[2])) << 16) |
+		(static_cast<std::uint32_t>(R_ColorByteFromFloat01(rgba[3])) << 24);
 }
 
 ID_INLINE void R_ResetCommandListState(renderCommandList_t& cmdList) noexcept
 {
 	cmdList.lastStretchPicBatchOffset = -1;
 	cmdList.colorValid = false;
-	cmdList.currentColor[0] = 1.0f;
-	cmdList.currentColor[1] = 1.0f;
-	cmdList.currentColor[2] = 1.0f;
-	cmdList.currentColor[3] = 1.0f;
+	cmdList.currentPackedColor = colorWhitePacked_cpp;
 }
 
 /*
@@ -248,7 +263,8 @@ void RE_SetColor(const float* rgba)
 	}
 
 	renderCommandList_t& cmdList = backEndData->commands;
-	if (cmdList.colorValid && R_ColorsEqual4(cmdList.currentColor, rgba))
+	const std::uint32_t packedColor = R_PackColorRGBA8(rgba);
+	if (cmdList.colorValid && cmdList.currentPackedColor == packedColor)
 	{
 		return;
 	}
@@ -259,16 +275,10 @@ void RE_SetColor(const float* rgba)
 		return;
 	}
 	cmd->commandId = renderCommand_t::RC_SET_COLOR;
-	cmd->color[0] = rgba[0];
-	cmd->color[1] = rgba[1];
-	cmd->color[2] = rgba[2];
-	cmd->color[3] = rgba[3];
+	cmd->packedColor = packedColor;
 
 	cmdList.colorValid = true;
-	cmdList.currentColor[0] = rgba[0];
-	cmdList.currentColor[1] = rgba[1];
-	cmdList.currentColor[2] = rgba[2];
-	cmdList.currentColor[3] = rgba[3];
+	cmdList.currentPackedColor = packedColor;
 }
 
 /*
@@ -286,14 +296,14 @@ void RE_StretchPic(float x, float y, float w, float h,
 
 	renderCommandList_t& cmdList = backEndData->commands;
 	shader_t* const shader = R_GetShaderByHandle(hShader);
-	const float* const color = cmdList.colorValid ? cmdList.currentColor : colorWhite_cpp;
+	const std::uint32_t packedColor = cmdList.colorValid ? cmdList.currentPackedColor : colorWhitePacked_cpp;
 
 	if (cmdList.lastStretchPicBatchOffset >= 0)
 	{
 		auto* batch = reinterpret_cast<stretchPicBatchCommand_t*>(cmdList.cmds + cmdList.lastStretchPicBatchOffset);
 		if (batch->commandId == renderCommand_t::RC_STRETCH_PIC_BATCH &&
 			batch->shader == shader &&
-			R_ColorsEqual4(batch->color, color) &&
+			batch->packedColor == packedColor &&
 			batch->count < STRETCH_PIC_BATCH_MAX)
 		{
 			stretchPicItem_t& item = batch->items[batch->count++];
@@ -317,10 +327,7 @@ void RE_StretchPic(float x, float y, float w, float h,
 
 	cmd->commandId = renderCommand_t::RC_STRETCH_PIC_BATCH;
 	cmd->shader = shader;
-	cmd->color[0] = color[0];
-	cmd->color[1] = color[1];
-	cmd->color[2] = color[2];
-	cmd->color[3] = color[3];
+	cmd->packedColor = packedColor;
 	cmd->count = 1;
 	cmd->reserved = 0;
 	cmd->items[0].x = x;

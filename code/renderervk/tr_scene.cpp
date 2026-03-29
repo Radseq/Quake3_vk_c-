@@ -241,7 +241,7 @@ static int isnan_fp(const float *f)
 RE_AddRefEntityToScene
 =====================
 */
-void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
+void RE_AddRefEntityToScene(const refEntity_t* ent, bool intShaderTime)
 {
 	print(__func__);
 	if (!tr.registered)

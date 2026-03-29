@@ -51,25 +51,27 @@ typedef struct ibo_item_s
 
 typedef struct vbo_s
 {
-	byte *vbo_buffer;
+	byte* vbo_buffer;
 	int vbo_offset;
 	int vbo_size;
 
-	byte *ibo_buffer;
+	byte* ibo_buffer;
 	int ibo_offset;
 	int ibo_size;
 
 	uint32_t soft_buffer_indexes;
 	uint32_t soft_buffer_offset;
 
-	ibo_item_t *ibo_items;
+	ibo_item_t* ibo_items;
 	int ibo_items_count;
 
-	vbo_item_t *items;
+	vbo_item_t* items;
 	int items_count;
 
-	int *items_queue;
+	int* items_queue;
 	int items_queue_count;
+
+	int* sortScratch;
 
 } vbo_t;
 
@@ -113,7 +115,7 @@ constexpr static bool isStaticRGBgen(const colorGen_t cgen) noexcept
 		/* CGEN_LIGHTING_DIFFUSE  */ true,
 		/* CGEN_FOG               */ false,
 		/* CGEN_CONST             */ true,
-	});
+		});
 
 	const auto idx = static_cast<std::size_t>(std::to_underlying(cgen));
 	return idx < kStaticRGBGenLUT.size() ? kStaticRGBGenLUT[idx] : false;
@@ -130,7 +132,7 @@ constexpr static bool isStaticTCgen(const shaderStage_t& stage, const int bundle
 		/* TCGEN_ENVIRONMENT_MAPPED_FP  */ false,
 		/* TCGEN_FOG                    */ false,
 		/* TCGEN_VECTOR                 */ true,
-	});
+		});
 
 	const auto tcGen = stage.bundle[bundle].tcGen;
 	if (tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED)
@@ -142,7 +144,7 @@ constexpr static bool isStaticTCgen(const shaderStage_t& stage, const int bundle
 	return idx < kStaticTCGenBaseLUT.size() ? kStaticTCGenBaseLUT[idx] : false;
 }
 
-constexpr static bool isStaticTCmod(const textureBundle_t &bundle)
+constexpr static bool isStaticTCmod(const textureBundle_t& bundle)
 {
 	for (auto i = 0; i < bundle.numTexMods; i++)
 	{
@@ -176,7 +178,7 @@ constexpr static bool isStaticAgen(const alphaGen_t agen) noexcept
 		/* AGEN_WAVEFORM           */ false,
 		/* AGEN_PORTAL             */ false,
 		/* AGEN_CONST              */ true,
-	});
+		});
 
 	const auto idx = static_cast<std::size_t>(std::to_underlying(agen));
 	return idx < kStaticAGenLUT.size() ? kStaticAGenLUT[idx] : false;
@@ -189,9 +191,9 @@ isStaticShader
 Decide if we can put surface in static vbo
 =============
 */
-static bool isStaticShader(shader_t &shader)
+static bool isStaticShader(shader_t& shader)
 {
-	const shaderStage_t *stage;
+	const shaderStage_t* stage;
 	int i, b, svarsSize;
 
 	if (shader.isStaticShader)
@@ -486,7 +488,7 @@ void VBO_UnBind(void)
 	tess.vboIndex = 0;
 }
 
-static void initItem(vbo_item_t *item)
+static void initItem(vbo_item_t* item)
 {
 	item->num_vertexes = 0;
 	item->num_indexes = 0;
@@ -496,13 +498,13 @@ static void initItem(vbo_item_t *item)
 }
 #include <cstdlib>
 #include "utils.hpp"
-void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
+void R_BuildWorldVBO(msurface_t& surf, const int surfCount)
 {
-	vbo_t &vbo = world_vbo;
-	msurface_t **surfList;
-	srfSurfaceFace_t *face;
-	srfTriangles_t *tris;
-	srfGridMesh_t *grid;
+	vbo_t& vbo = world_vbo;
+	msurface_t** surfList;
+	srfSurfaceFace_t* face;
+	srfTriangles_t* tris;
+	srfGridMesh_t* grid;
 	int ibo_size;
 	int vbo_size;
 	int i, n;
@@ -579,52 +581,53 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 	ibo_size = pad_up_ct<int, 32>(ibo_size);
 
 	// 0 item is unused
-	vbo.items = static_cast<vbo_item_t *>(ri.Hunk_Alloc((numStaticSurfaces + 1) * sizeof(vbo_item_t), h_low));
+	vbo.items = static_cast<vbo_item_t*>(ri.Hunk_Alloc((numStaticSurfaces + 1) * sizeof(vbo_item_t), h_low));
 	vbo.items_count = numStaticSurfaces;
 
 	// last item will be used for run length termination
-	vbo.items_queue = static_cast<int *>(ri.Hunk_Alloc((numStaticSurfaces + 1) * sizeof(int), h_low));
+	vbo.items_queue = static_cast<int*>(ri.Hunk_Alloc((numStaticSurfaces + 1) * sizeof(int), h_low));
 	vbo.items_queue_count = 0;
+	vbo.sortScratch = static_cast<int*>(ri.Hunk_Alloc((numStaticSurfaces + 1) * sizeof(int), h_low));
 
 	ri.Printf(PRINT_ALL, "...found %i VBO surfaces (%i vertexes, %i indexes)\n",
-			  numStaticSurfaces, numStaticVertexes, numStaticIndexes);
+		numStaticSurfaces, numStaticVertexes, numStaticIndexes);
 
 	// Com_Printf( S_COLOR_CYAN "VBO size: %i\n", vbo_size );
 	// Com_Printf( S_COLOR_CYAN "IBO size: %i\n", ibo_size );
 
 	// vertex buffer
 	vbo_size += ibo_size;
-	vbo.vbo_buffer = static_cast<byte *>(ri.Hunk_AllocateTempMemory(vbo_size));
+	vbo.vbo_buffer = static_cast<byte*>(ri.Hunk_AllocateTempMemory(vbo_size));
 	vbo.vbo_offset = 0;
 	vbo.vbo_size = vbo_size;
 
 	// index buffer
-	vbo.ibo_buffer = static_cast<byte *>(ri.Hunk_Alloc(ibo_size, h_low));
+	vbo.ibo_buffer = static_cast<byte*>(ri.Hunk_Alloc(ibo_size, h_low));
 	vbo.ibo_offset = 0;
 	vbo.ibo_size = ibo_size;
 
 	// ibo runs buffer
-	vbo.ibo_items = static_cast<ibo_item_t *>(ri.Hunk_Alloc(((numStaticIndexes / MIN_IBO_RUN) + 1) * sizeof(ibo_item_t), h_low));
+	vbo.ibo_items = static_cast<ibo_item_t*>(ri.Hunk_Alloc(((numStaticIndexes / MIN_IBO_RUN) + 1) * sizeof(ibo_item_t), h_low));
 	vbo.ibo_items_count = 0;
 
-	surfList = reinterpret_cast<msurface_t **>(ri.Hunk_AllocateTempMemory(numStaticSurfaces * sizeof(msurface_t *)));
+	surfList = reinterpret_cast<msurface_t**>(ri.Hunk_AllocateTempMemory(numStaticSurfaces * sizeof(msurface_t*)));
 
 	for (i = 0, n = 0; i < surfCount; i++)
 	{
-		msurface_t &sf = surf;
-		face = reinterpret_cast<srfSurfaceFace_t *>(sf.data);
+		msurface_t& sf = surf;
+		face = reinterpret_cast<srfSurfaceFace_t*>(sf.data);
 		if (face->surfaceType == surfaceType_t::SF_FACE && face->vboItemIndex)
 		{
 			surfList[n++] = &sf;
 			continue;
 		}
-		tris = reinterpret_cast<srfTriangles_t *>(sf.data);
+		tris = reinterpret_cast<srfTriangles_t*>(sf.data);
 		if (tris->surfaceType == surfaceType_t::SF_TRIANGLES && tris->vboItemIndex)
 		{
 			surfList[n++] = &sf;
 			continue;
 		}
-		grid = reinterpret_cast<srfGridMesh_t *>(sf.data);
+		grid = reinterpret_cast<srfGridMesh_t*>(sf.data);
 		if (grid->surfaceType == surfaceType_t::SF_GRID && grid->vboItemIndex)
 		{
 			surfList[n++] = &sf;
@@ -638,8 +641,8 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 	}
 
 	// sort surfaces by shader
-	std::sort(surfList, surfList + numStaticSurfaces, [](const msurface_t *a, const msurface_t *b)
-			  { return a->shader < b->shader; });
+	std::sort(surfList, surfList + numStaticSurfaces, [](const msurface_t* a, const msurface_t* b)
+		{ return a->shader < b->shader; });
 
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
@@ -649,10 +652,10 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 
 	for (i = 0; i < numStaticSurfaces; i++)
 	{
-		msurface_t &sf = surf;
-		face = (srfSurfaceFace_t *)sf.data;
-		tris = (srfTriangles_t *)sf.data;
-		grid = (srfGridMesh_t *)sf.data;
+		msurface_t& sf = surf;
+		face = (srfSurfaceFace_t*)sf.data;
+		tris = (srfTriangles_t*)sf.data;
+		grid = (srfGridMesh_t*)sf.data;
 		if (face->surfaceType == surfaceType_t::SF_FACE)
 			face->vboItemIndex = i + 1;
 		else if (tris->surfaceType == surfaceType_t::SF_TRIANGLES)
@@ -683,7 +686,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 		VBO_PushData(i + 1, tess);
 		if (grid->surfaceType == surfaceType_t::SF_GRID)
 		{
-			vbo_item_t *vi = vbo.items + i + 1;
+			vbo_item_t* vi = vbo.items + i + 1;
 			if (vi->num_vertexes != grid->vboExpectVertices || vi->num_indexes != grid->vboExpectIndices)
 			{
 				ri.Error(ERR_DROP, "Unexpected grid vertexes/indexes count");
@@ -704,19 +707,19 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 	//	ri.Printf( PRINT_ERROR, "%s: error %i\n", __func__, err );
 #if 0
 	// reset vbo markers
-	for ( i = 0, sf = surf; i < surfCount; i++, sf++ ) {
-		face = (srfSurfaceFace_t *) sf->data;
-		if ( face->surfaceType == surfaceType_t::SF_FACE ) {
+	for (i = 0, sf = surf; i < surfCount; i++, sf++) {
+		face = (srfSurfaceFace_t*)sf->data;
+		if (face->surfaceType == surfaceType_t::SF_FACE) {
 			face->vboItemIndex = 0;
 			continue;
 		}
-		tris = (srfTriangles_t *) sf->data;
-		if ( tris->surfaceType == surfaceType_t::SF_TRIANGLES ) {
+		tris = (srfTriangles_t*)sf->data;
+		if (tris->surfaceType == surfaceType_t::SF_TRIANGLES) {
 			tris->vboItemIndex = 0;
 			continue;
 		}
-		grid = (srfGridMesh_t *) sf->data;
-		if ( grid->surfaceType == surfaceType_t::SF_GRID ) {
+		grid = (srfGridMesh_t*)sf->data;
+		if (grid->surfaceType == surfaceType_t::SF_GRID) {
 			grid->vboItemIndex = 0;
 			continue;
 		}
@@ -754,72 +757,69 @@ constexpr int MIN_MERGE = 32;
 
 static void timSort(int arr[], const int n)
 {
-	int r = 0;
-	int a = n;
-	while (a >= MIN_MERGE)
+	if (n <= 1)
 	{
-		r |= (a & 1);
-		a >>= 1;
+		return;
 	}
 
-	int minRun = a + r;
-
-	std::vector<int> leftArr, rightArr;
-
-	// insertionSort
-	for (int z = 0; z < n; z += minRun)
+	vbo_t& vbo = world_vbo;
+	int* const scratch = vbo.sortScratch;
+	if (!scratch)
 	{
-		int right = (z + minRun - 1 < n - 1) ? z + minRun - 1 : n - 1;
-		for (int i = z + 1; i <= right; i++)
+		for (int i = 1; i < n; ++i)
 		{
-			int key = arr[i];
+			const int key = arr[i];
 			int j = i - 1;
-			while (j >= z && arr[j] > key)
+			while (j >= 0 && arr[j] > key)
 			{
 				arr[j + 1] = arr[j];
-				j--;
+				--j;
 			}
 			arr[j + 1] = key;
 		}
+		return;
 	}
 
-	for (int size = minRun; size < n; size = 2 * size)
+	for (int width = 1; width < n; width <<= 1)
 	{
-		for (int left = 0; left < n; left += 2 * size)
+		for (int left = 0; left < n; left += (width << 1))
 		{
-			int mid = left + size - 1;
-			int right = (left + 2 * size - 1 < n - 1) ? left + 2 * size - 1 : n - 1;
+			const int mid = std::min(left + width, n);
+			const int right = std::min(left + (width << 1), n);
 
-			int len1 = mid - left + 1, len2 = right - mid;
-			for (int i = 0; i < len1; i++)
-			{
-				leftArr[i] = arr[left + i];
-			}
-			for (int i = 0; i < len2; i++)
-			{
-				rightArr[i] = arr[mid + 1 + i];
-			}
+			int i = left;
+			int j = mid;
+			int k = left;
 
-			int i = 0, j = 0, k = left;
-			while (i < len1 && j < len2)
+			while (i < mid && j < right)
 			{
-				if (leftArr[i] <= rightArr[j])
-					arr[k++] = leftArr[i++];
+				if (arr[i] <= arr[j])
+				{
+					scratch[k++] = arr[i++];
+				}
 				else
-					arr[k++] = rightArr[j++];
+				{
+					scratch[k++] = arr[j++];
+				}
 			}
 
-			while (i < len1)
-				arr[k++] = leftArr[i++];
-			while (j < len2)
-				arr[k++] = rightArr[j++];
+			while (i < mid)
+			{
+				scratch[k++] = arr[i++];
+			}
+			while (j < right)
+			{
+				scratch[k++] = arr[j++];
+			}
 		}
+
+		Com_Memcpy(arr, scratch, n * sizeof(arr[0]));
 	}
 }
 
-static int run_length(const int *a, int from, int to, int *count)
+static int run_length(const int* a, int from, int to, int* count)
 {
-	vbo_t &vbo = world_vbo;
+	vbo_t& vbo = world_vbo;
 	int i, n, cnt;
 	for (cnt = 0, n = 1, i = from; i < to; i++, n++)
 	{
@@ -833,7 +833,7 @@ static int run_length(const int *a, int from, int to, int *count)
 
 void VBO_QueueItem(const int itemIndex)
 {
-	vbo_t &vbo = world_vbo;
+	vbo_t& vbo = world_vbo;
 
 	if (vbo.items_queue_count < vbo.items_count)
 	{
@@ -862,8 +862,8 @@ void VBO_Flush(void)
 
 static void VBO_AddItemDataToSoftBuffer(int itemIndex)
 {
-	vbo_t &vbo = world_vbo;
-	const vbo_item_t *vi = vbo.items + itemIndex;
+	vbo_t& vbo = world_vbo;
+	const vbo_item_t* vi = vbo.items + itemIndex;
 
 	const uint32_t offset = vk_tess_index(vi->num_indexes, vbo.ibo_buffer + vi->soft_offset);
 
@@ -878,8 +878,8 @@ static void VBO_AddItemDataToSoftBuffer(int itemIndex)
 
 static void VBO_AddItemRangeToIBOBuffer(int offset, int length)
 {
-	vbo_t &vbo = world_vbo;
-	ibo_item_t *it;
+	vbo_t& vbo = world_vbo;
+	ibo_item_t* it;
 
 	it = vbo.ibo_items + vbo.ibo_items_count++;
 
@@ -889,7 +889,7 @@ static void VBO_AddItemRangeToIBOBuffer(int offset, int length)
 
 void VBO_RenderIBOItems(void)
 {
-	const vbo_t &vbo = world_vbo;
+	const vbo_t& vbo = world_vbo;
 	int i;
 
 	// from device-local memory
@@ -914,9 +914,9 @@ void VBO_RenderIBOItems(void)
 
 void VBO_PrepareQueues(void)
 {
-	vbo_t &vbo = world_vbo;
+	vbo_t& vbo = world_vbo;
 	int i, item_run, index_run, n;
-	const int *a;
+	const int* a;
 
 	vbo.items_queue[vbo.items_queue_count] = 0; // terminate run
 
@@ -939,8 +939,8 @@ void VBO_PrepareQueues(void)
 		}
 		else
 		{
-			vbo_item_t *start = vbo.items + a[i];
-			vbo_item_t *end = vbo.items + a[i + item_run - 1];
+			vbo_item_t* start = vbo.items + a[i];
+			vbo_item_t* end = vbo.items + a[i + item_run - 1];
 			n = (end->index_offset - start->index_offset) + end->num_indexes;
 			VBO_AddItemRangeToIBOBuffer(start->index_offset, n);
 		}
