@@ -68,6 +68,7 @@ cvar_t *r_zproj;
 cvar_t *r_stereoSeparation;
 
 cvar_t *r_skipBackEnd;
+cvar_t *r_smp;
 
 // cvar_t	*r_anaglyphMode;
 
@@ -660,6 +661,7 @@ the menu system, sampled down from full screen distorted images
 */
 static void R_LevelShot(void)
 {
+	R_SyncRenderThread();
 	char checkname[MAX_OSPATH];
 	byte *buffer;
 	byte *source, *allsource;
@@ -768,7 +770,7 @@ static void R_ScreenShot_f(void)
 	}
 
 	// check if already scheduled
-	if (backEnd.screenshotMask & typeMask)
+	if (backEndData->frame.screenshotMask & typeMask)
 		return;
 
 	if (!strcmp(ri.Cmd_Argv(1), "silent"))
@@ -777,7 +779,7 @@ static void R_ScreenShot_f(void)
 	}
 	else if (typeMask == SCREENSHOT_BMP && !strcmp(ri.Cmd_Argv(1), "clipboard"))
 	{
-		backEnd.screenshotMask |= SCREENSHOT_BMP_CLIPBOARD;
+		backEndData->frame.screenshotMask |= SCREENSHOT_BMP_CLIPBOARD;
 		silent = true;
 	}
 	else
@@ -792,7 +794,7 @@ static void R_ScreenShot_f(void)
 	}
 	else
 	{
-		if (backEnd.screenshotMask & SCREENSHOT_BMP_CLIPBOARD)
+		if (backEndData->frame.screenshotMask & SCREENSHOT_BMP_CLIPBOARD)
 		{
 			// no need for filename, copy to system buffer
 			checkname[0] = '\0';
@@ -805,21 +807,21 @@ static void R_ScreenShot_f(void)
 	}
 
 	// we will make screenshot right at the end of RE_EndFrame()
-	backEnd.screenshotMask |= typeMask;
+	backEndData->frame.screenshotMask |= typeMask;
 	if (typeMask == SCREENSHOT_JPG)
 	{
-		backEnd.screenShotJPGsilent = silent;
-		Q_strncpyz(backEnd.screenshotJPG, checkname, sizeof(backEnd.screenshotJPG));
+		backEndData->frame.screenShotJPGsilent = silent;
+		Q_strncpyz(backEndData->frame.screenshotJPG, checkname, sizeof(backEndData->frame.screenshotJPG));
 	}
 	else if (typeMask == SCREENSHOT_BMP)
 	{
-		backEnd.screenShotBMPsilent = silent;
-		Q_strncpyz(backEnd.screenshotBMP, checkname, sizeof(backEnd.screenshotBMP));
+		backEndData->frame.screenShotBMPsilent = silent;
+		Q_strncpyz(backEndData->frame.screenshotBMP, checkname, sizeof(backEndData->frame.screenshotBMP));
 	}
 	else
 	{
-		backEnd.screenShotTGAsilent = silent;
-		Q_strncpyz(backEnd.screenshotTGA, checkname, sizeof(backEnd.screenshotTGA));
+		backEndData->frame.screenShotTGAsilent = silent;
+		Q_strncpyz(backEndData->frame.screenshotTGA, checkname, sizeof(backEndData->frame.screenshotTGA));
 	}
 }
 
@@ -967,6 +969,7 @@ static void GfxInfo(void)
 		ri.Printf(PRINT_ALL, " capture: %s\n", vk::to_string(vk_inst.capture_format).data());
 	}
 	ri.Printf(PRINT_ALL, " depth: %s\n", vk::to_string(vk_inst.depth_format).data());
+	ri.Printf(PRINT_ALL, " render backend thread: %s\n", R_RenderThreadActive() ? "enabled" : "disabled");
 
 	if (glConfig.isFullscreen)
 	{
@@ -1058,6 +1061,7 @@ RE_SyncRender
 */
 static void RE_SyncRender(void)
 {
+	R_SyncRenderThread();
 	if (vk_inst.device)
 		vk_wait_idle();
 }
@@ -1267,6 +1271,8 @@ static void R_Register(void)
 
 	r_skipBackEnd = ri.Cvar_Get("r_skipBackEnd", "0", CVAR_CHEAT);
 	ri.Cvar_SetDescription(r_skipBackEnd, "Skips loading rendering backend.");
+	r_smp = ri.Cvar_Get("r_smp", "0", CVAR_ARCHIVE | CVAR_LATCH);
+	ri.Cvar_SetDescription(r_smp, "Run the Vulkan rendering backend on a dedicated thread with one frame in flight (requires vid_restart).");
 
 	r_lodscale = ri.Cvar_Get("r_lodscale", "5", CVAR_CHEAT);
 	ri.Cvar_SetDescription(r_lodscale, "Set scale for level of detail adjustment.");
@@ -1517,11 +1523,24 @@ void R_Init(void)
 	max_polys = r_maxpolys->integer;
 	max_polyverts = r_maxpolyverts->integer;
 
-	ptr = reinterpret_cast<byte *>(ri.Hunk_Alloc(sizeof(*backEndData) + sizeof(srfPoly_t) * max_polys + sizeof(polyVert_t) * max_polyverts, h_low));
-	backEndData = (backEndData_t *)ptr;
-	backEndData->polys = (srfPoly_t *)((char *)ptr + sizeof(*backEndData));
-	backEndData->polyVerts = (polyVert_t *)((char *)ptr + sizeof(*backEndData) + sizeof(srfPoly_t) * max_polys);
+	if (R_RenderThreadActive() && (!r_smp || !r_smp->integer))
+		R_ShutdownRenderThread();
 
+	const size_t backEndDataSize = sizeof(backEndData_t) + sizeof(srfPoly_t) * max_polys + sizeof(polyVert_t) * max_polyverts;
+	const int numBackEndBuffers = (r_smp && r_smp->integer) ? 2 : 1;
+
+	for (i = 0; i < numBackEndBuffers; ++i)
+	{
+		ptr = reinterpret_cast<byte *>(ri.Hunk_Alloc(backEndDataSize, h_low));
+		backEndDataBuffers[i] = reinterpret_cast<backEndData_t *>(ptr);
+		backEndDataBuffers[i]->polys = reinterpret_cast<srfPoly_t *>(ptr + sizeof(backEndData_t));
+		backEndDataBuffers[i]->polyVerts = reinterpret_cast<polyVert_t *>(ptr + sizeof(backEndData_t) + sizeof(srfPoly_t) * max_polys);
+	}
+
+	if (numBackEndBuffers == 1)
+		backEndDataBuffers[1] = backEndDataBuffers[0];
+
+	backEndData = backEndDataBuffers[0];
 	R_InitNextFrame();
 
 	InitOpenGL();
@@ -1540,6 +1559,9 @@ void R_Init(void)
 
 	R_InitFreeType();
 
+	R_InitRenderThread();
+	glConfig.smpActive = R_RenderThreadActive();
+
 	ri.Printf(PRINT_ALL, "----- finished R_Init -----\n");
 }
 
@@ -1551,6 +1573,9 @@ RE_Shutdown
 static void RE_Shutdown(refShutdownCode_t code)
 {
 	ri.Printf(PRINT_ALL, "RE_Shutdown( %i )\n", code);
+
+	R_ShutdownRenderThread();
+	glConfig.smpActive = false;
 
 	ri.Cmd_RemoveCommand("modellist");
 	ri.Cmd_RemoveCommand("screenshotBMP");
@@ -1607,9 +1632,16 @@ Touch all images to make sure they are resident
 */
 static void RE_EndRegistration(void)
 {
+	R_SyncRenderThread();
 	vk_wait_idle();
 	// command buffer is not in recording state at this stage
 	// so we can't issue RB_ShowImages() there
+}
+
+static void RE_RegisterFontThreadSafe(const char *fontName, int pointSize, fontInfo_t *font)
+{
+	R_SyncRenderThread();
+	RE_RegisterFont(fontName, pointSize, font);
 }
 
 extern "C"
@@ -1670,7 +1702,7 @@ extern "C"
 		re.DrawStretchRaw = RE_StretchRaw;
 		re.UploadCinematic = RE_UploadCinematic;
 
-		re.RegisterFont = RE_RegisterFont;
+		re.RegisterFont = RE_RegisterFontThreadSafe;
 		re.RemapShader = RE_RemapShader;
 		re.GetEntityToken = RE_GetEntityToken;
 		re.inPVS = R_inPVS;

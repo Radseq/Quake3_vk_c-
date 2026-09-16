@@ -31,28 +31,6 @@ std::uint32_t *tr_surfaceVisibleCounts = nullptr;
 std::uint32_t *tr_surfaceLightCounts = nullptr;
 #endif
 
-ID_INLINE std::size_t R_SurfaceRuntimeIndex(const msurface_t& surf) noexcept
-{
-	return static_cast<std::size_t>(&surf - tr.world->surfaces);
-}
-
-ID_INLINE std::uint32_t& R_SurfaceViewCount(msurface_t& surf) noexcept
-{
-	return tr_surfaceViewCounts[R_SurfaceRuntimeIndex(surf)];
-}
-
-#ifdef USE_PMLIGHT
-ID_INLINE std::uint32_t& R_SurfaceVisibleCount(msurface_t& surf) noexcept
-{
-	return tr_surfaceVisibleCounts[R_SurfaceRuntimeIndex(surf)];
-}
-
-ID_INLINE std::uint32_t& R_SurfaceLightCount(msurface_t& surf) noexcept
-{
-	return tr_surfaceLightCounts[R_SurfaceRuntimeIndex(surf)];
-}
-#endif
-
 namespace
 {
 	world_t *s_surfaceRuntimeWorld = nullptr;

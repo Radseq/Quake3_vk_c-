@@ -539,7 +539,7 @@ void RB_RenderFlares(void)
 
 	// Reset currentEntity to world so that any previously referenced entities
 	// don't have influence on the rendering of these flares (i.e. RF_ renderer flags).
-	backEnd.currentEntity = &tr.worldEntity;
+	backEnd.currentEntity = &backEnd.worldEntity;
 	backEnd.ort = backEnd.viewParms.world;
 
 	// RB_AddDlightFlares();

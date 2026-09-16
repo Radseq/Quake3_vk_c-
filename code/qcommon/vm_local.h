@@ -174,6 +174,9 @@ struct vm_s
 {
 
 	syscall_t systemCall;
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS
+	vmFastSyscall1_t fastSystemCall1;
+#endif
 	byte *dataBase;
 	int32_t *opStack; // pointer to local function stack
 	int32_t *opStackTop;

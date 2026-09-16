@@ -39,7 +39,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_model.hpp"
 
 backEndData_t *backEndData;
+backEndData_t *backEndDataBuffers[2]{};
 backEndState_t backEnd;
+
+static const void *s_renderCommandList;
 
 /*
 ** GL_Bind
@@ -58,7 +61,7 @@ void Bind(image_t *image)
 	}
 
 	// if ( glState.currenttextures[glState.currenttmu] != texnum ) {
-	image->frameUsed = tr.frameCount;
+	image->frameUsed = backEnd.frameCount;
 	vk_update_descriptor(glState.currenttmu + VK_DESC_TEXTURE_BASE, image->descriptor);
 
 	//}
@@ -221,7 +224,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 
 	// draw everything
 	oldEntityNum = -1;
-	backEnd.currentEntity = &tr.worldEntity;
+	backEnd.currentEntity = &backEnd.worldEntity;
 	oldShader = nullptr;
 	oldSort = MAX_UINT;
 #ifdef USE_PMLIGHT
@@ -282,7 +285,6 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 			if (entityNum != REFENTITYNUM_WORLD)
 			{
 				backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
-				tr.currentModel = R_GetModelByHandle(backEnd.currentEntity->e.hModel);
 
 				if (HasTrRefEntityFlag(backEnd.currentEntity->flags, trRefEntityFlags_t::IntShaderTime))
 					backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
@@ -312,8 +314,7 @@ static void RB_RenderDrawSurfList(drawSurf_t *drawSurfs, const int numDrawSurfs)
 			}
 			else
 			{
-				backEnd.currentEntity = &tr.worldEntity;
-				tr.currentModel = nullptr;
+				backEnd.currentEntity = &backEnd.worldEntity;
 
 				backEnd.refdef.floatTime = originalTime;
 				backEnd.ort = backEnd.viewParms.world;
@@ -403,7 +404,7 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 
 	// draw everything
 	oldEntityNum = -1;
-	backEnd.currentEntity = &tr.worldEntity;
+	backEnd.currentEntity = &backEnd.worldEntity;
 	oldShader = NULL;
 	oldSort = MAX_UINT;
 	depthRange = false;
@@ -459,7 +460,6 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 			if (entityNum != REFENTITYNUM_WORLD)
 			{
 				backEnd.currentEntity = &backEnd.refdef.entities[entityNum];
-				tr.currentModel = R_GetModelByHandle(backEnd.currentEntity->e.hModel);
 
 				if (HasTrRefEntityFlag(backEnd.currentEntity->flags, trRefEntityFlags_t::IntShaderTime))
 					backEnd.refdef.floatTime = originalTime - (double)(backEnd.currentEntity->e.shaderTime.i) * 0.001;
@@ -479,8 +479,7 @@ static void RB_RenderLitSurfList(dlight_t &dl)
 			}
 			else
 			{
-				backEnd.currentEntity = &tr.worldEntity;
-				tr.currentModel = nullptr;
+				backEnd.currentEntity = &backEnd.worldEntity;
 
 				backEnd.refdef.floatTime = originalTime;
 				backEnd.ort = backEnd.viewParms.world;
@@ -599,6 +598,7 @@ void RE_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data, i
 
 void RE_UploadCinematic(int w, int h, int cols, int rows, byte *data, int client, bool dirty)
 {
+	R_SyncRenderThread();
 	image_t *image;
 
 	if (!tr.scratchImage[client])
@@ -898,7 +898,7 @@ static const void *RB_DrawBuffer(const void *data)
 
 	cmd = (const drawBufferCommand_t *)data;
 
-	vk_begin_frame();
+	vk_begin_frame(s_renderCommandList);
 
 	tess.depthRange = Vk_Depth_Range::DEPTH_RANGE_NORMAL;
 
@@ -1100,8 +1100,6 @@ static const void *RB_SwapBuffers(const void *data)
 
 	cmd = (const swapBuffersCommand_t *)data;
 
-	tr.needScreenMap = 0;
-
 	vk_end_frame();
 
 	if ( backEnd.doneSurfaces && !glState.finishCalled ) {
@@ -1162,6 +1160,7 @@ RB_ExecuteRenderCommands
 */
 void RB_ExecuteRenderCommands(const void *data)
 {
+	s_renderCommandList = data;
 	backEnd.pc.msec = ri.Milliseconds();
 
 	while (1)

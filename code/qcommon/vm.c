@@ -213,6 +213,28 @@ static int forced_unload;
 
 static struct vm_s vmTable[VM_COUNT];
 
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS
+/*
+=================
+VM_SetFastSystemCall1
+
+Registers an optional engine-owned fast callback before a QVM is compiled.
+The x86-64 JIT may call it directly for explicitly whitelisted one-argument
+traps. All other traps continue through vm->systemCall unchanged.
+=================
+*/
+void VM_SetFastSystemCall1(vmIndex_t index, vmFastSyscall1_t fastSystemCall1)
+{
+	if ((unsigned)index >= VM_COUNT)
+	{
+		Com_Error(ERR_DROP, "VM_SetFastSystemCall1: bad vm index %i", index);
+		return;
+	}
+
+	vmTable[index].fastSystemCall1 = fastSystemCall1;
+}
+#endif
+
 static const char *vmName[VM_COUNT] = {
 	"qagame",
 	"cgame",

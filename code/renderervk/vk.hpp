@@ -41,7 +41,7 @@ void vk_destroy_samplers( void );
 
 void vk_clear_color(const vec4_t &color);
 void vk_clear_depth(const bool clear_stencil);
-void vk_begin_frame(void);
+void vk_begin_frame(const void *renderCommands);
 void vk_end_frame(void);
 void vk_present_frame(void);
 

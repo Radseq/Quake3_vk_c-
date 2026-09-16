@@ -37,7 +37,8 @@ constexpr int FOG_T = 32;
 constexpr int DEFAULT_SIZE = 16;
 
 skin_t *R_GetSkinByHandle(qhandle_t hSkin);
-int R_SumOfUsedImages();
+int R_SumOfUsedImages(int frameCount);
+inline int R_SumOfUsedImages() { return R_SumOfUsedImages(tr.frameCount); }
 void R_InitFogTable();
 float R_FogFactor(float s, float t);
 

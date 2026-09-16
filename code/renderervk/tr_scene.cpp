@@ -57,11 +57,8 @@ void R_InitNextFrame(void)
 	tr.worldEntity.flags = 0;
 	Com_Memset(&tr.worldEntityLocal, 0, sizeof(tr.worldEntityLocal));
 
-	backEnd.entity2D.local = &backEnd.entity2DLocal;
-	backEnd.entity2D.flags = 0;
-	Com_Memset(&backEnd.entity2DLocal, 0, sizeof(backEnd.entity2DLocal));
-
 	backEndData->commands.used = 0;
+	Com_Memset(&backEndData->frame, 0, sizeof(backEndData->frame));
 
 	r_firstSceneDrawSurf = 0;
 #ifdef USE_PMLIGHT

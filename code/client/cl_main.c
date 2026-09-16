@@ -24,6 +24,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "client.h"
 #include <limits.h>
 
+#ifdef USE_FRAME_BENCHMARK
+#include "cl_benchmark.h"
+#endif
+
 cvar_t	*cl_noprint;
 cvar_t	*cl_debugMove;
 cvar_t	*cl_motd;
@@ -1121,6 +1125,9 @@ Called before parsing a gamestate
 =====================
 */
 void CL_ClearState( void ) {
+#ifdef USE_FRAME_BENCHMARK
+	frameBenchmark.previous = 0;
+#endif
 
 //	S_StopAllSounds();
 
@@ -1210,6 +1217,9 @@ bool CL_Disconnect( bool showMainMenu ) {
 	}
 
 	cl_disconnecting = true;
+#ifdef USE_FRAME_BENCHMARK
+	frameBenchmark.previous = 0;
+#endif
 
 	// Stop demo recording
 	if ( clc.demorecording ) {
@@ -2981,6 +2991,10 @@ CL_Frame
 */
 void CL_Frame( int msec, int realMsec ) {
 
+#ifdef USE_FRAME_BENCHMARK
+	CL_BenchmarkFrame();
+#endif
+
 #ifdef USE_CURL
 	if ( download.cURL ) {
 		Com_DL_Perform( &download );
@@ -4064,6 +4078,10 @@ void CL_Shutdown( const char *finalmsg, bool quit ) {
 		return;
 	}
 	recursive = true;
+
+#ifdef USE_FRAME_BENCHMARK
+	CL_BenchmarkSave();
+#endif
 
 	noGameRestart = quit;
 	CL_Disconnect( false );

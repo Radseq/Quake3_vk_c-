@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // tr_image.c
 #include "tr_image.hpp"
+#include "tr_cmds.hpp"
 #include "tr_bsp.hpp"
 #include "tr_local.hpp"
 #include "vk.hpp"
@@ -80,7 +81,7 @@ skin_t* R_GetSkinByHandle(qhandle_t hSkin)
 	return tr.skins[hSkin];
 }
 
-int R_SumOfUsedImages()
+int R_SumOfUsedImages(const int frameCount)
 {
 	const image_t* img;
 	int i, total = 0;
@@ -88,7 +89,7 @@ int R_SumOfUsedImages()
 	for (i = 0; i < tr.numImages; i++)
 	{
 		img = tr.images[i];
-		if (img->frameUsed == tr.frameCount)
+		if (img->frameUsed == frameCount)
 		{
 			total += img->uploadWidth * img->uploadHeight;
 		}
@@ -179,6 +180,7 @@ void R_GammaCorrect(byte* buffer, const int bufSize)
 
 void R_SetColorMappings()
 {
+	R_SyncRenderThread();
 	if (!tr.inited)
 	{
 		// it may be called from window handling functions where gamma flags is now yet known/set
@@ -394,6 +396,7 @@ void TextureMode(std::string_view sv_mode)
 
 void R_ImageList_f(void)
 {
+	R_SyncRenderThread();
 	int i, estTotalSize = 0;
 	char* name, buf[MAX_QPATH * 2 + 5];
 
@@ -1611,6 +1614,7 @@ static const char* CommaParse(const char** data_p)
 
 qhandle_t RE_RegisterSkin(const char* name)
 {
+	R_SyncRenderThread();
 	skinSurface_t parseSurfaces[MAX_SKIN_SURFACES]{};
 	qhandle_t hSkin;
 	skin_t* skin;

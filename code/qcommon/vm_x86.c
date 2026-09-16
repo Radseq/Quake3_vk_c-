@@ -173,6 +173,9 @@ typedef enum
 	FUNC_ENTR = 0,
 	FUNC_CALL,
 	FUNC_SYSC,
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS && idx64 && !defined(USE_DEDICATED)
+	FUNC_FASTSYSC1,
+#endif
 	FUNC_BCPY,
 	FUNC_PSOF,
 	FUNC_OSOF,
@@ -3297,6 +3300,66 @@ static void EmitCallFunc( vm_t *vm )
 #endif
 }
 
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS && idx64 && !defined(USE_DEDICATED)
+/*
+=================
+EmitFastSyscall1Func
+
+Direct bridge for whitelisted one-argument cgame traps. Unlike FUNC_SYSC it
+does not materialize a 16-entry intptr_t argument array and does not enter
+CL_CgameSystemCalls. It preserves the VM registers required by the host ABI,
+updates vm->programStack exactly like the generic bridge, then invokes the
+engine-provided callback.
+=================
+*/
+static void EmitFastSyscall1Func( vm_t *vm )
+{
+	const int stackSize = SHADOW_BASE + PUSH_STACK;
+
+	init_opstack();
+
+	// Helper entry is 8 mod 16; stackSize is also 8 mod 16.
+	emit_op_rx_imm32( X_SUB, R_ESP | R_REX, stackSize );
+
+	// Preserve VM state held in host caller-saved registers.
+	emit_lea( R_EDX | R_REX, R_ESP, SHADOW_BASE );
+	emit_store_rx( R_ESI | R_REX, R_EDX, 0 );
+	emit_store_rx( R_EDI | R_REX, R_EDX, 8 );
+	emit_store_rx( R_R11 | R_REX, R_EDX, 16 );
+
+	// Keep VM state consistent with the generic system-call bridge.
+	mov_rx_ptr( R_EDX, &vm->programStack );
+	emit_lea( R_ECX, R_PSTACK, -8 );
+	emit_store_rx( R_ECX, R_EDX, 0 );
+
+#ifdef _WIN32
+	// Windows x64: rcx = callNum, edx = arg0.
+	emit_mov_rx( R_ECX, R_EAX );
+	emit_load4( R_EDX, R_PROCBASE, 8 );
+#else
+	// System V AMD64: edi = callNum, esi = arg0.
+	emit_mov_rx( R_EDI, R_EAX );
+	emit_load4( R_ESI, R_PROCBASE, 8 );
+#endif
+
+	// Load the callback at run time so registration/restart never bakes a stale
+	// function address into generated QVM code.
+	mov_rx_ptr( R_EAX, &vm->fastSystemCall1 );
+	emit_load4( R_EAX | R_REX, R_EAX, 0 );
+	emit_call_rx( R_EAX | R_REX );
+
+	// Restore VM registers and expose the intptr_t return value as a QVM int.
+	emit_lea( R_EDX | R_REX, R_ESP, SHADOW_BASE );
+	emit_load4( R_ESI | R_REX, R_EDX, 0 );
+	emit_load4( R_EDI | R_REX, R_EDX, 8 );
+	emit_load4( R_R11 | R_REX, R_EDX, 16 );
+	emit_store_rx( R_EAX, R_OPSTACK, 4 );
+
+	emit_op_rx_imm32( X_ADD, R_ESP | R_REX, stackSize );
+	emit_ret();
+}
+#endif
+
 
 static void EmitBCPYFunc( vm_t *vm )
 {
@@ -3418,6 +3481,19 @@ static void EmitDATWFunc( vm_t *vm )
 
 
 #ifdef CONST_OPTIMIZE
+
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS && idx64 && !defined(USE_DEDICATED)
+static int fastRenderTrapSites;
+
+static bool IsFastRenderTrap( const vm_t *vm, const int trap )
+{
+	if ( vm->index != VM_CGAME || vm->fastSystemCall1 == NULL )
+		return false;
+
+	return trap == ~CG_R_ADDREFENTITYTOSCENE ||
+		trap == ~CG_R_ADDREFENTITYTOSCENE2;
+}
+#endif
 
 static bool IsFloorTrap( const vm_t *vm, const int trap )
 {
@@ -3669,6 +3745,25 @@ static bool ConstOptimize( vm_t *vm, instruction_t *ci, instruction_t *ni )
 			}
 
 			flush_volatile();
+
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS && idx64 && !defined(USE_DEDICATED)
+			if ( IsFastRenderTrap( vm, ci->value ) ) {
+				if ( code != NULL )
+					fastRenderTrapSites++;
+				mask_rx( R_EAX );
+				mov_rx_imm32( R_EAX, ~ci->value ); // eax - syscall number
+				if ( opstack != 1 ) {
+					emit_op_rx_imm32( X_ADD, R_OPSTACK | R_REX, (opstack-1) * sizeof( int32_t ) );
+					EmitCallOffset( FUNC_FASTSYSC1 );
+					emit_op_rx_imm32( X_SUB, R_OPSTACK | R_REX, (opstack-1) * sizeof( int32_t ) );
+				} else {
+					EmitCallOffset( FUNC_FASTSYSC1 );
+				}
+				ip += 1; // OP_CALL
+				store_syscall_opstack();
+				return true;
+			}
+#endif
 
 			if ( ci->value < 0 ) { // syscall
 				mask_rx( R_EAX );
@@ -3942,6 +4037,10 @@ bool VM_Compile( vm_t *vm, vmHeader_t *header ) {
 	memset( funcOffset, 0, sizeof( funcOffset ) );
 
 	instructionCount = header->instructionCount;
+
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS && idx64 && !defined(USE_DEDICATED)
+	fastRenderTrapSites = 0;
+#endif
 
 	for( pass = 0; pass < NUM_PASSES; pass++ )
 	{
@@ -4652,6 +4751,12 @@ __compile:
 		funcOffset[FUNC_CALL] = compiledOfs;
 		EmitCallFunc( vm );
 
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS && idx64 && !defined(USE_DEDICATED)
+		EmitAlign( FUNC_ALIGN );
+		funcOffset[FUNC_FASTSYSC1] = compiledOfs;
+		EmitFastSyscall1Func( vm );
+#endif
+
 		EmitAlign( FUNC_ALIGN );
 		funcOffset[FUNC_BCPY] = compiledOfs;
 		EmitBCPYFunc( vm );
@@ -4756,6 +4861,11 @@ __compile:
 	vm->destroy = VM_Destroy_Compiled;
 
 	Com_Printf( "VM file %s compiled to %i bytes of code\n", vm->name, compiledOfs );
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS && idx64 && !defined(USE_DEDICATED)
+	if ( vm->index == VM_CGAME && vm->fastSystemCall1 != NULL ) {
+		Com_Printf( "VM %s: fast renderer traps: %i JIT call site(s)\n", vm->name, fastRenderTrapSites );
+	}
+#endif
 
 	return true;
 }

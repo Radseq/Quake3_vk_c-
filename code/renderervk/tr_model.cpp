@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_model.hpp"
 #include "tr_animation.hpp"
 #include "tr_scene.hpp"
+#include "tr_cmds.hpp"
 #include "vk_flares.hpp"
 #include "tr_model_iqm.hpp"
 #include "tr_shader.hpp"
@@ -353,6 +354,7 @@ asked for again.
 */
 qhandle_t RE_RegisterModel(const char* name)
 {
+	R_SyncRenderThread();
 	model_t* mod;
 	qhandle_t hModel;
 	bool orgNameFailed = false;
@@ -1089,6 +1091,7 @@ static bool R_LoadMDR(model_t& mod, void* buffer, const int filesize, std::strin
 */
 void RE_BeginRegistration(glconfig_t* glconfigOut)
 {
+	R_SyncRenderThread();
 
 	R_Init();
 

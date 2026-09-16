@@ -414,6 +414,33 @@ static void *VM_ArgPtr( intptr_t intValue ) {
 }
 
 
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS
+/*
+====================
+CL_CgameFastSystemCall1
+
+Direct target for x86-64 compiled-QVM hot render traps. The QVM pointer is
+still translated with the normal VMA rules and the renderer entry points are
+read from the live refexport table, so vid_restart does not bake renderer
+function addresses into JIT code.
+====================
+*/
+static intptr_t CL_CgameFastSystemCall1( int callNum, int32_t arg0 ) {
+	switch ( callNum ) {
+	case CG_R_ADDREFENTITYTOSCENE:
+		re.AddRefEntityToScene( VM_ArgPtr( (intptr_t)arg0 ), false );
+		return 0;
+	case CG_R_ADDREFENTITYTOSCENE2:
+		re.AddRefEntityToScene( VM_ArgPtr( (intptr_t)arg0 ), true );
+		return 0;
+	default:
+		Com_Error( ERR_DROP, "Bad fast cgame system trap: %i", callNum );
+		return 0;
+	}
+}
+#endif
+
+
 static bool CL_GetValue( char* value, int valueSize, const char* key ) {
 
 	if ( !Q_stricmp( key, "trap_R_AddRefEntityToScene2" ) ) {
@@ -860,6 +887,9 @@ void CL_InitCGame( void ) {
 			interpret = VMI_COMPILED;
 	}
 
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS
+	VM_SetFastSystemCall1( VM_CGAME, CL_CgameFastSystemCall1 );
+#endif
 	cgvm = VM_Create( VM_CGAME, CL_CgameSystemCalls, CL_DllSyscall, interpret );
 	if ( !cgvm ) {
 		Com_Error( ERR_DROP, "VM_Create on cgame failed" );

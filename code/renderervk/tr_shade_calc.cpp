@@ -26,10 +26,112 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_surface.hpp"
 #include "tr_image.hpp"
 #include "math.hpp"
+#include "compiler_defines.hpp"
 #include <string_view>
+
+#if Q3VK_OPT05_HAVE_AVX2_TARGET && \
+    (Q3VK_OPT05_SIMD_DEFORM || Q3VK_OPT05_SIMD_MOVE || Q3VK_OPT05_SIMD_TEX_TRANSFORM)
+#include <immintrin.h>
+#endif
 
 // -EC-: avoid using ri.ftol
 #define WAVEVALUE(table, base, amplitude, phase, freq) ((base) + table[(int64_t)((((phase) + tess.shaderTime * (freq)) * FUNCTABLE_SIZE)) & FUNCTABLE_MASK] * (amplitude))
+
+#if Q3VK_OPT05_HAVE_AVX2_TARGET && \
+    (Q3VK_OPT05_SIMD_DEFORM || Q3VK_OPT05_SIMD_MOVE || Q3VK_OPT05_SIMD_TEX_TRANSFORM)
+static bool RB_Opt05UseAvx2() noexcept
+{
+	static const bool supported = []() noexcept
+	{
+		__builtin_cpu_init();
+		return __builtin_cpu_supports("avx2");
+	}();
+	return supported;
+}
+#endif
+
+#if Q3VK_OPT05_HAVE_AVX2_TARGET && Q3VK_OPT05_SIMD_DEFORM
+Q3VK_OPT05_AVX2_TARGET
+static void RB_CalcDeformVertexesConstant_AVX2(float* xyz, const float* normal, int count, float scale) noexcept
+{
+	const __m256 scale8 = _mm256_setr_ps(scale, scale, scale, 0.0f, scale, scale, scale, 0.0f);
+
+	int i = 0;
+	for (; i + 1 < count; i += 2, xyz += 8, normal += 8)
+	{
+		const __m256 p = _mm256_loadu_ps(xyz);
+		const __m256 n = _mm256_loadu_ps(normal);
+		_mm256_storeu_ps(xyz, _mm256_add_ps(p, _mm256_mul_ps(n, scale8)));
+	}
+
+	if (i < count)
+	{
+		xyz[0] += normal[0] * scale;
+		xyz[1] += normal[1] * scale;
+		xyz[2] += normal[2] * scale;
+	}
+}
+#endif
+
+#if Q3VK_OPT05_HAVE_AVX2_TARGET && Q3VK_OPT05_SIMD_MOVE
+Q3VK_OPT05_AVX2_TARGET
+static void RB_CalcMoveVertexes_AVX2(float* xyz, int count, const float offset[3]) noexcept
+{
+	const __m256 offset8 = _mm256_setr_ps(
+		offset[0], offset[1], offset[2], 0.0f,
+		offset[0], offset[1], offset[2], 0.0f);
+
+	int i = 0;
+	for (; i + 1 < count; i += 2, xyz += 8)
+	{
+		const __m256 p = _mm256_loadu_ps(xyz);
+		_mm256_storeu_ps(xyz, _mm256_add_ps(p, offset8));
+	}
+
+	if (i < count)
+	{
+		xyz[0] += offset[0];
+		xyz[1] += offset[1];
+		xyz[2] += offset[2];
+	}
+}
+#endif
+
+#if Q3VK_OPT05_HAVE_AVX2_TARGET && Q3VK_OPT05_SIMD_TEX_TRANSFORM
+Q3VK_OPT05_AVX2_TARGET
+static void RB_CalcTransformTexCoords_AVX2(const texModInfo_t& tmi, const float* src, float* dst, int count) noexcept
+{
+	const __m256 sCoeff = _mm256_setr_ps(
+		tmi.matrix[0][0], tmi.matrix[0][1], tmi.matrix[0][0], tmi.matrix[0][1],
+		tmi.matrix[0][0], tmi.matrix[0][1], tmi.matrix[0][0], tmi.matrix[0][1]);
+	const __m256 tCoeff = _mm256_setr_ps(
+		tmi.matrix[1][0], tmi.matrix[1][1], tmi.matrix[1][0], tmi.matrix[1][1],
+		tmi.matrix[1][0], tmi.matrix[1][1], tmi.matrix[1][0], tmi.matrix[1][1]);
+	const __m256 translate = _mm256_setr_ps(
+		tmi.translate[0], tmi.translate[1], tmi.translate[0], tmi.translate[1],
+		tmi.translate[0], tmi.translate[1], tmi.translate[0], tmi.translate[1]);
+
+	int i = 0;
+	for (; i + 3 < count; i += 4, src += 8, dst += 8)
+	{
+		const __m256 st = _mm256_loadu_ps(src);
+		const __m256 s = _mm256_moveldup_ps(st);
+		const __m256 t = _mm256_movehdup_ps(st);
+		const __m256 transformed = _mm256_add_ps(
+			_mm256_add_ps(_mm256_mul_ps(s, sCoeff), _mm256_mul_ps(t, tCoeff)),
+			translate);
+		_mm256_storeu_ps(dst, transformed);
+	}
+
+	for (; i < count; ++i, src += 2, dst += 2)
+	{
+		const float s = src[0];
+		const float t = src[1];
+		dst[0] = s * tmi.matrix[0][0] + t * tmi.matrix[1][0] + tmi.translate[0];
+		dst[1] = s * tmi.matrix[0][1] + t * tmi.matrix[1][1] + tmi.translate[1];
+	}
+}
+#endif
 
 static inline const float* TableForFunc(genFunc_t func) noexcept
 {
@@ -133,13 +235,22 @@ static void RB_CalcDeformVertexes(deformStage_t &ds)
 	{
 		scale = EvalWaveForm(ds.deformationWave);
 
-		for (i = 0; i < tess.numVertexes; i++, xyz += 4, normal += 4)
+#if Q3VK_OPT05_HAVE_AVX2_TARGET && Q3VK_OPT05_SIMD_DEFORM
+		if (tess.numVertexes >= Q3VK_OPT05_SIMD_MIN_VERTS && RB_Opt05UseAvx2())
 		{
-			VectorScale(normal, scale, offset);
+			RB_CalcDeformVertexesConstant_AVX2(xyz, normal, tess.numVertexes, scale);
+		}
+		else
+#endif
+		{
+			for (i = 0; i < tess.numVertexes; i++, xyz += 4, normal += 4)
+			{
+				VectorScale(normal, scale, offset);
 
-			xyz[0] += offset[0];
-			xyz[1] += offset[1];
-			xyz[2] += offset[2];
+				xyz[0] += offset[0];
+				xyz[1] += offset[1];
+				xyz[2] += offset[2];
+			}
 		}
 	}
 	else
@@ -261,9 +372,18 @@ static void RB_CalcMoveVertexes(deformStage_t &ds)
 	VectorScale(ds.moveVector, scale, offset);
 
 	xyz = (float *)tess.xyz;
-	for (i = 0; i < tess.numVertexes; i++, xyz += 4)
+#if Q3VK_OPT05_HAVE_AVX2_TARGET && Q3VK_OPT05_SIMD_MOVE
+	if (tess.numVertexes >= Q3VK_OPT05_SIMD_MIN_VERTS && RB_Opt05UseAvx2())
 	{
-		VectorAdd(xyz, offset, xyz);
+		RB_CalcMoveVertexes_AVX2(xyz, tess.numVertexes, offset);
+	}
+	else
+#endif
+	{
+		for (i = 0; i < tess.numVertexes; i++, xyz += 4)
+		{
+			VectorAdd(xyz, offset, xyz);
+		}
 	}
 }
 
@@ -386,7 +506,7 @@ static void AutospriteDeform(void)
 	tess.numVertexes = 0;
 	tess.numIndexes = 0;
 
-	if (backEnd.currentEntity != &tr.worldEntity)
+	if (backEnd.currentEntity != &backEnd.worldEntity)
 	{
 		GlobalVectorToLocal(backEnd.viewParms.ort.axis[1], leftDir);
 		GlobalVectorToLocal(backEnd.viewParms.ort.axis[2], upDir);
@@ -464,7 +584,7 @@ static void Autosprite2Deform(void)
 		ri.Printf(PRINT_WARNING, "Autosprite2 shader %s had odd index count\n", tess.shader->name);
 	}
 
-	if (backEnd.currentEntity != &tr.worldEntity)
+	if (backEnd.currentEntity != &backEnd.worldEntity)
 	{
 		GlobalVectorToLocal(backEnd.viewParms.ort.axis[0], forward);
 	}
@@ -1179,6 +1299,14 @@ void RB_CalcScrollTexCoords(const float scrollSpeed[2], float *src, float *dst)
 void RB_CalcTransformTexCoords(const texModInfo_t &tmi, float *src, float *dst)
 {
 	int i;
+
+#if Q3VK_OPT05_HAVE_AVX2_TARGET && Q3VK_OPT05_SIMD_TEX_TRANSFORM
+	if (tess.numVertexes >= Q3VK_OPT05_SIMD_MIN_VERTS && RB_Opt05UseAvx2())
+	{
+		RB_CalcTransformTexCoords_AVX2(tmi, src, dst, tess.numVertexes);
+		return;
+	}
+#endif
 
 	for (i = 0; i < tess.numVertexes; i++, dst += 2, src += 2)
 	{

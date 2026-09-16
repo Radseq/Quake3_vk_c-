@@ -400,12 +400,25 @@ typedef enum
 
 typedef intptr_t(QDECL *vmMainFunc_t)(int command, int arg0, int arg1, int arg2);
 
+// Optional JIT optimization for hot renderer traps issued by compiled cgame QVMs.
+// Set to 0 (or compile with -DQ3E_OPT_VM_FAST_RENDER_TRAPS=0) for exact legacy
+// syscall dispatch/marshalling. This does not alter the QVM ABI or trap numbers.
+#ifndef Q3E_OPT_VM_FAST_RENDER_TRAPS
+#define Q3E_OPT_VM_FAST_RENDER_TRAPS 1
+#endif
+
 typedef intptr_t (*syscall_t)(intptr_t *parms);
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS
+typedef intptr_t (*vmFastSyscall1_t)(int callNum, int32_t arg0);
+#endif
 typedef intptr_t(QDECL *dllSyscall_t)(intptr_t callNum, ...);
 typedef void(QDECL *dllEntry_t)(dllSyscall_t syscallptr);
 
 void VM_Init(void);
 vm_t *VM_Create(vmIndex_t index, syscall_t systemCalls, dllSyscall_t dllSyscalls, vmInterpret_t interpret);
+#if Q3E_OPT_VM_FAST_RENDER_TRAPS
+void VM_SetFastSystemCall1(vmIndex_t index, vmFastSyscall1_t fastSystemCall1);
+#endif
 
 void VM_Free(vm_t *vm);
 void VM_Clear(void);

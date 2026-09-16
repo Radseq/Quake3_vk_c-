@@ -1429,6 +1429,7 @@ typedef struct
 	viewParms_t viewParms;
 	orientationr_t ort;
 	backEndCounters_t pc;
+	int frameCount;
 	bool isHyperspace;
 	const trRefEntity_t *currentEntity;
 	bool skyRenderedThisView; // flag for drawing sun
@@ -1438,6 +1439,8 @@ typedef struct
 	bool doneSurfaces;		// done any 3d surfaces already
 	trRefEntity_t entity2D; // currentEntity will point at this when doing 2D rendering
 	trRefEntityLocal_t entity2DLocal;
+	trRefEntity_t worldEntity; // backend-owned world entity for render-thread safety
+	trRefEntityLocal_t worldEntityLocal;
 
 	int screenshotMask; // tga | jpg | bmp
 	char screenshotTGA[MAX_OSPATH];
@@ -1708,6 +1711,7 @@ extern cvar_t *r_portalOnly;
 extern cvar_t *r_subdivisions;
 extern cvar_t *r_lodCurveError;
 extern cvar_t *r_skipBackEnd;
+extern cvar_t *r_smp;
 
 extern cvar_t *r_greyscale;
 extern cvar_t *r_dither;
@@ -2169,6 +2173,27 @@ typedef struct
 constexpr int MAX_POLYS = 8192;
 constexpr int MAX_POLYVERTS = 32768;
 
+// Per-frame values produced by the front end and consumed by the back end.
+// They live next to the command/data buffer so an asynchronous back end never
+// races the next frame while reading screenshot/video requests or diagnostics.
+typedef struct
+{
+	int screenshotMask;
+	char screenshotTGA[MAX_OSPATH];
+	char screenshotJPG[MAX_OSPATH];
+	char screenshotBMP[MAX_OSPATH];
+	bool screenShotTGAsilent;
+	bool screenShotJPGsilent;
+	bool screenShotBMPsilent;
+	videoFrameCommand_t vcmd;
+	bool throttle;
+	int frameCount;
+	int viewCluster;
+	float zFar;
+	frontEndCounters_t frontEndPc;
+	int frontEndMsec;
+} renderFrameState_t;
+
 // all of the information needed by the back end must be
 // contained in a backEndData_t
 typedef struct
@@ -2186,12 +2211,14 @@ typedef struct
 	srfPoly_t *polys;	   //[MAX_POLYS];
 	polyVert_t *polyVerts; //[MAX_POLYVERTS];
 	renderCommandList_t commands;
+	renderFrameState_t frame;
 } backEndData_t;
 
 extern int max_polys;
 extern int max_polyverts;
 
 extern backEndData_t *backEndData;
+extern backEndData_t *backEndDataBuffers[2];
 
 void RB_TakeScreenshot(const int x, const int y, const int width, const int height, const char *fileName);
 void RB_TakeScreenshotJPEG(const int x, const int y, const int width, const int height, const char *fileName);

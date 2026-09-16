@@ -4509,9 +4509,9 @@ void vk_draw_dot(uint32_t storage_offset)
 
 }
 
-static bool vk_find_screenmap_drawsurfs(void)
+static bool vk_find_screenmap_drawsurfs(const void *renderCommands)
 {
-	const void* curCmd = &backEndData->commands.cmds;
+	const void* curCmd = renderCommands;
 	const drawBufferCommand_t* db_cmd;
 	const drawSurfsCommand_t* ds_cmd;
 
@@ -4537,7 +4537,7 @@ static bool vk_find_screenmap_drawsurfs(void)
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFFULL
 #endif
 
-void vk_begin_frame(void)
+void vk_begin_frame(const void *renderCommands)
 {
 	vk::Result res;
 
@@ -4637,7 +4637,7 @@ void vk_begin_frame(void)
 
 	backEnd.screenMapDone = false;
 
-	if (vk_find_screenmap_drawsurfs())
+	if (vk_find_screenmap_drawsurfs(renderCommands))
 	{
 		vk_begin_screenmap_render_pass();
 	}

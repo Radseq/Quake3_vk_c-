@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // tr_map.c
 
 #include "tr_bsp.hpp"
+#include "tr_cmds.hpp"
 #include "tr_image.hpp"
 #include "vk.hpp"
 #include "tr_curve.hpp"
@@ -486,6 +487,7 @@ space in big maps...
 */
 void RE_SetWorldVisData(const byte *vis)
 {
+	R_SyncRenderThread();
 	tr.externalVisData = vis;
 }
 
@@ -2509,6 +2511,7 @@ Called directly from cgame
 */
 void RE_LoadWorldMap(const char *name)
 {
+	R_SyncRenderThread();
 	std::size_t i;
 	int32_t size;
 	dheader_t *header;

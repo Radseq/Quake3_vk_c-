@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shader.hpp"
 #include "tr_bsp.hpp"
 #include "tr_main.hpp"
+#include "tr_cmds.hpp"
 #include "tr_shade.hpp"
 #include "tr_sky.hpp"
 #include "vk.hpp"
@@ -91,6 +92,7 @@ constexpr collapse_t collapse[] = {
 
 void RE_RemapShader(const char* shaderName, const char* newShaderName, const char* timeOffset)
 {
+	R_SyncRenderThread();
 	std::array<char, MAX_QPATH> strippedName;
 	int hash;
 	shader_t* sh, * sh2;
@@ -4422,6 +4424,7 @@ shader_t* R_FindShader(std::string_view name, int lightmapIndex, const bool mipR
 
 qhandle_t RE_RegisterShaderFromImage(std::string_view name, int lightmapIndex, image_t& image, bool mipRawImage)
 {
+	R_SyncRenderThread();
 	unsigned long hash;
 	shader_t* sh;
 
@@ -4518,6 +4521,7 @@ way to ask for different implicit lighting modes (vertex, lightmap, etc)
 */
 qhandle_t RE_RegisterShader(const char* name)
 {
+	R_SyncRenderThread();
 	if (!name)
 	{
 		ri.Printf(PRINT_ALL, "NULL shader\n");
@@ -4554,6 +4558,7 @@ For menu graphics that should never be picmiped
 */
 qhandle_t RE_RegisterShaderNoMip(const char* name)
 {
+	R_SyncRenderThread();
 	shader_t* sh;
 
 	if (strlen(name) >= MAX_QPATH)
