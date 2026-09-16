@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shade.hpp"
 #include "tr_surface.hpp"
 #include <array>
+#include <algorithm>
 
 #ifdef USE_VBO
 
@@ -496,7 +497,7 @@ static void initItem(vbo_item_t *item)
 }
 #include <cstdlib>
 #include "utils.hpp"
-void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
+void R_BuildWorldVBO(msurface_t *surfaces, const int surfCount)
 {
 	vbo_t &vbo = world_vbo;
 	msurface_t **surfList;
@@ -527,7 +528,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 	// initial scan to count surfaces/indexes/vertexes for memory allocation
 	for (i = 0; i < surfCount; i++)
 	{
-		msurface_t &sf = surf;
+		msurface_t &sf = surfaces[i];
 		face = (srfSurfaceFace_t *)sf.data;
 		if (face->surfaceType == surfaceType_t::SF_FACE && isStaticShader(*sf.shader))
 		{
@@ -611,7 +612,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 
 	for (i = 0, n = 0; i < surfCount; i++)
 	{
-		msurface_t &sf = surf;
+		msurface_t &sf = surfaces[i];
 		face = reinterpret_cast<srfSurfaceFace_t *>(sf.data);
 		if (face->surfaceType == surfaceType_t::SF_FACE && face->vboItemIndex)
 		{
@@ -649,7 +650,7 @@ void R_BuildWorldVBO(msurface_t &surf, const int surfCount)
 
 	for (i = 0; i < numStaticSurfaces; i++)
 	{
-		msurface_t &sf = surf;
+		msurface_t &sf = *surfList[i];
 		face = (srfSurfaceFace_t *)sf.data;
 		tris = (srfTriangles_t *)sf.data;
 		grid = (srfGridMesh_t *)sf.data;
@@ -750,71 +751,32 @@ void VBO_Cleanup(void)
 qsort_int
 =============
 */
-constexpr int MIN_MERGE = 32;
+constexpr int SMALL_SORT_THRESHOLD = 32;
 
-static void timSort(int arr[], const int n)
+static ID_INLINE void sort_item_queue(int* items, const int count)
 {
-	int r = 0;
-	int a = n;
-	while (a >= MIN_MERGE)
+	if (count < 2)
+		return;
+
+	// Tiny queues are common and insertion sort avoids the setup cost of
+	// introsort. Larger queues use the well-tested allocation-free std::sort.
+	if (count <= SMALL_SORT_THRESHOLD)
 	{
-		r |= (a & 1);
-		a >>= 1;
-	}
-
-	int minRun = a + r;
-
-	std::vector<int> leftArr, rightArr;
-
-	// insertionSort
-	for (int z = 0; z < n; z += minRun)
-	{
-		int right = (z + minRun - 1 < n - 1) ? z + minRun - 1 : n - 1;
-		for (int i = z + 1; i <= right; i++)
+		for (int i = 1; i < count; ++i)
 		{
-			int key = arr[i];
+			const int key = items[i];
 			int j = i - 1;
-			while (j >= z && arr[j] > key)
+			while (j >= 0 && items[j] > key)
 			{
-				arr[j + 1] = arr[j];
-				j--;
+				items[j + 1] = items[j];
+				--j;
 			}
-			arr[j + 1] = key;
+			items[j + 1] = key;
 		}
+		return;
 	}
 
-	for (int size = minRun; size < n; size = 2 * size)
-	{
-		for (int left = 0; left < n; left += 2 * size)
-		{
-			int mid = left + size - 1;
-			int right = (left + 2 * size - 1 < n - 1) ? left + 2 * size - 1 : n - 1;
-
-			int len1 = mid - left + 1, len2 = right - mid;
-			for (int i = 0; i < len1; i++)
-			{
-				leftArr[i] = arr[left + i];
-			}
-			for (int i = 0; i < len2; i++)
-			{
-				rightArr[i] = arr[mid + 1 + i];
-			}
-
-			int i = 0, j = 0, k = left;
-			while (i < len1 && j < len2)
-			{
-				if (leftArr[i] <= rightArr[j])
-					arr[k++] = leftArr[i++];
-				else
-					arr[k++] = rightArr[j++];
-			}
-
-			while (i < len1)
-				arr[k++] = leftArr[i++];
-			while (j < len2)
-				arr[k++] = rightArr[j++];
-		}
-	}
+	std::sort(items, items + count);
 }
 
 static int run_length(const int *a, int from, int to, int *count)
@@ -920,9 +882,9 @@ void VBO_PrepareQueues(void)
 
 	vbo.items_queue[vbo.items_queue_count] = 0; // terminate run
 
-	// sort items so we can scan for longest runs
-	if (vbo.items_queue_count > 1)
-		timSort(vbo.items_queue, vbo.items_queue_count);
+	// Sort item ids so contiguous world-VBO ranges can be merged into
+	// long index runs. No heap allocation is performed in this hot path.
+	sort_item_queue(vbo.items_queue, vbo.items_queue_count);
 
 	vbo.soft_buffer_indexes = 0;
 	vbo.ibo_items_count = 0;
