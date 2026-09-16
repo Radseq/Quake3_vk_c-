@@ -101,4 +101,26 @@ Probability True	Should You Use UNLIKELY()?
 #define Q3VK_OPT09_VBO_INDIRECT_ALL_RUNS Q3VK_OPT09_VBO_INDIRECT
 #endif
 
+// OPT09D: avoid sorting the visible static-world item queue before building
+// contiguous IBO runs. Visibility is recorded into a generation-mark array as
+// items are queued; dense unique queues are then scanned in item-id order.
+// This preserves the exact ascending order produced by the old sort path.
+// Duplicate queues, tiny queues and very sparse queues fall back to the old
+// insertion/std::sort path for correctness and predictable cost.
+#ifndef Q3VK_OPT09_VBO_SORTLESS_RUNS
+#define Q3VK_OPT09_VBO_SORTLESS_RUNS 0
+#endif
+
+// Tiny queues are already cheap with insertion sort. Keep OPT09D focused on
+// queues where removing sort work can actually pay for the visibility scan.
+#ifndef Q3VK_OPT09_VBO_SORTLESS_MIN_ITEMS
+#define Q3VK_OPT09_VBO_SORTLESS_MIN_ITEMS 48
+#endif
+
+// Do not linearly scan a huge sparse item-id interval. Example: with ratio 4,
+// 100 queued items may scan at most 400 item ids; otherwise use the old sort.
+#ifndef Q3VK_OPT09_VBO_SORTLESS_MAX_SPAN_RATIO
+#define Q3VK_OPT09_VBO_SORTLESS_MAX_SPAN_RATIO 4
+#endif
+
 #endif // COMPILER_DEFINES_HPP

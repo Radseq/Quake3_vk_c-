@@ -70,6 +70,16 @@ typedef struct vbo_s
 	int *items_queue;
 	int items_queue_count;
 
+#if Q3VK_OPT09_VBO_SORTLESS_RUNS
+	// Generation marks let us recover the same ascending unique item order as
+	// sorting, without mutating/sorting the queue in the common dense case.
+	uint32_t *item_marks;
+	uint32_t item_mark_generation;
+	int item_mark_min;
+	int item_mark_max;
+	bool item_mark_duplicate;
+#endif
+
 } vbo_t;
 
 static vbo_t world_vbo;
@@ -585,6 +595,17 @@ void R_BuildWorldVBO(msurface_t *surfaces, const int surfCount)
 	vbo.items_queue = static_cast<int *>(ri.Hunk_Alloc((numStaticSurfaces + 1) * sizeof(int), h_low));
 	vbo.items_queue_count = 0;
 
+#if Q3VK_OPT09_VBO_SORTLESS_RUNS
+	vbo.item_marks = static_cast<uint32_t *>(
+		ri.Hunk_Alloc((numStaticSurfaces + 1) * sizeof(uint32_t), h_low));
+	Com_Memset(vbo.item_marks, 0,
+		(numStaticSurfaces + 1) * sizeof(uint32_t));
+	vbo.item_mark_generation = 1;
+	vbo.item_mark_min = numStaticSurfaces + 1;
+	vbo.item_mark_max = 0;
+	vbo.item_mark_duplicate = false;
+#endif
+
 	ri.Printf(PRINT_ALL, "...found %i VBO surfaces (%i vertexes, %i indexes)\n",
 			  numStaticSurfaces, numStaticVertexes, numStaticIndexes);
 
@@ -806,6 +827,27 @@ void VBO_QueueItem(const int itemIndex)
 	if (vbo.items_queue_count < vbo.items_count)
 	{
 		vbo.items_queue[vbo.items_queue_count++] = itemIndex;
+#if Q3VK_OPT09_VBO_SORTLESS_RUNS
+		if (UNLIKELY(itemIndex <= 0 || itemIndex > vbo.items_count))
+		{
+			ri.Error(ERR_DROP, "Invalid VBO item index %i (max %i)", itemIndex, vbo.items_count);
+		}
+
+		if (vbo.item_marks[itemIndex] == vbo.item_mark_generation)
+		{
+			// Sorting preserves duplicate draws; a presence map does not. Mark
+			// the queue so VBO_PrepareQueues() takes the exact legacy path.
+			vbo.item_mark_duplicate = true;
+		}
+		else
+		{
+			vbo.item_marks[itemIndex] = vbo.item_mark_generation;
+			if (itemIndex < vbo.item_mark_min)
+				vbo.item_mark_min = itemIndex;
+			if (itemIndex > vbo.item_mark_max)
+				vbo.item_mark_max = itemIndex;
+		}
+#endif
 	}
 	else
 	{
@@ -815,7 +857,23 @@ void VBO_QueueItem(const int itemIndex)
 
 void VBO_ClearQueue(void)
 {
-	world_vbo.items_queue_count = 0;
+	vbo_t &vbo = world_vbo;
+	vbo.items_queue_count = 0;
+#if Q3VK_OPT09_VBO_SORTLESS_RUNS
+	// Advance the generation instead of clearing the whole mark array every
+	// batch. A full clear happens only after uint32_t generation wraparound.
+	uint32_t generation = vbo.item_mark_generation + 1u;
+	if (UNLIKELY(generation == 0u))
+	{
+		Com_Memset(vbo.item_marks, 0,
+			(vbo.items_count + 1) * sizeof(uint32_t));
+		generation = 1u;
+	}
+	vbo.item_mark_generation = generation;
+	vbo.item_mark_min = vbo.items_count + 1;
+	vbo.item_mark_max = 0;
+	vbo.item_mark_duplicate = false;
+#endif
 }
 
 void VBO_Flush(void)
@@ -860,6 +918,55 @@ static void VBO_AddItemRangeToIBOBuffer(int offset, int length)
 	it->vertexOffset = 0;
 	it->firstInstance = 0;
 }
+
+#if Q3VK_OPT09_VBO_SORTLESS_RUNS
+static bool VBO_BuildStaticRunsFromMarks(vbo_t &vbo)
+{
+	const int count = vbo.items_queue_count;
+	if (count < Q3VK_OPT09_VBO_SORTLESS_MIN_ITEMS ||
+		vbo.item_mark_duplicate ||
+		vbo.item_mark_max < vbo.item_mark_min)
+	{
+		return false;
+	}
+
+	const int span = vbo.item_mark_max - vbo.item_mark_min + 1;
+	if (span > count * Q3VK_OPT09_VBO_SORTLESS_MAX_SPAN_RATIO)
+	{
+		return false;
+	}
+
+	const uint32_t generation = vbo.item_mark_generation;
+	int item = vbo.item_mark_min;
+	while (item <= vbo.item_mark_max)
+	{
+		while (item <= vbo.item_mark_max &&
+			vbo.item_marks[item] != generation)
+		{
+			++item;
+		}
+		if (item > vbo.item_mark_max)
+			break;
+
+		const int first = item;
+		do
+		{
+			++item;
+		}
+		while (item <= vbo.item_mark_max &&
+			vbo.item_marks[item] == generation);
+
+		const int last = item - 1;
+		const vbo_item_t *start = vbo.items + first;
+		const vbo_item_t *end = vbo.items + last;
+		const int indexCount =
+			(end->index_offset - start->index_offset) + end->num_indexes;
+		VBO_AddItemRangeToIBOBuffer(start->index_offset, indexCount);
+	}
+
+	return true;
+}
+#endif
 
 #if Q3VK_OPT09_VBO_INDIRECT_STATS
 namespace
@@ -1025,14 +1132,24 @@ void VBO_PrepareQueues(void)
 	constexpr bool keepAllRunsStatic = false;
 #endif
 
-	vbo.items_queue[vbo.items_queue_count] = 0; // terminate run
-
-	// Sort item ids so contiguous world-VBO ranges can be merged into
-	// long index runs. No heap allocation is performed in this hot path.
-	sort_item_queue(vbo.items_queue, vbo.items_queue_count);
-
 	vbo.soft_buffer_indexes = 0;
 	vbo.ibo_items_count = 0;
+
+#if Q3VK_OPT09_VBO_SORTLESS_RUNS
+	// ALL_RUNS means every contiguous visible run remains in the static IBO,
+	// so a dense generation-mark scan can directly produce exactly the same
+	// ascending runs that sort_item_queue()+run_length() would produce.
+	// Duplicate/tiny/sparse queues deliberately fall through to the old path.
+	if (keepAllRunsStatic && VBO_BuildStaticRunsFromMarks(vbo))
+	{
+		return;
+	}
+#endif
+
+	vbo.items_queue[vbo.items_queue_count] = 0; // terminate run
+
+	// Correctness fallback and the non-OPT09D path.
+	sort_item_queue(vbo.items_queue, vbo.items_queue_count);
 
 	a = vbo.items_queue;
 	i = 0;
