@@ -79,4 +79,26 @@ Probability True	Should You Use UNLIKELY()?
 #define Q3VK_OPT09_VBO_INDIRECT_DIAGNOSTICS 0
 #endif
 
+// OPT09B: detailed, compile-time-only VBO MDI statistics. Keep disabled for
+// performance runs: when 0, all instrumentation below compiles out.
+#ifndef Q3VK_OPT09_VBO_INDIRECT_STATS
+#define Q3VK_OPT09_VBO_INDIRECT_STATS 0
+#endif
+
+// Print one window every N backend frames while stats are enabled. 10000 is
+// long enough to avoid console spam at ~1000 fps, while still giving several
+// samples during a normal benchmark run.
+#ifndef Q3VK_OPT09_VBO_INDIRECT_STATS_FRAMES
+#define Q3VK_OPT09_VBO_INDIRECT_STATS_FRAMES 10000
+#endif
+
+// OPT09C: when MDI is available, keep every visible static-world contiguous
+// index run in the device-local IBO instead of copying short runs into the
+// host-visible tess index buffer. One run falls back to one direct static draw;
+// two or more runs are submitted by OPT09 MDI. Set to 0 for an exact A/B of
+// the legacy MIN_IBO_RUN soft-copy policy while keeping OPT09 itself enabled.
+#ifndef Q3VK_OPT09_VBO_INDIRECT_ALL_RUNS
+#define Q3VK_OPT09_VBO_INDIRECT_ALL_RUNS Q3VK_OPT09_VBO_INDIRECT
+#endif
+
 #endif // COMPILER_DEFINES_HPP

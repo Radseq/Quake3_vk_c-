@@ -62,6 +62,7 @@ typedef struct vbo_s
 
 	ibo_item_t *ibo_items;
 	int ibo_items_count;
+	int ibo_items_capacity;
 
 	vbo_item_t *items;
 	int items_count;
@@ -601,8 +602,16 @@ void R_BuildWorldVBO(msurface_t *surfaces, const int surfCount)
 	vbo.ibo_offset = 0;
 	vbo.ibo_size = ibo_size;
 
-	// ibo runs buffer
-	vbo.ibo_items = static_cast<ibo_item_t *>(ri.Hunk_Alloc(((numStaticIndexes / MIN_IBO_RUN) + 1) * sizeof(ibo_item_t), h_low));
+	// IBO runs buffer. The legacy path only needs enough entries for runs of at
+	// least MIN_IBO_RUN indexes. OPT09C may keep every contiguous visible run in
+	// the static IBO, whose worst case is one run per static surface.
+#if Q3VK_OPT09_VBO_INDIRECT_ALL_RUNS
+	vbo.ibo_items_capacity = numStaticSurfaces + 1;
+#else
+	vbo.ibo_items_capacity = (numStaticIndexes / MIN_IBO_RUN) + 1;
+#endif
+	vbo.ibo_items = static_cast<ibo_item_t *>(
+		ri.Hunk_Alloc(vbo.ibo_items_capacity * sizeof(ibo_item_t), h_low));
 	vbo.ibo_items_count = 0;
 
 	surfList = reinterpret_cast<msurface_t **>(ri.Hunk_AllocateTempMemory(numStaticSurfaces * sizeof(msurface_t *)));
@@ -838,6 +847,11 @@ static void VBO_AddItemDataToSoftBuffer(int itemIndex)
 static void VBO_AddItemRangeToIBOBuffer(int offset, int length)
 {
 	vbo_t &vbo = world_vbo;
+	if (UNLIKELY(vbo.ibo_items_count >= vbo.ibo_items_capacity))
+	{
+		ri.Error(ERR_DROP, "VBO IBO run buffer overflow (%i/%i)",
+			vbo.ibo_items_count, vbo.ibo_items_capacity);
+	}
 	ibo_item_t *it = vbo.ibo_items + vbo.ibo_items_count++;
 
 	it->indexCount = static_cast<uint32_t>(length);
@@ -846,6 +860,120 @@ static void VBO_AddItemRangeToIBOBuffer(int offset, int length)
 	it->vertexOffset = 0;
 	it->firstInstance = 0;
 }
+
+#if Q3VK_OPT09_VBO_INDIRECT_STATS
+namespace
+{
+struct opt09_vbo_stats_t
+{
+	int lastFrame = -1;
+	uint32_t frames = 0;
+	uint32_t batches = 0;
+	uint32_t logicalDraws = 0;
+	uint32_t indirectCalls = 0;
+	uint32_t directFallbackBatches = 0;
+	uint32_t directFallbackDraws = 0;
+	uint32_t softDraws = 0;
+	uint32_t maxDraws = 0;
+	uint32_t histogram[9]{};
+};
+
+static opt09_vbo_stats_t opt09_stats;
+
+static ID_INLINE uint32_t OPT09_HistogramBin(const uint32_t draws)
+{
+	if (draws <= 4)
+		return draws ? draws - 1 : 0;
+	if (draws <= 8)
+		return 4;
+	if (draws <= 16)
+		return 5;
+	if (draws <= 32)
+		return 6;
+	if (draws <= 64)
+		return 7;
+	return 8;
+}
+
+static void OPT09_ResetStatsWindow(const int frame)
+{
+	opt09_stats = {};
+	opt09_stats.lastFrame = frame;
+}
+
+static void OPT09_PrintStatsWindow(void)
+{
+	const float avgDrawsPerBatch = opt09_stats.batches
+		? static_cast<float>(opt09_stats.logicalDraws) / static_cast<float>(opt09_stats.batches)
+		: 0.0f;
+	const float batchesPerFrame = opt09_stats.frames
+		? static_cast<float>(opt09_stats.batches) / static_cast<float>(opt09_stats.frames)
+		: 0.0f;
+	const float logicalDrawsPerFrame = opt09_stats.frames
+		? static_cast<float>(opt09_stats.logicalDraws) / static_cast<float>(opt09_stats.frames)
+		: 0.0f;
+
+	ri.Printf(PRINT_ALL,
+		"OPT09 stats: frames=%u batches=%u logical=%u mdiCalls=%u "
+		"fallbackBatches=%u fallbackDraws=%u softDraws=%u "
+		"avgDraws/batch=%.2f batches/frame=%.2f logical/frame=%.2f max=%u\n",
+		opt09_stats.frames, opt09_stats.batches, opt09_stats.logicalDraws,
+		opt09_stats.indirectCalls, opt09_stats.directFallbackBatches,
+		opt09_stats.directFallbackDraws, opt09_stats.softDraws,
+		avgDrawsPerBatch, batchesPerFrame, logicalDrawsPerFrame, opt09_stats.maxDraws);
+
+	ri.Printf(PRINT_ALL,
+		"OPT09 hist: 1=%u 2=%u 3=%u 4=%u 5-8=%u 9-16=%u "
+		"17-32=%u 33-64=%u 65+=%u\n",
+		opt09_stats.histogram[0], opt09_stats.histogram[1],
+		opt09_stats.histogram[2], opt09_stats.histogram[3],
+		opt09_stats.histogram[4], opt09_stats.histogram[5],
+		opt09_stats.histogram[6], opt09_stats.histogram[7],
+		opt09_stats.histogram[8]);
+}
+
+static void OPT09_RecordBatch(const uint32_t drawCount, const bool indirect)
+{
+	const int frame = backEnd.frameCount;
+
+	if (opt09_stats.lastFrame < 0)
+	{
+		opt09_stats.lastFrame = frame;
+	}
+	else if (frame < opt09_stats.lastFrame)
+	{
+		// Renderer/map restart can reset the backend frame counter.
+		OPT09_ResetStatsWindow(frame);
+	}
+	else if (frame != opt09_stats.lastFrame)
+	{
+		++opt09_stats.frames;
+		opt09_stats.lastFrame = frame;
+		if (opt09_stats.frames >= Q3VK_OPT09_VBO_INDIRECT_STATS_FRAMES)
+		{
+			OPT09_PrintStatsWindow();
+			OPT09_ResetStatsWindow(frame);
+		}
+	}
+
+	++opt09_stats.batches;
+	opt09_stats.logicalDraws += drawCount;
+	if (drawCount > opt09_stats.maxDraws)
+		opt09_stats.maxDraws = drawCount;
+	++opt09_stats.histogram[OPT09_HistogramBin(drawCount)];
+
+	if (indirect)
+	{
+		++opt09_stats.indirectCalls;
+	}
+	else
+	{
+		++opt09_stats.directFallbackBatches;
+		opt09_stats.directFallbackDraws += drawCount;
+	}
+}
+} // namespace
+#endif
 
 void VBO_RenderIBOItems(void)
 {
@@ -860,8 +988,12 @@ void VBO_RenderIBOItems(void)
 		// All commands here already share the same shader/pipeline/descriptors
 		// and bound static index buffer. Collapse only the command submission;
 		// visibility/order decisions remain unchanged.
-		if (!vk_draw_indexed_indirect(vbo.ibo_items,
-			static_cast<uint32_t>(vbo.ibo_items_count)))
+		const uint32_t drawCount = static_cast<uint32_t>(vbo.ibo_items_count);
+		const bool usedIndirect = vk_draw_indexed_indirect(vbo.ibo_items, drawCount);
+#if Q3VK_OPT09_VBO_INDIRECT_STATS
+		OPT09_RecordBatch(drawCount, usedIndirect);
+#endif
+		if (!usedIndirect)
 		{
 			for (i = 0; i < vbo.ibo_items_count; i++)
 			{
@@ -873,6 +1005,9 @@ void VBO_RenderIBOItems(void)
 	// from host-visible memory
 	if (vbo.soft_buffer_indexes)
 	{
+#if Q3VK_OPT09_VBO_INDIRECT_STATS
+		++opt09_stats.softDraws;
+#endif
 		vk_bind_index_buffer(vk_inst.cmd->vertex_buffer, vbo.soft_buffer_offset);
 
 		vk_draw_indexed(vbo.soft_buffer_indexes, 0);
@@ -884,6 +1019,11 @@ void VBO_PrepareQueues(void)
 	vbo_t &vbo = world_vbo;
 	int i, item_run, index_run, n;
 	const int *a;
+#if Q3VK_OPT09_VBO_INDIRECT_ALL_RUNS
+	const bool keepAllRunsStatic = vk_inst.multiDrawIndirect;
+#else
+	constexpr bool keepAllRunsStatic = false;
+#endif
 
 	vbo.items_queue[vbo.items_queue_count] = 0; // terminate run
 
@@ -899,7 +1039,7 @@ void VBO_PrepareQueues(void)
 	while (i < vbo.items_queue_count)
 	{
 		item_run = run_length(a, i, vbo.items_queue_count, &index_run);
-		if (index_run < MIN_IBO_RUN)
+		if (!keepAllRunsStatic && index_run < MIN_IBO_RUN)
 		{
 			for (n = 0; n < item_run; n++)
 				VBO_AddItemDataToSoftBuffer(a[i + n]);
