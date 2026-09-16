@@ -6,6 +6,7 @@
 #include "math.hpp"
 #include "tr_local.hpp"
 #include "utils.hpp"
+#include "compiler_defines.hpp"
 
 #if defined(_DEBUG)
 #if defined(_WIN32)
@@ -1137,8 +1138,12 @@ static void vk_create_geometry_buffers(const vk::DeviceSize size)
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++)
 	{
 		desc.size = size;
-		desc.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eUniformBuffer;
-
+		desc.usage = vk::BufferUsageFlagBits::eVertexBuffer |
+			vk::BufferUsageFlagBits::eIndexBuffer |
+			vk::BufferUsageFlagBits::eUniformBuffer;
+#if Q3VK_OPT09_VBO_INDIRECT
+		desc.usage |= vk::BufferUsageFlagBits::eIndirectBuffer;
+#endif
 		VK_CHECK_ASSIGN(vk_inst.tess[i].vertex_buffer, vk_inst.device.createBuffer(desc));
 		vb_memory_requirements = vk_inst.device.getBufferMemoryRequirements(vk_inst.tess[i].vertex_buffer);
 	}
@@ -3637,6 +3642,59 @@ void vk_bind_index_buffer(const vk::Buffer& buffer, const uint32_t offset)
 void vk_draw_indexed(const uint32_t indexCount, const uint32_t firstIndex)
 {
 	vk_inst.cmd->command_buffer.drawIndexed(indexCount, 1, firstIndex, 0, 0);
+}
+
+bool vk_draw_indexed_indirect(
+	const VkDrawIndexedIndirectCommand *commands,
+	const uint32_t drawCount)
+{
+#if Q3VK_OPT09_VBO_INDIRECT
+	if (!commands ||
+		!vk_inst.multiDrawIndirect ||
+		drawCount < Q3VK_OPT09_VBO_INDIRECT_MIN_DRAWS)
+	{
+		return false;
+	}
+
+	// VkDrawIndexedIndirectCommand data only requires 4-byte alignment. The
+	// geometry buffer is per-command-buffer / per-frame and fence protected,
+	// so its lifetime already matches the recorded indirect command.
+	const vk::DeviceSize offset =
+		pad_up_ct<vk::DeviceSize, 4>(vk_inst.cmd->vertex_buffer_offset);
+	const vk::DeviceSize size =
+		static_cast<vk::DeviceSize>(drawCount) * sizeof(VkDrawIndexedIndirectCommand);
+
+	if (offset + size > vk_inst.geometry_buffer_size)
+	{
+		// Preserve the existing overflow policy: schedule a larger dynamic
+		// geometry buffer and let the caller use direct draws this frame.
+		vk_inst.geometry_buffer_size_new = log2pad_plus(offset + size, 1);
+		return false;
+	}
+
+	Com_Memcpy(vk_inst.cmd->vertex_buffer_ptr + offset, commands, size);
+	vk_inst.cmd->vertex_buffer_offset = offset + size;
+
+	vk_inst.cmd->command_buffer.drawIndexedIndirect(
+		vk_inst.cmd->vertex_buffer,
+		offset,
+		drawCount,
+		static_cast<uint32_t>(sizeof(VkDrawIndexedIndirectCommand)));
+
+#if Q3VK_OPT09_VBO_INDIRECT_DIAGNOSTICS
+	static bool reported = false;
+	if (!reported)
+	{
+		ri.Printf(PRINT_ALL, "OPT09: VBO multi-draw indirect active (%u draws in first batch)\n", drawCount);
+		reported = true;
+	}
+#endif
+	return true;
+#else
+	(void)commands;
+	(void)drawCount;
+	return false;
+#endif
 }
 #endif
 

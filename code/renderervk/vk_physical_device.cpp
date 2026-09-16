@@ -5,9 +5,9 @@
 #include <numeric>
 #include <array>
 #include <vector>
-
 #include "tr_local.hpp"     // Vk_Instance, glConfig, cvars, ri, etc.
 #include "vk_utils.hpp"     // find_memory_type, VK_CHECK_ASSIGN, etc.
+#include "compiler_defines.hpp"
 #include "string_operations.hpp"
 
 constexpr int defaultVulkanApiVersion = VK_API_VERSION_1_0;
@@ -370,6 +370,14 @@ static bool create_logical_device(
 		features.samplerAnisotropy = vk::True;
 		vk_inst.samplerAnisotropy = true;
 	}
+
+#if Q3VK_OPT09_VBO_INDIRECT
+	if (device_features.multiDrawIndirect)
+	{
+		features.multiDrawIndirect = vk::True;
+		vk_inst.multiDrawIndirect = true;
+	}
+#endif
 
 	vk::DeviceCreateInfo device_desc{
 		{},

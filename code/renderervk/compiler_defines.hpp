@@ -59,4 +59,24 @@ Probability True	Should You Use UNLIKELY()?
 #define Q3VK_OPT05_AVX2_TARGET
 #endif
 
+// OPT09: collapse multiple static-world VBO indexed draws that already share
+// pipeline/descriptor/index-buffer state into one vkCmdDrawIndexedIndirect.
+// This is deliberately CPU-generated MDI only: culling/order/batching semantics
+// stay exactly as in the existing VBO path.
+#ifndef Q3VK_OPT09_VBO_INDIRECT
+#define Q3VK_OPT09_VBO_INDIRECT 1
+#endif
+
+// One indirect command is not useful: keep the existing direct draw for tiny
+// batches. 2 is the conservative default and can be tuned by A/B testing.
+#ifndef Q3VK_OPT09_VBO_INDIRECT_MIN_DRAWS
+#define Q3VK_OPT09_VBO_INDIRECT_MIN_DRAWS 2
+#endif
+
+// Candidate-only diagnostics. Enable for one validation run if you want a
+// first-use console message; keep 0 for performance measurements.
+#ifndef Q3VK_OPT09_VBO_INDIRECT_DIAGNOSTICS
+#define Q3VK_OPT09_VBO_INDIRECT_DIAGNOSTICS 0
+#endif
+
 #endif // COMPILER_DEFINES_HPP

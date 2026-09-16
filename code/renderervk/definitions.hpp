@@ -607,6 +607,7 @@ struct Vk_Instance
     bool wideLines{};
     bool samplerAnisotropy{};
     bool fragmentStores{};
+    bool multiDrawIndirect{};
     bool dedicatedAllocation{};
     bool debugMarkers{};
 

@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "vk.hpp"
 #include "tr_shade.hpp"
 #include "tr_surface.hpp"
+#include "compiler_defines.hpp"
 #include <array>
 #include <algorithm>
 
@@ -44,11 +45,7 @@ typedef struct vbo_item_s
 	int num_vertexes;
 } vbo_item_t;
 
-typedef struct ibo_item_s
-{
-	int offset;
-	int length;
-} ibo_item_t;
+using ibo_item_t = VkDrawIndexedIndirectCommand;
 
 typedef struct vbo_s
 {
@@ -841,12 +838,13 @@ static void VBO_AddItemDataToSoftBuffer(int itemIndex)
 static void VBO_AddItemRangeToIBOBuffer(int offset, int length)
 {
 	vbo_t &vbo = world_vbo;
-	ibo_item_t *it;
+	ibo_item_t *it = vbo.ibo_items + vbo.ibo_items_count++;
 
-	it = vbo.ibo_items + vbo.ibo_items_count++;
-
-	it->offset = offset;
-	it->length = length;
+	it->indexCount = static_cast<uint32_t>(length);
+	it->instanceCount = 1;
+	it->firstIndex = static_cast<uint32_t>(offset);
+	it->vertexOffset = 0;
+	it->firstInstance = 0;
 }
 
 void VBO_RenderIBOItems(void)
@@ -859,9 +857,16 @@ void VBO_RenderIBOItems(void)
 	{
 		vk_bind_index_buffer(vk_inst.vbo.vertex_buffer, tess.shader->iboOffset);
 
-		for (i = 0; i < vbo.ibo_items_count; i++)
+		// All commands here already share the same shader/pipeline/descriptors
+		// and bound static index buffer. Collapse only the command submission;
+		// visibility/order decisions remain unchanged.
+		if (!vk_draw_indexed_indirect(vbo.ibo_items,
+			static_cast<uint32_t>(vbo.ibo_items_count)))
 		{
-			vk_draw_indexed(vbo.ibo_items[i].length, vbo.ibo_items[i].offset);
+			for (i = 0; i < vbo.ibo_items_count; i++)
+			{
+				vk_draw_indexed(vbo.ibo_items[i].indexCount, vbo.ibo_items[i].firstIndex);
+			}
 		}
 	}
 

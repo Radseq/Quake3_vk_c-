@@ -61,6 +61,9 @@ uint32_t vk_tess_index(const uint32_t numIndexes, const void *src);
 void vk_bind_index_buffer(const vk::Buffer &buffer, const uint32_t offset);
 #ifdef USE_VBO
 void vk_draw_indexed(const uint32_t indexCount, const uint32_t firstIndex);
+bool vk_draw_indexed_indirect(
+	const VkDrawIndexedIndirectCommand *commands,
+	const uint32_t drawCount);
 #endif
 
 void VBO_PrepareQueues(void);
