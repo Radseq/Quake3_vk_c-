@@ -31,6 +31,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "math.hpp"
 #include "utils.hpp"
 #include <cstdint>
+#include <vector>
+#include <atomic>
+#include <thread>
+#include <cstdio>
+#include <string>
+#include "tr_shader_file_parser.hpp"
 #include "vk_pipeline.hpp"
 
 #define generateHashValue Com_GenerateHashValue_cpp
@@ -4689,117 +4695,179 @@ void R_ShaderList_f(void)
 
 constexpr int MAX_SHADER_FILES = 16384;
 
-static int loadShaderBuffers(char** shaderFiles, const int numShaderFiles, char** buffers)
+struct ShaderFileDiagnostic
 {
+	printParm_t level;
+	std::string message;
+};
+
+struct ShaderFileJob
+{
+	const char* name;
 	std::array<char, MAX_QPATH + 8> filename;
-	std::array<char, MAX_QPATH> shaderName;
-	const char* p;
-	std::string_view token;
-	long summand, sum = 0;
-	int shaderLine;
-	int i;
-	const char* shaderStart;
-	bool denyErrors;
+	char* buffer;
+	int sourceLength;
+	int* compressedLength;
+	std::vector<ShaderFileDiagnostic> diagnostics;
+};
 
-	// load and parse shader files
-	for (i = 0; i < numShaderFiles; i++)
+// Workers own separate input buffers and parser state. No ri calls here:
+// diagnostics, filesystem operations and Hunk allocation/free stay on the caller.
+static void PrepareShaderFile(ShaderFileJob& job)
+{
+	auto diagnostic = [&job](printParm_t level, const char* format, auto... args)
 	{
-		Com_sprintf(filename.data(), sizeof(filename), "scripts/%s", shaderFiles[i]);
-		// ri.Printf( PRINT_DEVELOPER, "...loading '%s'\n", filename );
-		summand = ri.FS_ReadFile(filename.data(), (void**)&buffers[i]);
-
-		if (!buffers[i])
-			ri.Error(ERR_DROP, "Couldn't load %s", filename.data());
-
-		// comment some buggy shaders from pak0
-		if (summand == 35910 && strcmp(shaderFiles[i], "sky.shader") == 0)
+		char message[1024];
+		std::snprintf(message, sizeof(message), format, args...);
+		job.diagnostics.push_back({ level, message });
+	};
+	// comment some buggy shaders from pak0
+	if (job.sourceLength == 35910 && strcmp(job.name, "sky.shader") == 0)
+	{
+		if (memcmp(job.buffer + 0x3D3E, "\tcloudparms ", 12) == 0)
 		{
-			if (memcmp(buffers[i] + 0x3D3E, "\tcloudparms ", 12) == 0)
-			{
-				memcpy(buffers[i] + 0x27D7, "/*", 2);
-				memcpy(buffers[i] + 0x2A93, "*/", 2);
+			memcpy(job.buffer + 0x27D7, "/*", 2);
+			memcpy(job.buffer + 0x2A93, "*/", 2);
 
-				memcpy(buffers[i] + 0x3CA9, "/*", 2);
-				memcpy(buffers[i] + 0x3FC2, "*/", 2);
-			}
+			memcpy(job.buffer + 0x3CA9, "/*", 2);
+			memcpy(job.buffer + 0x3FC2, "*/", 2);
 		}
-		else if (summand == 116073 && strcmp(shaderFiles[i], "sfx.shader") == 0)
+	}
+	else if (job.sourceLength == 116073 && strcmp(job.name, "sfx.shader") == 0)
+	{
+		if (memcmp(job.buffer + 93457, "textures/sfx/xfinalfog\r\n", 24) == 0)
 		{
-			if (memcmp(buffers[i] + 93457, "textures/sfx/xfinalfog\r\n", 24) == 0)
-			{
-				memcpy(buffers[i] + 93457, "/*", 2);
-				memcpy(buffers[i] + 93663, "*/", 2);
-			}
-		}
-
-		p = buffers[i];
-		COM_BeginParseSession_cpp(filename.data());
-
-		shaderStart = NULL;
-		denyErrors = false;
-
-		while (1)
-		{
-			token = COM_ParseExt_cpp(&p, true);
-
-			if (token.empty())
-				break;
-
-			Q_strncpyz_cpp(shaderName, token, sizeof(shaderName));
-			shaderLine = COM_GetCurrentParseLine_cpp();
-
-			token = COM_ParseExt_cpp(&p, true);
-			if (token[0] != '{' || (token.size() > 1 && token[1] != '\0'))
-			{
-				ri.Printf(PRINT_DEVELOPER, "File %s: shader \"%s\" "
-					"on line %d missing opening brace",
-					filename.data(), shaderName.data(), shaderLine);
-				if (token.empty())
-					ri.Printf(PRINT_DEVELOPER, " (found \"%s\" on line %d)\n", token.data(), COM_GetCurrentParseLine_cpp());
-				else
-					ri.Printf(PRINT_DEVELOPER, "\n");
-
-				if (denyErrors || !p)
-				{
-					ri.Printf(PRINT_WARNING, "Ignoring entire file '%s' due to error.\n", filename.data());
-					ri.FS_FreeFile(buffers[i]);
-					buffers[i] = NULL;
-					break;
-				}
-
-				SkipRestOfLine_cpp(&p);
-				shaderStart = p;
-				continue;
-			}
-
-			if (!SkipBracedSection_cpp(&p, 1))
-			{
-				ri.Printf(PRINT_WARNING, "WARNING: Ignoring shader file %s. Shader \"%s\" "
-					"on line %d missing closing brace.\n",
-					filename.data(), shaderName.data(), shaderLine);
-				ri.FS_FreeFile(buffers[i]);
-				buffers[i] = NULL;
-				break;
-			}
-
-			denyErrors = true;
-		}
-
-		if (buffers[i])
-		{
-			if (shaderStart)
-			{
-				summand -= (shaderStart - buffers[i]);
-				if (summand >= 0)
-				{
-					memmove(buffers[i], shaderStart, summand + 1);
-				}
-			}
-			// sum += summand;
-			sum += COM_Compress(buffers[i]);
+			memcpy(job.buffer + 93457, "/*", 2);
+			memcpy(job.buffer + 93663, "*/", 2);
 		}
 	}
 
+	const char* p = job.buffer;
+	ShaderFileParser parser;
+	std::array<char, MAX_QPATH> shaderName;
+	std::string_view token;
+	int shaderLine;
+
+	const char* shaderStart = nullptr;
+	bool denyErrors = false;
+
+	while (1)
+	{
+		token = parser.Next(&p);
+
+		if (token.empty())
+			break;
+
+		Q_strncpyz_cpp(shaderName, token, sizeof(shaderName));
+		shaderLine = parser.Line();
+
+		token = parser.Next(&p);
+		if (token != "{")
+		{
+			diagnostic(PRINT_DEVELOPER, "File %s: shader \"%s\" "
+				"on line %d missing opening brace",
+				job.filename.data(), shaderName.data(), shaderLine);
+			if (token.empty())
+				diagnostic(PRINT_DEVELOPER, " (found \"%s\" on line %d)\n", token.data(), parser.Line());
+			else
+				diagnostic(PRINT_DEVELOPER, "%s", "\n");
+
+			if (denyErrors || !p)
+			{
+				diagnostic(PRINT_WARNING, "Ignoring entire file '%s' due to error.\n", job.filename.data());
+				return;
+			}
+
+			parser.SkipLine(&p);
+			shaderStart = p;
+			continue;
+		}
+
+		if (!parser.SkipBlock(&p, 1))
+		{
+			diagnostic(PRINT_WARNING, "WARNING: Ignoring shader file %s. Shader \"%s\" "
+				"on line %d missing closing brace.\n",
+				job.filename.data(), shaderName.data(), shaderLine);
+			return;
+		}
+
+		denyErrors = true;
+	}
+
+	if (shaderStart)
+	{
+		const auto remaining = job.sourceLength - (shaderStart - job.buffer);
+		if (remaining >= 0)
+			memmove(job.buffer, shaderStart, remaining + 1);
+	}
+	*job.compressedLength = COM_Compress(job.buffer);
+}
+
+static void ReadShaderBuffers(char** shaderFiles, int count, char** buffers,
+	int* lengths, std::vector<ShaderFileJob>& jobs)
+{
+	for (int i = 0; i < count; ++i)
+	{
+		ShaderFileJob job{};
+		job.name = shaderFiles[i];
+		Com_sprintf(job.filename.data(), job.filename.size(), "scripts/%s", job.name);
+		job.sourceLength = ri.FS_ReadFile(job.filename.data(), (void**)&buffers[i]);
+		if (!buffers[i])
+			ri.Error(ERR_DROP, "Couldn't load %s", job.filename.data());
+		job.buffer = buffers[i];
+		lengths[i] = -1; // Rejected files stay allocated until reverse-order cleanup.
+		job.compressedLength = &lengths[i];
+		jobs.push_back(std::move(job));
+	}
+}
+
+static long PrepareShaderFiles(std::vector<ShaderFileJob>& jobs)
+{
+	// 0 = automatic, 1 = serial, 2..32 = requested total processing threads.
+	const int requested = ri.Cvar_Get("r_shaderLoadThreads", "0", CVAR_ARCHIVE)->integer;
+	size_t sourceBytes = 0;
+	for (const auto& job : jobs)
+		sourceBytes += static_cast<size_t>(job.sourceLength);
+
+	unsigned threadCount = 1;
+	if (requested >= 2)
+		threadCount = static_cast<unsigned>(std::min(requested, 32));
+	else if (requested == 0 && sourceBytes >= 256 * 1024)
+		threadCount = std::min(8u, std::max(1u, std::thread::hardware_concurrency()));
+	threadCount = std::min(threadCount, static_cast<unsigned>(jobs.size()));
+
+	if (threadCount <= 1)
+	{
+		for (auto& job : jobs) PrepareShaderFile(job);
+	}
+	else
+	{
+		std::atomic<size_t> next{0};
+		auto work = [&]
+		{
+			for (;;)
+			{
+				const size_t i = next.fetch_add(1, std::memory_order_relaxed);
+				if (i >= jobs.size()) return;
+				PrepareShaderFile(jobs[i]);
+			}
+		};
+		std::vector<std::jthread> workers;
+		workers.reserve(threadCount - 1);
+		for (unsigned i = 1; i < threadCount; ++i) workers.emplace_back(work);
+		work(); // The caller processes files as well.
+		for (auto& worker : workers) worker.join();
+	}
+
+	long sum = 0;
+	for (const auto& job : jobs)
+	{
+		for (const auto& diagnostic : job.diagnostics)
+			ri.Printf(diagnostic.level, "%s", diagnostic.message.c_str());
+		if (*job.compressedLength >= 0) sum += *job.compressedLength;
+	}
+	ri.Printf(PRINT_DEVELOPER, "Shader file preparation: %u thread(s), %zu file(s).\n",
+		std::max(1u, threadCount), jobs.size());
 	return sum;
 }
 
@@ -4856,9 +4924,13 @@ static void ScanAndLoadShaderFiles(void)
 		numShaderxFiles = MAX_SHADER_FILES;
 	}
 
-	sum = 0;
-	sum += loadShaderBuffers(shaderxFiles, numShaderxFiles, xbuffers);
-	sum += loadShaderBuffers(shaderFiles, numShaderFiles, buffers);
+	std::vector<int> bufferLengths(numShaderFiles);
+	std::vector<int> xbufferLengths(numShaderxFiles);
+	std::vector<ShaderFileJob> jobs;
+	jobs.reserve(numShaderxFiles + numShaderFiles);
+	ReadShaderBuffers(shaderxFiles, numShaderxFiles, xbuffers, xbufferLengths.data(), jobs);
+	ReadShaderBuffers(shaderFiles, numShaderFiles, buffers, bufferLengths.data(), jobs);
+	sum = PrepareShaderFiles(jobs);
 
 	// build single large buffer
 	s_shaderText = reinterpret_cast<char*>(ri.Hunk_Alloc(sum + numShaderxFiles * 2 + numShaderFiles * 2 + 1, h_low));
@@ -4872,8 +4944,12 @@ static void ScanAndLoadShaderFiles(void)
 	{
 		if (buffers[i])
 		{
-			textEnd = Q_stradd_large_cpp(textEnd, buffers[i]);
-			textEnd = Q_stradd_small(textEnd, "\n");
+			if (bufferLengths[i] >= 0)
+			{
+				memcpy(textEnd, buffers[i], bufferLengths[i]);
+				textEnd += bufferLengths[i];
+				textEnd = Q_stradd_small(textEnd, "\n");
+			}
 			ri.FS_FreeFile(buffers[i]);
 		}
 	}
@@ -4887,8 +4963,12 @@ static void ScanAndLoadShaderFiles(void)
 	{
 		if (xbuffers[i])
 		{
-			textEnd = Q_stradd_large_cpp(textEnd, xbuffers[i]);
-			textEnd = Q_stradd_small(textEnd, "\n");
+			if (xbufferLengths[i] >= 0)
+			{
+				memcpy(textEnd, xbuffers[i], xbufferLengths[i]);
+				textEnd += xbufferLengths[i];
+				textEnd = Q_stradd_small(textEnd, "\n");
+			}
 			ri.FS_FreeFile(xbuffers[i]);
 		}
 	}
@@ -4899,7 +4979,14 @@ static void ScanAndLoadShaderFiles(void)
 	if (shaderFiles)
 		ri.FS_FreeFileList(shaderFiles);
 
-	// COM_Compress( s_shaderText );
+	// Remember each definition during the counting pass so bucket population
+	// does not need to tokenize the complete shader text a second time.
+	struct ShaderTextEntry
+	{
+		const char* text;
+		int hash;
+	};
+	std::vector<ShaderTextEntry> shaderTextEntries;
 	shaderTextHashTableSizes.fill(0);
 	size = 0;
 
@@ -4907,12 +4994,14 @@ static void ScanAndLoadShaderFiles(void)
 	// look for shader names
 	while (1)
 	{
+		oldp = p;
 		token = COM_ParseExt_cpp(&p, true);
 		if (token.empty())
 		{
 			break;
 		}
 		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
+		shaderTextEntries.push_back({ oldp, hash });
 		shaderTextHashTableSizes[hash]++;
 		size++;
 		SkipBracedSection_cpp(&p, 0);
@@ -4928,21 +5017,11 @@ static void ScanAndLoadShaderFiles(void)
 		hashMem = ((char*)hashMem) + ((shaderTextHashTableSizes[i] + 1) * sizeof(char*));
 	}
 
-	p = s_shaderText;
-	// look for shader names
-	while (1)
+	// Keep the original reverse insertion order: the last definition in the
+	// combined text wins, including extended shaders overriding legacy ones.
+	for (const auto& entry : shaderTextEntries)
 	{
-		oldp = p;
-		token = COM_ParseExt_cpp(&p, true);
-		if (token.empty())
-		{
-			break;
-		}
-
-		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
-		shaderTextHashTable[hash][--shaderTextHashTableSizes[hash]] = (char*)oldp;
-
-		SkipBracedSection_cpp(&p, 0);
+		shaderTextHashTable[entry.hash][--shaderTextHashTableSizes[entry.hash]] = entry.text;
 	}
 }
 
