@@ -83,53 +83,8 @@ int BoxOnPlaneSide_cpp(const vec3_t& emins, const vec3_t& emaxs, cplane_s& p)
 	return sides;
 }
 
-using mat3_t = std::array<std::array<float, 3>, 3>;
-
-// Helper function to create a rotation matrix around an arbitrary axis
-static mat3_t CreateRotationMatrix(const vec3_t& axis, float angle) {
-	//const float rad = angle * (std::numbers::pi / 180.0f);
-	const float rad = DEG_TO_RAD_LUT[angle];
-	const float c = std::cos(rad);
-	const float s = std::sin(rad);
-	const float t = 1.0f - c;
-
-	const float x = axis[0];
-	const float y = axis[1];
-	const float z = axis[2];
-
-	return { {
-		{t * x * x + c,      t * x * y - s * z,  t * x * z + s * y},
-		{t * x * y + s * z,  t * y * y + c,      t * y * z - s * x},
-		{t * x * z - s * y,  t * y * z + s * x,  t * z * z + c}
-	} };
-}
-
-static void Normalize(vec3_t& v) {
-	const float length = std::sqrt(DotProduct(v, v));
-	if (length > 0.0f) {
-		v[0] /= length;
-		v[1] /= length;
-		v[2] /= length;
-	}
-}
-
-static void MatrixMultiply(const mat3_t m, const vec3_t v, vec3_t& result) {
-	result[0] = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
-	result[1] = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
-	result[2] = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
-}
-
 void RotatePointAroundVector_cpp(vec3_t& dst, const vec3_t& dir, const vec3_t& point, float degrees) {
 	RotatePointAroundVector(dst, dir, point, degrees);
-	//// Normalize the direction vector
-	//vec3_t axis{ dir[0], dir[1], dir[2] };
-	//Normalize(axis);
-
-	//// Create the rotation matrix
-	//const mat3_t rot = CreateRotationMatrix(axis, degrees);
-
-	//// Apply the rotation to the point
-	//MatrixMultiply(rot, point, dst);
 }
 
 /*

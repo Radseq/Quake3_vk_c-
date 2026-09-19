@@ -1487,9 +1487,9 @@ void R_Init(void)
 	ri.Printf(PRINT_ALL, "----- R_Init -----\n");
 
 	// clear all our internal state
-	Com_Memset(&tr, 0, sizeof(tr));
+	tr = {};
 	Com_Memset(&backEnd, 0, sizeof(backEnd));
-	Com_Memset(&tess, 0, sizeof(tess));
+	tess = {};
 	Com_Memset(&glState, 0, sizeof(glState));
 
 	if (sizeof(glconfig_t) != 11324)

@@ -397,7 +397,7 @@ R_SubdividePatchToGrid
 srfGridMesh_t* R_SubdividePatchToGrid(int width, int height,
 	std::span<const drawVert_t> points)
 {
-	int i, j, k, l;
+	int i, j, l;
 	drawVert_t prev{};
 	drawVert_t next{};
 	drawVert_t mid{};

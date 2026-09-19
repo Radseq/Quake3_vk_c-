@@ -3756,7 +3756,7 @@ static ID_INLINE bool VK_GpuMd3SecondaryBundleCanUseGpuTexCoords(
 	const int bundleIndex,
 	const textureBundle_t& bundle) noexcept
 {
-	if (bundleIndex <= 0 || bundleIndex >= stage.numTexBundles)
+	if (bundleIndex <= 0 || bundleIndex >= static_cast<int>(stage.numTexBundles))
 		return false;
 
 	if (!bundle.image[0] || bundle.gpuTcGenHandledInShader)
@@ -3820,7 +3820,7 @@ static ID_INLINE bool VK_GpuMd3CurrentSecondaryTexCoordsHandledInShader(const in
 	if (!stage)
 		return false;
 
-	if (bundleIndex <= 0 || bundleIndex >= stage->numTexBundles)
+	if (bundleIndex <= 0 || bundleIndex >= static_cast<int>(stage->numTexBundles))
 		return false;
 
 	return VK_GpuMd3SecondaryBundleCanUseGpuTexCoords(*stage, bundleIndex, stage->bundle[bundleIndex]);
@@ -3920,7 +3920,7 @@ void vk_bind_geometry(const uint32_t flags)
 		{
 			ri.Printf(PRINT_WARNING,
 				"GPU_MD3 WARN: invalid gpuMd3 state, shader='%s', flags=0x%08x layout=%d surface=%p\n",
-				tess.shader && tess.shader->name ? tess.shader->name : "<null>",
+				tess.shader ? tess.shader->name : "<null>",
 				static_cast<unsigned int>(flags),
 				static_cast<int>(tess.gpuMd3Layout),
 				static_cast<const void*>(tess.gpuMd3Surface));

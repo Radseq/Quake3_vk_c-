@@ -3986,7 +3986,7 @@ static shader_t* FinishShader(void)
 			int envBundle = -1;
 			bool multipleEnvBundles = false;
 
-			for (n = 0; n < static_cast<int>(pStage.numTexBundles); ++n)
+			for (n = 0; n < pStage.numTexBundles; ++n)
 			{
 				const textureBundle_t& bundle = pStage.bundle[n];
 

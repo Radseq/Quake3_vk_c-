@@ -519,13 +519,20 @@ static void GetCullModeByFaceCulling(const Vk_Pipeline_Def& def, vk::CullModeFla
 	}
 }
 
-static vk::VertexInputBindingDescription bindingsCpp[8];
-static vk::VertexInputAttributeDescription attribsCpp[8];
+static constexpr uint32_t maxVertexInputs = 10;
+static vk::VertexInputBindingDescription bindingsCpp[maxVertexInputs];
+static vk::VertexInputAttributeDescription attribsCpp[maxVertexInputs];
 static uint32_t num_binds;
 static uint32_t num_attrs;
 
 static void push_bind(const uint32_t binding, const uint32_t stride)
 {
+	if (num_binds >= maxVertexInputs)
+	{
+		ri.Error(ERR_DROP, "%s: too many vertex bindings", __func__);
+		return;
+	}
+
 	bindingsCpp[num_binds].binding = binding;
 	bindingsCpp[num_binds].stride = stride;
 	bindingsCpp[num_binds].inputRate = vk::VertexInputRate::eVertex;
@@ -534,6 +541,12 @@ static void push_bind(const uint32_t binding, const uint32_t stride)
 
 static void push_attr(const uint32_t location, const uint32_t binding, const vk::Format format)
 {
+	if (num_attrs >= maxVertexInputs)
+	{
+		ri.Error(ERR_DROP, "%s: too many vertex attributes", __func__);
+		return;
+	}
+
 	attribsCpp[num_attrs].location = location;
 	attribsCpp[num_attrs].binding = binding;
 	attribsCpp[num_attrs].format = format;
@@ -2142,17 +2155,6 @@ static constexpr bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_
 	default:
 		return false;
 	}
-}
-
-static void vk_push_md3_lerp(const float backlerp)
-{
-	alignas(16) float md3Anim[4] = { 1.0f - backlerp, backlerp, tr.identityLight, 0.0f };
-	vk_inst.cmd->command_buffer.pushConstants(
-		vk_inst.pipeline_layout,
-		vk::ShaderStageFlagBits::eVertex,
-		64,
-		sizeof(md3Anim),
-		md3Anim);
 }
 
 void vk_bind_pipeline(const uint32_t pipeline)

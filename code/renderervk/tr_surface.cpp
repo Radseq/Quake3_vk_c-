@@ -933,16 +933,6 @@ static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t & model, const m
 	return nullptr;
 }
 
-static bool RB_StrStartsWithNoCase(const char* s, const char* prefix) noexcept
-{
-	if (!s || !prefix)
-		return false;
-
-	const std::size_t prefixLen = std::strlen(prefix);
-	return Q_stricmpn(s, prefix, static_cast<int>(prefixLen)) == 0;
-}
-
-
 static bool RB_CanUseGpuMd3GenericSingleTexture(
 	const shader_t & shader,
 	const shaderStage_t & stage,
@@ -975,11 +965,6 @@ static bool RB_IsTrueEnvTcGen(const textureBundle_t & bundle) noexcept
 {
 	return bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED ||
 		bundle.tcGen == texCoordGen_t::TCGEN_ENVIRONMENT_MAPPED_FP;
-}
-
-static bool RB_IsPlainModelTcGen(const textureBundle_t & bundle) noexcept
-{
-	return bundle.tcGen == texCoordGen_t::TCGEN_TEXTURE;
 }
 
 static bool RB_IsGpuMd3AffineTcGen(const textureBundle_t & bundle) noexcept
@@ -1045,7 +1030,7 @@ static bool RB_CanUseGpuMd3SecondaryBundle(
 	const int bundleIndex,
 	const textureBundle_t& bundle) noexcept
 {
-	if (bundleIndex <= 0 || bundleIndex >= stage.numTexBundles)
+	if (bundleIndex <= 0 || bundleIndex >= static_cast<int>(stage.numTexBundles))
 		return false;
 
 	if (!bundle.image[0] || bundle.gpuTcGenHandledInShader)

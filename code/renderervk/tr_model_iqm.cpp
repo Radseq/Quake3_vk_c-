@@ -2012,7 +2012,8 @@ bool R_LoadIQM(model_t &mod, void *buffer, const int filesize, std::string_view 
 	if (header->num_meshes > 0)
 	{
 		auto* gpuSurfaces = static_cast<iqmGpuSurface_t*>(ri.Hunk_Alloc(sizeof(iqmGpuSurface_t) * header->num_meshes, h_low));
-		Com_Memset(gpuSurfaces, 0, sizeof(iqmGpuSurface_t) * header->num_meshes);
+		for (uint32_t mesh = 0; mesh < header->num_meshes; ++mesh)
+			gpuSurfaces[mesh] = {};
 
 		for (i = 0; i < header->num_meshes; ++i)
 		{

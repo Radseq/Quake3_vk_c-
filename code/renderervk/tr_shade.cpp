@@ -355,32 +355,6 @@ static ID_INLINE bool GpuTcComposeAffineMod(gpuTcAffine_t& dst, const texModInfo
 	}
 }
 
-static bool R_CanGpuMd3UsePureAffineTexMods(const textureBundle_t& bundle) noexcept
-{
-	for (int i = 0; i < bundle.numTexMods; ++i)
-	{
-		switch (bundle.texMods[i].type)
-		{
-		case texMod_t::TMOD_NONE:
-		case texMod_t::TMOD_SCROLL:
-		case texMod_t::TMOD_SCALE:
-		case texMod_t::TMOD_OFFSET:
-		case texMod_t::TMOD_SCALE_OFFSET:
-		case texMod_t::TMOD_OFFSET_SCALE:
-		case texMod_t::TMOD_TRANSFORM:
-		case texMod_t::TMOD_ROTATE:
-		case texMod_t::TMOD_ENTITY_TRANSLATE:
-		case texMod_t::TMOD_STRETCH:
-			break;
-
-		case texMod_t::TMOD_TURBULENT:
-		default:
-			return false;
-		}
-	}
-	return true;
-}
-
 bool R_CanGpuMd3UseAffineTexMods(const textureBundle_t& bundle) noexcept
 {
 	const bool isBaseAffineTcGen =
@@ -755,7 +729,7 @@ static bool R_GpuMd3SecondaryTexCoordsHandledInShader(
 	const int bundleIndex,
 	const textureBundle_t& bundle) noexcept
 {
-	if (bundleIndex <= 0 || bundleIndex >= stage.numTexBundles)
+	if (bundleIndex <= 0 || bundleIndex >= static_cast<int>(stage.numTexBundles))
 		return false;
 
 	if (!bundle.image[0] || bundle.gpuTcGenHandledInShader)
@@ -807,7 +781,7 @@ static bool R_GpuMd3TexCoordsHandledInShader(const shaderStage_t& stage, const i
 		}
 	}
 
-	if (bundleIndex <= 0 || bundleIndex >= stage.numTexBundles)
+	if (bundleIndex <= 0 || bundleIndex >= static_cast<int>(stage.numTexBundles))
 		return false;
 
 	return R_GpuMd3SecondaryTexCoordsHandledInShader(stage, bundleIndex, bundle);
@@ -1394,7 +1368,7 @@ static void VK_SetGpuMd3EnvParams(vkUniform_t& uniform, const shaderStage_t& sta
 	}
 
 	int envBundleIndex = static_cast<int>(stage.gpuEnvBundleIndex);
-	if (envBundleIndex < 0 || envBundleIndex >= stage.numTexBundles)
+	if (envBundleIndex < 0 || envBundleIndex >= static_cast<int>(stage.numTexBundles))
 	{
 		if ((stage.tessFlags & TESS_ENV) == 0)
 		{
@@ -1714,7 +1688,7 @@ bool R_GpuMd3SecondaryColorHandledInShader(const shaderStage_t& stage, int bundl
 	if (!tess.gpuMd3Active)
 		return false;
 
-	if (bundleIndex <= 0 || bundleIndex >= stage.numTexBundles)
+	if (bundleIndex <= 0 || bundleIndex >= static_cast<int>(stage.numTexBundles))
 		return false;
 
 	const gpuMd3Layout_t stageLayout = VK_GpuMd3LayoutForStage(stage);

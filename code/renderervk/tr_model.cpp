@@ -112,7 +112,7 @@ static bool R_CreateMD3GpuSurface(md3GpuSurface_t& out, const md3Surface_t& surf
 	const md3Triangle_t* tri =
 		reinterpret_cast<const md3Triangle_t*>((const byte*)&surf + surf.ofsTriangles);
 
-	for (uint32_t i = 0; i < surf.numTriangles; ++i)
+	for (int32_t i = 0; i < surf.numTriangles; ++i)
 	{
 		indices[i * 3 + 0] = tri[i].indexes[0];
 		indices[i * 3 + 1] = tri[i].indexes[1];
@@ -766,7 +766,8 @@ static bool R_LoadMD3(model_t& mod, const int lod, void* buffer, const std::size
 		gpuLod.numSurfaces = hdr->numSurfaces;
 		gpuLod.surfaces = reinterpret_cast<md3GpuSurface_t*>(
 			ri.Hunk_Alloc(sizeof(md3GpuSurface_t) * gpuLod.numSurfaces, h_low));
-		Com_Memset(gpuLod.surfaces, 0, sizeof(md3GpuSurface_t) * gpuLod.numSurfaces);
+		for (int s = 0; s < gpuLod.numSurfaces; ++s)
+			gpuLod.surfaces[s] = {};
 		gpuLod.surfaceMapSize = R_GetMD3GpuSurfaceMapSize(gpuLod.numSurfaces);
 		gpuLod.surfaceMap = reinterpret_cast<md3GpuSurfaceMapEntry_t*>(
 			ri.Hunk_Alloc(sizeof(md3GpuSurfaceMapEntry_t) * gpuLod.surfaceMapSize, h_low));
