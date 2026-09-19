@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "../qcommon/q_shared.h"
 #include "../renderercommon/tr_public.h"
+#include "../renderercommon/tr_image_loaders.h"
 
 typedef struct
 {
@@ -70,7 +71,7 @@ void R_LoadBMP( const char *name, byte **pic, int *width, int *height )
 	//
 	// load the file
 	//
-	length = ri.FS_ReadFile( ( char * ) name, &buffer.v);
+	length = R_ImageLoaderReadFile( ( char * ) name, &buffer.v);
 	if (!buffer.b || length < 0) {
 		return;
 	}
@@ -179,7 +180,7 @@ void R_LoadBMP( const char *name, byte **pic, int *width, int *height )
 	if ( height )
 		*height = rows;
 
-	bmpRGBA = ri.Malloc( numPixels * 4 );
+	bmpRGBA = R_ImageLoaderMalloc( numPixels * 4 );
 	*pic = bmpRGBA;
 
 
@@ -234,6 +235,6 @@ void R_LoadBMP( const char *name, byte **pic, int *width, int *height )
 		}
 	}
 
-	ri.FS_FreeFile( buffer.v );
+	R_ImageLoaderFreeFile( buffer.v );
 
 }

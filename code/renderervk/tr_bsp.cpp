@@ -2549,6 +2549,7 @@ void RE_LoadWorldMap(const char *name)
 	}
 
 	tr.mapLoading = true;
+	R_BeginParallelImageLoads();
 
 	// clear tr.world so if the level fails to load, the next
 	// try will not look at the partially loaded version
@@ -2607,6 +2608,7 @@ void RE_LoadWorldMap(const char *name)
 	R_BuildWorldVBO(s_worldData.surfaces, s_worldData.numsurfaces);
 #endif
 
+	R_FinishParallelImageLoads();
 	tr.mapLoading = false;
 
 	s_worldData.dataSize = (byte *)ri.Hunk_Alloc(0, h_low) - startMarker;

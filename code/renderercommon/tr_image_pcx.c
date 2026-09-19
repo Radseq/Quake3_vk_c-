@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "../qcommon/q_shared.h"
 #include "../renderercommon/tr_public.h"
+#include "../renderercommon/tr_image_loaders.h"
 
 /*
 ========================================================================
@@ -75,15 +76,15 @@ void R_LoadPCX ( const char *filename, byte **pic, int *width, int *height)
 	//
 	// load the file
 	//
-	len = ri.FS_ReadFile( ( char * ) filename, &raw.v);
+	len = R_ImageLoaderReadFile( ( char * ) filename, &raw.v);
 	if (!raw.b || len < 0) {
 		return;
 	}
 
 	if((unsigned)len < sizeof(pcx_t))
 	{
-		ri.Printf (PRINT_ALL, "PCX truncated: %s\n", filename);
-		ri.FS_FreeFile (raw.v);
+		R_ImageLoaderPrint (PRINT_ALL, "PCX truncated: %s\n", filename);
+		R_ImageLoaderFreeFile (raw.v);
 		return;
 	}
 
@@ -105,11 +106,11 @@ void R_LoadPCX ( const char *filename, byte **pic, int *width, int *height)
 		|| w >= 1024
 		|| h >= 1024)
 	{
-		ri.Printf (PRINT_ALL, "Bad or unsupported pcx file %s (%dx%d@%d)\n", filename, w, h, pcx->bits_per_pixel);
+		R_ImageLoaderPrint (PRINT_ALL, "Bad or unsupported pcx file %s (%dx%d@%d)\n", filename, w, h, pcx->bits_per_pixel);
 		return;
 	}
 
-	pix = pic8 = ri.Malloc ( size );
+	pix = pic8 = R_ImageLoaderMalloc ( size );
 
 	raw.b = pcx->data;
 	// FIXME: should use bytes_per_line but original q3 didn't do that either
@@ -138,22 +139,22 @@ void R_LoadPCX ( const char *filename, byte **pic, int *width, int *height)
 
 	if(pix < pic8+size)
 	{
-		ri.Printf (PRINT_ALL, "PCX file truncated: %s\n", filename);
-		ri.FS_FreeFile (pcx);
-		ri.Free (pic8);
+		R_ImageLoaderPrint (PRINT_ALL, "PCX file truncated: %s\n", filename);
+		R_ImageLoaderFreeFile (pcx);
+		R_ImageLoaderFree (pic8);
 	}
 
 	if (raw.b-(byte*)pcx >= end - (byte*)769 || end[-769] != 0x0c)
 	{
-		ri.Printf (PRINT_ALL, "PCX missing palette: %s\n", filename);
-		ri.FS_FreeFile (pcx);
-		ri.Free (pic8);
+		R_ImageLoaderPrint (PRINT_ALL, "PCX missing palette: %s\n", filename);
+		R_ImageLoaderFreeFile (pcx);
+		R_ImageLoaderFree (pic8);
 		return;
 	}
 
 	palette = end-768;
 
-	pix = out = ri.Malloc(4 * size );
+	pix = out = R_ImageLoaderMalloc(4 * size );
 	for (i = 0 ; i < size ; i++)
 	{
 		unsigned char p = pic8[i];
@@ -171,6 +172,6 @@ void R_LoadPCX ( const char *filename, byte **pic, int *width, int *height)
 
 	*pic = out;
 
-	ri.FS_FreeFile (pcx);
-	ri.Free (pic8);
+	R_ImageLoaderFreeFile (pcx);
+	R_ImageLoaderFree (pic8);
 }

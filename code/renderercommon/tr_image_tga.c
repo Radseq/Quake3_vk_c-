@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "../qcommon/q_shared.h"
 #include "../renderercommon/tr_public.h"
+#include "../renderercommon/tr_image_loaders.h"
 
 /*
 ========================================================================
@@ -64,7 +65,7 @@ void R_LoadTGA ( const char *name, byte **pic, int *width, int *height)
 	//
 	// load the file
 	//
-	length = ri.FS_ReadFile ( ( char * ) name, &buffer.v);
+	length = R_ImageLoaderReadFile ( ( char * ) name, &buffer.v);
 	if (!buffer.b || length < 0) {
 		return;
 	}
@@ -127,7 +128,7 @@ void R_LoadTGA ( const char *name, byte **pic, int *width, int *height)
 	}
 
 
-	targa_rgba = ri.Malloc (numPixels);
+	targa_rgba = R_ImageLoaderMalloc (numPixels);
 
 	if (targa_header.id_length != 0)
 	{
@@ -317,5 +318,5 @@ void R_LoadTGA ( const char *name, byte **pic, int *width, int *height)
 
   *pic = targa_rgba;
 
-  ri.FS_FreeFile (buffer.v);
+  R_ImageLoaderFreeFile (buffer.v);
 }

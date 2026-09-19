@@ -28,16 +28,85 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_shader.hpp"
 #include "utils.hpp"
 #include "vk_descriptors.hpp"
+#include "../renderercommon/tr_image_loaders.h"
 
 #define generateHashValue(fname) Com_GenerateHashValue_cpp((fname), FILE_HASH_SIZE)
 
 #include <algorithm> // for std::clamp
+#include <atomic>
+#include <condition_variable>
 #include <cstdint>	 // for std::uint32_t
-#include <algorithm>
+#include <cstdarg>
+#include <cstdlib>
+#include <deque>
+#include <memory>
+#include <mutex>
+#include <new>
 #include "string_operations.hpp"
 #include <string>
 #include <span>
+#include <thread>
+#include <vector>
 #include "vk_pipeline.hpp"
+
+struct ImageDecoderContext
+{
+	const byte* fileData{};
+	int fileSize{};
+	std::string* diagnostic{};
+	bool useThreadAllocator{};
+};
+
+static thread_local ImageDecoderContext* s_imageDecoderContext;
+
+// PNG and PCX use these hooks to decode a main-thread filesystem buffer on a worker.
+extern "C" int R_ImageLoaderReadFile(const char* name, void** buffer)
+{
+	if (!s_imageDecoderContext)
+		return ri.FS_ReadFile(name, buffer);
+
+	*buffer = const_cast<byte*>(s_imageDecoderContext->fileData);
+	return s_imageDecoderContext->fileSize;
+}
+
+extern "C" void R_ImageLoaderFreeFile(void* buffer)
+{
+	if (!s_imageDecoderContext)
+		ri.FS_FreeFile(buffer);
+}
+
+extern "C" void* R_ImageLoaderMalloc(const int bytes)
+{
+	return s_imageDecoderContext && s_imageDecoderContext->useThreadAllocator
+		? std::malloc(static_cast<std::size_t>(bytes))
+		: ri.Malloc(bytes);
+}
+
+extern "C" void R_ImageLoaderFree(void* buffer)
+{
+	if (s_imageDecoderContext && s_imageDecoderContext->useThreadAllocator)
+		std::free(buffer);
+	else
+		ri.Free(buffer);
+}
+
+extern "C" void QDECL R_ImageLoaderPrint(const int level, const char* format, ...)
+{
+	char message[1024];
+	va_list args;
+	va_start(args, format);
+	Q_vsnprintf(message, sizeof(message), format, args);
+	va_end(args);
+
+	if (s_imageDecoderContext)
+	{
+		if (s_imageDecoderContext->diagnostic)
+			*s_imageDecoderContext->diagnostic += message;
+		return;
+	}
+
+	ri.Printf(static_cast<printParm_t>(level), "%s", message);
+}
 
 // Note that the ordering indicates the order of preference used
 // when there are multiple images of different formats available
@@ -751,6 +820,338 @@ static void R_MipMap(byte* out, byte* in, int width, int height)
 	}
 }
 
+struct ImagePrepareSettings
+{
+	int maxTextureSize{};
+	int picMip{};
+	int textureBits{};
+	int mapOverBrightBits{};
+	int overBrightBits{};
+	int mapGreyScaleInteger{};
+	bool roundImagesDown{};
+	bool applyPicMip{};
+	bool colorMipLevels{};
+	bool simpleMipMaps{};
+	bool deviceSupportsGamma{};
+	bool fboActive{};
+	float mapGreyScale{};
+	std::array<byte, 256> gammaTable{};
+	std::array<byte, 256> intensityTable{};
+};
+
+struct PreparedImageData
+{
+	std::vector<byte> pixels;
+	int sourceWidth{};
+	int sourceHeight{};
+	int uploadWidth{};
+	int uploadHeight{};
+	int mipLevels{};
+	bool hasAlpha{};
+};
+
+static ImagePrepareSettings R_GetImagePrepareSettings()
+{
+	ImagePrepareSettings settings{};
+	settings.maxTextureSize = glConfig.maxTextureSize;
+	settings.picMip = r_picmip->integer;
+	settings.textureBits = r_texturebits->integer;
+	settings.mapOverBrightBits = r_mapOverBrightBits->integer;
+	settings.overBrightBits = tr.overbrightBits;
+	settings.mapGreyScaleInteger = r_mapGreyScale->integer;
+	settings.roundImagesDown = r_roundImagesDown->integer != 0;
+	settings.applyPicMip = tr.mapLoading || r_nomip->integer == 0;
+	settings.colorMipLevels = r_colorMipLevels->integer != 0;
+	settings.simpleMipMaps = r_simpleMipMaps->integer != 0;
+	settings.deviceSupportsGamma = glConfig.deviceSupportsGamma;
+	settings.fboActive = vk_inst.fboActive;
+	settings.mapGreyScale = tr.mapLoading ? r_mapGreyScale->value : 0.0f;
+	std::copy(std::begin(s_gammatable), std::end(s_gammatable), settings.gammaTable.begin());
+	std::copy(std::begin(s_intensitytable), std::end(s_intensitytable), settings.intensityTable.begin());
+	return settings;
+}
+
+static void R_MipMapForJob(byte* data, const int width, const int height, const bool simple)
+{
+	if (simple)
+	{
+		const int rowBytes = width * 4;
+		const int outWidth = width >> 1;
+		const int outHeight = height >> 1;
+		if (outWidth == 0 || outHeight == 0)
+		{
+			const int count = outWidth + outHeight;
+			for (int i = 0; i < count; ++i)
+			{
+				for (int channel = 0; channel < 4; ++channel)
+					data[i * 4 + channel] = (data[i * 8 + channel] + data[i * 8 + 4 + channel]) >> 1;
+			}
+			return;
+		}
+
+		byte* source = data;
+		byte* target = data;
+		for (int y = 0; y < outHeight; ++y, source += rowBytes)
+		{
+			for (int x = 0; x < outWidth; ++x, source += 8, target += 4)
+			{
+				for (int channel = 0; channel < 4; ++channel)
+					target[channel] = (source[channel] + source[4 + channel] +
+						source[rowBytes + channel] + source[rowBytes + 4 + channel]) >> 2;
+			}
+		}
+		return;
+	}
+
+	const int outWidth = width >> 1;
+	const int outHeight = height >> 1;
+	if (outWidth == 0 || outHeight == 0)
+	{
+		const int count = outWidth + outHeight;
+		for (int i = 0; i < count; ++i)
+		{
+			for (int channel = 0; channel < 4; ++channel)
+				data[i * 4 + channel] = (data[i * 8 + channel] + data[i * 8 + 4 + channel]) >> 1;
+		}
+		return;
+	}
+
+	std::vector<byte> output(static_cast<std::size_t>(outWidth) * outHeight * 4);
+	const int widthMask = width - 1;
+	const int heightMask = height - 1;
+
+	for (int y = 0; y < outHeight; ++y)
+	{
+		for (int x = 0; x < outWidth; ++x)
+		{
+			byte* target = output.data() + (y * outWidth + x) * 4;
+			for (int channel = 0; channel < 4; ++channel)
+			{
+				int total = 0;
+				static constexpr int weights[4][4] = {
+					{1, 2, 2, 1}, {2, 4, 4, 2}, {2, 4, 4, 2}, {1, 2, 2, 1}};
+				for (int row = 0; row < 4; ++row)
+				{
+					const int sourceY = (y * 2 + row - 1) & heightMask;
+					for (int column = 0; column < 4; ++column)
+					{
+						const int sourceX = (x * 2 + column - 1) & widthMask;
+						total += weights[row][column] * data[(sourceY * width + sourceX) * 4 + channel];
+					}
+				}
+				target[channel] = total / 36;
+			}
+		}
+	}
+
+	std::copy(output.begin(), output.end(), data);
+}
+
+static std::vector<byte> R_ResampleTextureForJob(const std::vector<byte>& input,
+	const int inputWidth, const int inputHeight, const int outputWidth, const int outputHeight)
+{
+	std::vector<unsigned> firstColumn(outputWidth);
+	std::vector<unsigned> secondColumn(outputWidth);
+	const unsigned step = inputWidth * 0x10000 / outputWidth;
+	unsigned fraction = step >> 2;
+	for (int x = 0; x < outputWidth; ++x, fraction += step)
+		firstColumn[x] = 4 * (fraction >> 16);
+	fraction = 3 * (step >> 2);
+	for (int x = 0; x < outputWidth; ++x, fraction += step)
+		secondColumn[x] = 4 * (fraction >> 16);
+
+	std::vector<byte> output(static_cast<std::size_t>(outputWidth) * outputHeight * 4);
+	for (int y = 0; y < outputHeight; ++y)
+	{
+		const byte* firstRow = input.data() + inputWidth * 4 * static_cast<int>((y + 0.25f) * inputHeight / outputHeight);
+		const byte* secondRow = input.data() + inputWidth * 4 * static_cast<int>((y + 0.75f) * inputHeight / outputHeight);
+		for (int x = 0; x < outputWidth; ++x)
+		{
+			const byte* first = firstRow + firstColumn[x];
+			const byte* second = firstRow + secondColumn[x];
+			const byte* third = secondRow + firstColumn[x];
+			const byte* fourth = secondRow + secondColumn[x];
+			byte* target = output.data() + (y * outputWidth + x) * 4;
+			for (int channel = 0; channel < 4; ++channel)
+				target[channel] = (first[channel] + second[channel] + third[channel] + fourth[channel]) >> 2;
+		}
+	}
+	return output;
+}
+
+static void R_LightScaleTextureForJob(byte* pixels, const int width, const int height,
+	const bool onlyGamma, const ImagePrepareSettings& settings)
+{
+	const int count = width * height;
+	for (int i = 0; i < count; ++i, pixels += 4)
+	{
+		for (int channel = 0; channel < 3; ++channel)
+		{
+			if (onlyGamma)
+			{
+				if (!settings.deviceSupportsGamma && !settings.fboActive)
+					pixels[channel] = settings.gammaTable[pixels[channel]];
+			}
+			else if (settings.deviceSupportsGamma || settings.fboActive)
+			{
+				pixels[channel] = settings.intensityTable[pixels[channel]];
+			}
+			else
+			{
+				pixels[channel] = settings.gammaTable[settings.intensityTable[pixels[channel]]];
+			}
+		}
+	}
+}
+
+static void R_ApplyMapGreyScale(std::vector<byte>& pixels, const float amount)
+{
+	if (amount <= 0.0f)
+		return;
+
+	for (std::size_t i = 0; i + 3 < pixels.size(); i += 4)
+	{
+		byte* pixel = pixels.data() + i;
+		const float luma = LUMA(pixel[0], pixel[1], pixel[2]);
+		if (amount >= 1.0f)
+		{
+			pixel[0] = pixel[1] = pixel[2] = static_cast<byte>(luma);
+		}
+		else
+		{
+			pixel[0] = static_cast<byte>(LERP(pixel[0], luma, amount));
+			pixel[1] = static_cast<byte>(LERP(pixel[1], luma, amount));
+			pixel[2] = static_cast<byte>(LERP(pixel[2], luma, amount));
+		}
+	}
+}
+
+static void R_ColorShiftForJob(byte* pixel, const ImagePrepareSettings& settings)
+{
+	const int shift = settings.mapOverBrightBits - settings.overBrightBits;
+	int red = shift >= 0 ? pixel[0] << shift : pixel[0] >> -shift;
+	int green = shift >= 0 ? pixel[1] << shift : pixel[1] >> -shift;
+	int blue = shift >= 0 ? pixel[2] << shift : pixel[2] >> -shift;
+	if ((red | green | blue) > 255)
+	{
+		const int highest = std::max({red, green, blue});
+		red = red * 255 / highest;
+		green = green * 255 / highest;
+		blue = blue * 255 / highest;
+	}
+
+	if (settings.mapGreyScaleInteger)
+	{
+		const byte luma = LUMA(red, green, blue);
+		pixel[0] = pixel[1] = pixel[2] = luma;
+	}
+	else if (settings.mapGreyScale != 0.0f)
+	{
+		const float amount = std::abs(settings.mapGreyScale);
+		const float luma = LUMA(red, green, blue);
+		pixel[0] = static_cast<byte>(LERP(red, luma, amount));
+		pixel[1] = static_cast<byte>(LERP(green, luma, amount));
+		pixel[2] = static_cast<byte>(LERP(blue, luma, amount));
+	}
+	else
+	{
+		pixel[0] = static_cast<byte>(red);
+		pixel[1] = static_cast<byte>(green);
+		pixel[2] = static_cast<byte>(blue);
+	}
+}
+
+static PreparedImageData R_PrepareImageForUpload(std::vector<byte> source, const int sourceWidth,
+	const int sourceHeight, const imgFlags_t flags, const ImagePrepareSettings& settings)
+{
+	PreparedImageData result{};
+	result.sourceWidth = sourceWidth;
+	result.sourceHeight = sourceHeight;
+	R_ApplyMapGreyScale(source, settings.mapGreyScale);
+
+	int width = sourceWidth;
+	int height = sourceHeight;
+	int scaledWidth = width;
+	int scaledHeight = height;
+	const bool mipMap = HasFlag(flags, imgFlags_t::IMGFLAG_MIPMAP);
+
+	if (!HasFlag(flags, imgFlags_t::IMGFLAG_NOSCALE))
+	{
+		for (scaledWidth = 1; scaledWidth < width; scaledWidth <<= 1) {}
+		for (scaledHeight = 1; scaledHeight < height; scaledHeight <<= 1) {}
+		if (settings.roundImagesDown && scaledWidth > width) scaledWidth >>= 1;
+		if (settings.roundImagesDown && scaledHeight > height) scaledHeight >>= 1;
+	}
+
+	while (scaledWidth > settings.maxTextureSize || scaledHeight > settings.maxTextureSize)
+	{
+		scaledWidth >>= 1;
+		scaledHeight >>= 1;
+	}
+
+	if (scaledWidth != width || scaledHeight != height)
+		source = R_ResampleTextureForJob(source, width, height, scaledWidth, scaledHeight);
+
+	width = scaledWidth;
+	height = scaledHeight;
+	if (HasFlag(flags, imgFlags_t::IMGFLAG_COLORSHIFT))
+	{
+		for (int i = 0; i < width * height; ++i)
+			R_ColorShiftForJob(source.data() + i * 4, settings);
+	}
+
+	if (HasFlag(flags, imgFlags_t::IMGFLAG_PICMIP) && settings.applyPicMip)
+	{
+		scaledWidth >>= settings.picMip;
+		scaledHeight >>= settings.picMip;
+	}
+	scaledWidth = std::max(1, scaledWidth);
+	scaledHeight = std::max(1, scaledHeight);
+	if (scaledWidth == width && scaledHeight == height && !mipMap)
+	{
+		result.uploadWidth = scaledWidth;
+		result.uploadHeight = scaledHeight;
+		result.mipLevels = 1;
+		result.pixels = std::move(source);
+		result.hasAlpha = RawImage_HasAlpha(result.pixels.data(), result.uploadWidth * result.uploadHeight);
+		return result;
+	}
+
+	while (width > scaledWidth || height > scaledHeight)
+	{
+		R_MipMapForJob(source.data(), width, height, settings.simpleMipMaps);
+		width = std::max(1, width >> 1);
+		height = std::max(1, height >> 1);
+	}
+
+	std::vector<byte> level(source.begin(), source.begin() + static_cast<std::size_t>(scaledWidth) * scaledHeight * 4);
+	if (!HasFlag(flags, imgFlags_t::IMGFLAG_NOLIGHTSCALE))
+		R_LightScaleTextureForJob(level.data(), scaledWidth, scaledHeight, !mipMap, settings);
+
+	result.uploadWidth = scaledWidth;
+	result.uploadHeight = scaledHeight;
+	result.mipLevels = 1;
+	result.pixels = level;
+
+	if (mipMap)
+	{
+		while (scaledWidth > 1 && scaledHeight > 1)
+		{
+			R_MipMapForJob(level.data(), scaledWidth, scaledHeight, settings.simpleMipMaps);
+			scaledWidth = std::max(1, scaledWidth >> 1);
+			scaledHeight = std::max(1, scaledHeight >> 1);
+			const std::size_t levelSize = static_cast<std::size_t>(scaledWidth) * scaledHeight * 4;
+			if (settings.colorMipLevels)
+				R_BlendOverTexture(level.data(), scaledWidth * scaledHeight, result.mipLevels);
+			result.pixels.insert(result.pixels.end(), level.begin(), level.begin() + levelSize);
+			++result.mipLevels;
+		}
+	}
+
+	result.hasAlpha = RawImage_HasAlpha(result.pixels.data(), result.uploadWidth * result.uploadHeight);
+	return result;
+}
+
 static void generate_image_upload_data(image_t* image, byte* data, Image_Upload_Data* upload_data)
 {
 
@@ -973,89 +1374,92 @@ static void upload_vk_image(image_t* image, byte* pic)
 	ri.Hunk_FreeTempMemory(upload_data.buffer);
 }
 
-/*
-================
-R_CreateImage
-
-This is the only way any image_t are created
-Picture data may be modified in-place during mipmap processing
-================
-*/
-image_t* R_CreateImage(std::string_view name, std::string_view name2, byte* pic, int width, int height, imgFlags_t flags)
+static void R_UploadPreparedImage(image_t& image, const PreparedImageData& data, const int textureBits)
 {
-	image_t* image;
-	long hash;
-	int namelen, namelen2;
+	image.width = data.sourceWidth;
+	image.height = data.sourceHeight;
+	image.uploadWidth = data.uploadWidth;
+	image.uploadHeight = data.uploadHeight;
+	image.internalFormat = (textureBits > 16 || textureBits == 0 || HasFlag(image.flags, imgFlags_t::IMGFLAG_LIGHTMAP))
+		? vk::Format::eR8G8B8A8Unorm
+		: (data.hasAlpha ? vk::Format::eB4G4R4A4UnormPack16 : vk::Format::eA1R5G5B5UnormPack16);
 
-	namelen = name.size() + 1;
-	if (namelen > MAX_QPATH)
-	{
+	vk_create_image(image, data.uploadWidth, data.uploadHeight, data.mipLevels);
+	vk_upload_image_data(image, 0, 0, data.uploadWidth, data.uploadHeight, data.mipLevels,
+		const_cast<byte*>(data.pixels.data()), static_cast<int>(data.pixels.size()), false);
+}
+
+static image_t* R_AllocateImage(std::string_view name, std::string_view name2,
+	const int width, const int height, const imgFlags_t flags)
+{
+	const int nameLength = static_cast<int>(name.size()) + 1;
+	if (nameLength > MAX_QPATH)
 		ri.Error(ERR_DROP, "R_CreateImage: \"%s\" is too long", name.data());
-	}
 
+	int secondNameLength = 0;
 	if (!name2.empty() && Q_stricmp_cpp(name, name2) != 0)
 	{
-		// leave only file name
-		auto slash_pos = name2.rfind('/'); // Find the last '/'
-		if (slash_pos != std::string_view::npos)
-		{
-			name2 = name2.substr(slash_pos + 1); // Update name2 to the substring after '/'
-		}
-		namelen2 = name2.size() + 1;
-	}
-	else
-	{
-		namelen2 = 0;
+		const auto slashPos = name2.rfind('/');
+		if (slashPos != std::string_view::npos)
+			name2 = name2.substr(slashPos + 1);
+		secondNameLength = static_cast<int>(name2.size()) + 1;
 	}
 
 	if (tr.numImages == MAX_DRAWIMAGES)
-	{
 		ri.Error(ERR_DROP, "R_CreateImage: MAX_DRAWIMAGES hit");
-	}
 
-	image = static_cast<image_t*>(ri.Hunk_Alloc(sizeof(*image) + namelen + namelen2, h_low));
-	image->imgName = (char*)(image + 1);
-	strcpy(image->imgName, name.data());
-	// std::memcpy(image->imgName, name.data(), name.size());
-	if (namelen2)
+	void* imageMemory = ri.Hunk_Alloc(sizeof(image_t) + nameLength + secondNameLength, h_low);
+	auto* image = ::new (imageMemory) image_t{};
+	image->imgName = reinterpret_cast<char*>(image + 1);
+	std::memcpy(image->imgName, name.data(), name.size());
+	image->imgName[name.size()] = '\0';
+	if (secondNameLength)
 	{
-		image->imgName2 = image->imgName + namelen;
-		strcpy(image->imgName2, name2.data());
-		// std::memcpy(image->imgName2, name2.data(), name2.size());
+		image->imgName2 = image->imgName + nameLength;
+		std::memcpy(image->imgName2, name2.data(), name2.size());
+		image->imgName2[name2.size()] = '\0';
 	}
 	else
 	{
 		image->imgName2 = image->imgName;
 	}
 
-	hash = generateHashValue(name);
+	const long hash = generateHashValue(name);
 	image->next = hashTable[hash];
 	hashTable[hash] = image;
-
 	tr.images[tr.numImages++] = image;
-
 	image->flags = flags;
 	image->width = width;
 	image->height = height;
 
-	if (namelen > 6 && Q_stristr_cpp(image->imgName, "maps/") == image->imgName && Q_stristr_cpp(image->imgName + 6, "/lm_") != NULL)
+	if (nameLength > 6 && Q_stristr_cpp(image->imgName, "maps/") == image->imgName &&
+		Q_stristr_cpp(image->imgName + 6, "/lm_") != nullptr)
 	{
-		// external lightmap atlases stored in maps/<mapname>/lm_XXXX textures
-		// image->flags = imgFlags_t::IMGFLAG_NOLIGHTSCALE | imgFlags_t::IMGFLAG_NO_COMPRESSION | imgFlags_t::IMGFLAG_NOSCALE | imgFlags_t::IMGFLAG_COLORSHIFT;
-		image->flags = static_cast<imgFlags_t>(image->flags | imgFlags_t::IMGFLAG_NO_COMPRESSION | imgFlags_t::IMGFLAG_NOSCALE);
+		image->flags = static_cast<imgFlags_t>(image->flags |
+			imgFlags_t::IMGFLAG_NO_COMPRESSION | imgFlags_t::IMGFLAG_NOSCALE);
 	}
 
 	if (HasFlag(flags, imgFlags_t::IMGFLAG_CLAMPTOBORDER))
 		image->wrapClampMode = vk::SamplerAddressMode::eClampToBorder;
-	else if (static_cast<int>(flags & imgFlags_t::IMGFLAG_CLAMPTOEDGE))
+	else if (HasFlag(flags, imgFlags_t::IMGFLAG_CLAMPTOEDGE))
 		image->wrapClampMode = vk::SamplerAddressMode::eClampToEdge;
 	else
 		image->wrapClampMode = vk::SamplerAddressMode::eRepeat;
 
-	image->handle = VK_NULL_HANDLE;
-	image->view = VK_NULL_HANDLE;
-	image->descriptor = VK_NULL_HANDLE;
+	return image;
+}
 
+/*
+================
+R_CreateImage
+
+Synchronous image creation path.
+Picture data may be modified in-place during mipmap processing
+================
+*/
+image_t* R_CreateImage(std::string_view name, std::string_view name2, byte* pic, int width, int height, imgFlags_t flags)
+{
+	image_t* image = R_AllocateImage(name, name2, width, height, flags);
 	upload_vk_image(image, pic);
 	return image;
 }
@@ -1145,6 +1549,288 @@ static std::array<char, MAX_QPATH> R_LoadImage(std::string_view name, byte** pic
 	return localName;
 }
 
+struct ImageLoadJob
+{
+	image_t* image{};
+	std::array<char, MAX_QPATH> fileName{};
+	int loaderIndex{-1};
+	imgFlags_t flags{};
+	ImagePrepareSettings settings{};
+	std::vector<byte> fileData;
+	std::vector<byte> decodedPixels;
+	PreparedImageData prepared;
+	std::string diagnostic;
+	int width{};
+	int height{};
+	bool decodeInWorker{};
+	bool success{};
+	std::atomic<bool> done{};
+};
+
+static std::mutex s_imageLoadMutex;
+static std::condition_variable s_imageLoadCv;
+static std::deque<ImageLoadJob*> s_imageWorkQueue;
+static std::vector<std::unique_ptr<ImageLoadJob>> s_imageLoadJobs;
+static std::vector<std::jthread> s_imageLoadWorkers;
+static std::size_t s_pendingImageJobs;
+static unsigned s_imageLoadThreadCount;
+static std::size_t s_nextImageUpload;
+static int64_t s_imageLoadStartTime;
+static bool s_imageLoadQueueActive;
+static bool s_stopImageWorkers;
+
+static bool R_CanDecodeImageInWorker(const int loaderIndex)
+{
+	return imageLoaders[loaderIndex].ImageLoader == R_LoadPNG ||
+		imageLoaders[loaderIndex].ImageLoader == R_LoadPCX;
+}
+
+static bool R_ReadImageFileData(const char* fileName, std::vector<byte>& data)
+{
+	void* fileBuffer = nullptr;
+	const int fileSize = ri.FS_ReadFile(fileName, &fileBuffer);
+	if (!fileBuffer || fileSize <= 0)
+	{
+		if (fileBuffer)
+			ri.FS_FreeFile(fileBuffer);
+		return false;
+	}
+
+	const auto* bytes = static_cast<const byte*>(fileBuffer);
+	data.assign(bytes, bytes + fileSize);
+	ri.FS_FreeFile(fileBuffer);
+	return true;
+}
+
+static bool R_TryPrepareImageJobInput(ImageLoadJob& job, const char* fileName, const int loaderIndex)
+{
+	Q_strncpyz(job.fileName.data(), fileName, job.fileName.size());
+	job.loaderIndex = loaderIndex;
+	job.decodeInWorker = R_CanDecodeImageInWorker(loaderIndex);
+
+	if (imageLoaders[loaderIndex].ImageLoader == R_LoadJPG)
+	{
+		// JPEG decoding lives in the client import and cannot consume our memory buffer.
+		byte* pixels = nullptr;
+		imageLoaders[loaderIndex].ImageLoader(fileName, &pixels, &job.width, &job.height);
+		if (!pixels)
+			return false;
+		const std::size_t pixelBytes = static_cast<std::size_t>(job.width) * job.height * 4;
+		job.decodedPixels.assign(pixels, pixels + pixelBytes);
+		ri.Free(pixels);
+		return true;
+	}
+
+	if (!R_ReadImageFileData(fileName, job.fileData))
+		return false;
+	if (job.decodeInWorker)
+		return true;
+
+	byte* pixels = nullptr;
+	ImageDecoderContext context{job.fileData.data(), static_cast<int>(job.fileData.size()), nullptr, false};
+	s_imageDecoderContext = &context;
+	imageLoaders[loaderIndex].ImageLoader(fileName, &pixels, &job.width, &job.height);
+	s_imageDecoderContext = nullptr;
+	if (!pixels)
+		return false;
+
+	const std::size_t pixelBytes = static_cast<std::size_t>(job.width) * job.height * 4;
+	job.decodedPixels.assign(pixels, pixels + pixelBytes);
+	ri.Free(pixels);
+	std::vector<byte>().swap(job.fileData);
+	return true;
+}
+
+static bool R_PrepareImageJobInput(std::string_view name, ImageLoadJob& job)
+{
+	std::array<char, MAX_QPATH> baseName{};
+	std::array<char, MAX_QPATH> candidate{};
+	Q_strncpyz_cpp(baseName, name, baseName.size());
+
+	int originalLoader = -1;
+	const std::string_view extension = COM_GetExtension_cpp(baseName);
+	if (!extension.empty())
+	{
+		for (int i = 0; i < numImageLoaders; ++i)
+		{
+			if (Q_stricmp_cpp(extension, imageLoaders[i].ext) != 0)
+				continue;
+
+			if (R_TryPrepareImageJobInput(job, baseName.data(), i))
+				return true;
+			originalLoader = i;
+			COM_StripExtension_cpp(name, baseName);
+			break;
+		}
+	}
+
+	for (int i = 0; i < numImageLoaders; ++i)
+	{
+		if (i == originalLoader)
+			continue;
+		Com_sprintf(candidate.data(), candidate.size(), "%s.%s", baseName.data(), imageLoaders[i].ext);
+		if (R_TryPrepareImageJobInput(job, candidate.data(), i))
+			return true;
+	}
+
+	return false;
+}
+
+static void R_ProcessImageJob(ImageLoadJob& job)
+{
+	if (job.decodeInWorker)
+	{
+		byte* pixels = nullptr;
+		ImageDecoderContext context{job.fileData.data(), static_cast<int>(job.fileData.size()), &job.diagnostic, true};
+		s_imageDecoderContext = &context;
+		imageLoaders[job.loaderIndex].ImageLoader(job.fileName.data(), &pixels, &job.width, &job.height);
+		if (pixels && job.width > 0 && job.height > 0)
+		{
+			const std::size_t pixelBytes = static_cast<std::size_t>(job.width) * job.height * 4;
+			job.decodedPixels.assign(pixels, pixels + pixelBytes);
+		}
+		R_ImageLoaderFree(pixels);
+		s_imageDecoderContext = nullptr;
+		std::vector<byte>().swap(job.fileData);
+	}
+
+	if (job.decodedPixels.empty() || job.width <= 0 || job.height <= 0)
+		return;
+
+	job.prepared = R_PrepareImageForUpload(std::move(job.decodedPixels), job.width, job.height,
+		job.flags, job.settings);
+	job.success = !job.prepared.pixels.empty();
+}
+
+static void R_ImageLoadWorker()
+{
+	for (;;)
+	{
+		ImageLoadJob* job;
+		{
+			std::unique_lock lock(s_imageLoadMutex);
+			s_imageLoadCv.wait(lock, [] { return s_stopImageWorkers || !s_imageWorkQueue.empty(); });
+			if (s_stopImageWorkers && s_imageWorkQueue.empty())
+				return;
+			job = s_imageWorkQueue.front();
+			s_imageWorkQueue.pop_front();
+		}
+
+		R_ProcessImageJob(*job);
+		job->done.store(true, std::memory_order_release);
+
+		{
+			std::lock_guard lock(s_imageLoadMutex);
+			--s_pendingImageJobs;
+		}
+		s_imageLoadCv.notify_all();
+	}
+}
+
+static void R_UploadFinishedImageJobs()
+{
+	while (s_nextImageUpload < s_imageLoadJobs.size())
+	{
+		ImageLoadJob& job = *s_imageLoadJobs[s_nextImageUpload];
+		if (!job.done.load(std::memory_order_acquire))
+			return;
+
+		if (!job.diagnostic.empty())
+			ri.Printf(PRINT_WARNING, "%s", job.diagnostic.c_str());
+
+		if (job.success)
+		{
+			R_UploadPreparedImage(*job.image, job.prepared, job.settings.textureBits);
+		}
+		else
+		{
+			ri.Printf(PRINT_WARNING, "WARNING: failed to prepare image %s\n", job.fileName.data());
+			PreparedImageData fallback{};
+			fallback.pixels = {255, 0, 255, 255};
+			fallback.sourceWidth = fallback.sourceHeight = 1;
+			fallback.uploadWidth = fallback.uploadHeight = 1;
+			fallback.mipLevels = 1;
+			R_UploadPreparedImage(*job.image, fallback, 32);
+		}
+
+		std::vector<byte>().swap(job.prepared.pixels);
+		++s_nextImageUpload;
+	}
+}
+
+void R_BeginParallelImageLoads()
+{
+	if (s_imageLoadQueueActive)
+		return;
+
+	const int requestedThreads = ri.Cvar_Get("r_imageLoadThreads", "0", CVAR_ARCHIVE)->integer;
+	unsigned threadCount = requestedThreads > 0
+		? static_cast<unsigned>(std::clamp(requestedThreads, 1, 32))
+		: std::min(8u, std::max(1u, std::thread::hardware_concurrency()));
+
+	s_stopImageWorkers = false;
+	s_pendingImageJobs = 0;
+	s_nextImageUpload = 0;
+	s_imageLoadQueueActive = true;
+	s_imageLoadThreadCount = threadCount;
+	s_imageLoadStartTime = ri.Microseconds();
+	s_imageLoadWorkers.reserve(threadCount);
+	for (unsigned i = 0; i < threadCount; ++i)
+		s_imageLoadWorkers.emplace_back(R_ImageLoadWorker);
+}
+
+void R_FinishParallelImageLoads()
+{
+	if (!s_imageLoadQueueActive)
+		return;
+
+	{
+		std::unique_lock lock(s_imageLoadMutex);
+		s_imageLoadCv.wait(lock, [] { return s_pendingImageJobs == 0; });
+		s_stopImageWorkers = true;
+	}
+	s_imageLoadCv.notify_all();
+	for (auto& worker : s_imageLoadWorkers)
+		worker.join();
+	s_imageLoadWorkers.clear();
+	s_imageLoadQueueActive = false;
+
+	R_UploadFinishedImageJobs();
+
+	const std::size_t workerDecoded = static_cast<std::size_t>(std::count_if(
+		s_imageLoadJobs.begin(), s_imageLoadJobs.end(),
+		[](const auto& job) { return job->decodeInWorker; }));
+	const double elapsedMilliseconds = (ri.Microseconds() - s_imageLoadStartTime) / 1000.0;
+	ri.Printf(PRINT_DEVELOPER,
+		"Image preparation: %zu texture(s), %zu decoded on workers, %u worker(s), %.1f ms.\n",
+		s_imageLoadJobs.size(), workerDecoded, s_imageLoadThreadCount, elapsedMilliseconds);
+	s_imageLoadJobs.clear();
+	s_imageWorkQueue.clear();
+}
+
+static image_t* R_QueueImageLoad(std::string_view name, const imgFlags_t flags)
+{
+	R_UploadFinishedImageJobs();
+
+	auto job = std::make_unique<ImageLoadJob>();
+	if (!R_PrepareImageJobInput(name, *job))
+		return nullptr;
+
+	job->image = R_AllocateImage(name, to_str_view(job->fileName), 0, 0, flags);
+	job->flags = job->image->flags;
+	job->settings = R_GetImagePrepareSettings();
+	image_t* image = job->image;
+
+	{
+		std::lock_guard lock(s_imageLoadMutex);
+		s_imageWorkQueue.push_back(job.get());
+		s_imageLoadJobs.push_back(std::move(job));
+		++s_pendingImageJobs;
+	}
+	s_imageLoadCv.notify_one();
+	return image;
+}
+
 /*
 ===============
 R_FindImageFile
@@ -1196,6 +1882,9 @@ image_t* R_FindImageFile(std::string_view name, imgFlags_t flags)
 			}
 		}
 	}
+
+	if (s_imageLoadQueueActive)
+		return R_QueueImageLoad(name, flags);
 
 	//
 	// load the pic from disk
@@ -1492,6 +2181,8 @@ void R_InitImages(void)
 
 void R_DeleteTextures(void)
 {
+	R_FinishParallelImageLoads();
+
 	if (tr.numImages == 0) {
 		return;
 	}
