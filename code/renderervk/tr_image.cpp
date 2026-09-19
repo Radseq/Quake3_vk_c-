@@ -61,6 +61,36 @@ static image_t* hashTable[FILE_HASH_SIZE];
 
 static const int numImageLoaders = arrayLen(imageLoaders);
 
+static void R_WarnMixedImageFlags(const image_t& image, std::string_view name, const imgFlags_t flags)
+{
+	if (name.compare("*white") == 0)
+	{
+		return;
+	}
+
+	if (image.flags != flags)
+	{
+		ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n",
+			name.data(), static_cast<int>(image.flags), static_cast<int>(flags));
+	}
+}
+
+static image_t* R_FindCachedImage(std::string_view name, const imgFlags_t flags)
+{
+	const int hash = generateHashValue(name);
+
+	for (image_t* image = hashTable[hash]; image; image = image->next)
+	{
+		if (!Q_stricmp_cpp(name, image->imgName))
+		{
+			R_WarnMixedImageFlags(*image, name, flags);
+			return image;
+		}
+	}
+
+	return nullptr;
+}
+
 GLint gl_filter_min = std::to_underlying(glCompat::GL_LINEAR_MIPMAP_NEAREST);
 GLint gl_filter_max = std::to_underlying(glCompat::GL_LINEAR);
 
@@ -1127,9 +1157,9 @@ image_t* R_FindImageFile(std::string_view name, imgFlags_t flags)
 {
 	image_t* image;
 	std::array<char, MAX_QPATH> strippedName;
+	std::array<char, MAX_QPATH> nameWithExt;
 	int width, height;
 	byte* pic;
-	int hash;
 
 	// ri.Printf(PRINT_ALL, "name %s \n", name.data());
 
@@ -1138,41 +1168,30 @@ image_t* R_FindImageFile(std::string_view name, imgFlags_t flags)
 		return NULL;
 	}
 
-	hash = generateHashValue(name);
-
 	//
 	// see if the image is already loaded
 	//
-	for (image = hashTable[hash]; image; image = image->next)
+	if ((image = R_FindCachedImage(name, flags)) != nullptr)
 	{
-		if (!Q_stricmp_cpp(name, image->imgName))
-		{
-			// the white image can be used with any set of parms, but other mismatches are errors
-			if (name.compare("*white"))
-			{
-				if (image->flags != flags)
-				{
-					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name.data(), static_cast<int>(image->flags), static_cast<int>(flags));
-				}
-			}
-			return image;
-		}
+		return image;
 	}
 
 	if (strrchr_sv(name, '.'))
 	{
 		// try with stripped extension
 		COM_StripExtension_cpp(name, strippedName);
-		for (image = hashTable[hash]; image; image = image->next)
+		if ((image = R_FindCachedImage(to_str_view(strippedName), flags)) != nullptr)
 		{
-			if (!Q_stricmp_cpp(std::string_view(strippedName.data(), strippedName.size()), image->imgName))
+			return image;
+		}
+	}
+	else
+	{
+		for (int i = 0; i < numImageLoaders; ++i)
+		{
+			Com_sprintf(nameWithExt.data(), nameWithExt.size(), "%s.%s", name.data(), imageLoaders[i].ext);
+			if ((image = R_FindCachedImage(to_str_view(nameWithExt), flags)) != nullptr)
 			{
-				// if ( strcmp( strippedName, "*white" ) ) {
-				if (image->flags != flags)
-				{
-					ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", strippedName.data(), static_cast<int>(image->flags), static_cast<int>(flags));
-				}
-				//}
 				return image;
 			}
 		}

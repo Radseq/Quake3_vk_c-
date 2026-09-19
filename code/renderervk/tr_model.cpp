@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "math.hpp"
 
 #include <functional>
+#include <cstdint>
 #include <string_view>
 #include "utils.hpp"
 #include "vk.hpp"
@@ -40,6 +41,45 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 static bool R_LoadMD3(model_t& mod, int lod, void* buffer, std::size_t fileSize, std::string_view name);
 static bool R_LoadMDR(model_t& mod, void* buffer, int filesize, std::string_view name);
+
+static int R_GetMD3GpuSurfaceMapSize(const int numSurfaces) noexcept
+{
+	int size = 1;
+	while (size < numSurfaces * 2)
+	{
+		size <<= 1;
+	}
+
+	return size;
+}
+
+static int R_GetMD3GpuSurfaceMapSlot(const md3Surface_t* surface, const int mapSize) noexcept
+{
+	const auto value = reinterpret_cast<std::uintptr_t>(surface);
+	return static_cast<int>((value >> 4) & static_cast<std::uintptr_t>(mapSize - 1));
+}
+
+static void R_AddMD3GpuSurfaceMapEntry(md3GpuLod_t& gpuLod, const md3Surface_t& surface, const md3GpuSurface_t& gpuSurface) noexcept
+{
+	if (!gpuLod.surfaceMap || gpuLod.surfaceMapSize <= 0)
+	{
+		return;
+	}
+
+	int slot = R_GetMD3GpuSurfaceMapSlot(&surface, gpuLod.surfaceMapSize);
+	for (int probe = 0; probe < gpuLod.surfaceMapSize; ++probe)
+	{
+		md3GpuSurfaceMapEntry_t& entry = gpuLod.surfaceMap[slot];
+		if (!entry.sourceSurface)
+		{
+			entry.sourceSurface = &surface;
+			entry.gpuSurface = &gpuSurface;
+			return;
+		}
+
+		slot = (slot + 1) & (gpuLod.surfaceMapSize - 1);
+	}
+}
 
 static bool R_CreateMD3GpuSurface(md3GpuSurface_t& out, const md3Surface_t& surf)
 {
@@ -727,12 +767,17 @@ static bool R_LoadMD3(model_t& mod, const int lod, void* buffer, const std::size
 		gpuLod.surfaces = reinterpret_cast<md3GpuSurface_t*>(
 			ri.Hunk_Alloc(sizeof(md3GpuSurface_t) * gpuLod.numSurfaces, h_low));
 		Com_Memset(gpuLod.surfaces, 0, sizeof(md3GpuSurface_t) * gpuLod.numSurfaces);
+		gpuLod.surfaceMapSize = R_GetMD3GpuSurfaceMapSize(gpuLod.numSurfaces);
+		gpuLod.surfaceMap = reinterpret_cast<md3GpuSurfaceMapEntry_t*>(
+			ri.Hunk_Alloc(sizeof(md3GpuSurfaceMapEntry_t) * gpuLod.surfaceMapSize, h_low));
+		Com_Memset(gpuLod.surfaceMap, 0, sizeof(md3GpuSurfaceMapEntry_t) * gpuLod.surfaceMapSize);
 
 		md3Surface_t* gpuSurf = reinterpret_cast<md3Surface_t*>((byte*)hdr + hdr->ofsSurfaces);
 		bool gpuReady = true;
 		for (int s = 0; s < gpuLod.numSurfaces; ++s)
 		{
 			gpuReady &= R_CreateMD3GpuSurface(gpuLod.surfaces[s], *gpuSurf);
+			R_AddMD3GpuSurfaceMapEntry(gpuLod, *gpuSurf, gpuLod.surfaces[s]);
 			gpuSurf = reinterpret_cast<md3Surface_t*>((byte*)gpuSurf + gpuSurf->ofsEnd);
 		}
 		gpuLod.ready = gpuReady;

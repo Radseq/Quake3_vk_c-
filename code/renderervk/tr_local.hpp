@@ -1261,10 +1261,18 @@ typedef struct md3GpuSurface_s
 	bool ready;
 } md3GpuSurface_t;
 
+typedef struct md3GpuSurfaceMapEntry_s
+{
+	const md3Surface_t* sourceSurface;
+	const md3GpuSurface_t* gpuSurface;
+} md3GpuSurfaceMapEntry_t;
+
 typedef struct md3GpuLod_s
 {
 	md3GpuSurface_t* surfaces;
+	md3GpuSurfaceMapEntry_t* surfaceMap;
 	int numSurfaces;
+	int surfaceMapSize;
 	bool ready;
 } md3GpuLod_t;
 

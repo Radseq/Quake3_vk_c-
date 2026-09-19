@@ -33,6 +33,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_model.hpp"
 #include "string_operations.hpp"
 
+#include <cstdint>
+
 /*
 
   THIS ENTIRE FILE IS BACK END
@@ -855,6 +857,39 @@ static void LerpMeshVertexes(md3Surface_t * surf, float backlerp)
 	LerpMeshVertexes_scalar(surf, backlerp);
 }
 
+static int R_GetMD3GpuSurfaceMapSlot(const md3Surface_t* surface, const int mapSize) noexcept
+{
+	const auto value = reinterpret_cast<std::uintptr_t>(surface);
+	return static_cast<int>((value >> 4) & static_cast<std::uintptr_t>(mapSize - 1));
+}
+
+static const md3GpuSurface_t* R_FindMD3GpuSurfaceInMap(const md3GpuLod_t& gpuLod, const md3Surface_t* target) noexcept
+{
+	if (!gpuLod.ready || !gpuLod.surfaceMap || gpuLod.surfaceMapSize <= 0)
+	{
+		return nullptr;
+	}
+
+	int slot = R_GetMD3GpuSurfaceMapSlot(target, gpuLod.surfaceMapSize);
+	for (int probe = 0; probe < gpuLod.surfaceMapSize; ++probe)
+	{
+		const md3GpuSurfaceMapEntry_t& entry = gpuLod.surfaceMap[slot];
+		if (!entry.sourceSurface)
+		{
+			return nullptr;
+		}
+
+		if (entry.sourceSurface == target)
+		{
+			return entry.gpuSurface;
+		}
+
+		slot = (slot + 1) & (gpuLod.surfaceMapSize - 1);
+	}
+
+	return nullptr;
+}
+
 static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t & model, const md3Surface_t * target, int lodHint)
 {
 	if (!target)
@@ -862,7 +897,6 @@ static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t & model, const m
 		return nullptr;
 	}
 
-	// 1. Najpierw spróbuj użyć przekazanego loda jako hint.
 	auto TryFindInLod = [&](const int lod) -> const md3GpuSurface_t*
 		{
 			if (lod < 0 || lod >= MD3_MAX_LODS)
@@ -877,50 +911,14 @@ static const md3GpuSurface_t* R_FindMD3GpuSurface(const model_t & model, const m
 			}
 
 			const md3GpuLod_t& gpuLod = model.md3Gpu[lod];
-			if (!gpuLod.ready || !gpuLod.surfaces)
-			{
-				return nullptr;
-			}
-
-			const md3Surface_t* surf =
-				reinterpret_cast<const md3Surface_t*>((const byte*)hdr + hdr->ofsSurfaces);
-
-			for (int i = 0; i < gpuLod.numSurfaces; ++i)
-			{
-				if (surf == target)
-				{
-					/*				ri.Printf(PRINT_ALL,
-										"GPU_MD3 FIND HIT: model='%s' lod=%d surfIndex=%d target='%s' iter='%s' targetPtr=%p surfPtr=%p\n",
-										model.name.data() ? model.name.data() : "<null>",
-										lod,
-										i,
-										target ? target->name : "<null>",
-										surf ? surf->name : "<null>",
-										(const void*)target,
-										(const void*)surf);*/
-					return &gpuLod.surfaces[i];
-				}
-
-				surf = reinterpret_cast<const md3Surface_t*>((const byte*)surf + surf->ofsEnd);
-			}
-
-			//ri.Printf(PRINT_ALL,
-			//	"GPU_MD3 FIND MISS: model='%s' lodHint=%d target='%s' targetPtr=%p\n",
-			//	model.name.data() ? model.name.data() : "<null>",
-			//	lodHint,
-			//	target ? target->name : "<null>",
-			//	(const void*)target);
-
-			return nullptr;
+			return R_FindMD3GpuSurfaceInMap(gpuLod, target);
 		};
 
-	// szybka ścieżka: lodHint
 	if (const md3GpuSurface_t* gpu = TryFindInLod(lodHint))
 	{
 		return gpu;
 	}
 
-	// 2. Jeżeli hint był zły, przeskanuj wszystkie LOD-y.
 	for (int lod = 0; lod < MD3_MAX_LODS; ++lod)
 	{
 		if (lod == lodHint)
