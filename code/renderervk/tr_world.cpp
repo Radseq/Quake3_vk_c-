@@ -173,16 +173,9 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 		return false;
 	}
 
-	if (shader.cullType == cullType_t::CT_TWO_SIDED)
-	{
-		return false;
-	}
-
-	if (*surface != surfaceType_t::SF_FACE)
-	{
-		return false;
-	}
-
+	// Grid/triangle culling is bounds/frustum culling performed by the front end
+	// before R_AddDrawSurf(). It is independent of the later CPU/GPU mesh path
+	// selected by r_gpuAnim/RB_SurfaceMeshGPU().
 	if (*surface == surfaceType_t::SF_GRID)
 	{
 		return R_CullGrid((srfGridMesh_t *)surface);
@@ -191,6 +184,19 @@ static bool R_CullSurface(const surfaceType_t *surface, shader_t &shader)
 	if (*surface == surfaceType_t::SF_TRIANGLES)
 	{
 		return R_CullTriSurf((srfTriangles_t *)surface);
+	}
+
+	if (*surface != surfaceType_t::SF_FACE)
+	{
+		return false;
+	}
+
+	// Two-sided affects face-plane/back-face culling only. A two-sided grid or
+	// triangle surface may still be outside the view frustum and should have
+	// been rejected above.
+	if (shader.cullType == cullType_t::CT_TWO_SIDED)
+	{
+		return false;
 	}
 
 	// face culling
