@@ -1770,10 +1770,10 @@ bool R_GpuMd3ColorModeUsesRawVertexColor(uint32_t mode) noexcept
 {
 	return (mode &
 		(GPU_MD3_COLOR_VERTEX_RGB |
-		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB |
-		 GPU_MD3_COLOR_EXACT_VERTEX_RGB |
-		 GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA |
-		 GPU_MD3_COLOR_VERTEX_ALPHA)) != 0u;
+			GPU_MD3_COLOR_ONE_MINUS_VERTEX_RGB |
+			GPU_MD3_COLOR_EXACT_VERTEX_RGB |
+			GPU_MD3_COLOR_ONE_MINUS_VERTEX_ALPHA |
+			GPU_MD3_COLOR_VERTEX_ALPHA)) != 0u;
 }
 
 static bool R_GpuMd3StageReadsPrimaryColorAttr(const shaderStage_t& stage) noexcept
@@ -2723,3 +2723,4 @@ void RB_EndSurface(void)
 	// VBO_ClearQueue();
 #endif
 }
+
