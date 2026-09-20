@@ -85,8 +85,7 @@ int R_CullLocalBox(const vec3_t bounds[2])
 	}
 
 	int i, j;
-	vec3_t transformed[8]{};
-	float dists[8]{};
+	vec3_t transformed[8];
 	int anyBack;
 	int front, back;
 
@@ -113,8 +112,8 @@ int R_CullLocalBox(const vec3_t bounds[2])
 		front = back = 0;
 		for (j = 0; j < 8; j++)
 		{
-			dists[j] = DotProduct(transformed[j], frust.normal);
-			if (dists[j] > frust.dist)
+			const float dist = DotProduct(transformed[j], frust.normal);
+			if (dist > frust.dist)
 			{
 				front = 1;
 				if (back)

@@ -29,12 +29,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 void daub4(float b[], unsigned long n, int isign)
 {
-	float wksp[4097] = { 0.0f };
+	float wksp[4097];
 #define a(x) b[(x)-1]					// numerical recipes so a[1] = b[0]
 
 	unsigned long nh,nh1,i,j;
 
 	if (n < 4) return;
+
+	// daub4 writes every output slot for even n. For odd n, the historical
+	// zero-initialized workspace left only the final slot as zero. Preserve
+	// that behavior without clearing the entire 16 KiB workspace.
+	if (n & 1UL) wksp[n] = 0.0f;
 
 	nh1=(nh=n >> 1)+1;
 	if (isign >= 0) {
@@ -120,7 +125,7 @@ void NXPutc(NXStream *stream, char out) {
 
 
 void encodeWavelet( sfx_t *sfx, short *packets) {
-	float	wksp[4097] = {0}, temp;
+	float	wksp[4097], temp;
 	int		i, samples, size;
 	sndBuffer		*newchunk, *chunk;
 	byte			*out;
@@ -170,7 +175,7 @@ void encodeWavelet( sfx_t *sfx, short *packets) {
 }
 
 void decodeWavelet(sndBuffer *chunk, short *to) {
-	float			wksp[4097] = {0};
+	float			wksp[4097];
 	int				i;
 	byte			*out;
 
@@ -248,5 +253,3 @@ void decodeMuLaw(sndBuffer *chunk, short *to) {
 		to[i] = mulawToShort[out[i]];
 	}
 }
-
-

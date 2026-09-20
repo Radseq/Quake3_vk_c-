@@ -3257,7 +3257,7 @@ int inflate_trees_bits(uInt *c, uInt *bb, inflate_huft * *tb, inflate_huft *hp, 
 {
   int r;
   uInt hn = 0;          /* hufts used in space */
-  uInt v[19] = { 0 };   /* work area for huft_build */
+  uInt v[19];   /* work area for huft_build */
 
   //if ((v = (uInt*)ZALLOC(z, 19, sizeof(uInt))) == Z_NULL)
   //  return Z_MEM_ERROR;
@@ -3288,7 +3288,7 @@ int inflate_trees_dynamic(uInt nl, uInt nd, uInt *c, uInt *bl, uInt *bd, inflate
 {
   int r;
   uInt hn = 0;          /* hufts used in space */
-  uInt v[288] = { 0 };  /* work area for huft_build */
+  uInt v[288];  /* work area for huft_build */
 
   /* allocate work area */
   //if ((v = (uInt*)ZALLOC(z, 288, sizeof(uInt))) == Z_NULL)

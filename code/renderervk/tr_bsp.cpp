@@ -799,7 +799,7 @@ static void ParseMesh(const dsurface_t &ds, const drawVert_t *verts, msurface_t 
 	int i, j;
 	int width, height, numPoints;
 	//drawVert_t points[MAX_PATCH_SIZE * MAX_PATCH_SIZE]{};
-	std::array<drawVert_t, MAX_PATCH_SIZE* MAX_PATCH_SIZE> points{};
+	std::array<drawVert_t, MAX_PATCH_SIZE* MAX_PATCH_SIZE> points;
 	int lightmapNum;
 	float lightmapX, lightmapY;
 	vec3_t bounds[2]{};

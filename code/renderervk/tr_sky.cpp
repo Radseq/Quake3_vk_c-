@@ -166,9 +166,9 @@ static void ClipSkyPolygon(const int nump, vec3_t vecs, const int stage)
 	float *v;
 	bool front, back;
 	float d, e;
-	float dists[MAX_CLIP_VERTS]{};
-	int sides[MAX_CLIP_VERTS]{};
-	vec3_t newv[2][MAX_CLIP_VERTS]{};
+	float dists[MAX_CLIP_VERTS];
+	int sides[MAX_CLIP_VERTS];
+	vec3_t newv[2][MAX_CLIP_VERTS];
 	int newc[2]{};
 	int i, j;
 

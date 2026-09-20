@@ -1887,8 +1887,8 @@ static void RB_SurfaceGrid(srfGridMesh_t * cv)
 	drawVert_t* dv;
 	int rows, irows, vrows;
 	int used;
-	int widthTable[MAX_GRID_SIZE]{};
-	int heightTable[MAX_GRID_SIZE]{};
+	int widthTable[MAX_GRID_SIZE];
+	int heightTable[MAX_GRID_SIZE];
 	float lodError;
 	int lodWidth, lodHeight;
 	int numVertexes;

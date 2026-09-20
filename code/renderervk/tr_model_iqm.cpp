@@ -605,7 +605,7 @@ static void JointToMatrix(const quat_t rot, const vec3_t &scale, const vec3_t &t
 static void ComputePoseMats(iqmData_t &data, const int frame, const int oldframe,
 							const float backlerp, float *poseMats)
 {
-	iqmTransform_t relativeJoints[IQM_MAX_JOINTS]{};
+	iqmTransform_t relativeJoints[IQM_MAX_JOINTS];
 	iqmTransform_t *relativeJoint;
 	const iqmTransform_t *pose;
 	const iqmTransform_t *oldpose;
@@ -808,8 +808,8 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 	srfIQModel_t &surf = (srfIQModel_t &)surface;
 	iqmData_t *data = surf.data;
 	float poseMats[IQM_MAX_JOINTS * 12];
-	float influenceVtxMat[SHADER_MAX_VERTEXES * 12]{};
-	float influenceNrmMat[SHADER_MAX_VERTEXES * 9]{};
+	float influenceVtxMat[SHADER_MAX_VERTEXES * 12];
+	float influenceNrmMat[SHADER_MAX_VERTEXES * 9];
 	int i;
 
 	float *xyz;
@@ -861,7 +861,7 @@ void RB_IQMSurfaceAnim(const surfaceType_t &surface)
 			float *vtxMat = &influenceVtxMat[12 * i];
 			float *nrmMat = &influenceNrmMat[9 * i];
 			int j;
-			float blendWeights[4]{};
+			float blendWeights[4];
 
 			if (data->blendWeightsType == IQM_FLOAT)
 			{

@@ -713,8 +713,8 @@ static void ResampleTexture(unsigned* in, int inwidth, int inheight, unsigned* o
 	int i, j;
 	unsigned* inrow, * inrow2;
 	unsigned frac, fracstep;
-	std::array<unsigned, MAX_TEXTURE_SIZE> p1{};
-	std::array<unsigned, MAX_TEXTURE_SIZE> p2{};
+	std::array<unsigned, MAX_TEXTURE_SIZE> p1;
+	std::array<unsigned, MAX_TEXTURE_SIZE> p2;
 	byte* pix1, * pix2, * pix3, * pix4;
 
 	if (outwidth > static_cast<int>(p1.size()))

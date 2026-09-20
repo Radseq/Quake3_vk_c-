@@ -165,7 +165,7 @@ static void MakeMeshNormals(
 
 	// needMask encodes the *required neighbor bits* for each of the 8 cross-sum terms.
 	// Each entry defines which two neighbor directions must be present before we evaluate
-	// the corresponding contribution. This lets us replace an 8-way “if (good[i] && good[j])”
+	// the corresponding contribution. This lets us replace an 8-way ï¿½if (good[i] && good[j])ï¿½
 	// cascade with a compact bit-test:
 	//
 	//   missing = (~validMask);
@@ -173,12 +173,12 @@ static void MakeMeshNormals(
 	//
 	// The pointer indirection (g_needMaskPtr) is intentional: it makes needMask look like
 	// externally-provided data to the optimizer, which prevents constant-propagation and
-	// “decision tree” expansion of the mask checks. In practice this keeps the generated
+	// ï¿½decision treeï¿½ expansion of the mask checks. In practice this keeps the generated
 	// assembly small and branch-light (better I-cache / front-end), especially inside the
 	// hot inner loop.
 	//
 	// NOTE: g_needMaskPtr is defined in a different translation unit (extern) to further
-	// discourage the compiler from “seeing through” the constant and reintroducing a large
+	// discourage the compiler from ï¿½seeing throughï¿½ the constant and reintroducing a large
 	// unrolled/cascaded control-flow structure.
 	static const std::uint8_t needMask[8] = { 0x03,0x06,0x0C,0x18,0x30,0x60,0xC0,0x81 };
 
@@ -405,8 +405,8 @@ srfGridMesh_t* R_SubdividePatchToGrid(int width, int height,
 	int n;
 	int t;
 	//drawVert_t ctrl[MAX_GRID_SIZE][MAX_GRID_SIZE]{};
-	std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE> ctrl{};
-	float errorTable[2][MAX_GRID_SIZE]{};
+	std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE> ctrl;
+	float errorTable[2][MAX_GRID_SIZE];
 
 	for (i = 0; i < width; i++)
 	{
@@ -598,9 +598,9 @@ srfGridMesh_t* R_GridInsertColumn(srfGridMesh_t& grid, const int column, const i
 {
 	int i, j;
 	int width, height, oldwidth;
-	std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE> ctrl{};
+	std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE> ctrl;
 
-	float errorTable[2][MAX_GRID_SIZE]{};
+	float errorTable[2][MAX_GRID_SIZE];
 	float lodRadius;
 	vec3_t lodOrigin{};
 
@@ -659,8 +659,8 @@ srfGridMesh_t* R_GridInsertRow(srfGridMesh_t& grid, const int row, const int col
 {
 	int i, j;
 	int width, height, oldheight;
-	std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE> ctrl{};
-	float errorTable[2][MAX_GRID_SIZE]{};
+	std::array<std::array<drawVert_t, MAX_GRID_SIZE>, MAX_GRID_SIZE> ctrl;
+	float errorTable[2][MAX_GRID_SIZE];
 	float lodRadius;
 	vec3_t lodOrigin{};
 

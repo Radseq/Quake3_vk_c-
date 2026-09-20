@@ -49,8 +49,8 @@ static void R_ChopPolyBehindPlane(int numInPoints, vec3_t inPoints[MAX_VERTS_ON_
 		return;
 	}
 
-	float dists[MAX_VERTS_ON_POLY + 4]{};
-	int sides[MAX_VERTS_ON_POLY + 4]{};
+	float dists[MAX_VERTS_ON_POLY + 4];
+	int sides[MAX_VERTS_ON_POLY + 4];
 	int counts[3]{};
 	float dot;
 	int i, j;
@@ -293,9 +293,9 @@ int R_MarkFragments(int numPoints, const vec3_t *points, const vec3_t projection
 	vec3_t mins{99999.f, 99999.f, 99999.f}, maxs{-99999.f, -99999.f, -99999.f};
 	int returnedFragments;
 	int returnedPoints;
-	vec3_t normals[MAX_VERTS_ON_POLY + 2]{};
-	float dists[MAX_VERTS_ON_POLY + 2]{};
-	vec3_t clipPoints[2][MAX_VERTS_ON_POLY]{};
+	vec3_t normals[MAX_VERTS_ON_POLY + 2];
+	float dists[MAX_VERTS_ON_POLY + 2];
+	vec3_t clipPoints[2][MAX_VERTS_ON_POLY];
 	int numClipPoints;
 	float *v;
 	srfGridMesh_t *cv;
