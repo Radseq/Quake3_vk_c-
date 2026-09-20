@@ -262,11 +262,17 @@ void RE_AddRefEntityToScene(const refEntity_t *ent, bool intShaderTime)
 
 	dst.e = *ent;
 	dst.local = &local;
+
+	// Renderer-local fields are derived lazily before their first read:
+	// - lighting fields are guarded by LightingCalculated and fully produced by
+	//   R_SetupEntityLighting();
+	// - modelLod is assigned by R_AddMD3Surfaces() before RB_SurfaceMesh() reads it.
+	// Clearing the whole cold sidecar here only creates stores for data that will
+	// be overwritten later.
 	dst.flags = 0;
 	dst.reserved0 = 0;
 	dst.reserved1 = 0;
 	dst.reserved2 = 0;
-	Com_Memset(&local, 0, sizeof(local));
 	SetTrRefEntityFlag(dst.flags, trRefEntityFlags_t::IntShaderTime, intShaderTime);
 
 	r_numentities++;

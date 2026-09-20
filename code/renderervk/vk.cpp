@@ -3720,10 +3720,7 @@ void vk_bind_index(void)
 	if (tess.gpuIqmActive)
 	{
 		const auto& s = *tess.gpuIqmSurface;
-		vk_inst.cmd->command_buffer.bindIndexBuffer(
-			s.indexBuffer.handle,
-			0,
-			vk::IndexType::eUint32);
+		vk_bind_index_buffer(s.indexBuffer.handle, 0);
 		vk_inst.cmd->num_indexes = s.numIndexes;
 		return;
 	}
@@ -3731,10 +3728,7 @@ void vk_bind_index(void)
 	if (tess.gpuMd3Active)
 	{
 		const auto& s = *tess.gpuMd3Surface;
-		vk_inst.cmd->command_buffer.bindIndexBuffer(
-			s.indexBuffer.handle,
-			0,
-			vk::IndexType::eUint32);
+		vk_bind_index_buffer(s.indexBuffer.handle, 0);
 		vk_inst.cmd->num_indexes = s.numIndexes;
 		return;
 	}

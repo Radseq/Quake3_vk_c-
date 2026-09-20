@@ -1299,7 +1299,9 @@ int R_LerpTag(orientation_t* tag, qhandle_t handle, int startFrame, int endFrame
 		if (model->type == modtype_t::MOD_MDR)
 		{
 			start = R_GetAnimTag((mdrHeader_t*)model->modelData, startFrame, tagNameCpp, start_space);
-			end = R_GetAnimTag((mdrHeader_t*)model->modelData, endFrame, tagNameCpp, end_space);
+			end = (endFrame == startFrame)
+				? start
+				: R_GetAnimTag((mdrHeader_t*)model->modelData, endFrame, tagNameCpp, end_space);
 		}
 		else if (model->type == modtype_t::MOD_IQM)
 		{
@@ -1315,7 +1317,9 @@ int R_LerpTag(orientation_t* tag, qhandle_t handle, int startFrame, int endFrame
 	else
 	{
 		start = R_GetTag(model->md3[0], startFrame, tagNameCpp);
-		end = R_GetTag(model->md3[0], endFrame, tagNameCpp);
+		end = (endFrame == startFrame)
+			? start
+			: R_GetTag(model->md3[0], endFrame, tagNameCpp);
 	}
 
 	if (!start || !end)
