@@ -36,6 +36,7 @@ extern "C"
 #include "../renderercommon/tr_public.h"
 }
 
+#include <cstddef>
 #include <cstdint>
 #include <type_traits>
 using byte = std::uint8_t;
@@ -170,50 +171,19 @@ constexpr int SHADERNUM_BITS = 14;
 constexpr int MAX_SHADERS = (1 << SHADERNUM_BITS);
 constexpr int SHADERNUM_MASK = (MAX_SHADERS - 1);
 
-// this structure must be in sync with shader uniforms!
-typedef struct vkUniform_s
+// This structure must stay in sync with the UBO layouts embedded in shader_data.c.
+// The first 12 vec4s (192 bytes) are shared by all GPU-animated model shaders.
+// After that point MD3-simple, MD3-multi and IQM use mutually exclusive layouts,
+// so a union keeps the CPU ABI identical to each SPIR-V interface without carrying
+// the MD3-multi tail in front of the IQM palette.
+struct vkUniformMd3SimpleTail_t
 {
-	// light/env parameters:
-	vec4_t eyePos; // vertex
-	union
-	{
-		struct
-		{
-			vec4_t pos;    // vertex: light origin
-			vec4_t color;  // fragment: rgb + 1/(r*r)
-			vec4_t vector; // fragment: linear dynamic light
-		} light;
-		struct
-		{
-			vec4_t color[3]; // ent.color[3]
-		} ent;
-	};
+	vec4_t deform0;
+	vec4_t deform1;
+};
 
-	// fog parameters:
-	vec4_t fogDistanceVector; // vertex
-	vec4_t fogDepthVector;    // vertex
-	vec4_t fogEyeT;           // vertex
-	vec4_t fogColor;          // fragment
-
-	// GPU texcoord params for MD3 / generic VS:
-	// tc' = M * [base_tc.s, base_tc.t, 1]
-	// row0 = (s_s, s_t, s_o, useVectorTcGen)
-	// row1 = (t_s, t_t, t_o, reserved)
-	vec4_t tcMod0;
-	vec4_t tcMod1;
-
-	// only for TCGEN_VECTOR
-	vec4_t tcGenVector0;
-	vec4_t tcGenVector1;
-
-	// Secondary GPU texcoord params for MD3 multi-texture path.
-	// Flags in *.w:
-	// bit 0 = use vector tcGen
-	// bit 1 = use turbulent post-step
-	// bit 2 = slot enabled (otherwise shader keeps the incoming attrib)
-	// bit 3 = environment mapping (regular)
-	// bit 4 = environment mapping (first-person)
-	// bit 5 = environment mapping (first-person screen-map)
+struct vkUniformMd3MultiTail_t
+{
 	vec4_t tc1Mod0;
 	vec4_t tc1Mod1;
 	vec4_t tc1GenVector0;
@@ -224,25 +194,125 @@ typedef struct vkUniform_s
 	vec4_t tc2GenVector0;
 	vec4_t tc2GenVector1;
 
-	// GPU deformVertexes params for MD3 path.
-	// deform0.x = mode (0 = none, 1 = wave(sin), 2 = bulge)
-	// wave:  deform0.y = spread, deform0.w = phaseNow,
-	//        deform1.x = base, deform1.y = amplitude, deform1.z = useSpread
-	// bulge: deform0.y = bulgeWidth, deform0.z = bulgeHeight, deform0.w = now
 	vec4_t deform0;
 	vec4_t deform1;
 
-	// Secondary GPU color params for MD3 multi-bundle paths.
-	// colorMode01.x = bundle1 color mode, colorMode01.y = bundle2 color mode
-	// color1Fixed / color2Fixed = per-bundle uniform RGBA used by solid-color modes
 	vec4_t colorMode01;
 	vec4_t color1Fixed;
 	vec4_t color2Fixed;
+};
 
-	// GPU IQM skinning palette: 3 vec4 rows per joint (3x4 matrix).
-	// Only the first data->num_poses joints are read by IQM vertex shaders.
-	vec4_t iqmJointMat[IQM_MAX_JOINTS * 3];
+struct vkUniformIqmTail_t
+{
+	vec4_t deform0;
+	vec4_t deform1;
+
+	// 3 vec4 rows per joint (3x4 matrix). The shaders read only num_poses joints.
+	vec4_t jointMat[IQM_MAX_JOINTS * 3];
+};
+
+union vkUniformGpuTail_t
+{
+	vkUniformMd3SimpleTail_t md3Simple;
+	vkUniformMd3MultiTail_t md3Multi;
+	vkUniformIqmTail_t iqm;
+};
+
+typedef struct vkUniform_s
+{
+	// light/env parameters
+	vec4_t eyePos;
+	union
+	{
+		struct
+		{
+			vec4_t pos;
+			vec4_t color;
+			vec4_t vector;
+		} light;
+		struct
+		{
+			vec4_t color[3];
+		} ent;
+	};
+
+	// fog parameters
+	vec4_t fogDistanceVector;
+	vec4_t fogDepthVector;
+	vec4_t fogEyeT;
+	vec4_t fogColor;
+
+	// Primary GPU texcoord parameters. These are shared by MD3-simple,
+	// MD3-multi and IQM vertex shaders.
+	vec4_t tcMod0;
+	vec4_t tcMod1;
+	vec4_t tcGenVector0;
+	vec4_t tcGenVector1;
+
+	vkUniformGpuTail_t gpu;
 } vkUniform_t;
+
+enum class vkUniformPayload_t : std::uint8_t
+{
+	Generic,
+	Md3Simple,
+	Md3Multi,
+	Iqm
+};
+
+// Exact byte ranges declared by the corresponding std140 UBOs in the embedded
+// SPIR-V. Dynamic UBO slots may be packed to these sizes; the descriptor range
+// remains sizeof(vkUniform_t), while each shader only accesses its declared prefix.
+inline constexpr std::size_t VK_UNIFORM_GENERIC_SIZE = offsetof(vkUniform_t, tcMod0); // 8 vec4
+inline constexpr std::size_t VK_UNIFORM_MD3_SIMPLE_SIZE =
+	offsetof(vkUniform_t, gpu) + sizeof(vkUniformMd3SimpleTail_t);
+inline constexpr std::size_t VK_UNIFORM_MD3_MULTI_SIZE =
+	offsetof(vkUniform_t, gpu) + sizeof(vkUniformMd3MultiTail_t);
+inline constexpr std::size_t VK_UNIFORM_IQM_SIZE =
+	offsetof(vkUniform_t, gpu) + sizeof(vkUniformIqmTail_t);
+
+inline constexpr std::array<std::size_t, 4> VK_UNIFORM_PAYLOAD_SIZES = {
+	VK_UNIFORM_GENERIC_SIZE,
+	VK_UNIFORM_MD3_SIMPLE_SIZE,
+	VK_UNIFORM_MD3_MULTI_SIZE,
+	VK_UNIFORM_IQM_SIZE
+};
+static_assert(std::to_underlying(vkUniformPayload_t::Iqm) + 1u == VK_UNIFORM_PAYLOAD_SIZES.size());
+
+constexpr ID_INLINE std::size_t VK_UniformPayloadSize(const vkUniformPayload_t payload) noexcept
+{
+	return VK_UNIFORM_PAYLOAD_SIZES[std::to_underlying(payload)];
+}
+
+static_assert(std::is_standard_layout_v<vkUniformMd3SimpleTail_t>);
+static_assert(std::is_standard_layout_v<vkUniformMd3MultiTail_t>);
+static_assert(std::is_standard_layout_v<vkUniformIqmTail_t>);
+static_assert(std::is_standard_layout_v<vkUniformGpuTail_t>);
+static_assert(std::is_standard_layout_v<vkUniform_t>);
+
+static_assert(VK_UNIFORM_GENERIC_SIZE == 128);
+static_assert(offsetof(vkUniform_t, tcMod0) == 128);
+static_assert(offsetof(vkUniform_t, tcGenVector1) == 176);
+static_assert(offsetof(vkUniform_t, gpu) == 192);
+
+static_assert(offsetof(vkUniform_t, gpu) + offsetof(vkUniformMd3SimpleTail_t, deform0) == 192);
+static_assert(offsetof(vkUniform_t, gpu) + offsetof(vkUniformMd3SimpleTail_t, deform1) == 208);
+static_assert(VK_UNIFORM_MD3_SIMPLE_SIZE == 224);
+
+static_assert(offsetof(vkUniform_t, gpu) + offsetof(vkUniformMd3MultiTail_t, tc1Mod0) == 192);
+static_assert(offsetof(vkUniform_t, gpu) + offsetof(vkUniformMd3MultiTail_t, tc2Mod0) == 256);
+static_assert(offsetof(vkUniform_t, gpu) + offsetof(vkUniformMd3MultiTail_t, deform0) == 320);
+static_assert(offsetof(vkUniform_t, gpu) + offsetof(vkUniformMd3MultiTail_t, deform1) == 336);
+static_assert(offsetof(vkUniform_t, gpu) + offsetof(vkUniformMd3MultiTail_t, colorMode01) == 352);
+static_assert(offsetof(vkUniform_t, gpu) + offsetof(vkUniformMd3MultiTail_t, color1Fixed) == 368);
+static_assert(offsetof(vkUniform_t, gpu) + offsetof(vkUniformMd3MultiTail_t, color2Fixed) == 384);
+static_assert(VK_UNIFORM_MD3_MULTI_SIZE == 400);
+
+static_assert(offsetof(vkUniform_t, gpu) + offsetof(vkUniformIqmTail_t, deform0) == 192);
+static_assert(offsetof(vkUniform_t, gpu) + offsetof(vkUniformIqmTail_t, deform1) == 208);
+static_assert(offsetof(vkUniform_t, gpu) + offsetof(vkUniformIqmTail_t, jointMat) == 224);
+static_assert(VK_UNIFORM_IQM_SIZE == 6368);
+static_assert(sizeof(vkUniform_t) == VK_UNIFORM_IQM_SIZE);
 
 typedef struct dlight_s
 {
@@ -833,6 +903,8 @@ typedef struct skin_s
 	char name[MAX_QPATH]; // game path, including extension
 	int numSurfaces;
 	skinSurface_t *surfaces; // dynamically allocated array of surfaces
+	uint16_t *surfaceHashTable; // open-addressed table, stores surface index + 1; 0 means empty
+	uint16_t surfaceHashMask;   // table size - 1, table size is always a power of two
 } skin_t;
 
 typedef struct

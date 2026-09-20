@@ -2923,7 +2923,15 @@ void vk_release_resources(void)
 	// 	vk_world.samplers[i] = nullptr;
 	// }
 
-	// Destroy pipelines
+	// Destroy world pipelines.  Persistent pipeline descriptors can cache an
+	// MD3/IQM variant that lives in this world-owned suffix, so invalidate those
+	// indices before the suffix is truncated and its slots can be reused.
+	for (i = 0; i < vk_inst.pipelines_world_base; ++i)
+	{
+		vk_inst.pipelines[i].md3_variant_plus_one = 0;
+		vk_inst.pipelines[i].iqm_variant_plus_one = 0;
+	}
+
 	for (i = vk_inst.pipelines_world_base; i < vk_inst.pipelines_count; ++i)
 	{
 		for (j = 0; j < RENDER_PASS_COUNT; ++j)
@@ -4692,6 +4700,7 @@ void vk_begin_frame(const void *renderCommands)
 	}
 
 	vk_inst.cmd->last_pipeline = nullptr;
+	vk_inst.cmd->gpu_anim_push_constants_valid = false;
 
 	backEnd.screenMapDone = false;
 

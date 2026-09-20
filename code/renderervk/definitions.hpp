@@ -332,6 +332,10 @@ typedef struct VK_Pipeline
 {
     Vk_Pipeline_Def def;
     vk::Pipeline handle[RENDER_PASS_COUNT];
+    // 0 = unresolved, UINT32_MAX = this base shader has no GPU-animation variant,
+    // otherwise cached pipeline index + 1.  +1 keeps zero-initialization useful.
+    uint32_t md3_variant_plus_one{};
+    uint32_t iqm_variant_plus_one{};
 } VK_Pipeline_t;
 
 struct vk_tess_s
@@ -367,6 +371,9 @@ struct vk_tess_s
 
     Vk_Depth_Range depth_range{ Vk_Depth_Range::DEPTH_RANGE_COUNT };
     vk::Pipeline last_pipeline{};
+
+    alignas(16) float gpu_anim_push_constants[4]{};
+    bool gpu_anim_push_constants_valid{};
 
     uint32_t num_indexes{};
 

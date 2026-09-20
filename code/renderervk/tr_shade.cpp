@@ -471,13 +471,35 @@ enum class gpuTcSlot_t : std::uint8_t
 	bundle2
 };
 
-static ID_INLINE void VK_SetIdentityTcParamsForSlot(vkUniform_t& u, const gpuTcSlot_t slot) noexcept
+static ID_INLINE vkUniformPayload_t VK_UniformPayloadForStage(const shaderStage_t& stage) noexcept
 {
-	vec4_t* mod0 = nullptr;
-	vec4_t* mod1 = nullptr;
-	vec4_t* gen0 = nullptr;
-	vec4_t* gen1 = nullptr;
+	if (tess.gpuIqmActive)
+	{
+		return vkUniformPayload_t::Iqm;
+	}
 
+	if (tess.gpuMd3Active)
+	{
+		// All GPU-MD3 multi/blend pipelines are created from stages with more
+		// than one texture bundle. Their SPIR-V has the 400-byte tail; the
+		// single-bundle variants use the compact 224-byte tail.
+		return stage.numTexBundles > 1
+			? vkUniformPayload_t::Md3Multi
+			: vkUniformPayload_t::Md3Simple;
+	}
+
+	return vkUniformPayload_t::Generic;
+}
+
+static ID_INLINE bool VK_GetTcParamRows(
+	vkUniform_t& u,
+	const gpuTcSlot_t slot,
+	const vkUniformPayload_t payload,
+	vec4_t*& mod0,
+	vec4_t*& mod1,
+	vec4_t*& gen0,
+	vec4_t*& gen1) noexcept
+{
 	switch (slot)
 	{
 	case gpuTcSlot_t::bundle0:
@@ -485,19 +507,42 @@ static ID_INLINE void VK_SetIdentityTcParamsForSlot(vkUniform_t& u, const gpuTcS
 		mod1 = &u.tcMod1;
 		gen0 = &u.tcGenVector0;
 		gen1 = &u.tcGenVector1;
-		break;
+		return true;
+
 	case gpuTcSlot_t::bundle1:
-		mod0 = &u.tc1Mod0;
-		mod1 = &u.tc1Mod1;
-		gen0 = &u.tc1GenVector0;
-		gen1 = &u.tc1GenVector1;
-		break;
+		if (payload != vkUniformPayload_t::Md3Multi)
+			return false;
+		mod0 = &u.gpu.md3Multi.tc1Mod0;
+		mod1 = &u.gpu.md3Multi.tc1Mod1;
+		gen0 = &u.gpu.md3Multi.tc1GenVector0;
+		gen1 = &u.gpu.md3Multi.tc1GenVector1;
+		return true;
+
 	case gpuTcSlot_t::bundle2:
-		mod0 = &u.tc2Mod0;
-		mod1 = &u.tc2Mod1;
-		gen0 = &u.tc2GenVector0;
-		gen1 = &u.tc2GenVector1;
-		break;
+		if (payload != vkUniformPayload_t::Md3Multi)
+			return false;
+		mod0 = &u.gpu.md3Multi.tc2Mod0;
+		mod1 = &u.gpu.md3Multi.tc2Mod1;
+		gen0 = &u.gpu.md3Multi.tc2GenVector0;
+		gen1 = &u.gpu.md3Multi.tc2GenVector1;
+		return true;
+	}
+
+	return false;
+}
+
+static ID_INLINE void VK_SetIdentityTcParamsForSlot(
+	vkUniform_t& u,
+	const gpuTcSlot_t slot,
+	const vkUniformPayload_t payload) noexcept
+{
+	vec4_t* mod0 = nullptr;
+	vec4_t* mod1 = nullptr;
+	vec4_t* gen0 = nullptr;
+	vec4_t* gen1 = nullptr;
+	if (!VK_GetTcParamRows(u, slot, payload, mod0, mod1, gen0, gen1))
+	{
+		return;
 	}
 
 	(*mod0)[0] = 1.0f; (*mod0)[1] = 0.0f; (*mod0)[2] = 0.0f; (*mod0)[3] = 0.0f;
@@ -507,35 +552,73 @@ static ID_INLINE void VK_SetIdentityTcParamsForSlot(vkUniform_t& u, const gpuTcS
 	(*gen1)[0] = 0.0f; (*gen1)[1] = 0.0f; (*gen1)[2] = 0.0f; (*gen1)[3] = 0.0f;
 }
 
-static ID_INLINE void VK_SetIdentityTcParams(vkUniform_t& u) noexcept
+static ID_INLINE void VK_SetIdentityTcParams(vkUniform_t& u, const vkUniformPayload_t payload) noexcept
 {
-	VK_SetIdentityTcParamsForSlot(u, gpuTcSlot_t::bundle0);
-	VK_SetIdentityTcParamsForSlot(u, gpuTcSlot_t::bundle1);
-	VK_SetIdentityTcParamsForSlot(u, gpuTcSlot_t::bundle2);
+	VK_SetIdentityTcParamsForSlot(u, gpuTcSlot_t::bundle0, payload);
+	if (payload == vkUniformPayload_t::Md3Multi)
+	{
+		VK_SetIdentityTcParamsForSlot(u, gpuTcSlot_t::bundle1, payload);
+		VK_SetIdentityTcParamsForSlot(u, gpuTcSlot_t::bundle2, payload);
+	}
 }
 
-static ID_INLINE void VK_SetIdentityGpuMd3DeformParams(vkUniform_t& u) noexcept
+static ID_INLINE bool VK_GetGpuDeformRows(
+	vkUniform_t& u,
+	const vkUniformPayload_t payload,
+	vec4_t*& deform0,
+	vec4_t*& deform1) noexcept
 {
-	u.deform0[0] = 0.0f; u.deform0[1] = 0.0f; u.deform0[2] = 0.0f; u.deform0[3] = 0.0f;
-	u.deform1[0] = 0.0f; u.deform1[1] = 0.0f; u.deform1[2] = 0.0f; u.deform1[3] = 0.0f;
+	switch (payload)
+	{
+	case vkUniformPayload_t::Md3Simple:
+		deform0 = &u.gpu.md3Simple.deform0;
+		deform1 = &u.gpu.md3Simple.deform1;
+		return true;
+
+	case vkUniformPayload_t::Md3Multi:
+		deform0 = &u.gpu.md3Multi.deform0;
+		deform1 = &u.gpu.md3Multi.deform1;
+		return true;
+
+	case vkUniformPayload_t::Iqm:
+		deform0 = &u.gpu.iqm.deform0;
+		deform1 = &u.gpu.iqm.deform1;
+		return true;
+
+	case vkUniformPayload_t::Generic:
+		return false;
+	}
+	return false;
 }
 
-static ID_INLINE void VK_SetIdentityGpuMd3ColorParams(vkUniform_t& u) noexcept
+static ID_INLINE void VK_SetIdentityGpuDeformParams(
+	vkUniform_t& u,
+	const vkUniformPayload_t payload) noexcept
 {
-	u.colorMode01[0] = 0.0f;
-	u.colorMode01[1] = 0.0f;
-	u.colorMode01[2] = 0.0f;
-	u.colorMode01[3] = 0.0f;
+	vec4_t* deform0 = nullptr;
+	vec4_t* deform1 = nullptr;
+	if (!VK_GetGpuDeformRows(u, payload, deform0, deform1))
+	{
+		return;
+	}
 
-	u.color1Fixed[0] = 1.0f;
-	u.color1Fixed[1] = 1.0f;
-	u.color1Fixed[2] = 1.0f;
-	u.color1Fixed[3] = 1.0f;
+	Vector4Set(*deform0, 0.0f, 0.0f, 0.0f, 0.0f);
+	Vector4Set(*deform1, 0.0f, 0.0f, 0.0f, 0.0f);
+}
 
-	u.color2Fixed[0] = 1.0f;
-	u.color2Fixed[1] = 1.0f;
-	u.color2Fixed[2] = 1.0f;
-	u.color2Fixed[3] = 1.0f;
+static ID_INLINE void VK_SetIdentityGpuMd3ColorParams(
+	vkUniform_t& u,
+	const vkUniformPayload_t payload) noexcept
+{
+	if (payload != vkUniformPayload_t::Md3Multi)
+	{
+		return;
+	}
+
+	auto& tail = u.gpu.md3Multi;
+	Vector4Set(tail.colorMode01, 0.0f, 0.0f, 0.0f, 0.0f);
+	Vector4Set(tail.color1Fixed, 1.0f, 1.0f, 1.0f, 1.0f);
+	Vector4Set(tail.color2Fixed, 1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 static ID_INLINE gpuMd3Layout_t VK_GpuMd3LayoutForShaderType(const Vk_Shader_Type shaderType) noexcept
@@ -557,9 +640,19 @@ static ID_INLINE bool R_IsGpuMd3EnvLayout(const shaderStage_t& stage) noexcept
 		layout == gpuMd3Layout_t::GENERIC_ENV_NO_COLOR;
 }
 
-static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage) noexcept
+static void VK_SetGpuDeformParams(
+	vkUniform_t& u,
+	const vkUniformPayload_t payload) noexcept
 {
-	VK_SetIdentityGpuMd3DeformParams(u);
+	vec4_t* deform0 = nullptr;
+	vec4_t* deform1 = nullptr;
+	if (!VK_GetGpuDeformRows(u, payload, deform0, deform1))
+	{
+		return;
+	}
+
+	Vector4Set(*deform0, 0.0f, 0.0f, 0.0f, 0.0f);
+	Vector4Set(*deform1, 0.0f, 0.0f, 0.0f, 0.0f);
 
 	if ((!tess.gpuMd3Active && !tess.gpuIqmActive) || !tess.shader || tess.shader->numDeforms != 1)
 	{
@@ -576,24 +669,22 @@ static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage)
 			return;
 		}
 
-		u.deform0[0] = 1.0f;
-		u.deform0[1] = ds.deformationSpread;
-		u.deform0[2] = 0.0f;
-		u.deform0[3] = ds.deformationWave.phase + static_cast<float>(tess.shaderTime) * ds.deformationWave.frequency;
+		(*deform0)[0] = 1.0f;
+		(*deform0)[1] = ds.deformationSpread;
+		(*deform0)[2] = 0.0f;
+		(*deform0)[3] = ds.deformationWave.phase + static_cast<float>(tess.shaderTime) * ds.deformationWave.frequency;
 
-		u.deform1[0] = ds.deformationWave.base;
-		u.deform1[1] = ds.deformationWave.amplitude;
-		u.deform1[2] = static_cast<float>(std::to_underlying(ds.deformationWave.func));
-		u.deform1[3] = (ds.deformationWave.frequency != 0.0f) ? 1.0f : 0.0f;
+		(*deform1)[0] = ds.deformationWave.base;
+		(*deform1)[1] = ds.deformationWave.amplitude;
+		(*deform1)[2] = static_cast<float>(std::to_underlying(ds.deformationWave.func));
+		(*deform1)[3] = (ds.deformationWave.frequency != 0.0f) ? 1.0f : 0.0f;
 		return;
 
 	case deform_t::DEFORM_BULGE:
-		// Bulge uses the model's base ST set, not the stage tcGen result.
-		// GPU MD3 env pipelines bind ST as well, so bulge can remain on GPU.
-		u.deform0[0] = 2.0f;
-		u.deform0[1] = ds.bulgeWidth;
-		u.deform0[2] = ds.bulgeHeight;
-		u.deform0[3] = static_cast<float>(backEnd.refdef.floatTime * ds.bulgeSpeed);
+		(*deform0)[0] = 2.0f;
+		(*deform0)[1] = ds.bulgeWidth;
+		(*deform0)[2] = ds.bulgeHeight;
+		(*deform0)[3] = static_cast<float>(backEnd.refdef.floatTime * ds.bulgeSpeed);
 		return;
 
 	case deform_t::DEFORM_MOVE:
@@ -602,35 +693,36 @@ static void VK_SetGpuMd3DeformParams(vkUniform_t& u, const shaderStage_t& stage)
 			return;
 		}
 
-		u.deform0[0] = 3.0f;
-		u.deform0[1] = ds.moveVector[0];
-		u.deform0[2] = ds.moveVector[1];
-		u.deform0[3] = ds.moveVector[2];
+		(*deform0)[0] = 3.0f;
+		(*deform0)[1] = ds.moveVector[0];
+		(*deform0)[2] = ds.moveVector[1];
+		(*deform0)[3] = ds.moveVector[2];
 
-		u.deform1[0] = ds.deformationWave.base;
-		u.deform1[1] = ds.deformationWave.amplitude;
-		u.deform1[2] = static_cast<float>(std::to_underlying(ds.deformationWave.func));
-		u.deform1[3] = ds.deformationWave.phase + static_cast<float>(tess.shaderTime) * ds.deformationWave.frequency;
+		(*deform1)[0] = ds.deformationWave.base;
+		(*deform1)[1] = ds.deformationWave.amplitude;
+		(*deform1)[2] = static_cast<float>(std::to_underlying(ds.deformationWave.func));
+		(*deform1)[3] = ds.deformationWave.phase + static_cast<float>(tess.shaderTime) * ds.deformationWave.frequency;
 		return;
 
 	case deform_t::DEFORM_NORMALS:
-		// Mirror RB_CalcDeformNormals() on the GPU.
-		// The shader derives the animated time slice from deform0.w and
-		// uses the amplitude from deform0.y.
-		u.deform0[0] = 4.0f;
-		u.deform0[1] = ds.deformationWave.amplitude;
-		u.deform0[2] = 0.0f;
-		u.deform0[3] = static_cast<float>(tess.shaderTime * ds.deformationWave.frequency);
+		(*deform0)[0] = 4.0f;
+		(*deform0)[1] = ds.deformationWave.amplitude;
+		(*deform0)[2] = 0.0f;
+		(*deform0)[3] = static_cast<float>(tess.shaderTime * ds.deformationWave.frequency);
 		return;
 
 	default:
-		(void)stage;
 		return;
 	}
 }
-static void VK_SetGpuMd3TcParamsForSlot(vkUniform_t& u, const textureBundle_t& bundle, const gpuTcSlot_t slot) noexcept
+
+static void VK_SetGpuMd3TcParamsForSlot(
+	vkUniform_t& u,
+	const textureBundle_t& bundle,
+	const gpuTcSlot_t slot,
+	const vkUniformPayload_t payload) noexcept
 {
-	VK_SetIdentityTcParamsForSlot(u, slot);
+	VK_SetIdentityTcParamsForSlot(u, slot, payload);
 
 	gpuTcProgram_t prog{};
 	if (!R_BuildGpuMd3TcProgram(prog, bundle))
@@ -642,27 +734,9 @@ static void VK_SetGpuMd3TcParamsForSlot(vkUniform_t& u, const textureBundle_t& b
 	vec4_t* mod1 = nullptr;
 	vec4_t* gen0 = nullptr;
 	vec4_t* gen1 = nullptr;
-
-	switch (slot)
+	if (!VK_GetTcParamRows(u, slot, payload, mod0, mod1, gen0, gen1))
 	{
-	case gpuTcSlot_t::bundle0:
-		mod0 = &u.tcMod0;
-		mod1 = &u.tcMod1;
-		gen0 = &u.tcGenVector0;
-		gen1 = &u.tcGenVector1;
-		break;
-	case gpuTcSlot_t::bundle1:
-		mod0 = &u.tc1Mod0;
-		mod1 = &u.tc1Mod1;
-		gen0 = &u.tc1GenVector0;
-		gen1 = &u.tc1GenVector1;
-		break;
-	case gpuTcSlot_t::bundle2:
-		mod0 = &u.tc2Mod0;
-		mod1 = &u.tc2Mod1;
-		gen0 = &u.tc2GenVector0;
-		gen1 = &u.tc2GenVector1;
-		break;
+		return;
 	}
 
 	int flagBits =
@@ -1134,16 +1208,31 @@ void R_ComputeColors(const int b, color4ub_t* dest, const shaderStage_t& pStage)
 	}
 }
 
-uint32_t VK_PushUniform(const vkUniform_t& uniform)
+uint32_t VK_PushUniform(const vkUniform_t& uniform, const vkUniformPayload_t payload)
 {
-	const uint32_t offset = vk_inst.cmd->uniform_read_offset = pad_up(vk_inst.cmd->vertex_buffer_offset, vk_inst.uniform_alignment);
+	const std::size_t uploadSize = VK_UniformPayloadSize(payload);
+	const uint64_t offset64 = pad_up(
+		vk_inst.cmd->vertex_buffer_offset,
+		static_cast<uint64_t>(vk_inst.uniform_alignment));
 
-	if (static_cast<uint64_t>(offset) + vk_inst.uniform_item_size > vk_inst.geometry_buffer_size)
+	// The descriptor range remains sizeof(vkUniform_t), therefore Vulkan still
+	// requires the maximum range to fit from every dynamic offset. Payloads may
+	// nevertheless be packed more tightly because each SPIR-V variant only reads
+	// the prefix declared by its own UBO interface.
+	if (offset64 > UINT32_MAX ||
+		offset64 + vk_inst.uniform_item_size > vk_inst.geometry_buffer_size)
+	{
 		return ~0U;
+	}
 
-	// push uniform
-	Com_Memcpy(vk_inst.cmd->vertex_buffer_ptr + offset, &uniform, sizeof(uniform));
-	vk_inst.cmd->vertex_buffer_offset = static_cast<uint64_t>(offset) + vk_inst.uniform_item_size;
+	const uint32_t offset = static_cast<uint32_t>(offset64);
+	vk_inst.cmd->uniform_read_offset = offset;
+
+	Com_Memcpy(vk_inst.cmd->vertex_buffer_ptr + offset, &uniform, uploadSize);
+
+	vk_inst.cmd->vertex_buffer_offset = offset64 + pad_up(
+		static_cast<uint64_t>(uploadSize),
+		static_cast<uint64_t>(vk_inst.uniform_alignment));
 
 	vk_reset_descriptor(VK_DESC_UNIFORM);
 	vk_update_descriptor(VK_DESC_UNIFORM, vk_inst.cmd->uniform_descriptor);
@@ -1227,8 +1316,23 @@ static void VK_SetLightParams(vkUniform_t& uniform, const dlight_t& dl)
 }
 #endif
 
+static ID_INLINE void VK_UpdateGpuIqmPose(vkUniform_t& uniform)
+{
+	if (!tess.gpuIqmActive || !tess.gpuIqmData)
+	{
+		return;
+	}
+
+	R_IQMComputePoseMats(
+		*tess.gpuIqmData,
+		static_cast<int>(tess.gpuIqmNewFrame),
+		static_cast<int>(tess.gpuIqmOldFrame),
+		tess.gpuIqmBacklerp,
+		&uniform.gpu.iqm.jointMat[0][0]);
+}
+
 #ifdef USE_LEGACY_DLIGHTS
-static void VK_SetLegacyGpuMd3DlightParams(vkUniform_t& uniform, const dlight_t& dl, const shaderStage_t* stage) noexcept
+static void VK_SetLegacyGpuMd3DlightParams(vkUniform_t& uniform, const dlight_t& dl) noexcept
 {
 	VectorCopy(dl.transformed, uniform.light.pos);
 	uniform.light.pos[3] = dl.radius > 0.0f ? 1.0f / dl.radius : 0.0f;
@@ -1243,13 +1347,9 @@ static void VK_SetLegacyGpuMd3DlightParams(vkUniform_t& uniform, const dlight_t&
 	uniform.light.vector[2] = dl.radius * 0.5f;
 	uniform.light.vector[3] = 0.0f;
 
-	VK_SetIdentityTcParams(uniform);
-	VK_SetIdentityGpuMd3DeformParams(uniform);
-
-	if (stage)
-	{
-		VK_SetGpuMd3DeformParams(uniform, *stage);
-	}
+	constexpr vkUniformPayload_t payload = vkUniformPayload_t::Md3Simple;
+	VK_SetIdentityTcParams(uniform, payload);
+	VK_SetGpuDeformParams(uniform, payload);
 }
 #endif
 
@@ -1267,18 +1367,35 @@ void VK_LightingPass(void)
 		return;
 
 	pStage = tess.xstages[tess.shader->lightingStage];
+	if (!pStage)
+		return;
 
-	// we may need to update programs for fog transitions
-	if (tess.dlightUpdateParams)
+	const bool gpuAnimated = tess.gpuMd3Active || tess.gpuIqmActive;
+	const vkUniformPayload_t payload = tess.gpuIqmActive
+		? vkUniformPayload_t::Iqm
+		: (tess.gpuMd3Active ? vkUniformPayload_t::Md3Simple : vkUniformPayload_t::Generic);
+
+	// CPU geometry can reuse a previously uploaded light UBO while the light
+	// parameters are unchanged. GPU-animated geometry additionally carries
+	// per-surface tc/deform/pose data, therefore it must upload a fresh payload.
+	if (tess.dlightUpdateParams || gpuAnimated)
 	{
-
-		// fog parameters
 		VK_SetFogParams(uniform, fog_stage);
-		// light parameters
 		VK_SetLightParams(uniform, *tess.light);
 
-		uniform_offset = VK_PushUniform(uniform);
+		if (gpuAnimated)
+		{
+			VK_SetIdentityTcParams(uniform, payload);
+			VK_SetGpuMd3TcParamsForSlot(
+				uniform,
+				pStage->bundle[tess.shader->lightingBundle],
+				gpuTcSlot_t::bundle0,
+				payload);
+			VK_SetGpuDeformParams(uniform, payload);
+			VK_UpdateGpuIqmPose(uniform);
+		}
 
+		uniform_offset = VK_PushUniform(uniform, payload);
 		tess.dlightUpdateParams = false;
 	}
 
@@ -1802,16 +1919,36 @@ static ID_INLINE void VK_BuildGpuMd3SolidColor(vec4_t rgba, const shaderStage_t&
 	VK_BuildGpuMd3SolidColorForBundle(rgba, stage.bundle[0]);
 }
 
-static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& stage) noexcept
+static void VK_SetGpuMd3ColorParams(
+	vkUniform_t& uniform,
+	const shaderStage_t& stage,
+	const vkUniformPayload_t payload) noexcept
 {
 	const uint32_t colorMode = R_GpuMd3SecondaryColorMode(stage, 0u);
+	const bool hasMultiTail = payload == vkUniformPayload_t::Md3Multi;
 
-	uniform.colorMode01[0] = static_cast<float>(R_GpuMd3SecondaryColorMode(stage, 1u));
-	uniform.colorMode01[1] = static_cast<float>(R_GpuMd3SecondaryColorMode(stage, 2u));
-	uniform.colorMode01[2] = 0.0f;
-	uniform.colorMode01[3] = 0.0f;
-	Vector4Set(uniform.color1Fixed, 1.0f, 1.0f, 1.0f, 1.0f);
-	Vector4Set(uniform.color2Fixed, 1.0f, 1.0f, 1.0f, 1.0f);
+	if (hasMultiTail)
+	{
+		auto& tail = uniform.gpu.md3Multi;
+		tail.colorMode01[0] = static_cast<float>(R_GpuMd3SecondaryColorMode(stage, 1u));
+		tail.colorMode01[1] = static_cast<float>(R_GpuMd3SecondaryColorMode(stage, 2u));
+		tail.colorMode01[2] = 0.0f;
+		tail.colorMode01[3] = 0.0f;
+		Vector4Set(tail.color1Fixed, 1.0f, 1.0f, 1.0f, 1.0f);
+		Vector4Set(tail.color2Fixed, 1.0f, 1.0f, 1.0f, 1.0f);
+
+		if ((stage.numTexBundles > 1) && (tail.colorMode01[0] != 0.0f) &&
+			((static_cast<uint32_t>(tail.colorMode01[0]) & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u))
+		{
+			VK_BuildGpuMd3SolidColorForBundle(tail.color1Fixed, stage.bundle[1]);
+		}
+
+		if ((stage.numTexBundles > 2) && (tail.colorMode01[1] != 0.0f) &&
+			((static_cast<uint32_t>(tail.colorMode01[1]) & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u))
+		{
+			VK_BuildGpuMd3SolidColorForBundle(tail.color2Fixed, stage.bundle[2]);
+		}
+	}
 
 	// Regular generic MD3 shader reads color mode from light.pos.w.
 	// ENV MD3 shader keeps light.pos.w for env FP/screen-map semantics,
@@ -1825,18 +1962,6 @@ static void VK_SetGpuMd3ColorParams(vkUniform_t& uniform, const shaderStage_t& s
 	}
 	uniform.light.color[3] = 0.0f;
 	uniform.fogEyeT[2] = 0.0f;
-
-	if ((stage.numTexBundles > 1) && (uniform.colorMode01[0] != 0.0f) &&
-		((static_cast<uint32_t>(uniform.colorMode01[0]) & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u))
-	{
-		VK_BuildGpuMd3SolidColorForBundle(uniform.color1Fixed, stage.bundle[1]);
-	}
-
-	if ((stage.numTexBundles > 2) && (uniform.colorMode01[1] != 0.0f) &&
-		((static_cast<uint32_t>(uniform.colorMode01[1]) & GPU_MD3_COLOR_UNIFORM_SOLID_RGBA) != 0u))
-	{
-		VK_BuildGpuMd3SolidColorForBundle(uniform.color2Fixed, stage.bundle[2]);
-	}
 
 	if (colorMode == 0u)
 		return;
@@ -1898,8 +2023,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 	uint32_t pipeline;
 	int fog_stage = 0;
 	bool pushUniform;
-	float iqmPoseMats[IQM_MAX_JOINTS * 12]{};
-	bool haveGpuIqmPoseMats = false;
+	vkUniformPayload_t currentPayload = vkUniformPayload_t::Generic;
 
 	vk_bind_index();
 
@@ -1928,15 +2052,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 		}
 	}
 
-	if (tess.gpuIqmActive && tess.gpuIqmData)
-	{
-		R_IQMComputePoseMats(*tess.gpuIqmData,
-			static_cast<int>(tess.gpuIqmNewFrame),
-			static_cast<int>(tess.gpuIqmOldFrame),
-			tess.gpuIqmBacklerp,
-			iqmPoseMats);
-		haveGpuIqmPoseMats = true;
-	}
+	VK_UpdateGpuIqmPose(uniform);
 
 	RB_ResetStageTracking();
 
@@ -1948,12 +2064,15 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 
 		RB_SetStageTracking(stage);
 
+		currentPayload = VK_UniformPayloadForStage(*pStage);
 		tess_flags |= pStage->tessFlags;
 
-		// nowe: zawsze ustaw bazowe tc parametry
-		VK_SetIdentityTcParams(uniform);
-		VK_SetIdentityGpuMd3DeformParams(uniform);
-		VK_SetIdentityGpuMd3ColorParams(uniform);
+		// Reset only the fields present in this shader's actual UBO layout.
+		// In particular, never touch the MD3-multi tail while IQM owns the
+		// same bytes as deform + joint palette.
+		VK_SetIdentityTcParams(uniform, currentPayload);
+		VK_SetIdentityGpuDeformParams(uniform, currentPayload);
+		VK_SetIdentityGpuMd3ColorParams(uniform, currentPayload);
 		pushUniform = true;
 
 		if (tess.gpuMd3Active || tess.gpuIqmActive)
@@ -1961,28 +2080,22 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 			VK_SetGpuMd3EnvParams(uniform, *pStage);
 			if (tess.gpuMd3Active)
 			{
-				VK_SetGpuMd3ColorParams(uniform, *pStage);
+				VK_SetGpuMd3ColorParams(uniform, *pStage, currentPayload);
 			}
-			VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[0], gpuTcSlot_t::bundle0);
+			VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[0], gpuTcSlot_t::bundle0, currentPayload);
 
 			if (tess.gpuMd3Active && pStage->numTexBundles > 1 &&
 				R_GpuMd3TexCoordsHandledInShader(*pStage, 1, pStage->bundle[1]))
 			{
-				VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[1], gpuTcSlot_t::bundle1);
+				VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[1], gpuTcSlot_t::bundle1, currentPayload);
 			}
 
 			if (tess.gpuMd3Active && pStage->numTexBundles > 2 &&
 				R_GpuMd3TexCoordsHandledInShader(*pStage, 2, pStage->bundle[2]))
 			{
-				VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[2], gpuTcSlot_t::bundle2);
+				VK_SetGpuMd3TcParamsForSlot(uniform, pStage->bundle[2], gpuTcSlot_t::bundle2, currentPayload);
 			}
-			VK_SetGpuMd3DeformParams(uniform, *pStage);
-			pushUniform = true;
-		}
-
-		if (haveGpuIqmPoseMats && tess.gpuIqmData)
-		{
-			Com_Memcpy(uniform.iqmJointMat, iqmPoseMats, static_cast<size_t>(tess.gpuIqmData->num_poses) * 12u * sizeof(float));
+			VK_SetGpuDeformParams(uniform, currentPayload);
 			pushUniform = true;
 		}
 
@@ -2086,7 +2199,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 		if (pushUniform)
 		{
 			pushUniform = false;
-			VK_PushUniform(uniform);
+			VK_PushUniform(uniform, currentPayload);
 		}
 
 		SelectTexture(0);
@@ -2116,6 +2229,17 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 				pipeline = pStage->vk_mirror_pipeline_df;
 			else
 				pipeline = pStage->vk_pipeline_df;
+
+			// MD3 depth-fragment always uses the compact single-texture UBO.
+			// A preceding multi/blend stage stores deform at 320/336, whereas
+			// the DF shader reads it at 192/208, so repack before binding DF.
+			if (tess.gpuMd3Active && currentPayload == vkUniformPayload_t::Md3Multi)
+			{
+				constexpr vkUniformPayload_t dfPayload = vkUniformPayload_t::Md3Simple;
+				VK_SetGpuDeformParams(uniform, dfPayload);
+				VK_PushUniform(uniform, dfPayload);
+			}
+
 			vk_bind_pipeline(pipeline);
 			vk_draw_geometry(tess.depthRange, true);
 		}
@@ -2128,7 +2252,7 @@ static void RB_IterateStagesGeneric(const shaderCommands_t& input, const bool fo
 	}
 	if (pushUniform)
 	{
-		VK_PushUniform(uniform);
+		VK_PushUniform(uniform, currentPayload);
 	}
 
 	// Po zakończeniu generic passów nie zostawiaj aktywnego stage-derived stanu
@@ -2172,19 +2296,14 @@ static bool ProjectDlightTexture(void)
 	vec3_t origin{};
 	float* texCoords;
 	byte* colors;
-	byte clipBits[SHADER_MAX_VERTEXES]{};
+	byte clipBits[SHADER_MAX_VERTEXES];
 	uint32_t pipeline;
 
-	glIndex_t hitIndexes[SHADER_MAX_INDEXES]{};
+	glIndex_t hitIndexes[SHADER_MAX_INDEXES];
 	int numIndexes;
 	float scale;
 	float radius;
 	float modulate = 0.0f;
-
-	const shaderStage_t* const gpuMd3Stage =
-		(tess.gpuMd3Active && tess.xstages && tess.numPasses > 0)
-		? tess.xstages[0]
-		: nullptr;
 
 	for (l = 0; l < backEnd.refdef.num_dlights; l++)
 	{
@@ -2198,8 +2317,8 @@ static bool ProjectDlightTexture(void)
 		if (tess.gpuMd3Active)
 		{
 			Bind(tr.dlightImage);
-			VK_SetLegacyGpuMd3DlightParams(uniform, dl, gpuMd3Stage);
-			VK_PushUniform(uniform);
+			VK_SetLegacyGpuMd3DlightParams(uniform, dl);
+			VK_PushUniform(uniform, vkUniformPayload_t::Md3Simple);
 
 			pipeline = vk_inst.dlight_md3_pipelines[dl.additive > 0 ? 1 : 0][static_cast<int>(tess.shader->cullType)][tess.shader->polygonOffset];
 			vk_bind_pipeline(pipeline);
@@ -2348,15 +2467,27 @@ static void RB_FogPass(bool rebindIndex)
 #ifdef USE_FOG_ONLY
 	int fog_stage = 0;
 
-	// fog parameters
+	const vkUniformPayload_t payload = tess.gpuIqmActive
+		? vkUniformPayload_t::Iqm
+		: (tess.gpuMd3Active ? vkUniformPayload_t::Md3Simple : vkUniformPayload_t::Generic);
+
+	// Fog-only MD3 uses the compact single-texture shader even when the
+	// preceding stage was multi/blend, so rebuild its deform tail at 192/208.
+	if (tess.gpuMd3Active || tess.gpuIqmActive)
+	{
+		VK_SetIdentityTcParams(uniform, payload);
+		VK_SetGpuDeformParams(uniform, payload);
+	}
+
+	VK_SetFogParams(uniform, fog_stage);
+	VK_PushUniform(uniform, payload);
+
 	vk_bind_pipeline(pipeline);
 	if (rebindIndex)
 	{
 		vk_bind_index();
 	}
 	vk_bind_geometry(TESS_XYZ);
-	VK_SetFogParams(uniform, fog_stage);
-	VK_PushUniform(uniform);
 	vk_update_descriptor(VK_DESC_FOG_ONLY, tr.fogImage->descriptor);
 	vk_draw_geometry(Vk_Depth_Range::DEPTH_RANGE_NORMAL, true);
 #else

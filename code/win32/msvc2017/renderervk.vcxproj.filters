@@ -257,5 +257,8 @@
     <ClInclude Include="..\..\renderervk\vk_physical_device.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\renderervk\tr_shader_file_parser.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

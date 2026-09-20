@@ -1383,16 +1383,11 @@ R_Radix
 */
 static inline void R_Radix(const int byte, const int size,
 	const uint32_t *sourceSorts, surfaceType_t *const *sourceSurfaces,
-	uint32_t *destSorts, surfaceType_t **destSurfaces)
+	uint32_t *destSorts, surfaceType_t **destSurfaces,
+	const uint32_t (&count)[256])
 {
-	int count[256] = {};
-	int index[256] = {};
-
-	for (int i = 0; i < size; ++i)
-	{
-		const uint32_t sort = sourceSorts[i];
-		++count[(sort >> (byte * 8)) & 0xFFu];
-	}
+	uint32_t index[256];
+	index[0] = 0;
 
 	for (int i = 1; i < 256; ++i)
 		index[i] = index[i - 1] + count[i - 1];
@@ -1400,8 +1395,8 @@ static inline void R_Radix(const int byte, const int size,
 	for (int i = 0; i < size; ++i)
 	{
 		const uint32_t sort = sourceSorts[i];
-		const int bucket = (sort >> (byte * 8)) & 0xFFu;
-		const int outIndex = index[bucket]++;
+		const uint32_t bucket = (sort >> (byte * 8)) & 0xFFu;
+		const uint32_t outIndex = index[bucket]++;
 		destSorts[outIndex] = sort;
 		destSurfaces[outIndex] = sourceSurfaces[i];
 	}
@@ -1422,23 +1417,32 @@ static void R_RadixSort(drawSurf_t *source, int size)
 	static uint32_t sortScratchB[MAX_DRAWSURFS];
 	static surfaceType_t *surfaceScratchA[MAX_DRAWSURFS];
 	static surfaceType_t *surfaceScratchB[MAX_DRAWSURFS];
+	uint32_t count[4][256] = {};
 
+	// Build all four byte histograms while copying the AoS draw surfaces into
+	// the dense key/payload streams.  The four stable scatter passes below can
+	// then reuse these histograms instead of rereading every key once per byte.
 	for (int i = 0; i < size; ++i)
 	{
-		sortScratchA[i] = source[i].sort;
+		const uint32_t sort = source[i].sort;
+		sortScratchA[i] = sort;
 		surfaceScratchA[i] = source[i].surface;
+		++count[0][ sort        & 0xFFu];
+		++count[1][(sort >>  8) & 0xFFu];
+		++count[2][(sort >> 16) & 0xFFu];
+		++count[3][ sort >> 24];
 	}
 
 #ifdef Q3_LITTLE_ENDIAN
-	R_Radix(0, size, sortScratchA, surfaceScratchA, sortScratchB, surfaceScratchB);
-	R_Radix(1, size, sortScratchB, surfaceScratchB, sortScratchA, surfaceScratchA);
-	R_Radix(2, size, sortScratchA, surfaceScratchA, sortScratchB, surfaceScratchB);
-	R_Radix(3, size, sortScratchB, surfaceScratchB, sortScratchA, surfaceScratchA);
+	R_Radix(0, size, sortScratchA, surfaceScratchA, sortScratchB, surfaceScratchB, count[0]);
+	R_Radix(1, size, sortScratchB, surfaceScratchB, sortScratchA, surfaceScratchA, count[1]);
+	R_Radix(2, size, sortScratchA, surfaceScratchA, sortScratchB, surfaceScratchB, count[2]);
+	R_Radix(3, size, sortScratchB, surfaceScratchB, sortScratchA, surfaceScratchA, count[3]);
 #else
-	R_Radix(3, size, sortScratchA, surfaceScratchA, sortScratchB, surfaceScratchB);
-	R_Radix(2, size, sortScratchB, surfaceScratchB, sortScratchA, surfaceScratchA);
-	R_Radix(1, size, sortScratchA, surfaceScratchA, sortScratchB, surfaceScratchB);
-	R_Radix(0, size, sortScratchB, surfaceScratchB, sortScratchA, surfaceScratchA);
+	R_Radix(3, size, sortScratchA, surfaceScratchA, sortScratchB, surfaceScratchB, count[3]);
+	R_Radix(2, size, sortScratchB, surfaceScratchB, sortScratchA, surfaceScratchA, count[2]);
+	R_Radix(1, size, sortScratchA, surfaceScratchA, sortScratchB, surfaceScratchB, count[1]);
+	R_Radix(0, size, sortScratchB, surfaceScratchB, sortScratchA, surfaceScratchA, count[0]);
 #endif // Q3_LITTLE_ENDIAN
 
 	for (int i = 0; i < size; ++i)

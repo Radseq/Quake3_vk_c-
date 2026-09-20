@@ -202,8 +202,9 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 	mdrSurface_t *surface = nullptr;
 	mdrLOD_t *lod = nullptr;
 	shader_t *shader = nullptr;
-	skin_t *skin = nullptr;
-	int i, j;
+	shader_t *customShader = nullptr;
+	const skin_t *customSkin = nullptr;
+	int i;
 	int lodnum = 0;
 	int fogNum = 0;
 	int cull;
@@ -267,25 +268,22 @@ void R_MDRAddAnimSurfaces(trRefEntity_t &ent)
 	// fogNum?
 	fogNum = R_MDRComputeFogNum(header, ent);
 
+	if (ent.e.customShader)
+		customShader = R_GetShaderByHandle(ent.e.customShader);
+	else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
+		customSkin = R_GetSkinByHandle(ent.e.customSkin);
+
 	surface = (mdrSurface_t *)((byte *)lod + lod->ofsSurfaces);
 
 	for (i = 0; i < lod->numSurfaces; i++)
 	{
-		if (ent.e.customShader)
-			shader = R_GetShaderByHandle(ent.e.customShader);
-		else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
+		if (customShader)
+			shader = customShader;
+		else if (customSkin)
 		{
-			skin = R_GetSkinByHandle(ent.e.customSkin);
-			shader = tr.defaultShader;
-
-			for (j = 0; j < skin->numSurfaces; j++)
-			{
-				if (!strcmp(skin->surfaces[j].name, surface->name))
-				{
-					shader = skin->surfaces[j].shader;
-					break;
-				}
-			}
+			shader = R_FindSkinSurfaceShader(*customSkin, surface->name);
+			if (!shader)
+				shader = tr.defaultShader;
 		}
 		else if (surface->shaderIndex > 0)
 			shader = R_GetShaderByHandle(surface->shaderIndex);

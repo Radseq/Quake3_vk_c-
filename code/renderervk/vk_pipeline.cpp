@@ -263,6 +263,8 @@ static uint32_t vk_alloc_pipeline(const Vk_Pipeline_Def& def)
 		int j;
 		pipeline = &vk_inst.pipelines[vk_inst.pipelines_count];
 		pipeline->def = def;
+		pipeline->md3_variant_plus_one = 0;
+		pipeline->iqm_variant_plus_one = 0;
 		for (j = 0; j < RENDER_PASS_COUNT; j++)
 		{
 			pipeline->handle[j] = nullptr;
@@ -2157,37 +2159,74 @@ static constexpr bool vk_get_md3_shader_type(const Vk_Shader_Type in, Vk_Shader_
 	}
 }
 
+static ID_INLINE uint32_t vk_resolve_gpu_pipeline_variant(const uint32_t pipeline, const bool iqm)
+{
+	if (pipeline >= vk_inst.pipelines_count) [[unlikely]]
+	{
+		ri.Error(ERR_FATAL, "%s(%u): NULL pipeline", __func__, pipeline);
+		return pipeline;
+	}
+
+	VK_Pipeline_t& base = vk_inst.pipelines[pipeline];
+	uint32_t& cached = iqm ? base.iqm_variant_plus_one : base.md3_variant_plus_one;
+
+	if (cached == UINT32_MAX)
+		return pipeline; // resolved before: this shader has no GPU-animation variant
+	if (cached != 0)
+		return cached - 1u;
+
+	Vk_Shader_Type variantType{};
+	const bool hasVariant = iqm
+		? vk_get_iqm_shader_type(base.def.shader_type, variantType)
+		: vk_get_md3_shader_type(base.def.shader_type, variantType);
+
+	if (!hasVariant)
+	{
+		cached = UINT32_MAX;
+		return pipeline;
+	}
+
+	Vk_Pipeline_Def def = base.def;
+	def.shader_type = variantType;
+	const uint32_t variant = vk_find_pipeline_ext(0, def, true);
+	cached = variant + 1u;
+	return variant;
+}
+
+static ID_INLINE void vk_push_gpu_anim_constants(const float backlerp)
+{
+	alignas(16) const float values[4] =
+	{
+		1.0f - backlerp,
+		backlerp,
+		tr.identityLight,
+		0.0f
+	};
+
+	if (vk_inst.cmd->gpu_anim_push_constants_valid &&
+		memcmp(vk_inst.cmd->gpu_anim_push_constants, values, sizeof(values)) == 0)
+	{
+		return;
+	}
+
+	vk_inst.cmd->command_buffer.pushConstants(
+		vk_inst.pipeline_layout,
+		vk::ShaderStageFlagBits::eVertex,
+		64,
+		sizeof(values),
+		values);
+
+	Com_Memcpy(vk_inst.cmd->gpu_anim_push_constants, values, sizeof(values));
+	vk_inst.cmd->gpu_anim_push_constants_valid = true;
+}
+
 void vk_bind_pipeline(const uint32_t pipeline)
 {
-	vk::Pipeline vkpipe;
-	uint32_t pipelineToBind = pipeline;
+	const uint32_t pipelineToBind = tess.gpuIqmActive
+		? vk_resolve_gpu_pipeline_variant(pipeline, true)
+		: (tess.gpuMd3Active ? vk_resolve_gpu_pipeline_variant(pipeline, false) : pipeline);
 
-	if (tess.gpuIqmActive)
-	{
-		Vk_Pipeline_Def def{};
-		vk_get_pipeline_def(pipeline, def);
-
-		Vk_Shader_Type iqmType{};
-		if (vk_get_iqm_shader_type(def.shader_type, iqmType))
-		{
-			def.shader_type = iqmType;
-			pipelineToBind = vk_find_pipeline_ext(0, def, true);
-		}
-	}
-	else if (tess.gpuMd3Active)
-	{
-		Vk_Pipeline_Def def{};
-		vk_get_pipeline_def(pipeline, def);
-
-		Vk_Shader_Type md3Type{};
-		if (vk_get_md3_shader_type(def.shader_type, md3Type))
-		{
-			def.shader_type = md3Type;
-			pipelineToBind = vk_find_pipeline_ext(0, def, true);
-		}
-	}
-
-	vkpipe = vk_gen_pipeline(pipelineToBind);
+	const vk::Pipeline vkpipe = vk_gen_pipeline(pipelineToBind);
 
 	if (vkpipe != vk_inst.cmd->last_pipeline)
 	{
@@ -2196,43 +2235,12 @@ void vk_bind_pipeline(const uint32_t pipeline)
 	}
 
 	if (tess.gpuIqmActive)
-	{
-		alignas(16) const float md3Anim[4] =
-		{
-			1.0f - tess.gpuIqmBacklerp,
-			tess.gpuIqmBacklerp,
-			tr.identityLight,
-			0.0f
-		};
-
-		vk_inst.cmd->command_buffer.pushConstants(
-			vk_inst.pipeline_layout,
-			vk::ShaderStageFlagBits::eVertex,
-			64,
-			sizeof(md3Anim),
-			md3Anim);
-	}
+		vk_push_gpu_anim_constants(tess.gpuIqmBacklerp);
 	else if (tess.gpuMd3Active)
-	{
-		alignas(16) const float md3Anim[4] =
-		{
-			1.0f - tess.gpuMd3Backlerp,
-			tess.gpuMd3Backlerp,
-			tr.identityLight,
-			0.0f
-		};
-
-		vk_inst.cmd->command_buffer.pushConstants(
-			vk_inst.pipeline_layout,
-			vk::ShaderStageFlagBits::eVertex,
-			64,
-			sizeof(md3Anim),
-			md3Anim);
-	}
+		vk_push_gpu_anim_constants(tess.gpuMd3Backlerp);
 
 	vk_world.dirty_depth_attachment |= (vk_inst.pipelines[pipelineToBind].def.state_bits & GLS_DEPTHMASK_TRUE);
 }
-
 
 // Define a struct to hold the RGB values
 struct ColorDepth

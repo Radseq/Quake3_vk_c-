@@ -299,6 +299,8 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	int lod;
 	int fogNum;
 	bool personalModel;
+	shader_t* customShader = nullptr;
+	const skin_t* customSkin = nullptr;
 #ifdef USE_PMLIGHT
 	dlight_t *dl;
 	dlight_t *dlights[ARRAY_LEN(backEndData->dlights)]{};
@@ -374,6 +376,13 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	//
 	fogNum = R_ComputeFogNum(header, ent);
 
+	// Resolve entity-wide overrides once.  These handles do not change between
+	// surfaces of the same model instance.
+	if (ent.e.customShader)
+		customShader = R_GetShaderByHandle(ent.e.customShader);
+	else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
+		customSkin = R_GetSkinByHandle(ent.e.customSkin);
+
 	//
 	// draw all surfaces
 	//
@@ -381,35 +390,21 @@ void R_AddMD3Surfaces(trRefEntity_t &ent)
 	for (i = 0; i < header->numSurfaces; i++)
 	{
 
-		if (ent.e.customShader)
+		if (customShader)
 		{
-			shader = R_GetShaderByHandle(ent.e.customShader);
+			shader = customShader;
 		}
-		else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
+		else if (customSkin)
 		{
-			const skin_t *skin;
-			int j;
-
-			skin = R_GetSkinByHandle(ent.e.customSkin);
-
-			// match the surface name to something in the skin file
-			shader = tr.defaultShader;
-			for (j = 0; j < skin->numSurfaces; j++)
+			shader = R_FindSkinSurfaceShader(*customSkin, surface->name);
+			if (!shader)
 			{
-				// the names have both been lowercased
-				if (!strcmp(skin->surfaces[j].name, surface->name))
-				{
-					shader = skin->surfaces[j].shader;
-					break;
-				}
-			}
-			if (shader == tr.defaultShader)
-			{
-				ri.Printf(PRINT_DEVELOPER, "WARNING: no shader for surface %s in skin %s\n", surface->name, skin->name);
+				shader = tr.defaultShader;
+				ri.Printf(PRINT_DEVELOPER, "WARNING: no shader for surface %s in skin %s\n", surface->name, customSkin->name);
 			}
 			else if (shader->defaultShader)
 			{
-				ri.Printf(PRINT_DEVELOPER, "WARNING: shader %s in skin %s not found\n", shader->name, skin->name);
+				ri.Printf(PRINT_DEVELOPER, "WARNING: shader %s in skin %s not found\n", shader->name, customSkin->name);
 			}
 		}
 		else if (surface->numShaders <= 0)

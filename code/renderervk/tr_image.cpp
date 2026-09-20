@@ -180,6 +180,61 @@ skin_t* R_GetSkinByHandle(qhandle_t hSkin)
 	return tr.skins[hSkin];
 }
 
+static constexpr int SKIN_HASH_MIN_SURFACES = 16;
+
+static void R_BuildSkinSurfaceHash(skin_t& skin)
+{
+	skin.surfaceHashTable = nullptr;
+	skin.surfaceHashMask = 0;
+
+	// Small Q3 skins (players commonly have only a few surfaces) are faster as
+	// a straight linear scan and need no extra hunk allocation.
+	if (skin.numSurfaces < SKIN_HASH_MIN_SURFACES || !skin.surfaces)
+		return;
+
+	uint32_t tableSize = 2;
+	while (tableSize < static_cast<uint32_t>(skin.numSurfaces) * 2u)
+		tableSize <<= 1;
+
+	// MAX_SKIN_SURFACES is 256, so the largest table is 512 entries and both
+	// the mask and index+1 payload fit in uint16_t.
+	if (tableSize > 512u)
+		ri.Error(ERR_DROP, "R_BuildSkinSurfaceHash: unexpected table size %u", tableSize);
+
+	// Hunk_Alloc is zero-filled, which provides the empty-slot sentinel for free.
+	auto* const table = reinterpret_cast<uint16_t*>(ri.Hunk_Alloc(tableSize * sizeof(uint16_t), h_low));
+	skin.surfaceHashTable = table;
+	skin.surfaceHashMask = static_cast<uint16_t>(tableSize - 1u);
+
+	for (int i = 0; i < skin.numSurfaces; ++i)
+	{
+		skinSurface_t& surface = skin.surfaces[i];
+		if (!surface.name[0])
+			continue;
+
+		const uint32_t hash = R_SkinSurfaceNameHash(surface.name);
+		uint32_t slot = hash & skin.surfaceHashMask;
+
+		for (;;)
+		{
+			const uint16_t entry = table[slot];
+			if (entry == 0)
+			{
+				table[slot] = static_cast<uint16_t>(i + 1);
+				break;
+			}
+
+			// Preserve the legacy linear-search behaviour for duplicate names:
+			// the first declaration in the skin wins.
+			const skinSurface_t& existing = skin.surfaces[entry - 1u];
+			if (strcmp(existing.name, surface.name) == 0)
+				break;
+
+			slot = (slot + 1u) & skin.surfaceHashMask;
+		}
+	}
+}
+
 int R_SumOfUsedImages(const int frameCount)
 {
 	const image_t* img;
@@ -2376,6 +2431,9 @@ qhandle_t RE_RegisterSkin(const char* name)
 	tr.skins[hSkin] = skin;
 	Q_strncpyz(skin->name, name, sizeof(skin->name));
 	skin->numSurfaces = 0;
+	skin->surfaces = nullptr;
+	skin->surfaceHashTable = nullptr;
+	skin->surfaceHashMask = 0;
 
 	// If not a .skin file, load as a single shader
 	if (strcmp(name + strlen(name) - 5, ".skin"))
@@ -2450,6 +2508,7 @@ qhandle_t RE_RegisterSkin(const char* name)
 	// copy surfaces to skin
 	skin->surfaces = reinterpret_cast<skinSurface_t*>(ri.Hunk_Alloc(skin->numSurfaces * sizeof(skinSurface_t), h_low));
 	memcpy(skin->surfaces, parseSurfaces, skin->numSurfaces * sizeof(skinSurface_t));
+	R_BuildSkinSurfaceHash(*skin);
 
 	return hSkin;
 }
@@ -2466,4 +2525,6 @@ void R_InitSkins(void)
 	skin->numSurfaces = 1;
 	skin->surfaces = reinterpret_cast<skinSurface_t*>(ri.Hunk_Alloc(sizeof(skinSurface_t), h_low));
 	skin->surfaces[0].shader = tr.defaultShader;
+	skin->surfaceHashTable = nullptr;
+	skin->surfaceHashMask = 0;
 }

@@ -416,12 +416,13 @@ void R_AddIQMSurfaces(trRefEntity_t &ent)
 {
 	iqmData_t *data;
 	srfIQModel_t *surface;
-	int i, j;
+	int i;
 	bool personalModel;
 	int cull;
 	int fogNum;
 	shader_t *shader;
-	const skin_t *skin;
+	shader_t *customShader = nullptr;
+	const skin_t *customSkin = nullptr;
 
 	data = static_cast<iqmData_t *>(tr.currentModel->modelData);
 	surface = data->surfaces;
@@ -473,23 +474,20 @@ void R_AddIQMSurfaces(trRefEntity_t &ent)
 	//
 	fogNum = R_ComputeIQMFogNum(*data, ent);
 
+	if (ent.e.customShader)
+		customShader = R_GetShaderByHandle(ent.e.customShader);
+	else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
+		customSkin = R_GetSkinByHandle(ent.e.customSkin);
+
 	for (i = 0; i < data->num_surfaces; i++)
 	{
-		if (ent.e.customShader)
-			shader = R_GetShaderByHandle(ent.e.customShader);
-		else if (ent.e.customSkin > 0 && ent.e.customSkin < tr.numSkins)
+		if (customShader)
+			shader = customShader;
+		else if (customSkin)
 		{
-			skin = R_GetSkinByHandle(ent.e.customSkin);
-			shader = tr.defaultShader;
-
-			for (j = 0; j < skin->numSurfaces; j++)
-			{
-				if (!strcmp(skin->surfaces[j].name, surface->name))
-				{
-					shader = skin->surfaces[j].shader;
-					break;
-				}
-			}
+			shader = R_FindSkinSurfaceShader(*customSkin, surface->name);
+			if (!shader)
+				shader = tr.defaultShader;
 		}
 		else
 		{

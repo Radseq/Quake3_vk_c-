@@ -37,6 +37,51 @@ constexpr int FOG_T = 32;
 constexpr int DEFAULT_SIZE = 16;
 
 skin_t *R_GetSkinByHandle(qhandle_t hSkin);
+
+static ID_INLINE uint32_t R_SkinSurfaceNameHash(const char *const name) noexcept
+{
+	uint32_t hash = 2166136261u;
+	for (const auto *p = reinterpret_cast<const unsigned char *>(name); *p; ++p)
+	{
+		hash ^= *p;
+		hash *= 16777619u;
+	}
+	return hash;
+}
+
+static ID_INLINE shader_t *R_FindSkinSurfaceShader(const skin_t &skin, const char *const surfaceName) noexcept
+{
+	if (!surfaceName || !surfaceName[0])
+		return nullptr;
+
+	if (!skin.surfaceHashTable)
+	{
+		for (int i = 0; i < skin.numSurfaces; ++i)
+		{
+			if (strcmp(skin.surfaces[i].name, surfaceName) == 0)
+				return skin.surfaces[i].shader;
+		}
+		return nullptr;
+	}
+
+	const uint32_t hash = R_SkinSurfaceNameHash(surfaceName);
+	uint32_t slot = hash & skin.surfaceHashMask;
+
+	for (uint32_t probe = 0; probe <= skin.surfaceHashMask; ++probe)
+	{
+		const uint16_t entry = skin.surfaceHashTable[slot];
+		if (entry == 0)
+			return nullptr;
+
+		const skinSurface_t &surface = skin.surfaces[entry - 1u];
+		if (strcmp(surface.name, surfaceName) == 0)
+			return surface.shader;
+
+		slot = (slot + 1u) & skin.surfaceHashMask;
+	}
+
+	return nullptr;
+}
 int R_SumOfUsedImages(int frameCount);
 inline int R_SumOfUsedImages() { return R_SumOfUsedImages(tr.frameCount); }
 void R_InitFogTable();

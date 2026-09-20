@@ -31,6 +31,7 @@ void vk_begin_render_pass(const vk::RenderPass& renderPass, const vk::Framebuffe
 
 	vk_inst.cmd->command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 	vk_inst.cmd->last_pipeline = VK_NULL_HANDLE;
+	vk_inst.cmd->gpu_anim_push_constants_valid = false;
 	vk_inst.cmd->depth_range = Vk_Depth_Range::DEPTH_RANGE_COUNT;
 }
 

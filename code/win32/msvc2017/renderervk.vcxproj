@@ -288,6 +288,7 @@
     <ClInclude Include="..\..\renderervk\tr_scene.hpp" />
     <ClInclude Include="..\..\renderervk\tr_shade.hpp" />
     <ClInclude Include="..\..\renderervk\tr_shader.hpp" />
+    <ClInclude Include="..\..\renderervk\tr_shader_file_parser.hpp" />
     <ClInclude Include="..\..\renderervk\tr_shade_calc.hpp" />
     <ClInclude Include="..\..\renderervk\tr_shadows.hpp" />
     <ClInclude Include="..\..\renderervk\tr_sky.hpp" />
